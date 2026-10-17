@@ -1,0 +1,79 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+}
+model User {
+  id String @id @default(uuid())
+  email String @unique
+  name String
+  passwordHash String
+  profileVersion Int @default(0)
+  createdAt DateTime @default(now())
+  sessions Session[]
+  drafts ProfileDraft[]
+  profiles Profile[]
+  missions Mission[]
+  resumes ApprovedResume[]
+}
+model Session {
+  id String @id @default(uuid())
+  tokenHash String @unique
+  csrf String
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+}
+model ProfileDraft {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields: [userId], references: [id])
+  baseVersion Int
+  data Json
+  facts Json
+  status String @default("DRAFT")
+  createdAt DateTime @default(now())
+}
+model Profile {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields: [userId], references: [id])
+  version Int
+  data Json
+  facts Json
+  approvedAt DateTime @default(now())
+  missions Mission[]
+  @@unique([userId, version])
+}
+model Mission {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields: [userId], references: [id])
+  profileId String
+  profile Profile @relation(fields: [profileId], references: [id])
+  goal String
+  status String @default("QUEUED")
+  mode String
+  data Json
+  events Json
+  error String?
+  leaseToken String?
+  leaseExpiresAt DateTime?
+  pendingDecision Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  resumes ApprovedResume[]
+  @@index([userId, createdAt])
+  @@index([status])
+}
+model ApprovedResume {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields: [userId], references: [id])
+  missionId String
+  mission Mission @relation(fields: [missionId], references: [id])
+  draftHash String @unique
+  content Json
+  approvedAt DateTime @default(now())
+}

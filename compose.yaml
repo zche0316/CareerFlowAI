@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: careerflow
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-careerflow-local}
+      POSTGRES_DB: careerflow
+    ports:
+      - '127.0.0.1:55432:5432'
+    volumes:
+      - careerflow-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U careerflow -d careerflow']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  app:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://careerflow:${DB_PASSWORD:-careerflow-local}@db:5432/careerflow
+      PORT: 8787
+      HOST: 0.0.0.0
+      APP_ORIGIN: http://localhost:8787
+      PROVIDER_MODE: ${PROVIDER_MODE:-fixture}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-}
+      ENABLE_DEMO_LOGIN: 'true'
+      EMBEDDED_WORKER: 'true'
+    ports:
+      - '127.0.0.1:8787:8787'
+    depends_on:
+      db:
+        condition: service_healthy
+volumes:
+  careerflow-data:

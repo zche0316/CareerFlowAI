@@ -1,0 +1,150 @@
+[
+  {
+    "id": "j1",
+    "title": "Junior Data Analyst",
+    "company": "Harbour Analytics (fictional)",
+    "location": "Sydney",
+    "employmentType": "Full-time",
+    "description": "Required skills: Python, SQL, data analysis. Preferred skills: Power BI. Minimum 1 year experience. Qualification: Bachelor degree. Responsibilities: analyse datasets and build reporting dashboards.",
+    "url": "/jobs/j1",
+    "source": {
+      "type": "disclosed-fixture",
+      "name": "CareerFlow demo repository",
+      "version": "2.0",
+      "liveVacancy": false
+    },
+    "salary": {
+      "min": 65000,
+      "max": 80000,
+      "currency": "AUD",
+      "period": "year",
+      "basis": "fictional demo fixture"
+    },
+    "growth": "Fictional demo: develop reporting ownership and progress toward senior analyst."
+  },
+  {
+    "id": "j2",
+    "title": "Junior Software Engineer",
+    "company": "Coastal Apps (fictional)",
+    "location": "Sydney",
+    "employmentType": "Full-time",
+    "description": "Required skills: React, Git, REST APIs. Preferred skills: Docker, TypeScript. Minimum 1 year experience. Qualification: Bachelor degree. Responsibilities: build web applications and integrate APIs.",
+    "url": "/jobs/j2",
+    "source": {
+      "type": "disclosed-fixture",
+      "name": "CareerFlow demo repository",
+      "version": "2.0",
+      "liveVacancy": false
+    },
+    "salary": {
+      "min": 70000,
+      "max": 85000,
+      "currency": "AUD",
+      "period": "year",
+      "basis": "fictional demo fixture"
+    },
+    "growth": "Fictional demo: gain full-stack experience and progress toward software engineer."
+  },
+  {
+    "id": "j3",
+    "title": "Backend Developer",
+    "company": "Bridge Systems (fictional)",
+    "location": "Melbourne",
+    "employmentType": "Full-time",
+    "description": "Required skills: Python, SQL, REST APIs, Docker. Preferred skills: AWS. Minimum 3 years experience. Qualification: Bachelor degree. Responsibilities: maintain backend services.",
+    "url": "/jobs/j3",
+    "source": {
+      "type": "disclosed-fixture",
+      "name": "CareerFlow demo repository",
+      "version": "2.0",
+      "liveVacancy": false
+    },
+    "salary": null,
+    "growth": null
+  },
+  {
+    "id": "j4",
+    "title": "Senior Machine Learning Engineer",
+    "company": "Summit AI (fictional)",
+    "location": "Sydney",
+    "employmentType": "Full-time",
+    "description": "Required skills: Python, machine learning, statistics, AWS. Preferred skills: Docker. Minimum 5 years experience. Qualification: Master degree. Responsibilities: deploy predictive models.",
+    "url": "/jobs/j4",
+    "source": {
+      "type": "disclosed-fixture",
+      "name": "CareerFlow demo repository",
+      "version": "2.0",
+      "liveVacancy": false
+    },
+    "salary": null,
+    "growth": null
+  },
+  {
+    "id": "j5",
+    "title": "Business Intelligence Intern",
+    "company": "Vista Reports (fictional)",
+    "location": "Remote",
+    "employmentType": "Internship",
+    "description": "Required skills: SQL, Excel. Preferred skills: Power BI, statistics. Minimum 0 years experience. Qualification: Bachelor degree. Responsibilities: data analysis and reporting dashboards.",
+    "url": "/jobs/j5",
+    "source": {
+      "type": "disclosed-fixture",
+      "name": "CareerFlow demo repository",
+      "version": "2.0",
+      "liveVacancy": false
+    },
+    "salary": null,
+    "growth": null
+  },
+  {
+    "id": "j6",
+    "title": "Graduate Cloud Engineer",
+    "company": "Cloud Lane (fictional)",
+    "location": "Remote",
+    "employmentType": "Full-time",
+    "description": "Required skills: AWS, Docker, Git. Preferred skills: Python. Minimum 0 years experience. Qualification: Bachelor degree. Responsibilities: automate cloud deployment.",
+    "url": "/jobs/j6",
+    "source": {
+      "type": "disclosed-fixture",
+      "name": "CareerFlow demo repository",
+      "version": "2.0",
+      "liveVacancy": false
+    },
+    "salary": null,
+    "growth": null
+  },
+  {
+    "id": "j7",
+    "title": "Frontend Developer",
+    "company": "Studio North (fictional)",
+    "location": "Brisbane",
+    "employmentType": "Contract",
+    "description": "Required skills: React, TypeScript, Git. Preferred skills: REST APIs. Minimum 2 years experience. Qualification: Bachelor degree. Responsibilities: develop accessible web interfaces.",
+    "url": "/jobs/j7",
+    "source": {
+      "type": "disclosed-fixture",
+      "name": "CareerFlow demo repository",
+      "version": "2.0",
+      "liveVacancy": false
+    },
+    "salary": null,
+    "growth": null
+  },
+  {
+    "id": "j8",
+    "title": "Research Assistant",
+    "company": "Demo Research Lab (fictional)",
+    "location": "Sydney",
+    "employmentType": "Part-time",
+    "description": "Support exploratory research and collaborate with a research team. Requirements to be confirmed by employer.",
+    "url": "/jobs/j8",
+    "source": {
+      "type": "disclosed-fixture",
+      "name": "CareerFlow demo repository",
+      "version": "2.0",
+      "liveVacancy": false
+    },
+    "salary": null,
+    "growth": null
+  }
+]

@@ -1,0 +1,1 @@
+for(let i=0;i<60;i++){try{const r=await fetch('http://localhost:8787/api/health');if(r.ok)process.exit(0);}catch{}await new Promise(r=>setTimeout(r,500));}throw Error('CareerFlow did not become ready within 30 seconds.');
