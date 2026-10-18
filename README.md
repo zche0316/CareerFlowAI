@@ -44,6 +44,19 @@ OPENAI_MODEL=an-available-model-supporting-tools-and-structured-outputs
 
 Secrets stay server-side and `.env` is ignored. No model key is included. Fixture mode makes no external AI calls, and the UI labels it accordingly. The eight job advertisements remain fictional in both modes. Live AI mode does not silently switch to fixtures after an error. Previously approved profiles/documents and saved interview answers remain available.
 
+### Groq through the OpenAI-compatible API
+
+Configure `.env` as follows, insert your own Groq key, then restart the server (and a separate worker if used):
+
+```dotenv
+PROVIDER_MODE=openai
+OPENAI_BASE_URL=https://api.groq.com/openai/v1
+OPENAI_API_KEY=your-local-groq-key
+OPENAI_MODEL=openai/gpt-oss-20b
+```
+
+`openai` denotes the compatible protocol; the endpoint above sends requests to Groq. The selected model must support function calling and strict structured outputs. This adapter uses two requests, separating tool execution from the structured final response. Groq Responses API is beta; local transport tests do not establish live provider compatibility or account access. Missing credentials produce a recoverable error, not fixture output. Leave `OPENAI_BASE_URL` blank to return to the default OpenAI endpoint. Docker Compose forwards this setting too.
+
 ### Background worker
 
 The server includes a worker by default. To run it independently, set `EMBEDDED_WORKER=false`, start `npm start`, and run `npm run worker` in another terminal. Checkpoints and tasks persist in PostgreSQL. Closing the browser does not stop work while these services are running. Cancellation and profile-version changes invalidate later writes.
