@@ -12,7 +12,7 @@ The first implementation is a modular TypeScript application: React/Vite client,
 - R2: Career Coach uses approved evidence to prepare strengths, gaps, directions and actions; strength evidence IDs are validated.
 - R3: The original Member 3 matching algorithm, fixture jobs and regression tests are retained under `packages/matching`. The integrated workflow calls the pure comparison function rather than its unauthenticated file-backed API. Selected jobs are persisted in owned mission context. Optional job comparison preserves missing values and source disclosure.
 - R4: Resume Tailor chooses and orders evidence IDs; rendering is extractive. Candidate claim text is copied verbatim from approved facts, not generated paraphrases. Unknown/duplicate evidence IDs are rejected. A hash binds explicit approval to the exact mission/profile/draft version. Drafts and approved resumes are separate, and revision never overwrites the previous approved document.
-- R5: Selected-job and approved context produce questions; answers are saved separately. Early completion and provider failure retain answers. Feedback is practice context, not a new qualification. Subsequent missions can reuse prior feedback as advisory context.
+- R5: Selected-job and approved context produce validated, uniquely identified questions; edited answers are saved in question order. The server derives early completion from persisted answers, and provider failure retains answers. Feedback is practice context, not a new qualification. Subsequent missions can reuse prior feedback as advisory context.
 
 ## Agent workflow
 

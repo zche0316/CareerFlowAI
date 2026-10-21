@@ -74,17 +74,32 @@ export const resumePlanSchema = z.object({
     .max(20),
 });
 
-export const questionsSchema = z.object({
-  questions: z
-    .array(z.object({ id: z.string(), question: z.string(), focus: z.string() }))
-    .min(1)
-    .max(5),
-});
+export const questionsSchema = z
+  .object({
+    questions: z
+      .array(
+        z.object({
+          id: z.string().trim().min(1).max(100),
+          question: z.string().trim().min(8).max(2000),
+          focus: z.string().trim().min(1).max(200),
+        }),
+      )
+      .min(1)
+      .max(5),
+  })
+  .superRefine(({ questions }, context) => {
+    if (new Set(questions.map((question) => question.id)).size !== questions.length)
+      context.addIssue({
+        code: 'custom',
+        path: ['questions'],
+        message: 'Interview question IDs must be unique.',
+      });
+  });
 
 export const feedbackSchema = z.object({
-  strengths: z.array(z.string()),
-  improvements: z.array(z.string()),
-  nextSteps: z.array(z.string()),
+  strengths: z.array(z.string().trim().min(1).max(1000)).min(1).max(5),
+  improvements: z.array(z.string().trim().min(1).max(1000)).min(1).max(5),
+  nextSteps: z.array(z.string().trim().min(1).max(1000)).min(1).max(5),
 });
 
 export const answerSchema = z.object({

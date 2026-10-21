@@ -4,6 +4,11 @@ import { z } from 'zod';
 import { db } from './db.js';
 import { AppError, requireValue } from './errors.js';
 import {
+  getInterviewCompletion,
+  mergeInterviewAnswer,
+  type InterviewQuestion,
+} from './interview.js';
+import {
   profileSchema,
   type CareerProfile,
   type Fact,
@@ -250,15 +255,23 @@ export async function queueDecision(
         'REVISION_LIMIT',
         'Two revisions have been reached. Start a new mission with revised inputs.',
       );
-    if (decision.kind === 'interview' && !d.answers?.length)
-      throw new AppError(
-        422,
-        'ANSWER_REQUIRED',
-        'Save at least one interview response before requesting feedback.',
+    let persistedDecision = decision;
+    if (decision.kind === 'interview') {
+      const completion = getInterviewCompletion(
+        (d.questions || []) as InterviewQuestion[],
+        d.answers || [],
       );
+      if (!completion.answeredCount)
+        throw new AppError(
+          422,
+          'ANSWER_REQUIRED',
+          'Save at least one interview response before requesting feedback.',
+        );
+      persistedDecision = { ...decision, endedEarly: completion.endedEarly };
+    }
     return tx.mission.update({
       where: { id },
-      data: { status: 'QUEUED', pendingDecision: json(decision), error: null },
+      data: { status: 'QUEUED', pendingDecision: json(persistedDecision), error: null },
     });
   });
 }
@@ -283,11 +296,12 @@ export async function saveInterviewAnswer(
     if (!d.questions?.some((q: any) => q.id === answer.questionId))
       throw new AppError(422, 'INVALID_QUESTION', 'Choose a question from this interview.');
 
-    // Replace one response under the row lock without losing simultaneously saved answers.
-    const answers = [
-      ...(d.answers || []).filter((a) => a.questionId !== answer.questionId),
+    // Replace one response under the row lock without losing or reordering other answers.
+    const answers = mergeInterviewAnswer(
+      d.questions as InterviewQuestion[],
+      d.answers || [],
       answer,
-    ];
+    );
     await tx.mission.update({ where: { id }, data: { data: json({ ...d, answers }) } });
     return { answers };
   });
