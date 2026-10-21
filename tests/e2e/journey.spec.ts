@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 
-async function openInterview(page: Page) {
+async function openRankedJobs(page: Page) {
   await page.goto('/');
   await page.getByRole('button', { name: 'New here? Create an account' }).click();
   await page.getByLabel('Your name', { exact: true }).fill('Browser QA');
@@ -20,6 +20,10 @@ async function openInterview(page: Page) {
   await expect(page.getByRole('button', { name: 'Select this opportunity' }).first()).toBeVisible({
     timeout: 30000,
   });
+}
+
+async function openInterview(page: Page) {
+  await openRankedJobs(page);
   await page.getByRole('button', { name: 'Select this opportunity' }).first().click();
   await expect(page.getByRole('heading', { name: 'Your evidence-grounded resume' })).toBeVisible({
     timeout: 30000,
@@ -29,6 +33,34 @@ async function openInterview(page: Page) {
   await page.getByRole('button', { name: 'Approve & save resume' }).click();
   await expect(page.getByLabel('Your response', { exact: true })).toBeVisible({ timeout: 30000 });
 }
+
+test('a user compares ranked jobs and selects one for downstream context', async ({ page }) => {
+  await openRankedJobs(page);
+  const jobCards = page.locator('article.job-card');
+  const jobCount = await jobCards.count();
+  expect(jobCount).toBeGreaterThan(1);
+  const scoreTexts = await jobCards.locator('.score').allTextContents();
+  const scores = scoreTexts.map((text) => Number(text.match(/\d+/)?.[0]));
+  expect(scores).toEqual([...scores].sort((left, right) => right - left));
+  await expect(page.getByText('Evidence, gaps & source', { exact: true })).toHaveCount(jobCount);
+  await expect(jobCards.locator('details')).toHaveCount(jobCount);
+  await page.screenshot({ path: 'output/acceptance/cfs-21-ranked-jobs.png', fullPage: true });
+
+  const selectedTitle = await jobCards.locator('h3').first().innerText();
+  await page.getByRole('button', { name: 'Select this opportunity' }).first().click();
+  await expect(page.getByRole('heading', { name: 'Your evidence-grounded resume' })).toBeVisible({
+    timeout: 30000,
+  });
+  await expect(page.getByRole('heading', { name: 'Your selected opportunity' })).toBeVisible();
+  await expect(page.locator('article.job-card')).toHaveCount(1);
+  await expect(
+    page.getByText(`Selected ${selectedTitle} for resume and interview preparation.`),
+  ).toBeVisible();
+  await page.screenshot({
+    path: 'output/acceptance/cfs-21-selected-job-handoff.png',
+    fullPage: true,
+  });
+});
 
 test('a user finishes early and receives feedback from the saved response', async ({ page }) => {
   await openInterview(page);

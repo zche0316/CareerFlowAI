@@ -380,6 +380,70 @@ describe('Owned, durable five-agent journey', () => {
     ).toBe(422);
     expect((await c.request('/workspace')).body.profile.version).toBe(1);
   });
+  it('preserves approved profile versions while isolating, discarding and filtering drafts', async () => {
+    const owner = await client();
+    const other = await client();
+    const firstDraft = await owner.request('/profiles/drafts', 'POST', sampleProfile);
+    expect(firstDraft.status).toBe(201);
+    expect(
+      (
+        await owner.request(`/profiles/drafts/${firstDraft.body.id}/approve`, 'POST', {
+          reviewed: true,
+        })
+      ).status,
+    ).toBe(200);
+    expect((await owner.request('/workspace')).body.profile.version).toBe(1);
+
+    const pending = await owner.request('/profiles/drafts', 'POST', {
+      ...sampleProfile,
+      goals: 'Move toward a reporting and analytics role.',
+    });
+    expect(pending.status).toBe(201);
+    expect(pending.body.baseVersion).toBe(1);
+    expect((await owner.request('/workspace')).body.profile.version).toBe(1);
+    expect(
+      (
+        await other.request(`/profiles/drafts/${pending.body.id}/approve`, 'POST', {
+          reviewed: true,
+        })
+      ).status,
+    ).toBe(404);
+    expect((await other.request(`/profiles/drafts/${pending.body.id}`, 'DELETE')).status).toBe(404);
+    expect((await owner.request(`/profiles/drafts/${pending.body.id}`, 'DELETE')).status).toBe(200);
+    expect(
+      (
+        await owner.request(`/profiles/drafts/${pending.body.id}/approve`, 'POST', {
+          reviewed: true,
+        })
+      ).status,
+    ).toBe(409);
+
+    const secondDraft = await owner.request('/profiles/drafts', 'POST', {
+      ...sampleProfile,
+      goals: 'Move toward a reporting and analytics role.',
+      sharing: { ...sampleProfile.sharing, interview: false },
+    });
+    expect(
+      (
+        await owner.request(`/profiles/drafts/${secondDraft.body.id}/approve`, 'POST', {
+          reviewed: true,
+        })
+      ).status,
+    ).toBe(200);
+    const workspace = (await owner.request('/workspace')).body;
+    expect(workspace.profile.version).toBe(2);
+    expect(workspace.profile.data.sharing.interview).toBe(false);
+
+    const profiles = await db.profile.findMany({
+      where: { userId: owner.id },
+      orderBy: { version: 'asc' },
+    });
+    expect(profiles.map((profile) => profile.version)).toEqual([1, 2]);
+    expect((profiles[0].data as any).goals).toBe(sampleProfile.goals);
+    expect(
+      (await owner.request('/missions', 'POST', { goal: 'Use the new profile.' })).status,
+    ).toBe(403);
+  });
   it('marks in-flight work stale on profile replacement and blocks further decisions', async () => {
     const c = await client();
     await profile(c);
