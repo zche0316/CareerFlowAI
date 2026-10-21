@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 
-async function openRankedJobs(page: Page) {
+async function createAccount(page: Page) {
   await page.goto('/');
   await page.getByRole('button', { name: 'New here? Create an account' }).click();
   await page.getByLabel('Your name', { exact: true }).fill('Browser QA');
@@ -8,6 +8,10 @@ async function openRankedJobs(page: Page) {
   await page.getByLabel('Password', { exact: true }).fill('Browser-QA-password');
   await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'A clearer path forward.' })).toBeVisible();
+}
+
+async function openRankedJobs(page: Page) {
+  await createAccount(page);
   await page.getByRole('button', { name: 'My career profile', exact: true }).click();
   await page.getByRole('button', { name: 'Use fictional example' }).click();
   await page.getByRole('button', { name: 'Review profile draft' }).click();
@@ -33,6 +37,25 @@ async function openInterview(page: Page) {
   await page.getByRole('button', { name: 'Approve & save resume' }).click();
   await expect(page.getByLabel('Your response', { exact: true })).toBeVisible({ timeout: 30000 });
 }
+
+test('a user must explicitly review a profile before v1 is persisted', async ({ page }) => {
+  await createAccount(page);
+  await page.getByRole('button', { name: 'My career profile', exact: true }).click();
+  await page.getByRole('button', { name: 'Use fictional example' }).click();
+  await page.getByRole('button', { name: 'Review profile draft' }).click();
+  const approve = page.getByRole('button', { name: 'Approve & save profile' });
+  await expect(approve).toBeDisabled();
+  await expect(page.getByText('Approved v1', { exact: true })).toHaveCount(0);
+  await page.screenshot({ path: 'output/acceptance/cfs-13-profile-review.png', fullPage: true });
+  await page.getByLabel('I reviewed this exact draft').check();
+  await expect(approve).toBeEnabled();
+  await approve.click();
+  await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
+  await page.reload();
+  await page.getByRole('button', { name: 'My career profile', exact: true }).click();
+  await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
+  await page.screenshot({ path: 'output/acceptance/cfs-13-approved-v1.png', fullPage: true });
+});
 
 test('a user compares ranked jobs and selects one for downstream context', async ({ page }) => {
   await openRankedJobs(page);

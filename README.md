@@ -94,4 +94,4 @@ The supplied CI workflow requires a supported GitHub Actions runner; check your 
 
 Exclude `.git`, `node_modules`, `.env`, `.runtime`, `output`, `dist`, browser reports and test results. In a clean extracted folder configure `.env`, install locked dependencies, migrate an empty database, build and start. Verify all five workflows and declared fixture/live mode before uploading. Source submission is due **1 November 2026 at 23:59 Australia/Sydney**; 2 November work is post-submission verification and demonstration readiness.
 
-See [architecture and requirement mapping](docs/architecture.md). Member 3 source provenance is documented in [packages/matching/NOTICE.md](packages/matching/NOTICE.md).
+See [architecture and requirement mapping](docs/architecture.md), the [API and repository contract](docs/API.md) and the [CFS-41 integration acceptance record](docs/INTEGRATION_ACCEPTANCE.md). Member 3 source provenance is documented in [packages/matching/NOTICE.md](packages/matching/NOTICE.md).

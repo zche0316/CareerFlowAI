@@ -260,6 +260,109 @@ describe('Owned, durable five-agent journey', () => {
     expect((await wait(c, made.body.id, 'AWAITING_JOB')).data.matches.length).toBeGreaterThan(0);
     await c.request(`/missions/${made.body.id}/cancel`, 'POST', {});
   });
+  it('requests profile correction and preserves approved data when Career Coach fails', async () => {
+    const c = await client();
+    const missing = await c.request('/missions', 'POST', {
+      goal: 'Ask the Career Coach for a direction.',
+    });
+    expect(missing.status).toBe(409);
+    expect(missing.body.code).toBe('PROFILE_REQUIRED');
+    const approved = await profile(c);
+
+    const saved = {
+      mode: process.env.PROVIDER_MODE,
+      key: process.env.OPENAI_API_KEY,
+      deepseek: process.env.DEEPSEEK_API_KEY,
+      model: process.env.OPENAI_MODEL,
+      baseUrl: process.env.OPENAI_BASE_URL,
+    };
+    try {
+      process.env.PROVIDER_MODE = 'openai';
+      delete process.env.OPENAI_API_KEY;
+      delete process.env.DEEPSEEK_API_KEY;
+      const made = await c.request('/missions', 'POST', {
+        goal: 'Ask for evidence-based career guidance.',
+      });
+      expect(made.status).toBe(202);
+    } finally {
+      process.env.PROVIDER_MODE = saved.mode;
+      if (saved.key === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = saved.key;
+      if (saved.deepseek === undefined) delete process.env.DEEPSEEK_API_KEY;
+      else process.env.DEEPSEEK_API_KEY = saved.deepseek;
+      if (saved.model === undefined) delete process.env.OPENAI_MODEL;
+      else process.env.OPENAI_MODEL = saved.model;
+      if (saved.baseUrl === undefined) delete process.env.OPENAI_BASE_URL;
+      else process.env.OPENAI_BASE_URL = saved.baseUrl;
+    }
+    const mission = await db.mission.findFirstOrThrow({
+      where: { userId: c.id, goal: 'Ask for evidence-based career guidance.' },
+    });
+    let failed: any;
+    for (let attempt = 0; attempt < 200; attempt += 1) {
+      failed = (await c.request(`/missions/${mission.id}`)).body;
+      if (failed.status === 'FAILED') break;
+      await new Promise((resolve) => setTimeout(resolve, 70));
+    }
+    expect(failed.status).toBe('FAILED');
+    expect(failed.error).toContain('Live AI requires');
+    const workspace = (await c.request('/workspace')).body;
+    expect(workspace.profile.id).toBe(approved.id);
+    expect(workspace.profile.data.goals).toBe(sampleProfile.goals);
+  });
+  it('grounds every recommendation and creates a new mission from analysis feedback', async () => {
+    const c = await client();
+    const other = await client();
+    const approved = await profile(c);
+    const knownFacts = new Set((approved.facts as any[]).map((fact) => fact.id));
+    const source = await c.request('/missions', 'POST', {
+      goal: 'Find an entry-level analyst role.',
+    });
+    const sourceMission = await wait(c, source.body.id, 'AWAITING_JOB');
+    for (const group of ['strengths', 'gaps', 'directions', 'actions'] as const) {
+      expect(sourceMission.data.analysis[group].length).toBeGreaterThan(0);
+      for (const item of sourceMission.data.analysis[group]) {
+        expect(item.reason.length).toBeGreaterThan(0);
+        expect(item.evidenceIds.length).toBeGreaterThan(0);
+        expect(item.evidenceIds.every((id: string) => knownFacts.has(id))).toBe(true);
+      }
+    }
+    await profile(other);
+    expect(
+      (
+        await other.request('/missions', 'POST', {
+          goal: 'Try to refine another user’s analysis.',
+          sourceMissionId: source.body.id,
+          analysisFeedback: 'Focus on SQL evidence.',
+        })
+      ).status,
+    ).toBe(404);
+    expect(
+      (
+        await c.request('/missions', 'POST', {
+          goal: source.body.goal,
+          sourceMissionId: source.body.id,
+          analysisFeedback: 'x',
+        })
+      ).status,
+    ).toBe(422);
+
+    const refined = await c.request('/missions', 'POST', {
+      goal: source.body.goal,
+      sourceMissionId: source.body.id,
+      analysisFeedback: 'Focus on SQL evidence and explain the reporting direction.',
+    });
+    expect(refined.status).toBe(202);
+    const refinedMission = await wait(c, refined.body.id, 'AWAITING_JOB');
+    expect(refinedMission.data.refinedFromMissionId).toBe(source.body.id);
+    expect(refinedMission.data.analysisFeedback).toContain('SQL evidence');
+    expect(
+      refinedMission.data.analysis.actions.some((action: any) =>
+        action.reason.includes('SQL evidence'),
+      ),
+    ).toBe(true);
+    expect(sourceMission.status).toBe('AWAITING_JOB');
+  });
   it('completes every interview question and rejects forged or cross-user submissions', async () => {
     const c = await client();
     const other = await client();
@@ -511,6 +614,54 @@ describe('Owned, durable five-agent journey', () => {
     expect(
       (await owner.request('/missions', 'POST', { goal: 'Use the new profile.' })).status,
     ).toBe(403);
+  });
+  it('rolls back a failed profile approval and preserves the previous approved version', async () => {
+    const owner = await client();
+    const first = await owner.request('/profiles/drafts', 'POST', sampleProfile);
+    expect(
+      (
+        await owner.request(`/profiles/drafts/${first.body.id}/approve`, 'POST', {
+          reviewed: true,
+        })
+      ).status,
+    ).toBe(200);
+    const draft = await owner.request('/profiles/drafts', 'POST', {
+      ...sampleProfile,
+      goals: 'Move into a reviewed reporting role.',
+    });
+    const conflict = await db.profile.create({
+      data: {
+        userId: owner.id,
+        version: 2,
+        data: json({ ...sampleProfile, goals: 'Rollback sentinel' }),
+        facts: json([]),
+      },
+    });
+
+    const failed = await owner.request(`/profiles/drafts/${draft.body.id}/approve`, 'POST', {
+      reviewed: true,
+    });
+    expect(failed.status).toBe(409);
+    expect(failed.body.code).toBe('CONFLICT');
+    const user = await db.user.findUniqueOrThrow({ where: { id: owner.id } });
+    expect(user.profileVersion).toBe(1);
+    const previous = await db.profile.findFirstOrThrow({
+      where: { userId: owner.id, version: 1 },
+    });
+    expect((previous.data as any).goals).toBe(sampleProfile.goals);
+    expect((await db.profileDraft.findUniqueOrThrow({ where: { id: draft.body.id } })).status).toBe(
+      'DRAFT',
+    );
+
+    await db.profile.delete({ where: { id: conflict.id } });
+    const approved = await owner.request(`/profiles/drafts/${draft.body.id}/approve`, 'POST', {
+      reviewed: true,
+    });
+    expect(approved.status).toBe(200);
+    expect(approved.body.version).toBe(2);
+    expect((await owner.request('/workspace')).body.profile.data.goals).toBe(
+      'Move into a reviewed reporting role.',
+    );
   });
   it('marks in-flight work stale on profile replacement and blocks further decisions', async () => {
     const c = await client();

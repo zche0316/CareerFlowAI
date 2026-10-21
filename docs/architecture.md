@@ -6,6 +6,10 @@ Stage 1 requirements R1–R5 are represented by Profile Builder, Career Coach, J
 
 The first implementation is a modular TypeScript application: React/Vite client, Express API, PostgreSQL/Prisma domain persistence, pg-boss worker and LangGraph with PostgreSQL checkpoints. The worker can run in the API process for simple deployment or separately with `EMBEDDED_WORKER=false`. A page refresh or closed browser does not stop server work. A powered-off server cannot continue work.
 
+The repository layout, shared schemas, HTTP endpoints, sample data and local commands are
+specified in [API.md](API.md). The connected five-agent evidence matrix is recorded in
+[INTEGRATION_ACCEPTANCE.md](INTEGRATION_ACCEPTANCE.md).
+
 ## Requirement traceability
 
 - R1: `createDraft`, `approveProfile`, immutable `Profile` versions and manual form. Server-side review action, user ownership, date/salary validation and optimistic version checks prevent lost updates. Cancellation discards only the draft. Manual preparation works without a model.
