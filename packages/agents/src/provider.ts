@@ -36,6 +36,15 @@ export function configuredMode(): Mode {
   return mode;
 }
 
+function requiresNonThinkingMode(baseURL: string | undefined): boolean {
+  if (!baseURL) return false;
+  try {
+    return new URL(baseURL).hostname === 'api.deepseek.com';
+  } catch {
+    return false;
+  }
+}
+
 export async function generate<T>(
   role: 'profile' | 'coach' | 'resume' | 'questions' | 'feedback',
   context: ProviderContext,
@@ -157,17 +166,24 @@ export async function generate<T>(
                 };
     return schema.parse(result);
   }
-  if (!process.env.OPENAI_API_KEY || !process.env.OPENAI_MODEL)
+  const apiKey = process.env.OPENAI_API_KEY || process.env.DEEPSEEK_API_KEY;
+  if (!apiKey || !process.env.OPENAI_MODEL)
     throw Error(
-      'Live AI requires OPENAI_API_KEY and OPENAI_MODEL. Your previous approved data is unchanged.',
+      'Live AI requires OPENAI_API_KEY or DEEPSEEK_API_KEY, and OPENAI_MODEL. Your previous approved data is unchanged.',
     );
 
   // Disable SDK retries: mission-level retries and call accounting remain explicit.
+  const baseURL = process.env.OPENAI_BASE_URL?.trim() || undefined;
   const client = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-    baseURL: process.env.OPENAI_BASE_URL?.trim() || undefined,
+    apiKey,
+    baseURL,
     maxRetries: 0,
   });
+  // DeepSeek enables thinking by default, while its Responses API does not accept a required
+  // tool choice in that mode. Disabling reasoning keeps the allowlisted tool gate deterministic.
+  const providerCompatibility = requiresNonThinkingMode(baseURL)
+    ? ({ reasoning: { effort: 'none' } } as const)
+    : {};
   const task = {
     profile:
       'Organise only the information supplied by the user into a partial profile draft. Return relevant follow-up questions for missing or ambiguous fields. Every proposed change must quote the exact supporting user text in evidence. Never infer qualifications, achievements, dates, salary or experience.',
@@ -216,6 +232,7 @@ export async function generate<T>(
       ],
       tool_choice: 'required',
       parallel_tool_calls: false,
+      ...providerCompatibility,
     },
     { signal: deadline },
   );
@@ -225,7 +242,7 @@ export async function generate<T>(
   const calls = first.output.filter((o) => o.type === 'function_call');
   if (!calls.length || calls.length > 1)
     throw Error('The provider did not request the authorised context tool.');
-  const results = [];
+  const results: { type: 'function_call_output'; call_id: string; output: string }[] = [];
   for (const call of calls) {
     if (call.name !== 'read_approved_context' || Object.keys(JSON.parse(call.arguments)).length)
       throw Error('Provider tool request denied.');
@@ -238,27 +255,89 @@ export async function generate<T>(
   }
   await hooks.onCall();
 
+  const requestCorrection = async (
+    validationSummary: string,
+    previousOutput: typeof first.output,
+  ) => {
+    await hooks.onCall();
+    return client.responses.parse(
+      {
+        model: process.env.OPENAI_MODEL,
+        store: false,
+        input: [
+          { role: 'system', content: instruction },
+          {
+            role: 'user',
+            content: 'Read the authorised context tool, then perform your specialist task.',
+          },
+          ...first.output.filter(
+            (o) => o.type === 'function_call' || o.type === 'reasoning' || o.type === 'message',
+          ),
+          ...results,
+          ...previousOutput.filter(
+            (o) => o.type === 'function_call' || o.type === 'reasoning' || o.type === 'message',
+          ),
+          {
+            role: 'user',
+            content: `The previous structured answer did not match the required schema. Correct these validation errors and return the complete result again: ${validationSummary}`,
+          },
+        ],
+        text: { format: zodTextFormat(schema, 'specialist_result') },
+        ...providerCompatibility,
+      },
+      { signal: deadline },
+    );
+  };
+
   // Replay the tool exchange and require a schema-valid specialist result.
-  const response = await client.responses.parse(
-    {
-      model: process.env.OPENAI_MODEL,
-      store: false,
-      input: [
-        { role: 'system', content: instruction },
-        {
-          role: 'user',
-          content: 'Read the authorised context tool, then perform your specialist task.',
-        },
-        ...first.output.filter(
-          (o) => o.type === 'function_call' || o.type === 'reasoning' || o.type === 'message',
-        ),
-        ...results,
-      ],
-      text: { format: zodTextFormat(schema, 'specialist_result') },
-    },
-    { signal: deadline },
-  );
+  let response;
+  try {
+    response = await client.responses.parse(
+      {
+        model: process.env.OPENAI_MODEL,
+        store: false,
+        input: [
+          { role: 'system', content: instruction },
+          {
+            role: 'user',
+            content: 'Read the authorised context tool, then perform your specialist task.',
+          },
+          ...first.output.filter(
+            (o) => o.type === 'function_call' || o.type === 'reasoning' || o.type === 'message',
+          ),
+          ...results,
+        ],
+        text: { format: zodTextFormat(schema, 'specialist_result') },
+        ...providerCompatibility,
+      },
+      { signal: deadline },
+    );
+  } catch (error) {
+    if (!(error instanceof z.ZodError)) throw error;
+    const validationSummary = error.issues
+      .slice(0, 8)
+      .map((issue) => `${issue.path.join('.') || 'result'}: ${issue.message}`)
+      .join('; ');
+    const correction = await requestCorrection(validationSummary, []);
+    await hooks.onUsage(correction.usage?.input_tokens || 0, correction.usage?.output_tokens || 0);
+    if (!correction.output_parsed)
+      throw Error('The provider returned no valid structured result after correction.');
+    return schema.parse(correction.output_parsed);
+  }
   await hooks.onUsage(response.usage?.input_tokens || 0, response.usage?.output_tokens || 0);
   if (!response.output_parsed) throw Error('The provider returned no valid structured result.');
-  return schema.parse(response.output_parsed);
+  const parsed = schema.safeParse(response.output_parsed);
+  if (parsed.success) return parsed.data;
+
+  // Some compatible providers occasionally violate one declared field despite a JSON schema.
+  // Re-prompt once with the concrete validation paths, still without exposing unauthorised data.
+  const validationSummary = parsed.error.issues
+    .slice(0, 8)
+    .map((issue) => `${issue.path.join('.') || 'result'}: ${issue.message}`)
+    .join('; ');
+  const correction = await requestCorrection(validationSummary, response.output);
+  await hooks.onUsage(correction.usage?.input_tokens || 0, correction.usage?.output_tokens || 0);
+  if (!correction.output_parsed)
+    throw Error('The provider returned no valid structured result after correction.');
+  return schema.parse(correction.output_parsed);
 }

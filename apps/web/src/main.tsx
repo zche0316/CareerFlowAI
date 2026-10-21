@@ -1255,7 +1255,8 @@ function MissionDetail({
     [confirm, setConfirm] = useState(false),
     [compareIds, setCompareIds] = useState<string[]>([]);
   const questions = d.questions || [],
-    q = questions[question];
+    q = questions[question],
+    responseCount = d.answers?.length || 0;
 
   useEffect(() => {
     setAnswer((d.answers || []).find((a: any) => a.questionId === q?.id)?.answer || '');
@@ -1737,20 +1738,20 @@ function MissionDetail({
                   <Check size={15} />
                 </button>
                 <span className="small muted">
-                  {d.answers?.length || 0} of {questions.length} responses saved
+                  {responseCount} of {questions.length} responses saved
                 </span>
               </div>
               <button
                 className="primary"
-                disabled={busy || !d.answers?.length}
+                disabled={busy || !responseCount}
                 onClick={() =>
                   void onAction('decisions', {
                     kind: 'interview',
-                    endedEarly: d.answers.length < questions.length,
+                    endedEarly: responseCount < questions.length,
                   })
                 }
               >
-                {d.answers?.length < questions.length
+                {responseCount < questions.length
                   ? 'Finish early & get feedback'
                   : 'Complete interview & get feedback'}
                 <ArrowRight size={16} />
@@ -1758,7 +1759,7 @@ function MissionDetail({
             </>
           ) : (
             <p>
-              {d.answers?.length || 0} responses retained.{' '}
+              {responseCount} {responseCount === 1 ? 'response' : 'responses'} retained.{' '}
               {d.endedEarly ? 'You finished early; feedback reflects the available answers.' : ''}
             </p>
           )}

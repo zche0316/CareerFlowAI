@@ -40,7 +40,7 @@ describe('Interview Coach completion rules', () => {
     ).toEqual({ answeredCount: 3, questionCount: 3, endedEarly: false });
   });
 
-  it('rejects malformed questions, duplicate IDs and empty feedback sections', () => {
+  it('rejects malformed questions, duplicate IDs, more than three questions and empty feedback', () => {
     expect(() =>
       questionsSchema.parse({
         questions: [{ id: 'q1', question: 'Short', focus: 'Focus' }],
@@ -54,6 +54,15 @@ describe('Interview Coach completion rules', () => {
         ],
       }),
     ).toThrow(/unique/i);
+    expect(() =>
+      questionsSchema.parse({
+        questions: Array.from({ length: 4 }, (_, index) => ({
+          id: `q${index + 1}`,
+          question: `A sufficiently detailed interview question ${index + 1}?`,
+          focus: 'Role evidence',
+        })),
+      }),
+    ).toThrow();
     expect(() =>
       feedbackSchema.parse({ strengths: [], improvements: ['Improve'], nextSteps: ['Practise'] }),
     ).toThrow();

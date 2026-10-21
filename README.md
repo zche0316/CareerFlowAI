@@ -55,7 +55,23 @@ OPENAI_API_KEY=your-local-groq-key
 OPENAI_MODEL=openai/gpt-oss-20b
 ```
 
-`openai` denotes the compatible protocol; the endpoint above sends requests to Groq. The selected model must support function calling and strict structured outputs. This adapter uses two requests, separating tool execution from the structured final response. Groq Responses API is beta; local transport tests do not establish live provider compatibility or account access. Missing credentials produce a recoverable error, not fixture output. Leave `OPENAI_BASE_URL` blank to return to the default OpenAI endpoint. Docker Compose forwards this setting too.
+`openai` denotes the compatible protocol; the endpoint above sends requests to Groq. The selected model must support function calling and strict structured outputs. This adapter normally uses two requests, separating tool execution from the structured final response, and permits one schema-correction request when a compatible provider returns an invalid field. Groq Responses API is beta; local transport tests do not establish live provider compatibility or account access. Missing credentials produce a recoverable error, not fixture output. Leave `OPENAI_BASE_URL` blank to return to the default OpenAI endpoint. Docker Compose forwards this setting too.
+
+### DeepSeek through the Responses API
+
+DeepSeek exposes an OpenAI-compatible Responses API at `https://api.deepseek.com`:
+
+```dotenv
+PROVIDER_MODE=openai
+OPENAI_BASE_URL=https://api.deepseek.com
+OPENAI_MODEL=deepseek-flash
+DEEPSEEK_API_KEY=your-local-deepseek-key
+```
+
+DeepSeek enables thinking mode by default. CareerFlow explicitly sends
+`reasoning.effort: none` for the DeepSeek endpoint because its thinking mode does not support the
+required context-tool choice used by the specialist workflow. Keep the key server-side and never
+commit it.
 
 ### Background worker
 
@@ -72,7 +88,7 @@ npm run test:e2e
 
 Tests use disposable QA accounts in the configured database; use a dedicated test database for repeated team/CI runs. API tests clean their own accounts and workflow records. Browser tests retain fictional QA evidence locally. Browser screenshots/reports are written to ignored `output/acceptance` and `playwright-report` directories.
 
-The supplied CI workflow requires a supported GitHub Actions runner; check your university GitHub Enterprise configuration. Container deployment, live model output quality and Canvas on-site deployment must be verified separately before submission.
+The supplied CI workflow requires a supported GitHub Actions runner; check your university GitHub Enterprise configuration. Container deployment and Canvas on-site deployment must be verified separately before submission. Local live-provider evidence is recorded in `docs/verification.md`.
 
 ### Source archive rehearsal
 

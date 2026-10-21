@@ -144,7 +144,7 @@ export const questionsSchema = z
         }),
       )
       .min(1)
-      .max(5),
+      .max(3),
   })
   .superRefine(({ questions }, context) => {
     if (new Set(questions.map((question) => question.id)).size !== questions.length)

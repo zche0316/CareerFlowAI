@@ -64,6 +64,40 @@ async function wait(c: Client, id: string, status: string) {
   }
   throw Error('Timed out waiting for ' + status);
 }
+
+async function prepareInterview(
+  c: Client,
+  goal = 'Prepare a factual interview for an analyst role.',
+) {
+  await profile(c);
+  const made = await c.request('/missions', 'POST', { goal });
+  expect(made.status).toBe(202);
+  const id = made.body.id;
+  const jobs = await wait(c, id, 'AWAITING_JOB');
+  const job = jobs.data.matches[0];
+  expect(job).toBeTruthy();
+  expect(
+    (
+      await c.request(`/missions/${id}/decisions`, 'POST', {
+        kind: 'job',
+        jobId: job.job.id,
+      })
+    ).status,
+  ).toBe(202);
+  const draft = await wait(c, id, 'AWAITING_APPROVAL');
+  expect(
+    (
+      await c.request(`/missions/${id}/decisions`, 'POST', {
+        kind: 'resume',
+        decision: 'approve',
+        draftHash: draft.data.resumeDraft.hash,
+      })
+    ).status,
+  ).toBe(202);
+  const interview = await wait(c, id, 'AWAITING_INTERVIEW');
+  return { id, job, interview };
+}
+
 beforeAll(async () => {
   process.env.PROVIDER_MODE = 'fixture';
   delete process.env.OPENAI_API_KEY;
@@ -226,6 +260,70 @@ describe('Owned, durable five-agent journey', () => {
     expect((await wait(c, made.body.id, 'AWAITING_JOB')).data.matches.length).toBeGreaterThan(0);
     await c.request(`/missions/${made.body.id}/cancel`, 'POST', {});
   });
+  it('completes every interview question and rejects forged or cross-user submissions', async () => {
+    const c = await client();
+    const other = await client();
+    const { id, interview } = await prepareInterview(
+      c,
+      'Prepare for a complete entry-level analyst interview.',
+    );
+    const questions = interview.data.questions;
+    expect(questions.length).toBeGreaterThan(0);
+    expect(questions.length).toBeLessThanOrEqual(3);
+    expect(new Set(questions.map((question: any) => question.id)).size).toBe(questions.length);
+    expect(
+      questions.some((question: any) =>
+        question.question.includes(interview.data.selectedJob.job.title),
+      ),
+    ).toBe(true);
+
+    expect(
+      (
+        await other.request(`/missions/${id}/answers`, 'PUT', {
+          questionId: questions[0].id,
+          answer: 'A different user must not be able to submit this answer.',
+        })
+      ).status,
+    ).toBe(404);
+    expect(
+      (
+        await c.request(`/missions/${id}/decisions`, 'POST', {
+          kind: 'interview',
+          endedEarly: false,
+        })
+      ).status,
+    ).toBe(422);
+
+    for (const [index, question] of questions.entries()) {
+      const saved = await c.request(`/missions/${id}/answers`, 'PUT', {
+        questionId: question.id,
+        answer: `Role-specific answer ${index + 1} with a concrete action and result.`,
+      });
+      expect(saved.status).toBe(200);
+      expect(saved.body.answers.map((answer: any) => answer.questionId)).toEqual(
+        questions.slice(0, index + 1).map((item: any) => item.id),
+      );
+    }
+
+    // Spoofing the opposite client flag must not override persisted completion.
+    expect(
+      (
+        await c.request(`/missions/${id}/decisions`, 'POST', {
+          kind: 'interview',
+          endedEarly: true,
+        })
+      ).status,
+    ).toBe(202);
+    const done = await wait(c, id, 'COMPLETE');
+    expect(done.data.endedEarly).toBe(false);
+    expect(done.data.answers).toHaveLength(questions.length);
+    expect(done.data.answers.map((answer: any) => answer.questionId)).toEqual(
+      questions.map((question: any) => question.id),
+    );
+    expect(done.data.feedback.strengths.length).toBeGreaterThan(0);
+    expect(done.data.feedback.improvements.length).toBeGreaterThan(0);
+    expect(done.data.feedback.nextSteps.length).toBeGreaterThan(0);
+  });
   it('denies cross-user reads, decisions and approval of another user’s draft', async () => {
     const a = await client(),
       b = await client();
@@ -244,6 +342,24 @@ describe('Owned, durable five-agent journey', () => {
         .status,
     ).toBe(404);
     await a.request(`/missions/${m.body.id}/cancel`, 'POST', {});
+  });
+  it('requests an approved, shareable profile before an interview mission can begin', async () => {
+    const c = await client();
+    const missing = await c.request('/missions', 'POST', {
+      goal: 'Prepare a role-specific interview.',
+    });
+    expect(missing.status).toBe(409);
+    expect(missing.body.code).toBe('PROFILE_REQUIRED');
+
+    await profile(c, {
+      ...sampleProfile,
+      sharing: { ...sampleProfile.sharing, interview: false },
+    });
+    const denied = await c.request('/missions', 'POST', {
+      goal: 'Prepare a role-specific interview.',
+    });
+    expect(denied.status).toBe(403);
+    expect(denied.body.code).toBe('SHARING_REQUIRED');
   });
   it('requires server-side review, rejects stale profile drafts and invalid changes', async () => {
     const c = await client();
@@ -311,5 +427,18 @@ describe('Owned, durable five-agent journey', () => {
       body: JSON.stringify(sampleProfile),
     });
     expect(r.status).toBe(403);
+
+    const noInterview = await client();
+    await profile(noInterview, {
+      ...sampleProfile,
+      sharing: { ...sampleProfile.sharing, interview: false },
+    });
+    expect(
+      (
+        await noInterview.request('/missions', 'POST', {
+          goal: 'Prepare an interview without sharing permission.',
+        })
+      ).status,
+    ).toBe(403);
   });
 });
