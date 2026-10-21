@@ -17,7 +17,7 @@ npm run build
 npm start
 ```
 
-Open **http://localhost:8787**. Choose **Open demo workspace**, then **My career profile → Use fictional example → Review profile draft → confirm review → Approve & save profile**. Start a career mission, choose a job, review and approve the evidence-linked resume, save an interview answer and request feedback.
+Open **http://localhost:8787**. Choose **Open demo workspace**, then **My career profile → Use fictional example → Review profile draft → confirm review → Approve & save profile**. Start a career mission, choose a job, review and approve the evidence-linked resume, save an interview answer and request feedback. After feedback, you may optionally practise one fictional salary negotiation and record your own final practice choice.
 
 The local database helper uses only `.runtime/postgres`, port 55432 and database `careerflow`. It does not use the existing PostgreSQL instance on port 5432. Set `PG_BIN` if PostgreSQL binaries are not on PATH. The helper uses local trust authentication and loopback binding for development only.
 

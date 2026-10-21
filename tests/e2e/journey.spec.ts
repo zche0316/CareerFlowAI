@@ -134,6 +134,28 @@ test('a user answers every interview question and receives complete feedback', a
     path: `output/acceptance/interview-complete-${process.env.PROVIDER_MODE === 'openai' ? 'live' : 'fixture'}.png`,
     fullPage: true,
   });
+
+  await page.getByLabel('Practice offer salary').fill('65000');
+  await page.getByLabel('Your target salary').fill('72000');
+  await page.getByLabel('Currency').fill('AUD');
+  await page
+    .getByLabel('Your negotiation response')
+    .fill(
+      'I am interested in the role and would like to discuss the salary range based on the scope and my confirmed reporting experience.',
+    );
+  await page.getByRole('button', { name: 'Practice salary negotiation' }).click();
+  await expect(page.getByRole('heading', { name: 'Simulated recruiter reply' })).toBeVisible({
+    timeout: 30000,
+  });
+  await expect(page.getByRole('heading', { name: 'Negotiation strengths' })).toBeVisible();
+  await page.getByRole('button', { name: 'Record my choice: accept' }).click();
+  await expect(
+    page.getByText('Practice decision recorded: accept.', { exact: false }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: `output/acceptance/cfs-33-salary-negotiation-${process.env.PROVIDER_MODE === 'openai' ? 'live' : 'fixture'}.png`,
+    fullPage: true,
+  });
 });
 
 test('mobile workspace stays usable without horizontal scrolling', async ({ page }) => {

@@ -324,6 +324,74 @@ describe('Owned, durable five-agent journey', () => {
     expect(done.data.feedback.improvements.length).toBeGreaterThan(0);
     expect(done.data.feedback.nextSteps.length).toBeGreaterThan(0);
   });
+  it('lets the owner practise negotiation and records only their final practice decision', async () => {
+    const owner = await client();
+    const other = await client();
+    const { id, interview } = await prepareInterview(
+      owner,
+      'Prepare for an analyst interview and salary discussion.',
+    );
+    const [question] = interview.data.questions;
+    await owner.request(`/missions/${id}/answers`, 'PUT', {
+      questionId: question.id,
+      answer: 'I used SQL to prepare a reviewed report for a student project.',
+    });
+    await owner.request(`/missions/${id}/decisions`, 'POST', {
+      kind: 'interview',
+      endedEarly: true,
+    });
+    await wait(owner, id, 'COMPLETE');
+
+    const input = {
+      offerSalary: 65_000,
+      targetSalary: 72_000,
+      currency: 'AUD',
+      candidateMessage:
+        'I am excited about the role and would like to discuss the salary range based on the scope and my confirmed evidence.',
+    };
+    expect((await other.request(`/missions/${id}/negotiation`, 'POST', input)).status).toBe(404);
+    const practised = await owner.request(`/missions/${id}/negotiation`, 'POST', input);
+    expect(practised.status).toBe(201);
+    expect(practised.body.status).toBe('COMPLETE');
+    expect(practised.body.data.negotiation).toMatchObject({
+      offerSalary: 65_000,
+      targetSalary: 72_000,
+      currency: 'AUD',
+      status: 'REVIEW',
+    });
+    expect(practised.body.data.negotiation.recruiterReply).toContain(
+      interview.data.selectedJob.job.title,
+    );
+    expect(practised.body.data.negotiation.feedback.strengths.length).toBeGreaterThan(0);
+    expect(practised.body.data.negotiation.feedback.improvements.length).toBeGreaterThan(0);
+    expect(practised.body.data.negotiation.feedback.nextSteps.length).toBeGreaterThan(0);
+
+    expect(
+      (
+        await other.request(`/missions/${id}/negotiation/decision`, 'PUT', {
+          decision: 'accept',
+        })
+      ).status,
+    ).toBe(404);
+    const decided = await owner.request(`/missions/${id}/negotiation/decision`, 'PUT', {
+      decision: 'accept',
+    });
+    expect(decided.status).toBe(200);
+    expect(decided.body.data.negotiation).toMatchObject({
+      status: 'DECIDED',
+      userDecision: 'accept',
+    });
+    expect(
+      (
+        await owner.request(`/missions/${id}/negotiation/decision`, 'PUT', {
+          decision: 'decline',
+        })
+      ).status,
+    ).toBe(409);
+    const persisted = (await owner.request(`/missions/${id}`)).body;
+    expect(persisted.status).toBe('COMPLETE');
+    expect(persisted.data.negotiation.userDecision).toBe('accept');
+  });
   it('denies cross-user reads, decisions and approval of another user’s draft', async () => {
     const a = await client(),
       b = await client();

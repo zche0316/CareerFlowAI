@@ -21,6 +21,10 @@ export type ProviderContext = {
     nextSteps: string[];
     recordedAt: string;
   };
+  offerSalary?: number;
+  targetSalary?: number;
+  currency?: string;
+  candidateMessage?: string;
 };
 
 export type ProviderHooks = {
@@ -46,7 +50,7 @@ function requiresNonThinkingMode(baseURL: string | undefined): boolean {
 }
 
 export async function generate<T>(
-  role: 'profile' | 'coach' | 'resume' | 'questions' | 'feedback',
+  role: 'profile' | 'coach' | 'resume' | 'questions' | 'feedback' | 'negotiation',
   context: ProviderContext,
   schema: z.ZodType<T>,
   mode: Mode,
@@ -152,18 +156,33 @@ export async function generate<T>(
                     },
                   ],
                 }
-              : {
-                  strengths: [
-                    `You completed ${context.answers?.length || 0} practice response(s).`,
-                  ],
-                  improvements: [
-                    'Demo feedback is rule-based, not an AI assessment. Add a specific situation, your own action and a supported result.',
-                  ],
-                  nextSteps: [
-                    'Review the selected job requirements.',
-                    'Practise the least specific answer again without inventing achievements.',
-                  ],
-                };
+              : role === 'feedback'
+                ? {
+                    strengths: [
+                      `You completed ${context.answers?.length || 0} practice response(s).`,
+                    ],
+                    improvements: [
+                      'Demo feedback is rule-based, not an AI assessment. Add a specific situation, your own action and a supported result.',
+                    ],
+                    nextSteps: [
+                      'Review the selected job requirements.',
+                      'Practise the least specific answer again without inventing achievements.',
+                    ],
+                  }
+                : {
+                    recruiterReply: `Thank you for discussing the fictional ${context.job?.title || 'target role'} offer. Your response proposes a ${context.currency || 'AUD'} ${context.targetSalary || 0} target against the ${context.currency || 'AUD'} ${context.offerSalary || 0} practice offer. In a real conversation, the recruiter would now ask for your evidence and could accept, revise or decline the request.`,
+                    feedback: {
+                      strengths: [
+                        'You stated a target and practised the negotiation directly instead of accepting the first offer automatically.',
+                      ],
+                      improvements: [
+                        'Connect the request to role scope, confirmed evidence and your approved salary preferences without inventing market data.',
+                      ],
+                      nextSteps: [
+                        'Decide for yourself whether this hypothetical offer is acceptable; the app does not accept a real offer.',
+                      ],
+                    },
+                  };
     return schema.parse(result);
   }
   const apiKey = process.env.OPENAI_API_KEY || process.env.DEEPSEEK_API_KEY;
@@ -195,6 +214,8 @@ export async function generate<T>(
       'Prepare up to three distinct, role-specific practice questions. Use stable unique IDs. Do not assume a gap is an existing skill.',
     feedback:
       'Return an object with all three required fields: strengths, improvements, and nextSteps. Each field must be a non-empty array of actionable strings. Give feedback on the supplied interview answers against the selected role. Distinguish observed answer quality from candidate qualifications. Never promote a practice answer to a verified profile fact.',
+    negotiation:
+      'Simulate one fictional recruiter reply to the candidate salary negotiation, then give actionable strengths, improvements and next steps. Use only the selected role, approved profile context and the supplied practice offer/target/message. Never claim market benchmarks, recommend accepting a specific real offer, or make the final decision for the user. Make clear that acceptance remains the user practice choice.',
   }[role];
   const instruction =
     'You are one specialist in CareerFlow AI. ' +

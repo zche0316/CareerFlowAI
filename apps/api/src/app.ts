@@ -27,6 +27,7 @@ import { AppError, requireValue } from './errors.js';
 import { enqueue, abortRun } from './queue.js';
 import { configuredMode } from '../../../packages/agents/src/provider.js';
 import { prepareProfileBuilderDraft } from './profile-builder.js';
+import { decideNegotiationPractice, runNegotiationPractice } from './negotiation.js';
 import {
   decisionSchema,
   answerSchema,
@@ -301,6 +302,14 @@ export function createApp() {
     await enqueue(m.id).catch(() => {});
     res.status(202).json(m);
   });
+  app.post('/api/missions/:id/negotiation', async (req, res) =>
+    res
+      .status(201)
+      .json(await runNegotiationPractice(req.actor!.id, String(req.params.id), req.body)),
+  );
+  app.put('/api/missions/:id/negotiation/decision', async (req, res) =>
+    res.json(await decideNegotiationPractice(req.actor!.id, String(req.params.id), req.body)),
+  );
   app.put('/api/missions/:id/answers', async (req, res) =>
     res.json(
       await saveInterviewAnswer(req.actor!.id, String(req.params.id), answerSchema.parse(req.body)),
