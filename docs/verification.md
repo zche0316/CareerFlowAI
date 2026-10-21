@@ -15,6 +15,9 @@
 - CFS-39 records measured load/save budgets and a mocked provider deadline test enforcing a maximum 30-second configuration. See [QUALITY_CHECKS.md](QUALITY_CHECKS.md).
 - CFS-33 / O5 exercises one fictional salary negotiation using role/offer context, persists provider feedback, and records the user's final accept/decline practice choice. See the [live salary practice](evidence/cfs-33-salary-negotiation-live.png) and [fixture salary practice](evidence/cfs-33-salary-negotiation-fixture.png).
 - A live `deepseek-flash` run through the browser completed all five workflows, answered all three generated interview questions, practised one salary negotiation and persisted complete feedback in 10 model calls. See [the live completion evidence](evidence/cfs-31-deepseek-live.png), [full fixture interview](evidence/cfs-32-interview-complete.png) and [early-exit fixture interview](evidence/cfs-32-interview-early-exit.png).
+- GitHub Actions completed successfully for both push and pull-request events on the verified branch.
+- Docker Compose built and started the PostgreSQL and application containers. The healthy containerized app passed the complete five-test Playwright suite.
+- A `git archive` source snapshot was extracted into an independent directory. Locked dependency installation, migration, `npm run verify`, Compose startup, health checks and all five browser tests passed from that clean snapshot.
 - PostgreSQL 16.10 runs in a project-owned portable instance on port 55432. The application runs at `http://localhost:8787`.
 - Desktop and 390-pixel mobile screenshots were visually inspected. The mobile check also asserts no horizontal overflow.
 - `docker compose config --quiet` passed configuration validation.
@@ -22,8 +25,9 @@
 ## Remaining proof before release
 
 - The eight job listings are fictional test data. No live vacancy ingestion or external application submission is implemented.
-- Docker runtime deployment and hosted deployment have not been tested. Compose validation is not container execution.
-- The CI workflow is supplied, but no remote Actions run has been observed.
-- Rehearse installation from a clean source archive and have teammates review the requirements and acceptance criteria before declaring Jira stories complete.
+- Hosted deployment has not been tested. Final source submission and on-site deployment remain separate release gates.
+- Independent review findings and resolved rework are still required before Jira stories can move to Done.
+- The exact final archive must be rehearsed again after the release changes are merged and recorded with its checksum.
+- Dependency auditing reported six package advisories in the container install output; assess these before public deployment.
 
 Deployment and independent review remain separate from these local checks.
