@@ -106,8 +106,10 @@ export async function createWorkflow() {
       const analysis = await model(s.missionId, 'coach', 'coach', coachSchema);
       const known = new Set(c.facts.map((f) => f.id));
       if (
-        analysis.strengths.some(
-          (x) => !x.evidenceIds.length || x.evidenceIds.some((id) => !known.has(id)),
+        [analysis.strengths, analysis.gaps, analysis.directions, analysis.actions].some((items) =>
+          items.some(
+            (item) => !item.evidenceIds.length || item.evidenceIds.some((id) => !known.has(id)),
+          ),
         )
       )
         throw new AppError(422, 'INVALID_EVIDENCE', 'Career advice referenced unknown evidence.');
@@ -117,7 +119,7 @@ export async function createWorkflow() {
         { analysis },
         'Career Coach',
         'completed',
-        'Strengths, gaps and development actions prepared from approved evidence.',
+        'Strengths, gaps, directions and actions prepared with traceable evidence and reasons.',
       );
       return {};
     })

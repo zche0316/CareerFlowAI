@@ -46,20 +46,54 @@ export async function generate<T>(
   if (mode === 'fixture') {
     await hooks.onTool('read_approved_context');
     const skills = context.facts.filter((f) => f.kind === 'skill');
+    const primaryEvidenceId = skills[0]?.id || context.facts[0]?.id || 'education-1';
     const result =
       role === 'coach'
         ? {
-            strengths: skills.slice(0, 3).map((f) => ({ title: f.text, evidenceIds: [f.id] })),
+            strengths: skills.slice(0, 3).map((f) => ({
+              text: f.text,
+              evidenceIds: [f.id],
+              reason: `This ${f.kind} is explicitly present in the approved profile.`,
+            })),
             gaps: [
-              'Compare your current evidence with each selected job before claiming a required skill.',
+              {
+                text: 'Compare your current evidence with each selected job before claiming a required skill.',
+                evidenceIds: [primaryEvidenceId],
+                reason:
+                  'The approved profile establishes a starting point, while job-specific gaps still require comparison.',
+              },
             ],
-            directions: [context.goal],
+            directions: [
+              {
+                text: context.goal,
+                evidenceIds: [primaryEvidenceId],
+                reason:
+                  'This direction is anchored to your stated goal and approved career evidence.',
+              },
+            ],
             actions: [
               context.analysisFeedback
-                ? `Revisit this refinement request: ${context.analysisFeedback}`
-                : 'Review the ranked jobs and choose a target.',
-              'Prepare one concrete example for each required skill.',
-              ...(context.priorFeedback?.nextSteps || []).slice(0, 2),
+                ? {
+                    text: 'Revisit the supplied refinement request with the Career Coach.',
+                    evidenceIds: [primaryEvidenceId],
+                    reason: context.analysisFeedback,
+                  }
+                : {
+                    text: 'Review the ranked jobs and choose a target.',
+                    evidenceIds: [primaryEvidenceId],
+                    reason: 'A target role makes the next career steps specific and actionable.',
+                  },
+              {
+                text: 'Prepare one concrete example for each required skill.',
+                evidenceIds: [primaryEvidenceId],
+                reason:
+                  'Concrete examples connect approved evidence to interview and application claims.',
+              },
+              ...(context.priorFeedback?.nextSteps || []).slice(0, 2).map((text) => ({
+                text,
+                evidenceIds: [primaryEvidenceId],
+                reason: 'This action follows from feedback on a previous completed mission.',
+              })),
             ],
           }
         : role === 'resume'
@@ -123,7 +157,7 @@ export async function generate<T>(
   });
   const task = {
     coach:
-      'Identify strengths with valid fact IDs, potential skill gaps, suitable directions and useful development actions. Recommendations are advisory, not hiring probabilities.',
+      'Identify strengths, potential skill gaps, suitable directions and useful development actions. Every item in all four arrays must contain text, at least one valid evidenceIds value from the supplied facts, and a reason explaining the recommendation. Recommendations are advisory, not hiring probabilities.',
     resume:
       'Choose and order confirmed fact IDs relevant to the job. Never create candidate facts. Reasons explain relevance; the application renders the original fact text verbatim.',
     questions:

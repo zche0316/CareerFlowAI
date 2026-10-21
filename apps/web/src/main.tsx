@@ -796,6 +796,19 @@ function Stat({ label, value, sub }: { label: string; value: string | number; su
   );
 }
 
+const coachText = (item: any) =>
+  typeof item === 'string' ? item : item?.text || item?.title || '';
+
+function CoachEvidence({ item }: { item: any }) {
+  if (!item || typeof item === 'string') return null;
+  return (
+    <small>
+      Evidence: {item.evidenceIds?.join(', ') || 'Unavailable'}
+      {item.reason ? ` · ${item.reason}` : ''}
+    </small>
+  );
+}
+
 // Keep editable input, prepared draft and explicit review confirmation as separate UI states.
 function Profile({
   profile,
@@ -1232,8 +1245,8 @@ function MissionDetail({
                 <div className="strength" key={i}>
                   <CheckCircle2 size={16} />
                   <div>
-                    {s.title}
-                    <small>Evidence: {s.evidenceIds.join(', ')}</small>
+                    {coachText(s)}
+                    <CoachEvidence item={s} />
                   </div>
                 </div>
               ))}
@@ -1241,8 +1254,11 @@ function MissionDetail({
             <div>
               <h3>Development opportunities</h3>
               <ul>
-                {d.analysis.gaps.map((s: string) => (
-                  <li key={s}>{s}</li>
+                {d.analysis.gaps.map((s: any) => (
+                  <li key={coachText(s)}>
+                    {coachText(s)}
+                    <CoachEvidence item={s} />
+                  </li>
                 ))}
               </ul>
             </div>
@@ -1258,20 +1274,26 @@ function MissionDetail({
           {d.analysis.directions?.length > 0 && (
             <div className="next-steps">
               <h3>Suitable career directions</h3>
-              {d.analysis.directions.map((s: string, i: number) => (
-                <p key={s}>
+              {d.analysis.directions.map((s: any, i: number) => (
+                <p key={coachText(s)}>
                   <span>{i + 1}</span>
-                  {s}
+                  <div>
+                    {coachText(s)}
+                    <CoachEvidence item={s} />
+                  </div>
                 </p>
               ))}
             </div>
           )}
           <div className="next-steps">
             <h3>Suggested next steps</h3>
-            {d.analysis.actions.map((s: string, i: number) => (
-              <p key={s}>
+            {d.analysis.actions.map((s: any, i: number) => (
+              <p key={coachText(s)}>
                 <span>{i + 1}</span>
-                {s}
+                <div>
+                  {coachText(s)}
+                  <CoachEvidence item={s} />
+                </div>
               </p>
             ))}
           </div>

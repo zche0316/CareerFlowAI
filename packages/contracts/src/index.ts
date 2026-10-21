@@ -62,11 +62,17 @@ export type CareerProfile = z.infer<typeof profileSchema>;
 
 export type Fact = { id: string; kind: string; text: string; source: string };
 
+const coachRecommendationSchema = z.object({
+  text: z.string().trim().min(1).max(1000),
+  evidenceIds: z.array(z.string().trim().min(1).max(100)).min(1).max(10),
+  reason: z.string().trim().min(1).max(1000),
+});
+
 export const coachSchema = z.object({
-  strengths: z.array(z.object({ title: z.string(), evidenceIds: z.array(z.string()) })),
-  gaps: z.array(z.string()),
-  directions: z.array(z.string()),
-  actions: z.array(z.string()),
+  strengths: z.array(coachRecommendationSchema),
+  gaps: z.array(coachRecommendationSchema),
+  directions: z.array(coachRecommendationSchema),
+  actions: z.array(coachRecommendationSchema),
 });
 
 // Models propose evidence IDs and emphasis only; the server supplies candidate claim text.
