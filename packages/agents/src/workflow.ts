@@ -5,6 +5,11 @@ import { readFile } from 'node:fs/promises';
 import { db, databaseUrl } from '../../../apps/api/src/db.js';
 import { AppError } from '../../../apps/api/src/errors.js';
 import {
+  getInterviewCompletion,
+  type InterviewAnswer,
+  type InterviewQuestion,
+} from '../../../apps/api/src/interview.js';
+import {
   freshMission,
   patchRun,
   reserveCall,
@@ -275,15 +280,20 @@ export async function createWorkflow() {
           'Save your responses, then request feedback. You can finish early after one response.',
       }) as { kind: string; endedEarly: boolean };
       const now = await freshMission(s.missionId);
-      if (decision.kind !== 'interview' || !(now.data as MissionData).answers?.length)
+      const data = now.data as MissionData;
+      const completion = getInterviewCompletion(
+        (data.questions || []) as InterviewQuestion[],
+        (data.answers || []) as InterviewAnswer[],
+      );
+      if (decision.kind !== 'interview' || !completion.answeredCount)
         throw Error('At least one saved response is required.');
       await patchRun(
         s.missionId,
         c.token,
-        { endedEarly: decision.endedEarly },
+        { endedEarly: completion.endedEarly },
         'Job Seeker',
         'interview_submitted',
-        'Submitted saved interview responses for feedback.',
+        `${completion.answeredCount} of ${completion.questionCount} interview responses submitted for feedback.`,
       );
       return {};
     })

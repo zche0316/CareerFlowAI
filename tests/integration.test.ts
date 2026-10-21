@@ -151,7 +151,14 @@ describe('Owned, durable five-agent journey', () => {
     const interview = await wait(c, id, 'AWAITING_INTERVIEW');
     expect(await db.approvedResume.count({ where: { userId: c.id } })).toBe(1);
     const q = interview.data.questions[0];
-    const extra = interview.data.questions[1];
+    expect(
+      (
+        await c.request(`/missions/${id}/answers`, 'PUT', {
+          questionId: 'forged-question',
+          answer: 'This question is not part of the current interview.',
+        })
+      ).status,
+    ).toBe(422);
     expect(
       (
         await c.request(`/missions/${id}/answers`, 'PUT', {
@@ -161,8 +168,22 @@ describe('Owned, durable five-agent journey', () => {
         })
       ).status,
     ).toBe(200);
+    expect(
+      (
+        await c.request(`/missions/${id}/answers`, 'PUT', {
+          questionId: q.id,
+          answer:
+            'In my student project I used SQL to inspect a sample dataset, reconcile missing values and produce a reviewed report.',
+        })
+      ).status,
+    ).toBe(200);
+    expect((await c.request(`/missions/${id}`)).body.data.answers).toHaveLength(1);
     await db.mission.update({ where: { id }, data: { mode: 'openai' } });
-    await c.request(`/missions/${id}/decisions`, 'POST', { kind: 'interview', endedEarly: true });
+    // The server derives completion from persisted answers rather than trusting the client flag.
+    await c.request(`/missions/${id}/decisions`, 'POST', {
+      kind: 'interview',
+      endedEarly: false,
+    });
     let failed: any;
     for (let i = 0; i < 180; i++) {
       failed = (await c.request('/missions/' + id)).body;
