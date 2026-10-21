@@ -42,7 +42,7 @@ OPENAI_API_KEY=your-local-key
 OPENAI_MODEL=an-available-model-supporting-tools-and-structured-outputs
 ```
 
-Secrets stay server-side and `.env` is ignored. No model key is included. Fixture mode makes no external AI calls, and the UI labels it accordingly. The eight job advertisements remain fictional in both modes. Live AI mode does not silently switch to fixtures after an error. Previously approved profiles/documents and saved interview answers remain available.
+Secrets stay server-side and `.env` is ignored. No model key is included. Fixture mode makes no external AI calls, and the UI labels it accordingly. The eight job advertisements remain fictional in both modes. Live AI mode does not silently switch to fixtures after an error. Previously approved profiles/documents and saved interview answers remain available. `PROVIDER_TIMEOUT_MS` controls the shared provider deadline and defaults to 25 seconds; it is validated within a maximum of 30 seconds.
 
 ### Groq through the OpenAI-compatible API
 
@@ -94,4 +94,4 @@ The supplied CI workflow requires a supported GitHub Actions runner; check your 
 
 Exclude `.git`, `node_modules`, `.env`, `.runtime`, `output`, `dist`, browser reports and test results. In a clean extracted folder configure `.env`, install locked dependencies, migrate an empty database, build and start. Verify all five workflows and declared fixture/live mode before uploading. Source submission is due **1 November 2026 at 23:59 Australia/Sydney**; 2 November work is post-submission verification and demonstration readiness.
 
-See [architecture and requirement mapping](docs/architecture.md), the [API and repository contract](docs/API.md) and the [CFS-41 integration acceptance record](docs/INTEGRATION_ACCEPTANCE.md). Member 3 source provenance is documented in [packages/matching/NOTICE.md](packages/matching/NOTICE.md).
+See [architecture and requirement mapping](docs/architecture.md), the [API and repository contract](docs/API.md), [orchestration and profile handoff](docs/ORCHESTRATION.md), [integration quality checks](docs/QUALITY_CHECKS.md) and the [CFS-41 integration acceptance record](docs/INTEGRATION_ACCEPTANCE.md). Member 3 source provenance is documented in [packages/matching/NOTICE.md](packages/matching/NOTICE.md).

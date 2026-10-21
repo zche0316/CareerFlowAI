@@ -155,6 +155,9 @@ and field details. Important correction codes include `PROFILE_REQUIRED`, `SHARI
 `STALE_DRAFT`, `DRAFT_USED`, `INVALID_JOB`, `STALE_APPROVAL`, `ANSWER_REQUIRED`,
 `INVALID_QUESTION`, `BUDGET_REACHED`, `STALE_PROFILE` and `NEGOTIATION_NOT_READY`.
 
+Every response includes `X-Request-ID`. A valid caller-supplied value is echoed; otherwise the API
+generates a UUID. JSON error bodies include the same value as `requestId`.
+
 ## Sample data
 
 - `sampleProfile` in `packages/contracts/src/index.ts` is a fictional candidate used by the UI and tests.

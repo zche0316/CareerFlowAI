@@ -40,6 +40,13 @@ export function configuredMode(): Mode {
   return mode;
 }
 
+export function providerTimeoutMs() {
+  const timeout = Number(process.env.PROVIDER_TIMEOUT_MS || 25000);
+  if (!Number.isInteger(timeout) || timeout < 10 || timeout > 30000)
+    throw Error('PROVIDER_TIMEOUT_MS must be an integer between 10 and 30000.');
+  return timeout;
+}
+
 function requiresNonThinkingMode(baseURL: string | undefined): boolean {
   if (!baseURL) return false;
   try {
@@ -225,7 +232,7 @@ export async function generate<T>(
   // Both provider requests share one deadline and the worker cancellation signal.
   const deadline = AbortSignal.any([
     signal || new AbortController().signal,
-    AbortSignal.timeout(25000),
+    AbortSignal.timeout(providerTimeoutMs()),
   ]);
   await hooks.onCall();
 

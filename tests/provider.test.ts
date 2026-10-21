@@ -1,10 +1,50 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { generate } from '../packages/agents/src/provider.js';
+import { generate, providerTimeoutMs } from '../packages/agents/src/provider.js';
 
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
+});
+
+it('enforces the configured provider deadline below the 30-second budget', async () => {
+  vi.stubEnv('PROVIDER_TIMEOUT_MS', '50');
+  vi.stubEnv('OPENAI_API_KEY', 'test-only-not-a-real-key');
+  vi.stubEnv('OPENAI_MODEL', 'test-model');
+  let aborted = false;
+  vi.stubGlobal('fetch', (_input: RequestInfo | URL, init?: RequestInit) => {
+    return new Promise<Response>((_resolve, reject) => {
+      const signal = init?.signal;
+      if (!signal) return reject(Error('Missing request signal'));
+      signal.addEventListener(
+        'abort',
+        () => {
+          aborted = true;
+          reject(new DOMException('Provider deadline reached', 'AbortError'));
+        },
+        { once: true },
+      );
+    });
+  });
+  const started = performance.now();
+  await expect(
+    generate(
+      'coach',
+      { goal: 'Find a role', facts: [] },
+      z.object({ result: z.string() }),
+      'openai',
+      {
+        onCall: async () => {},
+        onTool: async () => {},
+        onUsage: async () => {},
+      },
+    ),
+  ).rejects.toThrow();
+  expect(aborted).toBe(true);
+  expect(performance.now() - started).toBeLessThan(1000);
+  expect(providerTimeoutMs()).toBe(50);
+  vi.stubEnv('PROVIDER_TIMEOUT_MS', '30001');
+  expect(() => providerTimeoutMs()).toThrow(/between 10 and 30000/);
 });
 
 it('routes both tool and structured-output requests to the configured compatible endpoint', async () => {

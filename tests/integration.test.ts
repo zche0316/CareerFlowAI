@@ -126,6 +126,57 @@ afterAll(async () => {
   await db.$disconnect();
 });
 describe('Owned, durable five-agent journey', () => {
+  it('propagates request IDs and meets local load/save latency budgets', async () => {
+    const c = await client();
+    const health = await fetch(base + '/api/health', {
+      headers: { 'X-Request-ID': 'qa-quality-request-01' },
+    });
+    expect(health.status).toBe(200);
+    expect(health.headers.get('x-request-id')).toBe('qa-quality-request-01');
+    const generatedId = await fetch(base + '/api/health', {
+      headers: { 'X-Request-ID': 'invalid request id' },
+    });
+    expect(generatedId.headers.get('x-request-id')).toMatch(
+      /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/,
+    );
+    const errorResponse = await fetch(base + '/api/not-a-real-route', {
+      headers: { cookie: c.cookie, 'X-Request-ID': 'qa-quality-error-01' },
+    });
+    expect(errorResponse.status).toBe(404);
+    expect(errorResponse.headers.get('x-request-id')).toBe('qa-quality-error-01');
+    expect((await errorResponse.json()).requestId).toBe('qa-quality-error-01');
+
+    await profile(c);
+    const loadTimes: number[] = [];
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const started = performance.now();
+      expect((await c.request('/workspace')).status).toBe(200);
+      loadTimes.push(performance.now() - started);
+    }
+    expect(Math.max(...loadTimes)).toBeLessThan(2000);
+
+    const draftStarted = performance.now();
+    const draft = await c.request('/profiles/drafts', 'POST', {
+      ...sampleProfile,
+      goals: 'Measure a reviewed profile save under the local quality budget.',
+    });
+    expect(draft.status).toBe(201);
+    const draftMs = performance.now() - draftStarted;
+    expect(draftMs).toBeLessThan(2000);
+    const approvalStarted = performance.now();
+    expect(
+      (
+        await c.request(`/profiles/drafts/${draft.body.id}/approve`, 'POST', {
+          reviewed: true,
+        })
+      ).status,
+    ).toBe(200);
+    const approvalMs = performance.now() - approvalStarted;
+    expect(approvalMs).toBeLessThan(2000);
+    console.info(
+      `[quality] workspace-load max=${Math.max(...loadTimes).toFixed(1)}ms draft-save=${draftMs.toFixed(1)}ms approval-save=${approvalMs.toFixed(1)}ms`,
+    );
+  });
   it('completes the profile → career → job → approved resume → interview journey', async () => {
     const c = await client();
     await profile(c);
@@ -613,6 +664,72 @@ describe('Owned, durable five-agent journey', () => {
     expect((profiles[0].data as any).goals).toBe(sampleProfile.goals);
     expect(
       (await owner.request('/missions', 'POST', { goal: 'Use the new profile.' })).status,
+    ).toBe(403);
+  });
+  it('hands only the approved, permitted profile to downstream agents', async () => {
+    const owner = await client();
+    const approved = await profile(owner);
+    const pending = await owner.request('/profiles/drafts', 'POST', {
+      ...sampleProfile,
+      goals: 'This unapproved goal must not reach a downstream agent.',
+    });
+    expect(pending.status).toBe(201);
+    const mission = await owner.request('/missions', 'POST', {
+      goal: 'Use the currently approved profile only.',
+    });
+    expect(mission.status).toBe(202);
+    expect(mission.body.profileId).toBe(approved.id);
+    const waiting = await wait(owner, mission.body.id, 'AWAITING_JOB');
+    expect(waiting.profile.id).toBe(approved.id);
+    expect(waiting.profile.version).toBe(1);
+    expect(waiting.profile.data.goals).toBe(sampleProfile.goals);
+
+    expect(
+      (
+        await owner.request(`/profiles/drafts/${pending.body.id}/approve`, 'POST', {
+          reviewed: true,
+        })
+      ).status,
+    ).toBe(200);
+    expect((await owner.request(`/missions/${mission.body.id}`)).body.status).toBe('STALE');
+    expect(
+      (
+        await owner.request(`/missions/${mission.body.id}/decisions`, 'POST', {
+          kind: 'job',
+          jobId: waiting.data.matches[0].job.id,
+        })
+      ).status,
+    ).toBe(409);
+
+    const missing = await client();
+    expect(
+      (
+        await missing.request('/profiles/drafts', 'POST', {
+          ...sampleProfile,
+          goals: '',
+        })
+      ).status,
+    ).toBe(422);
+    expect((await missing.request('/workspace')).body.profile).toBeNull();
+
+    const cancelled = await client();
+    const draft = await cancelled.request('/profiles/drafts', 'POST', sampleProfile);
+    expect((await cancelled.request(`/profiles/drafts/${draft.body.id}`, 'DELETE')).status).toBe(
+      200,
+    );
+    expect((await cancelled.request('/workspace')).body.profile).toBeNull();
+
+    const partial = await client();
+    await profile(partial, {
+      ...sampleProfile,
+      sharing: { ...sampleProfile.sharing, coach: false },
+    });
+    expect(
+      (
+        await partial.request('/missions', 'POST', {
+          goal: 'Attempt a mission with missing sharing permission.',
+        })
+      ).status,
     ).toBe(403);
   });
   it('rolls back a failed profile approval and preserves the previous approved version', async () => {

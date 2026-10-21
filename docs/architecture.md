@@ -10,6 +10,10 @@ The repository layout, shared schemas, HTTP endpoints, sample data and local com
 specified in [API.md](API.md). The connected five-agent evidence matrix is recorded in
 [INTEGRATION_ACCEPTANCE.md](INTEGRATION_ACCEPTANCE.md).
 
+Request IDs, lifecycle transitions and the approved-profile handoff are specified in
+[ORCHESTRATION.md](ORCHESTRATION.md). Quality budgets and their test mapping are recorded in
+[QUALITY_CHECKS.md](QUALITY_CHECKS.md).
+
 ## Requirement traceability
 
 - R1: `createDraft`, `approveProfile`, immutable `Profile` versions and manual form. Server-side review action, user ownership, date/salary validation and optimistic version checks prevent lost updates. Cancellation discards only the draft. Manual preparation works without a model.

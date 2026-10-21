@@ -1,5 +1,5 @@
 import express from 'express';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { fileURLToPath } from 'node:url';
@@ -45,10 +45,20 @@ const credentials = z.object({
   name: z.string().trim().min(1).max(100).optional(),
 });
 
+function requestId(value: unknown) {
+  return typeof value === 'string' && /^[A-Za-z0-9._:-]{1,100}$/.test(value) ? value : randomUUID();
+}
+
 export function createApp() {
   const app = express();
   app.disable('x-powered-by');
   app.use(express.json({ limit: '150kb' }));
+  app.use((req, res, next) => {
+    const id = requestId(req.get('X-Request-ID'));
+    res.locals.requestId = id;
+    res.setHeader('X-Request-ID', id);
+    next();
+  });
   app.use((_req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'same-origin');
@@ -374,21 +384,31 @@ export function createApp() {
         code: 'VALIDATION_ERROR',
         error: 'Please correct the highlighted fields.',
         fields: err.flatten().fieldErrors,
+        requestId: res.locals.requestId,
       });
     if (err instanceof AppError)
-      return res.status(err.status).json({ code: err.code, error: err.message });
+      return res.status(err.status).json({
+        code: err.code,
+        error: err.message,
+        requestId: res.locals.requestId,
+      });
     if (err?.type === 'entity.parse.failed')
-      return res
-        .status(400)
-        .json({ code: 'INVALID_JSON', error: 'Request body must be valid JSON.' });
+      return res.status(400).json({
+        code: 'INVALID_JSON',
+        error: 'Request body must be valid JSON.',
+        requestId: res.locals.requestId,
+      });
     if (err?.code === 'P2002')
-      return res
-        .status(409)
-        .json({ code: 'CONFLICT', error: 'This record already exists. Refresh and retry.' });
+      return res.status(409).json({
+        code: 'CONFLICT',
+        error: 'This record already exists. Refresh and retry.',
+        requestId: res.locals.requestId,
+      });
     console.error('Request failed:', err.message);
     res.status(500).json({
       code: 'INTERNAL_ERROR',
       error: 'The operation did not complete. Previously approved data is unchanged.',
+      requestId: res.locals.requestId,
     });
   });
   return app;
