@@ -178,7 +178,7 @@ export async function generate<T>(
     questions:
       'Prepare up to three distinct, role-specific practice questions. Use stable unique IDs. Do not assume a gap is an existing skill.',
     feedback:
-      'Return an object with all three required fields: strengths, improvements, and nextSteps. Each field must be an array of strings, even when empty. Give feedback on the supplied interview answers against the selected role. Distinguish observed answer quality from candidate qualifications. Never promote a practice answer to a verified profile fact.',
+      'Return an object with all three required fields: strengths, improvements, and nextSteps. Each field must be a non-empty array of actionable strings. Give feedback on the supplied interview answers against the selected role. Distinguish observed answer quality from candidate qualifications. Never promote a practice answer to a verified profile fact.',
   }[role];
   const instruction =
     'You are one specialist in CareerFlow AI. ' +
