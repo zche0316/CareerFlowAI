@@ -79,6 +79,7 @@ export async function createWorkflow() {
       {
         goal: c.m.goal,
         facts: c.facts,
+        analysisFeedback: role === 'coach' ? c.d.analysisFeedback : undefined,
         job: c.d.selectedJob?.job,
         questions: c.d.questions,
         answers: c.d.answers,

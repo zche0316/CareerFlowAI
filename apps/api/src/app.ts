@@ -167,11 +167,13 @@ export function createApp() {
 
   // Capture the approved profile and advisory history before scheduling durable background work.
   app.post('/api/missions', async (req, res) => {
-    const { goal, minScore, simulateSourceFailure } = z
+    const { goal, minScore, simulateSourceFailure, analysisFeedback, sourceMissionId } = z
       .object({
         goal: z.string().trim().min(5).max(2000),
         minScore: z.number().min(0).max(100).default(40),
         simulateSourceFailure: z.boolean().default(false),
+        analysisFeedback: z.string().trim().max(2000).default(''),
+        sourceMissionId: z.string().uuid().optional(),
       })
       .parse(req.body);
     const profile = await db.profile.findFirst({
@@ -180,6 +182,30 @@ export function createApp() {
     });
     if (!profile)
       throw new AppError(409, 'PROFILE_REQUIRED', 'Review and approve a career profile first.');
+    if (sourceMissionId) {
+      const source = await db.mission.findFirst({
+        where: { id: sourceMissionId, userId: req.actor!.id },
+      });
+      if (!source) throw new AppError(404, 'NOT_FOUND', 'Source mission unavailable.');
+      if (!(source.data as MissionData).analysis)
+        throw new AppError(
+          422,
+          'ANALYSIS_REQUIRED',
+          'Career guidance must be available before requesting a refinement.',
+        );
+      if (source.profileId !== profile.id)
+        throw new AppError(
+          409,
+          'STALE_PROFILE',
+          'The source mission used a different profile version. Start a new mission.',
+        );
+      if (analysisFeedback.length < 3)
+        throw new AppError(
+          422,
+          'FEEDBACK_REQUIRED',
+          'Describe what the Career Coach should revisit.',
+        );
+    }
     const sharing = (profile.data as any).sharing;
     if (Object.values(sharing).some((v) => !v))
       throw new AppError(
@@ -213,13 +239,17 @@ export function createApp() {
           priorFeedback,
           minScore,
           simulateSourceFailure: process.env.ENABLE_DEMO_LOGIN === 'true' && simulateSourceFailure,
+          analysisFeedback,
+          ...(sourceMissionId ? { refinedFromMissionId: sourceMissionId } : {}),
         }),
         events: json([
           {
             at: new Date().toISOString(),
             agent: 'Orchestrator',
             action: 'queued',
-            detail: 'Mission queued using approved profile v' + profile.version,
+            detail: sourceMissionId
+              ? `Refinement mission queued from ${sourceMissionId} using approved profile v${profile.version}`
+              : 'Mission queued using approved profile v' + profile.version,
           },
         ]),
       },

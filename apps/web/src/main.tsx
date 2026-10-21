@@ -274,6 +274,18 @@ function App() {
                       await api(`/missions/${mission.id}/answers`, 'PUT', a);
                     })
                   }
+                  onRefineAnalysis={(feedback) =>
+                    act(async () => {
+                      const refined = await api('/missions', 'POST', {
+                        goal: mission.goal,
+                        minScore: mission.data.minScore ?? 40,
+                        analysisFeedback: feedback,
+                        sourceMissionId: mission.id,
+                      });
+                      setSelected(refined.id);
+                      setNotice('A refined career analysis is queued.');
+                    })
+                  }
                 />
               ) : (
                 <>
@@ -967,6 +979,9 @@ function Profile({
             </div>
             {input('experienceYears', 'Years of experience', { type: 'number' })}
             {input('employmentType', 'Employment preference', { placeholder: 'Optional' })}
+            {input('workArrangement', 'Work arrangement', { placeholder: 'e.g. Hybrid' })}
+            {input('companySize', 'Company size preference', { placeholder: 'Optional' })}
+            {input('industry', 'Industry preference', { placeholder: 'e.g. Technology' })}
             {input('startDate', 'Experience start date (optional)', { type: 'date' })}
             {input('endDate', 'Experience end date (optional)', { type: 'date' })}
             <details className="wide">
@@ -1102,17 +1117,20 @@ function MissionDetail({
   onBack,
   onAction,
   onSaveAnswer,
+  onRefineAnalysis,
 }: {
   mission: any;
   busy: boolean;
   onBack: () => void;
   onAction: (kind: string, body?: unknown) => Promise<void>;
   onSaveAnswer: (a: unknown) => Promise<void>;
+  onRefineAnalysis: (feedback: string) => Promise<void>;
 }) {
   const d = m.data,
     [revision, setRevision] = useState(''),
     [answer, setAnswer] = useState(''),
     [question, setQuestion] = useState(0),
+    [analysisFeedback, setAnalysisFeedback] = useState(''),
     [confirm, setConfirm] = useState(false),
     [compareIds, setCompareIds] = useState<string[]>([]);
   const questions = d.questions || [],
@@ -1126,6 +1144,10 @@ function MissionDetail({
     // A changed draft needs a fresh confirmation even if the previous version was reviewed.
     setConfirm(false);
   }, [d.resumeDraft?.hash]);
+
+  useEffect(() => {
+    setAnalysisFeedback('');
+  }, [m.id]);
 
   const stages = [
     { label: 'Approved profile', done: true },
@@ -1225,6 +1247,25 @@ function MissionDetail({
               </ul>
             </div>
           </div>
+          {d.analysisFeedback && (
+            <div className="info">
+              <RefreshCw size={17} />
+              <span>
+                <strong>Refinement request:</strong> {d.analysisFeedback}
+              </span>
+            </div>
+          )}
+          {d.analysis.directions?.length > 0 && (
+            <div className="next-steps">
+              <h3>Suitable career directions</h3>
+              {d.analysis.directions.map((s: string, i: number) => (
+                <p key={s}>
+                  <span>{i + 1}</span>
+                  {s}
+                </p>
+              ))}
+            </div>
+          )}
           <div className="next-steps">
             <h3>Suggested next steps</h3>
             {d.analysis.actions.map((s: string, i: number) => (
@@ -1234,6 +1275,25 @@ function MissionDetail({
               </p>
             ))}
           </div>
+          <details className="approval-controls">
+            <summary>Refine this career analysis</summary>
+            <label>
+              What should the Career Coach revisit?
+              <textarea
+                value={analysisFeedback}
+                onChange={(e) => setAnalysisFeedback(e.target.value)}
+                placeholder="For example: focus more on leadership evidence or explain why a direction fits."
+              />
+            </label>
+            <button
+              className="secondary"
+              disabled={busy || analysisFeedback.trim().length < 3}
+              onClick={() => void onRefineAnalysis(analysisFeedback.trim())}
+            >
+              <RefreshCw size={15} />
+              Start refined mission
+            </button>
+          </details>
         </section>
       )}
       {m.status === 'NO_MATCHES' && (
@@ -1408,6 +1468,38 @@ function MissionDetail({
               </details>
             </div>
           ))}
+          <div className="approval-controls">
+            <details>
+              <summary>Review proposed changes</summary>
+              <div className="info">
+                <ShieldCheck size={17} />
+                <span>
+                  Candidate facts are not rewritten. This resume proposes selecting and ordering
+                  only the evidence supported by your approved profile.
+                </span>
+              </div>
+              <h4>Included, in proposed order</h4>
+              <ol>
+                {d.resumeDraft.claims.map((c: any) => (
+                  <li key={c.factId}>
+                    {c.kind}: {c.text}
+                  </li>
+                ))}
+              </ol>
+              <h4>Omitted for this target role</h4>
+              {d.resumeDraft.omittedFacts?.length ? (
+                <ul>
+                  {d.resumeDraft.omittedFacts.map((f: any) => (
+                    <li key={f.id}>
+                      {f.kind}: {f.text}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="small muted">No eligible approved facts were omitted.</p>
+              )}
+            </details>
+          </div>
           {m.status === 'AWAITING_APPROVAL' && (
             <div className="approval-controls">
               <label className="checkbox">
