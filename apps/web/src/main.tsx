@@ -242,6 +242,7 @@ function App() {
               profile={workspace?.profile}
               sample={workspace?.sampleProfile}
               busy={busy}
+              onBuild={async (input) => api('/profiles/prepare', 'POST', input)}
               onDraft={async (input) => api('/profiles/drafts', 'POST', input)}
               onApprove={async (id) =>
                 act(async () => {
@@ -814,6 +815,7 @@ function Profile({
   profile,
   sample,
   busy,
+  onBuild,
   onDraft,
   onApprove,
   onDiscard,
@@ -821,6 +823,12 @@ function Profile({
   profile: any;
   sample: CareerProfile | undefined;
   busy: boolean;
+  onBuild: (input: { notes: string; currentProfile: CareerProfile }) => Promise<{
+    data: CareerProfile;
+    followUpQuestions: string[];
+    proposedChanges: { field: string; proposedValue: string; evidence: string }[];
+    discardedFields: string[];
+  }>;
   onDraft: (p: CareerProfile) => Promise<any>;
   onApprove: (id: string) => Promise<void>;
   onDiscard: (id: string) => Promise<void>;
@@ -832,6 +840,13 @@ function Profile({
     [draft, setDraft] = useState<any>(null),
     [reviewed, setReviewed] = useState(false),
     [preparing, setPreparing] = useState(false),
+    [building, setBuilding] = useState(false),
+    [builderNotes, setBuilderNotes] = useState(''),
+    [followUpQuestions, setFollowUpQuestions] = useState<string[]>([]),
+    [proposedChanges, setProposedChanges] = useState<
+      { field: string; proposedValue: string; evidence: string }[]
+    >([]),
+    [discardedFields, setDiscardedFields] = useState<string[]>([]),
     [error, setError] = useState(''),
     [fields, setFields] = useState<Record<string, string[]>>({});
 
@@ -856,6 +871,9 @@ function Profile({
     }
     setDraft(null);
     setReviewed(false);
+    setFollowUpQuestions([]);
+    setProposedChanges([]);
+    setDiscardedFields([]);
   }, [profile?.id, Boolean(sample)]);
   if (!form) return <div className="loading">Loading your profile…</div>;
 
@@ -917,6 +935,28 @@ function Profile({
       setPreparing(false);
     }
   }
+
+  async function buildWithAi() {
+    setBuilding(true);
+    setError('');
+    setFields({});
+    try {
+      const result = await onBuild({ notes: builderNotes, currentProfile: form! });
+      setForm(result.data);
+      setSkillInput(result.data.skills.join(', '));
+      setInterestInput(result.data.interests.join(', '));
+      setFollowUpQuestions(result.followUpQuestions);
+      setProposedChanges(result.proposedChanges);
+      setDiscardedFields(result.discardedFields);
+      setDraft(null);
+      setReviewed(false);
+    } catch (e) {
+      // The current form remains intact so manual completion is always available.
+      setError((e as Error).message);
+    } finally {
+      setBuilding(false);
+    }
+  }
   return (
     <>
       <PageTitle
@@ -943,6 +983,74 @@ function Profile({
               {error}
             </div>
           )}
+          <div className="sharing">
+            <h3>Profile Builder</h3>
+            <p className="muted">
+              Describe your background in your own words. Profile Builder can organise only the
+              supplied information, identify missing details and propose follow-up questions. You
+              still review, edit and approve every field.
+            </p>
+            <label>
+              Notes for Profile Builder
+              <textarea
+                value={builderNotes}
+                onChange={(e) => setBuilderNotes(e.target.value)}
+                placeholder="For example: I studied information technology, know Python and SQL, want an entry-level data role in Sydney, and prefer hybrid work."
+              />
+            </label>
+            <div className="form-actions">
+              <button
+                className="secondary"
+                disabled={busy || building || builderNotes.trim().length < 10}
+                onClick={() => void buildWithAi()}
+              >
+                {building ? 'Organising…' : 'Organise with Profile Builder'}
+                <Compass size={15} />
+              </button>
+              <span className="small muted">
+                AI suggestions never approve or save the profile automatically.
+              </span>
+            </div>
+            {followUpQuestions.length > 0 && (
+              <div className="info">
+                <MessageSquare size={17} />
+                <div>
+                  <strong>Details to clarify</strong>
+                  <ul>
+                    {followUpQuestions.map((question) => (
+                      <li key={question}>{question}</li>
+                    ))}
+                  </ul>
+                  <p className="small muted">
+                    Add these details to your notes, run Profile Builder again, or complete the
+                    fields manually.
+                  </p>
+                </div>
+              </div>
+            )}
+            {proposedChanges.length > 0 && (
+              <details>
+                <summary>Review Profile Builder proposed changes</summary>
+                <ul>
+                  {proposedChanges.map((change, index) => (
+                    <li key={`${change.field}-${index}`}>
+                      <strong>{nice(change.field)}</strong>: {change.proposedValue}
+                      <small>Evidence: “{change.evidence}”</small>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+            {discardedFields.length > 0 && (
+              <div className="info">
+                <AlertCircle size={17} />
+                <span>
+                  Unsupported suggestions were discarded for: {discardedFields.map(nice).join(', ')}
+                  . Your current values were left unchanged.
+                </span>
+              </div>
+            )}
+          </div>
           <div className="form-grid">
             {input('name', 'Full name')}
             {input('location', 'Preferred location', { placeholder: 'Optional' })}

@@ -75,6 +75,56 @@ export const coachSchema = z.object({
   actions: z.array(coachRecommendationSchema),
 });
 
+export const profileBuilderDraftSchema = z.object({
+  draft: z.object({
+    name: z.string().trim().min(1).max(100).optional(),
+    goals: z.string().trim().min(3).max(2000).optional(),
+    skills: z.array(z.string().trim().min(1).max(80)).max(40).default([]),
+    interests: z.array(z.string().trim().min(1).max(80)).max(20).default([]),
+    education: z.string().trim().min(1).max(2000).optional(),
+    experience: z.string().trim().min(1).max(4000).optional(),
+    experienceYears: z.number().min(0).max(60).optional(),
+    location: z.string().trim().max(100).optional(),
+    employmentType: z.string().trim().max(100).optional(),
+    workArrangement: z.string().trim().max(100).optional(),
+    companySize: z.string().trim().max(100).optional(),
+    industry: z.string().trim().max(100).optional(),
+    startDate: z.string().date().nullable().optional(),
+    endDate: z.string().date().nullable().optional(),
+    salaryMin: z.number().nonnegative().nullable().optional(),
+    salaryMax: z.number().nonnegative().nullable().optional(),
+    currency: z.string().trim().max(10).optional(),
+  }),
+  followUpQuestions: z.array(z.string().trim().min(1).max(500)).max(8),
+  proposedChanges: z
+    .array(
+      z.object({
+        field: z.enum([
+          'name',
+          'goals',
+          'skills',
+          'interests',
+          'education',
+          'experience',
+          'experienceYears',
+          'location',
+          'employmentType',
+          'workArrangement',
+          'companySize',
+          'industry',
+          'startDate',
+          'endDate',
+          'salaryMin',
+          'salaryMax',
+          'currency',
+        ]),
+        proposedValue: z.string().trim().min(1).max(8000),
+        evidence: z.string().trim().min(1).max(2000),
+      }),
+    )
+    .max(40),
+});
+
 // Models propose evidence IDs and emphasis only; the server supplies candidate claim text.
 export const resumePlanSchema = z.object({
   claims: z

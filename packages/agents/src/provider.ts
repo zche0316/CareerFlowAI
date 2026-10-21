@@ -9,6 +9,8 @@ export type ProviderContext = {
   goal: string;
   facts: Fact[];
   analysisFeedback?: string;
+  profileNotes?: string;
+  profileBase?: Record<string, unknown>;
   job?: { title: string; description: string };
   questions?: { id: string; question: string; focus: string }[];
   answers?: { questionId: string; answer: string }[];
@@ -35,7 +37,7 @@ export function configuredMode(): Mode {
 }
 
 export async function generate<T>(
-  role: 'coach' | 'resume' | 'questions' | 'feedback',
+  role: 'profile' | 'coach' | 'resume' | 'questions' | 'feedback',
   context: ProviderContext,
   schema: z.ZodType<T>,
   mode: Mode,
@@ -48,100 +50,111 @@ export async function generate<T>(
     const skills = context.facts.filter((f) => f.kind === 'skill');
     const primaryEvidenceId = skills[0]?.id || context.facts[0]?.id || 'education-1';
     const result =
-      role === 'coach'
+      role === 'profile'
         ? {
-            strengths: skills.slice(0, 3).map((f) => ({
-              text: f.text,
-              evidenceIds: [f.id],
-              reason: `This ${f.kind} is explicitly present in the approved profile.`,
-            })),
-            gaps: [
-              {
-                text: 'Compare your current evidence with each selected job before claiming a required skill.',
-                evidenceIds: [primaryEvidenceId],
-                reason:
-                  'The approved profile establishes a starting point, while job-specific gaps still require comparison.',
-              },
+            draft: {},
+            followUpQuestions: [
+              'Which supplied experience best demonstrates the skills you want to use in your next role?',
+              'Which details about your goals, preferences or experience remain unclear?',
             ],
-            directions: [
-              {
-                text: context.goal,
-                evidenceIds: [primaryEvidenceId],
-                reason:
-                  'This direction is anchored to your stated goal and approved career evidence.',
-              },
-            ],
-            actions: [
-              context.analysisFeedback
-                ? {
-                    text: 'Revisit the supplied refinement request with the Career Coach.',
-                    evidenceIds: [primaryEvidenceId],
-                    reason: context.analysisFeedback,
-                  }
-                : {
-                    text: 'Review the ranked jobs and choose a target.',
-                    evidenceIds: [primaryEvidenceId],
-                    reason: 'A target role makes the next career steps specific and actionable.',
-                  },
-              {
-                text: 'Prepare one concrete example for each required skill.',
-                evidenceIds: [primaryEvidenceId],
-                reason:
-                  'Concrete examples connect approved evidence to interview and application claims.',
-              },
-              ...(context.priorFeedback?.nextSteps || []).slice(0, 2).map((text) => ({
-                text,
-                evidenceIds: [primaryEvidenceId],
-                reason: 'This action follows from feedback on a previous completed mission.',
-              })),
-            ],
+            proposedChanges: [],
           }
-        : role === 'resume'
+        : role === 'coach'
           ? {
-              claims: context.facts
-                .filter(
-                  (f) =>
-                    ['skill', 'education', 'experience'].includes(f.kind) &&
-                    !/^none yet$/i.test(f.text),
-                )
-                .slice(0, 12)
-                .map((f) => ({
-                  factId: f.id,
-                  reason: `User-confirmed ${f.kind} evidence, retained verbatim for ${context.job?.title || 'the selected role'}.`,
+              strengths: skills.slice(0, 3).map((f) => ({
+                text: f.text,
+                evidenceIds: [f.id],
+                reason: `This ${f.kind} is explicitly present in the approved profile.`,
+              })),
+              gaps: [
+                {
+                  text: 'Compare your current evidence with each selected job before claiming a required skill.',
+                  evidenceIds: [primaryEvidenceId],
+                  reason:
+                    'The approved profile establishes a starting point, while job-specific gaps still require comparison.',
+                },
+              ],
+              directions: [
+                {
+                  text: context.goal,
+                  evidenceIds: [primaryEvidenceId],
+                  reason:
+                    'This direction is anchored to your stated goal and approved career evidence.',
+                },
+              ],
+              actions: [
+                context.analysisFeedback
+                  ? {
+                      text: 'Revisit the supplied refinement request with the Career Coach.',
+                      evidenceIds: [primaryEvidenceId],
+                      reason: context.analysisFeedback,
+                    }
+                  : {
+                      text: 'Review the ranked jobs and choose a target.',
+                      evidenceIds: [primaryEvidenceId],
+                      reason: 'A target role makes the next career steps specific and actionable.',
+                    },
+                {
+                  text: 'Prepare one concrete example for each required skill.',
+                  evidenceIds: [primaryEvidenceId],
+                  reason:
+                    'Concrete examples connect approved evidence to interview and application claims.',
+                },
+                ...(context.priorFeedback?.nextSteps || []).slice(0, 2).map((text) => ({
+                  text,
+                  evidenceIds: [primaryEvidenceId],
+                  reason: 'This action follows from feedback on a previous completed mission.',
                 })),
+              ],
             }
-          : role === 'questions'
+          : role === 'resume'
             ? {
-                questions: [
-                  {
-                    id: 'q1',
-                    question: `Why are you interested in the ${context.job?.title} role, and which confirmed experience supports your interest?`,
-                    focus: 'Role motivation and evidence',
-                  },
-                  {
-                    id: 'q2',
-                    question:
-                      'Describe how you used one of your confirmed skills to solve a problem. Explain your own action and the outcome.',
-                    focus: 'Specific examples',
-                  },
-                  {
-                    id: 'q3',
-                    question:
-                      'Which requirement of this role is a development area for you, and how would you close that gap?',
-                    focus: 'Honest skill-gap reflection',
-                  },
-                ],
+                claims: context.facts
+                  .filter(
+                    (f) =>
+                      ['skill', 'education', 'experience'].includes(f.kind) &&
+                      !/^none yet$/i.test(f.text),
+                  )
+                  .slice(0, 12)
+                  .map((f) => ({
+                    factId: f.id,
+                    reason: `User-confirmed ${f.kind} evidence, retained verbatim for ${context.job?.title || 'the selected role'}.`,
+                  })),
               }
-            : {
-                strengths: [`You completed ${context.answers?.length || 0} practice response(s).`],
-                improvements: [
-                  'Demo feedback is rule-based, not an AI assessment. Add a specific situation, your own action and a supported result.',
-                ],
-                nextSteps: [
-                  'Review the selected job requirements.',
-                  'Practise the least specific answer again without inventing achievements.',
-                ],
-              };
+            : role === 'questions'
+              ? {
+                  questions: [
+                    {
+                      id: 'q1',
+                      question: `Why are you interested in the ${context.job?.title} role, and which confirmed experience supports your interest?`,
+                      focus: 'Role motivation and evidence',
+                    },
+                    {
+                      id: 'q2',
+                      question:
+                        'Describe how you used one of your confirmed skills to solve a problem. Explain your own action and the outcome.',
+                      focus: 'Specific examples',
+                    },
+                    {
+                      id: 'q3',
+                      question:
+                        'Which requirement of this role is a development area for you, and how would you close that gap?',
+                      focus: 'Honest skill-gap reflection',
+                    },
+                  ],
+                }
+              : {
+                  strengths: [
+                    `You completed ${context.answers?.length || 0} practice response(s).`,
+                  ],
+                  improvements: [
+                    'Demo feedback is rule-based, not an AI assessment. Add a specific situation, your own action and a supported result.',
+                  ],
+                  nextSteps: [
+                    'Review the selected job requirements.',
+                    'Practise the least specific answer again without inventing achievements.',
+                  ],
+                };
     return schema.parse(result);
   }
   if (!process.env.OPENAI_API_KEY || !process.env.OPENAI_MODEL)
@@ -156,6 +169,8 @@ export async function generate<T>(
     maxRetries: 0,
   });
   const task = {
+    profile:
+      'Organise only the information supplied by the user into a partial profile draft. Return relevant follow-up questions for missing or ambiguous fields. Every proposed change must quote the exact supporting user text in evidence. Never infer qualifications, achievements, dates, salary or experience.',
     coach:
       'Identify strengths, potential skill gaps, suitable directions and useful development actions. Every item in all four arrays must contain text, at least one valid evidenceIds value from the supplied facts, and a reason explaining the recommendation. Recommendations are advisory, not hiring probabilities.',
     resume:

@@ -26,6 +26,7 @@ import {
 import { AppError, requireValue } from './errors.js';
 import { enqueue, abortRun } from './queue.js';
 import { configuredMode } from '../../../packages/agents/src/provider.js';
+import { prepareProfileBuilderDraft } from './profile-builder.js';
 import {
   decisionSchema,
   answerSchema,
@@ -149,6 +150,35 @@ export function createApp() {
   });
 
   // Profile editing and explicit approval are separate operations.
+  app.post('/api/profiles/prepare', async (req, res) => {
+    const { notes, currentProfile } = z
+      .object({
+        notes: z.string().trim().min(10).max(10000),
+        currentProfile: z.record(z.string(), z.unknown()).optional(),
+      })
+      .parse(req.body);
+    const existingProfile = await db.profile.findFirst({
+      where: { userId: req.actor!.id },
+      orderBy: { version: 'desc' },
+    });
+    try {
+      res.json(
+        await prepareProfileBuilderDraft({
+          notes,
+          currentProfile,
+          existingProfile: existingProfile?.data,
+          mode: configuredMode(),
+        }),
+      );
+    } catch (error) {
+      console.error('Profile Builder failed:', error);
+      throw new AppError(
+        503,
+        'PROFILE_BUILDER_UNAVAILABLE',
+        'Profile Builder is unavailable. Your form and previously approved profile are unchanged; continue manually or retry.',
+      );
+    }
+  });
   app.post('/api/profiles/drafts', async (req, res) =>
     res.status(201).json(await createDraft(req.actor!.id, req.body)),
   );
