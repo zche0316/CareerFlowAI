@@ -1,6 +1,7 @@
 import { Annotation, StateGraph, START, END, interrupt } from '@langchain/langgraph';
 import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
 import { Command } from '@langchain/langgraph';
+import { z } from 'zod';
 import { readFile } from 'node:fs/promises';
 import { db, databaseUrl } from '../../../apps/api/src/db.js';
 import { AppError } from '../../../apps/api/src/errors.js';
@@ -14,6 +15,7 @@ import {
   patchRun,
   reserveCall,
   appendUsage,
+  deduplicateResumeClaims,
   validateResumeClaims,
   mutateRun,
   digest,
@@ -22,7 +24,6 @@ import {
 } from '../../../apps/api/src/domain.js';
 import {
   coachSchema,
-  resumePlanSchema,
   questionsSchema,
   feedbackSchema,
   type Fact,
@@ -79,6 +80,7 @@ export async function createWorkflow() {
       {
         goal: c.m.goal,
         facts: c.facts,
+        analysisFeedback: role === 'coach' ? c.d.analysisFeedback : undefined,
         job: c.d.selectedJob?.job,
         questions: c.d.questions,
         answers: c.d.answers,
@@ -102,11 +104,25 @@ export async function createWorkflow() {
     .addNode('career_coach', async (s) => {
       const c = await context(s.missionId, 'coach');
       if (c.d.analysis) return {};
-      const analysis = await model(s.missionId, 'coach', 'coach', coachSchema);
       const known = new Set(c.facts.map((f) => f.id));
+      const groundedCoachSchema = coachSchema.superRefine((analysis, context) => {
+        for (const [section, items] of Object.entries(analysis)) {
+          items.forEach((item, index) => {
+            if (item.evidenceIds.some((id) => !known.has(id)))
+              context.addIssue({
+                code: 'custom',
+                path: [section, index, 'evidenceIds'],
+                message: 'Every evidence ID must come from the supplied approved facts.',
+              });
+          });
+        }
+      });
+      const analysis = await model(s.missionId, 'coach', 'coach', groundedCoachSchema);
       if (
-        analysis.strengths.some(
-          (x) => !x.evidenceIds.length || x.evidenceIds.some((id) => !known.has(id)),
+        [analysis.strengths, analysis.gaps, analysis.directions, analysis.actions].some((items) =>
+          items.some(
+            (item) => !item.evidenceIds.length || item.evidenceIds.some((id) => !known.has(id)),
+          ),
         )
       )
         throw new AppError(422, 'INVALID_EVIDENCE', 'Career advice referenced unknown evidence.');
@@ -116,7 +132,7 @@ export async function createWorkflow() {
         { analysis },
         'Career Coach',
         'completed',
-        'Strengths, gaps and development actions prepared from approved evidence.',
+        'Strengths, gaps, directions and actions prepared with traceable evidence and reasons.',
       );
       return {};
     })
@@ -172,8 +188,35 @@ export async function createWorkflow() {
     .addNode('resume_tailoring', async (s) => {
       const c = await context(s.missionId, 'resume');
       if (c.d.resumeDraft) return {};
-      const plan = await model(s.missionId, 'resume', 'resume', resumePlanSchema);
-      const claims = validateResumeClaims(plan.claims, c.facts);
+      const eligibleFacts = new Map(
+        c.facts
+          .filter(
+            (fact) =>
+              ['skill', 'education', 'experience'].includes(fact.kind) &&
+              !/^none yet$/i.test(fact.text),
+          )
+          .map((fact) => [fact.id, fact]),
+      );
+      const eligibleFactIds = [...eligibleFacts.keys()];
+      if (!eligibleFactIds.length)
+        throw new AppError(
+          422,
+          'EVIDENCE_REQUIRED',
+          'Approve at least one skill, education or experience fact before tailoring a resume.',
+        );
+      const groundedResumeSchema = z.object({
+        claims: z
+          .array(
+            z.object({
+              factId: z.enum(eligibleFactIds as [string, ...string[]]),
+              reason: z.string().trim().min(1).max(1000),
+            }),
+          )
+          .min(1)
+          .max(20),
+      });
+      const plan = await model(s.missionId, 'resume', 'resume', groundedResumeSchema);
+      const claims = validateResumeClaims(deduplicateResumeClaims(plan.claims), c.facts);
       const draft = {
         missionId: s.missionId,
         jobTitle: c.d.selectedJob.job.title,

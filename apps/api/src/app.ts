@@ -1,5 +1,5 @@
 import express from 'express';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { fileURLToPath } from 'node:url';
@@ -26,6 +26,8 @@ import {
 import { AppError, requireValue } from './errors.js';
 import { enqueue, abortRun } from './queue.js';
 import { configuredMode } from '../../../packages/agents/src/provider.js';
+import { prepareProfileBuilderDraft } from './profile-builder.js';
+import { decideNegotiationPractice, runNegotiationPractice } from './negotiation.js';
 import {
   decisionSchema,
   answerSchema,
@@ -43,10 +45,20 @@ const credentials = z.object({
   name: z.string().trim().min(1).max(100).optional(),
 });
 
+function requestId(value: unknown) {
+  return typeof value === 'string' && /^[A-Za-z0-9._:-]{1,100}$/.test(value) ? value : randomUUID();
+}
+
 export function createApp() {
   const app = express();
   app.disable('x-powered-by');
   app.use(express.json({ limit: '150kb' }));
+  app.use((req, res, next) => {
+    const id = requestId(req.get('X-Request-ID'));
+    res.locals.requestId = id;
+    res.setHeader('X-Request-ID', id);
+    next();
+  });
   app.use((_req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'same-origin');
@@ -149,6 +161,35 @@ export function createApp() {
   });
 
   // Profile editing and explicit approval are separate operations.
+  app.post('/api/profiles/prepare', async (req, res) => {
+    const { notes, currentProfile } = z
+      .object({
+        notes: z.string().trim().min(10).max(10000),
+        currentProfile: z.record(z.string(), z.unknown()).optional(),
+      })
+      .parse(req.body);
+    const existingProfile = await db.profile.findFirst({
+      where: { userId: req.actor!.id },
+      orderBy: { version: 'desc' },
+    });
+    try {
+      res.json(
+        await prepareProfileBuilderDraft({
+          notes,
+          currentProfile,
+          existingProfile: existingProfile?.data,
+          mode: configuredMode(),
+        }),
+      );
+    } catch (error) {
+      console.error('Profile Builder failed:', error);
+      throw new AppError(
+        503,
+        'PROFILE_BUILDER_UNAVAILABLE',
+        'Profile Builder is unavailable. Your form and previously approved profile are unchanged; continue manually or retry.',
+      );
+    }
+  });
   app.post('/api/profiles/drafts', async (req, res) =>
     res.status(201).json(await createDraft(req.actor!.id, req.body)),
   );
@@ -167,11 +208,13 @@ export function createApp() {
 
   // Capture the approved profile and advisory history before scheduling durable background work.
   app.post('/api/missions', async (req, res) => {
-    const { goal, minScore, simulateSourceFailure } = z
+    const { goal, minScore, simulateSourceFailure, analysisFeedback, sourceMissionId } = z
       .object({
         goal: z.string().trim().min(5).max(2000),
         minScore: z.number().min(0).max(100).default(40),
         simulateSourceFailure: z.boolean().default(false),
+        analysisFeedback: z.string().trim().max(2000).default(''),
+        sourceMissionId: z.string().uuid().optional(),
       })
       .parse(req.body);
     const profile = await db.profile.findFirst({
@@ -180,6 +223,30 @@ export function createApp() {
     });
     if (!profile)
       throw new AppError(409, 'PROFILE_REQUIRED', 'Review and approve a career profile first.');
+    if (sourceMissionId) {
+      const source = await db.mission.findFirst({
+        where: { id: sourceMissionId, userId: req.actor!.id },
+      });
+      if (!source) throw new AppError(404, 'NOT_FOUND', 'Source mission unavailable.');
+      if (!(source.data as MissionData).analysis)
+        throw new AppError(
+          422,
+          'ANALYSIS_REQUIRED',
+          'Career guidance must be available before requesting a refinement.',
+        );
+      if (source.profileId !== profile.id)
+        throw new AppError(
+          409,
+          'STALE_PROFILE',
+          'The source mission used a different profile version. Start a new mission.',
+        );
+      if (analysisFeedback.length < 3)
+        throw new AppError(
+          422,
+          'FEEDBACK_REQUIRED',
+          'Describe what the Career Coach should revisit.',
+        );
+    }
     const sharing = (profile.data as any).sharing;
     if (Object.values(sharing).some((v) => !v))
       throw new AppError(
@@ -213,13 +280,17 @@ export function createApp() {
           priorFeedback,
           minScore,
           simulateSourceFailure: process.env.ENABLE_DEMO_LOGIN === 'true' && simulateSourceFailure,
+          analysisFeedback,
+          ...(sourceMissionId ? { refinedFromMissionId: sourceMissionId } : {}),
         }),
         events: json([
           {
             at: new Date().toISOString(),
             agent: 'Orchestrator',
             action: 'queued',
-            detail: 'Mission queued using approved profile v' + profile.version,
+            detail: sourceMissionId
+              ? `Refinement mission queued from ${sourceMissionId} using approved profile v${profile.version}`
+              : 'Mission queued using approved profile v' + profile.version,
           },
         ]),
       },
@@ -241,6 +312,14 @@ export function createApp() {
     await enqueue(m.id).catch(() => {});
     res.status(202).json(m);
   });
+  app.post('/api/missions/:id/negotiation', async (req, res) =>
+    res
+      .status(201)
+      .json(await runNegotiationPractice(req.actor!.id, String(req.params.id), req.body)),
+  );
+  app.put('/api/missions/:id/negotiation/decision', async (req, res) =>
+    res.json(await decideNegotiationPractice(req.actor!.id, String(req.params.id), req.body)),
+  );
   app.put('/api/missions/:id/answers', async (req, res) =>
     res.json(
       await saveInterviewAnswer(req.actor!.id, String(req.params.id), answerSchema.parse(req.body)),
@@ -305,21 +384,31 @@ export function createApp() {
         code: 'VALIDATION_ERROR',
         error: 'Please correct the highlighted fields.',
         fields: err.flatten().fieldErrors,
+        requestId: res.locals.requestId,
       });
     if (err instanceof AppError)
-      return res.status(err.status).json({ code: err.code, error: err.message });
+      return res.status(err.status).json({
+        code: err.code,
+        error: err.message,
+        requestId: res.locals.requestId,
+      });
     if (err?.type === 'entity.parse.failed')
-      return res
-        .status(400)
-        .json({ code: 'INVALID_JSON', error: 'Request body must be valid JSON.' });
+      return res.status(400).json({
+        code: 'INVALID_JSON',
+        error: 'Request body must be valid JSON.',
+        requestId: res.locals.requestId,
+      });
     if (err?.code === 'P2002')
-      return res
-        .status(409)
-        .json({ code: 'CONFLICT', error: 'This record already exists. Refresh and retry.' });
+      return res.status(409).json({
+        code: 'CONFLICT',
+        error: 'This record already exists. Refresh and retry.',
+        requestId: res.locals.requestId,
+      });
     console.error('Request failed:', err.message);
     res.status(500).json({
       code: 'INTERNAL_ERROR',
       error: 'The operation did not complete. Previously approved data is unchanged.',
+      requestId: res.locals.requestId,
     });
   });
   return app;

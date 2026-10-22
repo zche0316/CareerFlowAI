@@ -1042,6 +1042,16 @@ main {
   height: 21px;
   font-size: 10px;
 }
+.next-steps p > div {
+  flex: 1;
+}
+.next-steps small,
+.analysis li small {
+  display: block;
+  font-size: 10px;
+  color: #a1ae91;
+  margin-top: 3px;
+}
 .jobs-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

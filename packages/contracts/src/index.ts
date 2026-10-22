@@ -16,6 +16,9 @@ export const profileSchema = z
     experienceYears: z.number().min(0).max(60),
     location: z.string().trim().max(100).default(''),
     employmentType: z.string().max(100).default(''),
+    workArrangement: z.string().trim().max(100).default(''),
+    companySize: z.string().trim().max(100).default(''),
+    industry: z.string().trim().max(100).default(''),
     startDate: z.string().date().nullable().default(null),
     endDate: z.string().date().nullable().default(null),
     salaryMin: z.number().nonnegative().nullable().default(null),
@@ -59,11 +62,67 @@ export type CareerProfile = z.infer<typeof profileSchema>;
 
 export type Fact = { id: string; kind: string; text: string; source: string };
 
+const coachRecommendationSchema = z.object({
+  text: z.string().trim().min(1).max(1000),
+  evidenceIds: z.array(z.string().trim().min(1).max(100)).min(1).max(10),
+  reason: z.string().trim().min(1).max(1000),
+});
+
 export const coachSchema = z.object({
-  strengths: z.array(z.object({ title: z.string(), evidenceIds: z.array(z.string()) })),
-  gaps: z.array(z.string()),
-  directions: z.array(z.string()),
-  actions: z.array(z.string()),
+  strengths: z.array(coachRecommendationSchema),
+  gaps: z.array(coachRecommendationSchema),
+  directions: z.array(coachRecommendationSchema),
+  actions: z.array(coachRecommendationSchema),
+});
+
+export const profileBuilderDraftSchema = z.object({
+  draft: z.object({
+    name: z.string().trim().min(1).max(100).optional(),
+    goals: z.string().trim().min(3).max(2000).optional(),
+    skills: z.array(z.string().trim().min(1).max(80)).max(40).default([]),
+    interests: z.array(z.string().trim().min(1).max(80)).max(20).default([]),
+    education: z.string().trim().min(1).max(2000).optional(),
+    experience: z.string().trim().min(1).max(4000).optional(),
+    experienceYears: z.number().min(0).max(60).optional(),
+    location: z.string().trim().max(100).optional(),
+    employmentType: z.string().trim().max(100).optional(),
+    workArrangement: z.string().trim().max(100).optional(),
+    companySize: z.string().trim().max(100).optional(),
+    industry: z.string().trim().max(100).optional(),
+    startDate: z.string().date().nullable().optional(),
+    endDate: z.string().date().nullable().optional(),
+    salaryMin: z.number().nonnegative().nullable().optional(),
+    salaryMax: z.number().nonnegative().nullable().optional(),
+    currency: z.string().trim().max(10).optional(),
+  }),
+  followUpQuestions: z.array(z.string().trim().min(1).max(500)).max(8),
+  proposedChanges: z
+    .array(
+      z.object({
+        field: z.enum([
+          'name',
+          'goals',
+          'skills',
+          'interests',
+          'education',
+          'experience',
+          'experienceYears',
+          'location',
+          'employmentType',
+          'workArrangement',
+          'companySize',
+          'industry',
+          'startDate',
+          'endDate',
+          'salaryMin',
+          'salaryMax',
+          'currency',
+        ]),
+        proposedValue: z.string().trim().min(1).max(8000),
+        evidence: z.string().trim().min(1).max(2000),
+      }),
+    )
+    .max(40),
 });
 
 // Models propose evidence IDs and emphasis only; the server supplies candidate claim text.
@@ -85,7 +144,7 @@ export const questionsSchema = z
         }),
       )
       .min(1)
-      .max(5),
+      .max(3),
   })
   .superRefine(({ questions }, context) => {
     if (new Set(questions.map((question) => question.id)).size !== questions.length)
@@ -100,6 +159,26 @@ export const feedbackSchema = z.object({
   strengths: z.array(z.string().trim().min(1).max(1000)).min(1).max(5),
   improvements: z.array(z.string().trim().min(1).max(1000)).min(1).max(5),
   nextSteps: z.array(z.string().trim().min(1).max(1000)).min(1).max(5),
+});
+
+export const negotiationInputSchema = z.object({
+  offerSalary: z.number().positive().max(100_000_000),
+  targetSalary: z.number().positive().max(100_000_000),
+  currency: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z]{3}$/),
+  candidateMessage: z.string().trim().min(10).max(4000),
+});
+
+export const negotiationOutputSchema = z.object({
+  recruiterReply: z.string().trim().min(10).max(2000),
+  feedback: feedbackSchema,
+});
+
+export const negotiationDecisionSchema = z.object({
+  decision: z.enum(['accept', 'decline']),
 });
 
 export const answerSchema = z.object({
@@ -130,6 +209,9 @@ export const sampleProfile: CareerProfile = {
   experienceYears: 0,
   location: 'Sydney',
   employmentType: 'Full-time',
+  workArrangement: '',
+  companySize: '',
+  industry: '',
   startDate: null,
   endDate: null,
   salaryMin: null,

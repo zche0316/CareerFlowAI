@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { profileSchema, sampleProfile } from '../packages/contracts/src/index.js';
-import { buildFacts, validateResumeClaims } from '../apps/api/src/domain.js';
+import {
+  buildFacts,
+  deduplicateResumeClaims,
+  validateResumeClaims,
+} from '../apps/api/src/domain.js';
 import { generate } from '../packages/agents/src/provider.js';
 import { coachSchema } from '../packages/contracts/src/index.js';
 describe('Candidate evidence rules', () => {
@@ -34,6 +38,18 @@ describe('Candidate evidence rules', () => {
     ).toThrow(/duplicate/);
     const [claim] = validateResumeClaims([{ factId: facts[0].id, reason: 'fit' }], facts);
     expect(claim.text).toBe(facts[0].text);
+  });
+  it('deduplicates provider evidence by keeping the first supported claim', () => {
+    expect(
+      deduplicateResumeClaims([
+        { factId: 'skill-1', reason: 'Primary relevance' },
+        { factId: 'skill-1', reason: 'Repeated result' },
+        { factId: 'education-1', reason: 'Education evidence' },
+      ]),
+    ).toEqual([
+      { factId: 'skill-1', reason: 'Primary relevance' },
+      { factId: 'education-1', reason: 'Education evidence' },
+    ]);
   });
   it('fixture mode is deterministic and never invokes a live model', async () => {
     let calls = 0;

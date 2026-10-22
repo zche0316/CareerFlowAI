@@ -17,7 +17,7 @@ npm run build
 npm start
 ```
 
-Open **http://localhost:8787**. Choose **Open demo workspace**, then **My career profile → Use fictional example → Review profile draft → confirm review → Approve & save profile**. Start a career mission, choose a job, review and approve the evidence-linked resume, save an interview answer and request feedback.
+Open **http://localhost:8787**. Choose **Open demo workspace**, then **My career profile → Use fictional example → Review profile draft → confirm review → Approve & save profile**. Start a career mission, choose a job, review and approve the evidence-linked resume, save an interview answer and request feedback. After feedback, you may optionally practise one fictional salary negotiation and record your own final practice choice.
 
 The local database helper uses only `.runtime/postgres`, port 55432 and database `careerflow`. It does not use the existing PostgreSQL instance on port 5432. Set `PG_BIN` if PostgreSQL binaries are not on PATH. The helper uses local trust authentication and loopback binding for development only.
 
@@ -42,7 +42,7 @@ OPENAI_API_KEY=your-local-key
 OPENAI_MODEL=an-available-model-supporting-tools-and-structured-outputs
 ```
 
-Secrets stay server-side and `.env` is ignored. No model key is included. Fixture mode makes no external AI calls, and the UI labels it accordingly. The eight job advertisements remain fictional in both modes. Live AI mode does not silently switch to fixtures after an error. Previously approved profiles/documents and saved interview answers remain available.
+Secrets stay server-side and `.env` is ignored. No model key is included. Fixture mode makes no external AI calls, and the UI labels it accordingly. The eight job advertisements remain fictional in both modes. Live AI mode does not silently switch to fixtures after an error. Previously approved profiles/documents and saved interview answers remain available. `PROVIDER_TIMEOUT_MS` controls the shared provider deadline and defaults to 25 seconds; it is validated within a maximum of 30 seconds.
 
 ### Groq through the OpenAI-compatible API
 
@@ -55,7 +55,23 @@ OPENAI_API_KEY=your-local-groq-key
 OPENAI_MODEL=openai/gpt-oss-20b
 ```
 
-`openai` denotes the compatible protocol; the endpoint above sends requests to Groq. The selected model must support function calling and strict structured outputs. This adapter uses two requests, separating tool execution from the structured final response. Groq Responses API is beta; local transport tests do not establish live provider compatibility or account access. Missing credentials produce a recoverable error, not fixture output. Leave `OPENAI_BASE_URL` blank to return to the default OpenAI endpoint. Docker Compose forwards this setting too.
+`openai` denotes the compatible protocol; the endpoint above sends requests to Groq. The selected model must support function calling and strict structured outputs. This adapter normally uses two requests, separating tool execution from the structured final response, and permits one schema-correction request when a compatible provider returns an invalid field. Groq Responses API is beta; local transport tests do not establish live provider compatibility or account access. Missing credentials produce a recoverable error, not fixture output. Leave `OPENAI_BASE_URL` blank to return to the default OpenAI endpoint. Docker Compose forwards this setting too.
+
+### DeepSeek through the Responses API
+
+DeepSeek exposes an OpenAI-compatible Responses API at `https://api.deepseek.com`:
+
+```dotenv
+PROVIDER_MODE=openai
+OPENAI_BASE_URL=https://api.deepseek.com
+OPENAI_MODEL=deepseek-flash
+DEEPSEEK_API_KEY=your-local-deepseek-key
+```
+
+DeepSeek enables thinking mode by default. CareerFlow explicitly sends
+`reasoning.effort: none` for the DeepSeek endpoint because its thinking mode does not support the
+required context-tool choice used by the specialist workflow. Keep the key server-side and never
+commit it.
 
 ### Background worker
 
@@ -72,10 +88,10 @@ npm run test:e2e
 
 Tests use disposable QA accounts in the configured database; use a dedicated test database for repeated team/CI runs. API tests clean their own accounts and workflow records. Browser tests retain fictional QA evidence locally. Browser screenshots/reports are written to ignored `output/acceptance` and `playwright-report` directories.
 
-The supplied CI workflow requires a supported GitHub Actions runner; check your university GitHub Enterprise configuration. Container deployment, live model output quality and Canvas on-site deployment must be verified separately before submission.
+The supplied CI workflow requires a supported GitHub Actions runner; check your university GitHub Enterprise configuration. Container deployment and Canvas on-site deployment must be verified separately before submission. Local live-provider evidence is recorded in `docs/verification.md`.
 
 ### Source archive rehearsal
 
 Exclude `.git`, `node_modules`, `.env`, `.runtime`, `output`, `dist`, browser reports and test results. In a clean extracted folder configure `.env`, install locked dependencies, migrate an empty database, build and start. Verify all five workflows and declared fixture/live mode before uploading. Source submission is due **1 November 2026 at 23:59 Australia/Sydney**; 2 November work is post-submission verification and demonstration readiness.
 
-See [architecture and requirement mapping](docs/architecture.md). Member 3 source provenance is documented in [packages/matching/NOTICE.md](packages/matching/NOTICE.md).
+See [architecture and requirement mapping](docs/architecture.md), the [API and repository contract](docs/API.md), [orchestration and profile handoff](docs/ORCHESTRATION.md), [integration quality checks](docs/QUALITY_CHECKS.md) and the [CFS-41 integration acceptance record](docs/INTEGRATION_ACCEPTANCE.md). Member 3 source provenance is documented in [packages/matching/NOTICE.md](packages/matching/NOTICE.md).

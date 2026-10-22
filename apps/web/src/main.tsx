@@ -242,6 +242,7 @@ function App() {
               profile={workspace?.profile}
               sample={workspace?.sampleProfile}
               busy={busy}
+              onBuild={async (input) => api('/profiles/prepare', 'POST', input)}
               onDraft={async (input) => api('/profiles/drafts', 'POST', input)}
               onApprove={async (id) =>
                 act(async () => {
@@ -272,6 +273,30 @@ function App() {
                   onSaveAnswer={(a) =>
                     act(async () => {
                       await api(`/missions/${mission.id}/answers`, 'PUT', a);
+                    })
+                  }
+                  onNegotiation={(input) =>
+                    act(async () => {
+                      await api(`/missions/${mission.id}/negotiation`, 'POST', input);
+                    })
+                  }
+                  onNegotiationDecision={(decision) =>
+                    act(async () => {
+                      await api(`/missions/${mission.id}/negotiation/decision`, 'PUT', {
+                        decision,
+                      });
+                    })
+                  }
+                  onRefineAnalysis={(feedback) =>
+                    act(async () => {
+                      const refined = await api('/missions', 'POST', {
+                        goal: mission.goal,
+                        minScore: mission.data.minScore ?? 40,
+                        analysisFeedback: feedback,
+                        sourceMissionId: mission.id,
+                      });
+                      setSelected(refined.id);
+                      setNotice('A refined career analysis is queued.');
                     })
                   }
                 />
@@ -784,11 +809,25 @@ function Stat({ label, value, sub }: { label: string; value: string | number; su
   );
 }
 
+const coachText = (item: any) =>
+  typeof item === 'string' ? item : item?.text || item?.title || '';
+
+function CoachEvidence({ item }: { item: any }) {
+  if (!item || typeof item === 'string') return null;
+  return (
+    <small>
+      Evidence: {item.evidenceIds?.join(', ') || 'Unavailable'}
+      {item.reason ? ` · ${item.reason}` : ''}
+    </small>
+  );
+}
+
 // Keep editable input, prepared draft and explicit review confirmation as separate UI states.
 function Profile({
   profile,
   sample,
   busy,
+  onBuild,
   onDraft,
   onApprove,
   onDiscard,
@@ -796,6 +835,12 @@ function Profile({
   profile: any;
   sample: CareerProfile | undefined;
   busy: boolean;
+  onBuild: (input: { notes: string; currentProfile: CareerProfile }) => Promise<{
+    data: CareerProfile;
+    followUpQuestions: string[];
+    proposedChanges: { field: string; proposedValue: string; evidence: string }[];
+    discardedFields: string[];
+  }>;
   onDraft: (p: CareerProfile) => Promise<any>;
   onApprove: (id: string) => Promise<void>;
   onDiscard: (id: string) => Promise<void>;
@@ -807,6 +852,13 @@ function Profile({
     [draft, setDraft] = useState<any>(null),
     [reviewed, setReviewed] = useState(false),
     [preparing, setPreparing] = useState(false),
+    [building, setBuilding] = useState(false),
+    [builderNotes, setBuilderNotes] = useState(''),
+    [followUpQuestions, setFollowUpQuestions] = useState<string[]>([]),
+    [proposedChanges, setProposedChanges] = useState<
+      { field: string; proposedValue: string; evidence: string }[]
+    >([]),
+    [discardedFields, setDiscardedFields] = useState<string[]>([]),
     [error, setError] = useState(''),
     [fields, setFields] = useState<Record<string, string[]>>({});
 
@@ -831,6 +883,9 @@ function Profile({
     }
     setDraft(null);
     setReviewed(false);
+    setFollowUpQuestions([]);
+    setProposedChanges([]);
+    setDiscardedFields([]);
   }, [profile?.id, Boolean(sample)]);
   if (!form) return <div className="loading">Loading your profile…</div>;
 
@@ -892,6 +947,28 @@ function Profile({
       setPreparing(false);
     }
   }
+
+  async function buildWithAi() {
+    setBuilding(true);
+    setError('');
+    setFields({});
+    try {
+      const result = await onBuild({ notes: builderNotes, currentProfile: form! });
+      setForm(result.data);
+      setSkillInput(result.data.skills.join(', '));
+      setInterestInput(result.data.interests.join(', '));
+      setFollowUpQuestions(result.followUpQuestions);
+      setProposedChanges(result.proposedChanges);
+      setDiscardedFields(result.discardedFields);
+      setDraft(null);
+      setReviewed(false);
+    } catch (e) {
+      // The current form remains intact so manual completion is always available.
+      setError((e as Error).message);
+    } finally {
+      setBuilding(false);
+    }
+  }
   return (
     <>
       <PageTitle
@@ -918,6 +995,74 @@ function Profile({
               {error}
             </div>
           )}
+          <div className="sharing">
+            <h3>Profile Builder</h3>
+            <p className="muted">
+              Describe your background in your own words. Profile Builder can organise only the
+              supplied information, identify missing details and propose follow-up questions. You
+              still review, edit and approve every field.
+            </p>
+            <label>
+              Notes for Profile Builder
+              <textarea
+                value={builderNotes}
+                onChange={(e) => setBuilderNotes(e.target.value)}
+                placeholder="For example: I studied information technology, know Python and SQL, want an entry-level data role in Sydney, and prefer hybrid work."
+              />
+            </label>
+            <div className="form-actions">
+              <button
+                className="secondary"
+                disabled={busy || building || builderNotes.trim().length < 10}
+                onClick={() => void buildWithAi()}
+              >
+                {building ? 'Organising…' : 'Organise with Profile Builder'}
+                <Compass size={15} />
+              </button>
+              <span className="small muted">
+                AI suggestions never approve or save the profile automatically.
+              </span>
+            </div>
+            {followUpQuestions.length > 0 && (
+              <div className="info">
+                <MessageSquare size={17} />
+                <div>
+                  <strong>Details to clarify</strong>
+                  <ul>
+                    {followUpQuestions.map((question) => (
+                      <li key={question}>{question}</li>
+                    ))}
+                  </ul>
+                  <p className="small muted">
+                    Add these details to your notes, run Profile Builder again, or complete the
+                    fields manually.
+                  </p>
+                </div>
+              </div>
+            )}
+            {proposedChanges.length > 0 && (
+              <details>
+                <summary>Review Profile Builder proposed changes</summary>
+                <ul>
+                  {proposedChanges.map((change, index) => (
+                    <li key={`${change.field}-${index}`}>
+                      <strong>{nice(change.field)}</strong>: {change.proposedValue}
+                      <small>Evidence: “{change.evidence}”</small>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+            {discardedFields.length > 0 && (
+              <div className="info">
+                <AlertCircle size={17} />
+                <span>
+                  Unsupported suggestions were discarded for: {discardedFields.map(nice).join(', ')}
+                  . Your current values were left unchanged.
+                </span>
+              </div>
+            )}
+          </div>
           <div className="form-grid">
             {input('name', 'Full name')}
             {input('location', 'Preferred location', { placeholder: 'Optional' })}
@@ -967,6 +1112,9 @@ function Profile({
             </div>
             {input('experienceYears', 'Years of experience', { type: 'number' })}
             {input('employmentType', 'Employment preference', { placeholder: 'Optional' })}
+            {input('workArrangement', 'Work arrangement', { placeholder: 'e.g. Hybrid' })}
+            {input('companySize', 'Company size preference', { placeholder: 'Optional' })}
+            {input('industry', 'Industry preference', { placeholder: 'e.g. Technology' })}
             {input('startDate', 'Experience start date (optional)', { type: 'date' })}
             {input('endDate', 'Experience end date (optional)', { type: 'date' })}
             <details className="wide">
@@ -1102,21 +1250,33 @@ function MissionDetail({
   onBack,
   onAction,
   onSaveAnswer,
+  onNegotiation,
+  onNegotiationDecision,
+  onRefineAnalysis,
 }: {
   mission: any;
   busy: boolean;
   onBack: () => void;
   onAction: (kind: string, body?: unknown) => Promise<void>;
   onSaveAnswer: (a: unknown) => Promise<void>;
+  onNegotiation: (input: unknown) => Promise<void>;
+  onNegotiationDecision: (decision: 'accept' | 'decline') => Promise<void>;
+  onRefineAnalysis: (feedback: string) => Promise<void>;
 }) {
   const d = m.data,
     [revision, setRevision] = useState(''),
     [answer, setAnswer] = useState(''),
     [question, setQuestion] = useState(0),
+    [analysisFeedback, setAnalysisFeedback] = useState(''),
     [confirm, setConfirm] = useState(false),
-    [compareIds, setCompareIds] = useState<string[]>([]);
+    [compareIds, setCompareIds] = useState<string[]>([]),
+    [offerSalary, setOfferSalary] = useState(''),
+    [targetSalary, setTargetSalary] = useState(''),
+    [currency, setCurrency] = useState('AUD'),
+    [negotiationMessage, setNegotiationMessage] = useState('');
   const questions = d.questions || [],
-    q = questions[question];
+    q = questions[question],
+    responseCount = d.answers?.length || 0;
 
   useEffect(() => {
     setAnswer((d.answers || []).find((a: any) => a.questionId === q?.id)?.answer || '');
@@ -1126,6 +1286,18 @@ function MissionDetail({
     // A changed draft needs a fresh confirmation even if the previous version was reviewed.
     setConfirm(false);
   }, [d.resumeDraft?.hash]);
+
+  useEffect(() => {
+    setAnalysisFeedback('');
+  }, [m.id]);
+
+  useEffect(() => {
+    const salary = d.selectedJob?.job.salary;
+    setOfferSalary(salary ? String(salary.min) : '');
+    setTargetSalary(salary ? String(salary.max) : '');
+    setCurrency(salary?.currency || 'AUD');
+    setNegotiationMessage('');
+  }, [m.id, d.selectedJob?.job.id]);
 
   const stages = [
     { label: 'Approved profile', done: true },
@@ -1210,8 +1382,8 @@ function MissionDetail({
                 <div className="strength" key={i}>
                   <CheckCircle2 size={16} />
                   <div>
-                    {s.title}
-                    <small>Evidence: {s.evidenceIds.join(', ')}</small>
+                    {coachText(s)}
+                    <CoachEvidence item={s} />
                   </div>
                 </div>
               ))}
@@ -1219,21 +1391,68 @@ function MissionDetail({
             <div>
               <h3>Development opportunities</h3>
               <ul>
-                {d.analysis.gaps.map((s: string) => (
-                  <li key={s}>{s}</li>
+                {d.analysis.gaps.map((s: any) => (
+                  <li key={coachText(s)}>
+                    {coachText(s)}
+                    <CoachEvidence item={s} />
+                  </li>
                 ))}
               </ul>
             </div>
           </div>
+          {d.analysisFeedback && (
+            <div className="info">
+              <RefreshCw size={17} />
+              <span>
+                <strong>Refinement request:</strong> {d.analysisFeedback}
+              </span>
+            </div>
+          )}
+          {d.analysis.directions?.length > 0 && (
+            <div className="next-steps">
+              <h3>Suitable career directions</h3>
+              {d.analysis.directions.map((s: any, i: number) => (
+                <p key={coachText(s)}>
+                  <span>{i + 1}</span>
+                  <div>
+                    {coachText(s)}
+                    <CoachEvidence item={s} />
+                  </div>
+                </p>
+              ))}
+            </div>
+          )}
           <div className="next-steps">
             <h3>Suggested next steps</h3>
-            {d.analysis.actions.map((s: string, i: number) => (
-              <p key={s}>
+            {d.analysis.actions.map((s: any, i: number) => (
+              <p key={coachText(s)}>
                 <span>{i + 1}</span>
-                {s}
+                <div>
+                  {coachText(s)}
+                  <CoachEvidence item={s} />
+                </div>
               </p>
             ))}
           </div>
+          <details className="approval-controls">
+            <summary>Refine this career analysis</summary>
+            <label>
+              What should the Career Coach revisit?
+              <textarea
+                value={analysisFeedback}
+                onChange={(e) => setAnalysisFeedback(e.target.value)}
+                placeholder="For example: focus more on leadership evidence or explain why a direction fits."
+              />
+            </label>
+            <button
+              className="secondary"
+              disabled={busy || analysisFeedback.trim().length < 3}
+              onClick={() => void onRefineAnalysis(analysisFeedback.trim())}
+            >
+              <RefreshCw size={15} />
+              Start refined mission
+            </button>
+          </details>
         </section>
       )}
       {m.status === 'NO_MATCHES' && (
@@ -1408,6 +1627,38 @@ function MissionDetail({
               </details>
             </div>
           ))}
+          <div className="approval-controls">
+            <details>
+              <summary>Review proposed changes</summary>
+              <div className="info">
+                <ShieldCheck size={17} />
+                <span>
+                  Candidate facts are not rewritten. This resume proposes selecting and ordering
+                  only the evidence supported by your approved profile.
+                </span>
+              </div>
+              <h4>Included, in proposed order</h4>
+              <ol>
+                {d.resumeDraft.claims.map((c: any) => (
+                  <li key={c.factId}>
+                    {c.kind}: {c.text}
+                  </li>
+                ))}
+              </ol>
+              <h4>Omitted for this target role</h4>
+              {d.resumeDraft.omittedFacts?.length ? (
+                <ul>
+                  {d.resumeDraft.omittedFacts.map((f: any) => (
+                    <li key={f.id}>
+                      {f.kind}: {f.text}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="small muted">No eligible approved facts were omitted.</p>
+              )}
+            </details>
+          </div>
           {m.status === 'AWAITING_APPROVAL' && (
             <div className="approval-controls">
               <label className="checkbox">
@@ -1515,20 +1766,20 @@ function MissionDetail({
                   <Check size={15} />
                 </button>
                 <span className="small muted">
-                  {d.answers?.length || 0} of {questions.length} responses saved
+                  {responseCount} of {questions.length} responses saved
                 </span>
               </div>
               <button
                 className="primary"
-                disabled={busy || !d.answers?.length}
+                disabled={busy || !responseCount}
                 onClick={() =>
                   void onAction('decisions', {
                     kind: 'interview',
-                    endedEarly: d.answers.length < questions.length,
+                    endedEarly: responseCount < questions.length,
                   })
                 }
               >
-                {d.answers?.length < questions.length
+                {responseCount < questions.length
                   ? 'Finish early & get feedback'
                   : 'Complete interview & get feedback'}
                 <ArrowRight size={16} />
@@ -1536,7 +1787,7 @@ function MissionDetail({
             </>
           ) : (
             <p>
-              {d.answers?.length || 0} responses retained.{' '}
+              {responseCount} {responseCount === 1 ? 'response' : 'responses'} retained.{' '}
               {d.endedEarly ? 'You finished early; feedback reflects the available answers.' : ''}
             </p>
           )}
@@ -1557,6 +1808,141 @@ function MissionDetail({
                 </div>
               ))}
             </div>
+          )}
+        </section>
+      )}
+      {d.feedback && d.selectedJob && (
+        <section className="panel negotiation">
+          <div className="section-heading">
+            <h2>
+              <MessageSquare size={20} />
+              Salary negotiation practice
+            </h2>
+            <span className="tag">Optional · Interview Coach</span>
+          </div>
+          <p className="muted">
+            Practise one fictional negotiation for {d.selectedJob.job.title}. The coach simulates a
+            recruiter reply and gives feedback; you record the final practice decision. No real
+            offer is accepted or changed.
+          </p>
+          {d.negotiationRun?.status === 'FAILED' && (
+            <div className="error-banner">
+              <AlertCircle size={18} />
+              <span>{d.negotiationRun.error}</span>
+            </div>
+          )}
+          {d.negotiation && (
+            <div className="negotiation-result">
+              <h3>Simulated recruiter reply</h3>
+              <p>{d.negotiation.recruiterReply}</p>
+              <div className="feedback-grid">
+                {[
+                  ['Negotiation strengths', d.negotiation.feedback.strengths],
+                  ['Improvement areas', d.negotiation.feedback.improvements],
+                  ['Next steps', d.negotiation.feedback.nextSteps],
+                ].map(([label, items]: any) => (
+                  <div key={label}>
+                    <h3>{label}</h3>
+                    <ul>
+                      {items.map((item: string) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+              {d.negotiation.status === 'REVIEW' ? (
+                <div className="form-actions">
+                  <button
+                    className="secondary"
+                    disabled={busy}
+                    onClick={() => void onNegotiationDecision('accept')}
+                  >
+                    Record my choice: accept
+                  </button>
+                  <button
+                    className="secondary"
+                    disabled={busy}
+                    onClick={() => void onNegotiationDecision('decline')}
+                  >
+                    Record my choice: decline
+                  </button>
+                </div>
+              ) : (
+                <p>
+                  Practice decision recorded:{' '}
+                  <strong>{d.negotiation.userDecision === 'accept' ? 'accept' : 'decline'}</strong>.
+                </p>
+              )}
+            </div>
+          )}
+          {(!d.negotiation || d.negotiation.status === 'REVIEW') && (
+            <details open={!d.negotiation}>
+              <summary>
+                {d.negotiation ? 'Try another response' : 'Start negotiation practice'}
+              </summary>
+              <div className="form-grid">
+                <label>
+                  Practice offer salary
+                  <input
+                    type="number"
+                    min="1"
+                    value={offerSalary}
+                    onChange={(event) => setOfferSalary(event.target.value)}
+                  />
+                </label>
+                <label>
+                  Your target salary
+                  <input
+                    type="number"
+                    min="1"
+                    value={targetSalary}
+                    onChange={(event) => setTargetSalary(event.target.value)}
+                  />
+                </label>
+                <label>
+                  Currency
+                  <input
+                    value={currency}
+                    maxLength={3}
+                    onChange={(event) => setCurrency(event.target.value.toUpperCase())}
+                  />
+                </label>
+              </div>
+              <label>
+                Your negotiation response
+                <textarea
+                  rows={5}
+                  value={negotiationMessage}
+                  onChange={(event) => setNegotiationMessage(event.target.value)}
+                  placeholder="Explain the value you can bring, state your request and keep the decision yours."
+                />
+              </label>
+              <button
+                className="primary"
+                disabled={
+                  busy ||
+                  d.negotiationRun?.status === 'RUNNING' ||
+                  !Number.isFinite(Number(offerSalary)) ||
+                  !Number.isFinite(Number(targetSalary)) ||
+                  currency.trim().length !== 3 ||
+                  negotiationMessage.trim().length < 10
+                }
+                onClick={() =>
+                  void onNegotiation({
+                    offerSalary: Number(offerSalary),
+                    targetSalary: Number(targetSalary),
+                    currency,
+                    candidateMessage: negotiationMessage,
+                  })
+                }
+              >
+                {d.negotiationRun?.status === 'RUNNING'
+                  ? 'Simulating negotiation…'
+                  : 'Practice salary negotiation'}
+                <ArrowRight size={16} />
+              </button>
+            </details>
           )}
         </section>
       )}

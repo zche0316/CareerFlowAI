@@ -196,6 +196,15 @@ export async function reserveCall(id: string, lease: string) {
 }
 
 // The model selects evidence; candidate wording comes only from the approved facts.
+export function deduplicateResumeClaims(claims: { factId: string; reason: string }[]) {
+  const seen = new Set<string>();
+  return claims.filter((claim) => {
+    if (seen.has(claim.factId)) return false;
+    seen.add(claim.factId);
+    return true;
+  });
+}
+
 export function validateResumeClaims(claims: { factId: string; reason: string }[], facts: Fact[]) {
   const ids = new Set<string>();
   return claims.map((c) => {
