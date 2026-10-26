@@ -5,6 +5,7 @@ import { Prisma } from '@prisma/client';
 import { db, databaseUrl, portablePool } from './db.js';
 import { json, mutateRun, type Event } from './domain.js';
 import { createWorkflow } from '../../../packages/agents/src/workflow.js';
+import { AppError } from './errors.js';
 
 const QUEUE = 'careerflow-missions';
 
@@ -142,7 +143,7 @@ async function executeMission(id: string) {
 
       // Preserve useful domain errors without exposing raw provider or database errors to the UI.
       const publicMessage =
-        e instanceof JobSourceError
+        e instanceof JobSourceError || (e instanceof AppError && e.code === 'RESUME_SAVE_FAILED')
           ? e.message
           : /Live AI requires|Job source|sharing|budget|profile changed|unsupported|evidence|revision limit|Mission unavailable/i.test(
                 message,

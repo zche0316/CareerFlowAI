@@ -295,34 +295,44 @@ export async function createWorkflow() {
         return {};
       }
       if (decision.decision !== 'approve') throw Error('Invalid approval decision.');
-      await mutateRun(s.missionId, c.token, async (tx, m) => {
-        // A checkpoint replay must not create another approved copy of the same draft.
-        const saved = await tx.approvedResume.upsert({
-          where: { draftHash: c.d.resumeDraft.hash },
-          create: {
-            userId: m.userId,
-            missionId: m.id,
-            draftHash: c.d.resumeDraft.hash,
-            content: json(c.d.resumeDraft),
-          },
-          update: {},
+      try {
+        await mutateRun(s.missionId, c.token, async (tx, m) => {
+          // A checkpoint replay must not create another approved copy of the same draft.
+          const saved = await tx.approvedResume.upsert({
+            where: { draftHash: c.d.resumeDraft.hash },
+            create: {
+              userId: m.userId,
+              missionId: m.id,
+              draftHash: c.d.resumeDraft.hash,
+              content: json(c.d.resumeDraft),
+            },
+            update: {},
+          });
+          await tx.mission.update({
+            where: { id: m.id },
+            data: {
+              data: json({ ...(m.data as MissionData), approvedResumeId: saved.id }),
+              events: json([
+                ...(m.events as any[]),
+                {
+                  at: new Date().toISOString(),
+                  agent: 'Job Seeker',
+                  action: 'approved',
+                  detail: 'Explicitly approved and persisted this exact resume version.',
+                },
+              ]),
+            },
+          });
         });
-        await tx.mission.update({
-          where: { id: m.id },
-          data: {
-            data: json({ ...(m.data as MissionData), approvedResumeId: saved.id }),
-            events: json([
-              ...(m.events as any[]),
-              {
-                at: new Date().toISOString(),
-                agent: 'Job Seeker',
-                action: 'approved',
-                detail: 'Explicitly approved and persisted this exact resume version.',
-              },
-            ]),
-          },
-        });
-      });
+      } catch (error) {
+        if (error instanceof AppError) throw error;
+        // Persist a small domain error in the checkpoint, not a driver error object.
+        throw new AppError(
+          503,
+          'RESUME_SAVE_FAILED',
+          'Your resume could not be saved. The approved draft and previous resumes are preserved. Retry saving or cancel.',
+        );
+      }
       return {};
     })
 

@@ -56,20 +56,21 @@ async function profile(c: Client, input = sampleProfile) {
 }
 
 async function wait(c: Client, id: string, status: string) {
+  let lastStatus: string | undefined;
   for (let i = 0; i < 250; i++) {
     const r = await c.request('/missions/' + id);
+    lastStatus = r.body.status;
     if (r.body.status === status) return r.body;
     if (r.body.status === 'FAILED') throw Error(r.body.error);
     await new Promise((r) => setTimeout(r, 70));
   }
-  throw Error('Timed out waiting for ' + status);
+  throw Error(`Timed out waiting for ${status}; last mission status: ${lastStatus}`);
 }
 
-async function prepareInterview(
+async function prepareResumeDraft(
   c: Client,
   goal = 'Prepare a factual interview for an analyst role.',
 ) {
-  await profile(c);
   const made = await c.request('/missions', 'POST', { goal });
   expect(made.status).toBe(202);
   const id = made.body.id;
@@ -85,6 +86,15 @@ async function prepareInterview(
     ).status,
   ).toBe(202);
   const draft = await wait(c, id, 'AWAITING_APPROVAL');
+  return { id, job, draft };
+}
+
+async function prepareInterview(
+  c: Client,
+  goal = 'Prepare a factual interview for an analyst role.',
+) {
+  await profile(c);
+  const { id, job, draft } = await prepareResumeDraft(c, goal);
   expect(
     (
       await c.request(`/missions/${id}/decisions`, 'POST', {
@@ -404,6 +414,89 @@ describe('Owned, durable five-agent journey', () => {
     expect(done.data.endedEarly).toBe(true);
     expect(done.data.resumeDraft.claims.every((x: any) => x.factId && x.source)).toBe(true);
   });
+  it('retains the approved resume and exact draft when saving fails, then retries once safely', async () => {
+    const owner = await client();
+    await prepareInterview(owner);
+    const previous = await db.approvedResume.findFirstOrThrow({ where: { userId: owner.id } });
+    const { id, draft } = await prepareResumeDraft(owner, 'Tailor a second factual resume.');
+    const hash = draft.data.resumeDraft.hash;
+
+    // A real database constraint fails only this mission's insert, after user approval.
+    // The ID comes from our disposable database, never from user input.
+    expect(id).toMatch(/^[0-9a-f-]{36}$/i);
+    try {
+      await db.$executeRawUnsafe(
+        `ALTER TABLE "ApprovedResume" ADD CONSTRAINT "qa_uc4_save_failure" CHECK ("missionId" <> '${id}')`,
+      );
+      expect(
+        (
+          await owner.request(`/missions/${id}/decisions`, 'POST', {
+            kind: 'resume',
+            decision: 'approve',
+            draftHash: hash,
+          })
+        ).status,
+      ).toBe(202);
+      const failed = await wait(owner, id, 'FAILED');
+      expect(failed.data.resumeDraft).toEqual(draft.data.resumeDraft);
+      expect(failed.data.approvedResumeId).toBeUndefined();
+      expect(failed.pendingDecision).toMatchObject({ decision: 'approve', draftHash: hash });
+      expect(failed.error).not.toContain('qa_uc4_save_failure');
+      expect(await db.approvedResume.count({ where: { userId: owner.id } })).toBe(1);
+      expect(await db.approvedResume.findUniqueOrThrow({ where: { id: previous.id } })).toEqual(
+        previous,
+      );
+    } finally {
+      await db.$executeRawUnsafe(
+        'ALTER TABLE "ApprovedResume" DROP CONSTRAINT IF EXISTS "qa_uc4_save_failure"',
+      );
+    }
+
+    expect((await owner.request(`/missions/${id}/retry`, 'POST', {})).status).toBe(202);
+    const recovered = await wait(owner, id, 'AWAITING_INTERVIEW');
+    expect(recovered.data.resumeDraft.hash).toBe(hash);
+    const saved = await db.approvedResume.findUniqueOrThrow({ where: { draftHash: hash } });
+    expect(recovered.data.approvedResumeId).toBe(saved.id);
+    expect(saved.content).toEqual(draft.data.resumeDraft);
+    expect(await db.approvedResume.count({ where: { userId: owner.id } })).toBe(2);
+    expect(await db.approvedResume.findUniqueOrThrow({ where: { id: previous.id } })).toEqual(
+      previous,
+    );
+    expect(
+      (
+        await owner.request(`/missions/${id}/decisions`, 'POST', {
+          kind: 'resume',
+          decision: 'approve',
+          draftHash: hash,
+        })
+      ).status,
+    ).toBe(409);
+    expect(await db.approvedResume.count({ where: { draftHash: hash } })).toBe(1);
+  });
+
+  it('cancels an unapproved resume without replacing a previous approved document', async () => {
+    const owner = await client();
+    await prepareInterview(owner);
+    const previous = await db.approvedResume.findFirstOrThrow({ where: { userId: owner.id } });
+    const { id, draft } = await prepareResumeDraft(owner, 'Review a new resume before cancelling.');
+    expect((await owner.request(`/missions/${id}/cancel`, 'POST', {})).status).toBe(200);
+    expect((await owner.request(`/missions/${id}`)).body.status).toBe('CANCELLED');
+    expect(
+      (
+        await owner.request(`/missions/${id}/decisions`, 'POST', {
+          kind: 'resume',
+          decision: 'approve',
+          draftHash: draft.data.resumeDraft.hash,
+        })
+      ).status,
+    ).toBe(409);
+    expect((await owner.request(`/missions/${id}/retry`, 'POST', {})).status).toBe(409);
+    expect(await db.approvedResume.count({ where: { userId: owner.id } })).toBe(1);
+    expect(await db.approvedResume.findUniqueOrThrow({ where: { id: previous.id } })).toEqual(
+      previous,
+    );
+  });
+
   it('handles no suitable jobs and a recoverable job-source failure', async () => {
     const c = await client();
     await profile(c);
