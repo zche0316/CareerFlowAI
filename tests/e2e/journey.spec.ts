@@ -86,6 +86,81 @@ test('a user compares ranked jobs and selects one for downstream context', async
   });
 });
 
+test('resume revisions require fresh approval and stop at the two-revision limit', async ({
+  page,
+}) => {
+  await openRankedJobs(page);
+  await page.getByRole('button', { name: 'Select this opportunity' }).first().click();
+  await expect(page.getByRole('heading', { name: 'Your evidence-grounded resume' })).toBeVisible({
+    timeout: 30000,
+  });
+  const confirm = page.getByLabel('I reviewed the selected claims');
+  const approve = page.getByRole('button', { name: 'Approve & save resume' });
+  await confirm.check();
+  await expect(approve).toBeEnabled();
+  await page.getByText('Request a revision instead', { exact: true }).click();
+  await page
+    .getByLabel('Emphasis or ordering feedback')
+    .fill('Emphasise my approved SQL evidence.');
+  await page.getByRole('button', { name: 'Request revision · 0/2 used', exact: true }).click();
+  await expect(
+    page.getByRole('button', {
+      name: 'Request revision · 1/2 used',
+      exact: true,
+      includeHidden: true,
+    }),
+  ).toBeAttached({ timeout: 30000 });
+  await expect(confirm).not.toBeChecked();
+  await expect(approve).toBeDisabled();
+  await confirm.check();
+  await page.getByText('Request a revision instead', { exact: true }).click();
+  await page.getByRole('button', { name: 'Request revision · 1/2 used', exact: true }).click();
+  await expect(
+    page.getByRole('button', {
+      name: 'Request revision · 2/2 used',
+      exact: true,
+      includeHidden: true,
+    }),
+  ).toBeAttached({ timeout: 30000 });
+  await page.getByText('Request a revision instead', { exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Request revision · 2/2 used', exact: true }),
+  ).toBeDisabled();
+  await expect(confirm).not.toBeChecked();
+  await expect(page.getByText('Both revisions have been used.', { exact: false })).toBeVisible();
+  await page.screenshot({
+    path: 'output/acceptance/cfs-26-resume-revision-limit.png',
+    fullPage: true,
+  });
+  await confirm.check();
+  await approve.click();
+  await expect(page.getByLabel('Your response', { exact: true })).toBeVisible({ timeout: 30000 });
+});
+
+test('a cancelled resume draft stays out of the approved document library after reload', async ({
+  page,
+}) => {
+  await openRankedJobs(page);
+  await page.getByRole('button', { name: 'Select this opportunity' }).first().click();
+  await expect(page.getByRole('heading', { name: 'Your evidence-grounded resume' })).toBeVisible({
+    timeout: 30000,
+  });
+  await page.getByRole('button', { name: 'Cancel further work', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Approve & save resume' })).toHaveCount(0);
+  await expect(
+    page.getByRole('link', { name: 'Download approved resume', exact: true }),
+  ).toHaveCount(0);
+  await page.reload();
+  await page.getByRole('button', { name: 'Document library', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'A home for your approved documents.' }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: 'output/acceptance/cfs-27-cancelled-resume-library.png',
+    fullPage: true,
+  });
+});
+
 test('a user finishes early and receives feedback from the saved response', async ({ page }) => {
   await openInterview(page);
   const questionCount = await page.getByRole('button', { name: /^Question \d+$/ }).count();

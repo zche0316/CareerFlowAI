@@ -1989,7 +1989,7 @@ function MissionDetail({
                 </label>
                 <button
                   className="secondary"
-                  disabled={busy || !revision.trim()}
+                  disabled={busy || !revision.trim() || (d.revisions || 0) >= 2}
                   onClick={() =>
                     void onAction('decisions', {
                       kind: 'resume',
@@ -2001,6 +2001,12 @@ function MissionDetail({
                 >
                   Request revision · {d.revisions || 0}/2 used
                 </button>
+                {(d.revisions || 0) >= 2 && (
+                  <p className="small muted" role="status">
+                    Both revisions have been used. You can approve this draft, or cancel and start a
+                    new mission with updated inputs.
+                  </p>
+                )}
               </details>
             </div>
           )}
