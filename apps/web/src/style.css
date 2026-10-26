@@ -1749,3 +1749,261 @@ details[open] > summary {
     transition: none !important;
   }
 }
+
+/* Numbered Stage 2 navigation shares the existing account and mission workspace. */
+.phase-nav {
+  display: grid;
+  gap: 3px;
+  margin: 18px 0;
+}
+.phase-nav button {
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 7px 10px;
+  font-size: 12px;
+  border-radius: 8px;
+}
+.phase-nav button:hover {
+  background: #edf3ef;
+  color: #166344;
+}
+.sidebar {
+  overflow-y: auto;
+}
+.panel pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+[id] {
+  scroll-margin-top: 24px;
+}
+
+.modal {
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+}
+.phase-number {
+  display: inline-block;
+  min-width: 26px;
+  color: #168065;
+  font-weight: 700;
+}
+.phase-nav button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.panel + .panel {
+  margin-top: 20px;
+}
+@media (max-width: 850px) {
+  .phase-label {
+    display: none;
+  }
+  .phase-nav button {
+    justify-content: center;
+    padding: 8px 0;
+  }
+  .phase-number {
+    min-width: 0;
+  }
+}
+
+.job-source-actions {
+  display: grid;
+  gap: 9px;
+  border-top: 1px solid #dce5df;
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
+/* Screenshot baseline: navy workflow header and focused light stage pages. */
+:root {
+  color: #19263f;
+  background: #f3f5fa;
+}
+.shell > .sidebar {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  padding: 24px 32px 0;
+  border: 0;
+  background: #111c33;
+  color: #c4cde0;
+  overflow: visible;
+  display: grid;
+  grid-template-columns: 1fr auto;
+}
+.sidebar .brand {
+  color: #edf2ff;
+  font-size: 28px;
+  grid-column: 1;
+}
+.sidebar .brand-ai {
+  color: inherit;
+}
+.sidebar .brandmark {
+  background: transparent;
+  border: 1px solid #b8c6e2;
+  border-radius: 3px;
+}
+.sidebar > .workspace-label {
+  display: block;
+  grid-column: 1;
+  color: #8896ae;
+  margin: 14px 0;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 15px;
+}
+.sidebar .sidebar-note {
+  display: none;
+}
+.sidebar > nav[aria-label='Main navigation'] {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  order: 4;
+  padding: 8px 0;
+  border-top: 1px solid #293650;
+}
+.sidebar .nav {
+  width: auto;
+  display: flex;
+  font-size: 12px;
+  margin: 0;
+  padding: 7px 10px;
+  color: #9eacc6;
+}
+.sidebar .nav.active,
+.sidebar .nav:hover {
+  background: #233554;
+  color: #fff;
+}
+.sidebar .phase-nav {
+  grid-column: 1 / -1;
+  display: flex;
+  overflow-x: auto;
+  gap: 4px;
+  margin: 6px 0 0;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: #627291 #111c33;
+}
+.sidebar .phase-nav button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  padding: 15px 18px;
+  border-radius: 10px;
+  font-size: 15px;
+  color: #c4cde0;
+}
+.sidebar .phase-nav button[aria-current='step'],
+.sidebar .phase-nav button:hover {
+  background: #2a3d60;
+  color: white;
+}
+.sidebar .phase-number {
+  display: inline-block;
+  color: #8696b2;
+  min-width: 24px;
+}
+.sidebar .phase-label {
+  display: inline;
+}
+.sidebar .account {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  margin: 0 0 12px;
+  padding: 0;
+  border: 0;
+  color: #c4cde0;
+}
+.content {
+  width: 100%;
+  margin-left: 0;
+}
+.content .topbar {
+  padding: 12px 5%;
+  min-height: 48px;
+  height: auto;
+  background: #fff;
+}
+.content main {
+  max-width: 1400px;
+  margin: auto;
+  padding: 40px 5%;
+}
+h1,
+h2,
+h3,
+.page-heading h1,
+.mission-heading h1 {
+  color: #19243c;
+}
+.panel,
+.job-card {
+  border: 1px solid #dce3ef;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 8px 22px #172c5010;
+}
+.primary {
+  background: #526dd0;
+  border-color: #526dd0;
+}
+.primary:hover {
+  background: #3e57b5;
+}
+.eyebrow {
+  color: #637998;
+}
+.stage-prerequisite {
+  display: grid;
+  gap: 20px;
+  padding: 32px;
+}
+.stage-prerequisite button {
+  justify-self: start;
+}
+@media (max-width: 850px) {
+  .shell > .sidebar {
+    padding: 18px 16px 0;
+  }
+  .sidebar .brand {
+    font-size: 23px;
+    justify-content: flex-start;
+  }
+  .sidebar .account > div {
+    display: none;
+  }
+  .sidebar .account > button {
+    display: block;
+  }
+  .sidebar .phase-nav button {
+    justify-content: flex-start;
+    padding: 12px;
+  }
+  .sidebar .nav {
+    font-size: 11px;
+  }
+  .sidebar .nav svg {
+    display: none;
+  }
+  .content {
+    width: 100%;
+    margin-left: 0;
+  }
+  .content main {
+    padding: 26px 18px;
+  }
+}
+
+.shell {
+  flex-direction: column;
+}

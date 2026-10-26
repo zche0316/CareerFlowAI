@@ -1,9 +1,10 @@
+import { JobRepository } from '../../recruitment/src/repository.js';
 import { Annotation, StateGraph, START, END, interrupt } from '@langchain/langgraph';
 import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
 import { Command } from '@langchain/langgraph';
 import { z } from 'zod';
 import { readFile } from 'node:fs/promises';
-import { db, databaseUrl } from '../../../apps/api/src/db.js';
+import { db, databaseUrl, portablePool } from '../../../apps/api/src/db.js';
 import { AppError } from '../../../apps/api/src/errors.js';
 import {
   getInterviewCompletion,
@@ -40,7 +41,9 @@ const jobFile = new URL('../../matching/jobs.json', import.meta.url);
 export const readJobs = async () => JSON.parse(await readFile(jobFile, 'utf8'));
 
 export async function createWorkflow() {
-  const saver = PostgresSaver.fromConnString(databaseUrl);
+  const saver = portablePool
+    ? new PostgresSaver(portablePool)
+    : PostgresSaver.fromConnString(databaseUrl);
   await saver.setup();
 
   // Each invocation owns a short-lived DB lease. The lease is not stored in checkpoint data.
@@ -143,9 +146,28 @@ export async function createWorkflow() {
         throw new AppError(
           503,
           'JOB_SOURCE_UNAVAILABLE',
-          'Job source unavailable. Retry to use the disclosed local repository.',
+          'Job source unavailable. Retry the selected source; demo jobs are never substituted.',
         );
-      const jobs = await readJobs();
+      const query = c.d.jobSearch || { provider: 'fixtures' };
+      let jobs: any[], jobRetrieval: any;
+      if (query.provider === 'fixtures') {
+        jobs = await readJobs();
+        jobRetrieval = { source: 'fixtures', count: jobs.length };
+      } else {
+        const fetched = await new JobRepository().search(query, { signal: c.signal });
+        jobs = fetched.jobs;
+        jobRetrieval = {
+          source: query.provider,
+          board: query.board,
+          count: jobs.length,
+          sourceTotal: fetched.sourceTotal ?? null,
+          duplicateCount: fetched.duplicateCount ?? 0,
+          geography: fetched.geography,
+          sources: fetched.sources || [],
+          limitations: fetched.limitations || [],
+          fetchedAt: new Date().toISOString(),
+        };
+      }
       const corpus = jobs.map((j: any) => j.title + ' ' + j.description);
       const legacy = { ...c.p, approved: true };
       const matches = jobs
@@ -155,10 +177,16 @@ export async function createWorkflow() {
       await patchRun(
         s.missionId,
         c.token,
-        { matches },
+        { matches, jobRetrieval },
         'Job Matcher',
         'completed',
-        'Read eight disclosed fixture advertisements; computed deterministic suitability scores, evidence and gaps. Scores are not hiring probabilities.',
+        query.provider === 'fixtures'
+          ? 'Read eight disclosed fixture advertisements; scores are not hiring probabilities.'
+          : query.provider === 'manual'
+            ? 'Ranked a user-pasted external listing; vacancy and content are unverified.'
+            : 'Retrieved ' +
+              jobs.length +
+              ' source jobs, filtered by country/region and ranked without fixture substitution.',
       );
       return {};
     })
@@ -400,6 +428,6 @@ export async function createWorkflow() {
         leases.delete(id);
       }
     },
-    close: () => saver.end(),
+    close: () => (portablePool ? Promise.resolve() : saver.end()),
   };
 }

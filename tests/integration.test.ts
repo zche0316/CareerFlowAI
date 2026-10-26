@@ -100,6 +100,7 @@ async function prepareInterview(
 
 beforeAll(async () => {
   process.env.PROVIDER_MODE = 'fixture';
+  process.env.JOB_SOURCE = 'fixtures';
   delete process.env.OPENAI_API_KEY;
   delete process.env.OPENAI_MODEL;
   await initQueue(true);
@@ -177,6 +178,123 @@ describe('Owned, durable five-agent journey', () => {
       `[quality] workspace-load max=${Math.max(...loadTimes).toFixed(1)}ms draft-save=${draftMs.toFixed(1)}ms approval-save=${approvalMs.toFixed(1)}ms`,
     );
   });
+  it('exposes a safe Adzuna rate-limit message and retries to a genuine empty source response', async () => {
+    const originalFetch = globalThis.fetch,
+      oldId = process.env.ADZUNA_APP_ID,
+      oldKey = process.env.ADZUNA_APP_KEY;
+    let calls = 0;
+    process.env.ADZUNA_APP_ID = 'test-only-id';
+    process.env.ADZUNA_APP_KEY = 'test-only-key';
+    globalThis.fetch = async (input, init) => {
+      if (String(input).startsWith('https://api.adzuna.com/')) {
+        calls++;
+        return calls === 1
+          ? new Response('{}', { status: 429, headers: { 'retry-after': '30' } })
+          : new Response(JSON.stringify({ count: 0, results: [] }), { status: 200 });
+      }
+      return originalFetch(input, init);
+    };
+    try {
+      const c = await client();
+      await profile(c);
+      const made = await c.request('/missions', 'POST', {
+        goal: 'Find Australian analyst jobs with explicit failure handling.',
+        jobSearch: { provider: 'adzuna', country: 'au', keyword: 'data analyst' },
+      });
+      const failed = await wait(c, made.body.id, 'FAILED');
+      expect(failed.error).toContain('rate limit');
+      expect(failed.error).toContain('30 seconds');
+      expect(failed.error).not.toContain('test-only');
+      expect(failed.data.matches).toBeUndefined();
+      await c.request(`/missions/${failed.id}/retry`, 'POST', {});
+      const empty = await wait(c, failed.id, 'NO_MATCHES');
+      expect(empty.data.matches).toEqual([]);
+      expect(empty.profileId).toBe(failed.profileId);
+      expect(calls).toBe(2);
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (oldId === undefined) delete process.env.ADZUNA_APP_ID;
+      else process.env.ADZUNA_APP_ID = oldId;
+      if (oldKey === undefined) delete process.env.ADZUNA_APP_KEY;
+      else process.env.ADZUNA_APP_KEY = oldKey;
+    }
+  });
+
+  it('hands normalized Adzuna jobs through scoring and owner-scoped target selection without sending profile evidence to the source', async () => {
+    const originalFetch = globalThis.fetch,
+      oldId = process.env.ADZUNA_APP_ID,
+      oldKey = process.env.ADZUNA_APP_KEY;
+    let queryUrl = '';
+    process.env.ADZUNA_APP_ID = 'test-only-id';
+    process.env.ADZUNA_APP_KEY = 'test-only-key';
+    globalThis.fetch = async (input, init) => {
+      if (String(input).startsWith('https://api.adzuna.com/')) {
+        queryUrl = String(input);
+        const job = {
+          id: 'mock-123',
+          title: 'Data Analyst',
+          company: { display_name: 'Mock Employer' },
+          location: { display_name: 'Sydney, Australia' },
+          description: 'Required skills: python, sql. Minimum 0 years experience.',
+          redirect_url: 'https://www.adzuna.com.au/jobs/land/ad/mock-123',
+        };
+        return new Response(JSON.stringify({ count: 1, results: [job, job] }), { status: 200 });
+      }
+      return originalFetch(input, init);
+    };
+    try {
+      const c = await client();
+      await profile(c);
+      const made = await c.request('/missions', 'POST', {
+        goal: 'Find a suitable Australian data analyst role.',
+        minScore: 0,
+        jobSearch: {
+          provider: 'adzuna',
+          country: 'au',
+          region: 'New South Wales',
+          location: 'Sydney',
+          keyword: 'data analyst',
+        },
+      });
+      expect(made.status).toBe(202);
+      const m = await wait(c, made.body.id, 'AWAITING_JOB');
+      expect(m.data.matches).toHaveLength(1);
+      expect(m.data.jobRetrieval.duplicateCount).toBe(1);
+      expect(m.data.matches[0].job.salary).toBeNull();
+      expect(m.data.matches[0].job.company).toBe('Mock Employer');
+      const u = new URL(queryUrl);
+      expect(u.pathname).toBe('/v1/api/jobs/au/search/1');
+      expect(u.searchParams.get('what')).toBe('data analyst');
+      expect(u.searchParams.get('where')).toBe('Sydney, New South Wales');
+      expect([...u.searchParams.keys()].sort()).toEqual([
+        'app_id',
+        'app_key',
+        'content-type',
+        'results_per_page',
+        'what',
+        'where',
+      ]);
+      expect(queryUrl).not.toContain('Alex');
+      expect(queryUrl).not.toContain('student');
+      const selected = await c.request(`/missions/${m.id}/decisions`, 'POST', {
+        kind: 'job',
+        jobId: m.data.matches[0].job.id,
+      });
+      expect(selected.status).toBe(202);
+      const handed = await wait(c, m.id, 'AWAITING_APPROVAL');
+      expect(handed.data.selectedJob.job.applicationUrl).toBe(
+        'https://www.adzuna.com.au/jobs/land/ad/mock-123',
+      );
+      await c.request(`/missions/${m.id}/cancel`, 'POST', {});
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (oldId === undefined) delete process.env.ADZUNA_APP_ID;
+      else process.env.ADZUNA_APP_ID = oldId;
+      if (oldKey === undefined) delete process.env.ADZUNA_APP_KEY;
+      else process.env.ADZUNA_APP_KEY = oldKey;
+    }
+  });
+
   it('completes the profile → career → job → approved resume → interview journey', async () => {
     const c = await client();
     await profile(c);

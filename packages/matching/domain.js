@@ -60,14 +60,18 @@ export function extractRequirements(job) {
   const d = job.description.toLowerCase();
   const section = (label) => d.match(new RegExp(label + ' skills:\\s*([^.]*)'))?.[1] || '';
   const skills = (t) => vocabulary.filter((s) => new RegExp('\\b' + s + '\\b').test(t));
-  const required = skills(section('required')),
+  const explicitRequired = skills(section('required'));
+  const inferred =
+    (job.source?.liveVacancy === true || job.source?.externalListing) && !explicitRequired.length;
+  const required = inferred ? skills(d) : explicitRequired,
     preferred = skills(section('preferred'));
   return {
     required,
     preferred,
     experienceYears: Number(d.match(/minimum (\d+) years? experience/)?.[1] || 0),
     qualification: d.match(/qualification:\s*([^.]*)/)?.[1] || 'unspecified',
-    confidence: required.length ? 'medium' : 'low',
+    confidence: !inferred && required.length ? 'medium' : 'low',
+    inferred,
     evidence: job.description,
   };
 }
@@ -145,11 +149,17 @@ export function compare(profile, job, corpus) {
       (0.45 * skill + 0.15 * experience + 0.1 * education + 0.15 * preference + 0.15 * semantic),
   );
   const limitations = [
-    'Sample advertisement; not a live vacancy.',
+    job.source?.liveVacancy
+      ? 'External job snapshot; verify availability and requirements on the official source.'
+      : job.source?.externalListing
+        ? 'User-pasted external listing; content and vacancy availability are unverified.'
+        : 'Sample advertisement; not a live vacancy.',
     'Self-reported skills are not verified.',
     'TF-IDF uses word overlap, not pretrained semantic embeddings.',
     'Scores are heuristic suitability indicators, not hiring probabilities.',
   ];
+  if (requirements.inferred)
+    limitations.push('Skills are inferred mentions, not confirmed mandatory requirements.');
   if (requirements.confidence === 'low')
     limitations.push(
       'Low confidence: explicit skill requirements are missing; verify requirements before selecting.',

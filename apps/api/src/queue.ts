@@ -1,7 +1,8 @@
+import { JobSourceError } from '../../../packages/recruitment/src/repository.js';
 import { PgBoss } from 'pg-boss';
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
-import { db, databaseUrl } from './db.js';
+import { db, databaseUrl, portablePool } from './db.js';
 import { json, mutateRun, type Event } from './domain.js';
 import { createWorkflow } from '../../../packages/agents/src/workflow.js';
 
@@ -18,7 +19,14 @@ const active = new Map<string, AbortController>();
 export const abortRun = (id: string) => active.get(id)?.abort();
 
 export async function initQueue(withWorker: boolean) {
-  boss = new PgBoss({ connectionString: databaseUrl });
+  boss = new PgBoss(
+    portablePool
+      ? {
+          db: { executeSql: (text, values) => portablePool!.query(text, values) },
+          useListenNotify: false,
+        }
+      : { connectionString: databaseUrl },
+  );
   boss.on('error', (e) => console.error('Queue error:', e.message));
   await boss.start();
   await boss.createQueue(QUEUE, { retryLimit: 2, retryDelay: 10, expireInSeconds: 300 });
@@ -134,11 +142,13 @@ async function executeMission(id: string) {
 
       // Preserve useful domain errors without exposing raw provider or database errors to the UI.
       const publicMessage =
-        /Live AI requires|Job source|sharing|budget|profile changed|unsupported|evidence|revision limit|Mission unavailable/i.test(
-          message,
-        )
-          ? message
-          : 'The specialist could not complete this step. Your approved data and saved answers are preserved. Retry the step or check provider availability.';
+        e instanceof JobSourceError
+          ? e.message
+          : /Live AI requires|Job source|sharing|budget|profile changed|unsupported|evidence|revision limit|Mission unavailable/i.test(
+                message,
+              )
+            ? message
+            : 'The specialist could not complete this step. Your approved data and saved answers are preserved. Retry the step or check provider availability.';
       await db.mission.updateMany({
         where: { id, status: 'RUNNING', leaseToken: lease },
         data: {

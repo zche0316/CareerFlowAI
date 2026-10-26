@@ -1,3 +1,9 @@
+import {
+  JobRepository,
+  recruitmentSettings,
+} from '../../../packages/recruitment/src/repository.js';
+import { toolsDashboard, runTool, toolCommand, exportReminder } from './tools.js';
+import { prepareApplication, recordApplication, applicationRecordSchema } from './recruitment.js';
 import express from 'express';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { z } from 'zod';
@@ -30,6 +36,7 @@ import { prepareProfileBuilderDraft } from './profile-builder.js';
 import { decideNegotiationPractice, runNegotiationPractice } from './negotiation.js';
 import {
   decisionSchema,
+  jobSearchSchema,
   answerSchema,
   sampleProfile,
   AGENTS,
@@ -83,6 +90,7 @@ export function createApp() {
       user: req.actor || null,
       csrf: req.session?.csrf || null,
       mode: configuredMode(),
+      recruitment: recruitmentSettings(),
       demoEnabled: process.env.ENABLE_DEMO_LOGIN === 'true',
     }),
   );
@@ -160,6 +168,18 @@ export function createApp() {
     res.json({ profile, missions, resumes, sampleProfile, agents: AGENTS, mode: configuredMode() });
   });
 
+  app.get('/api/tools/dashboard', async (req, res) =>
+    res.json(await toolsDashboard(req.actor!.id)),
+  );
+  app.post('/api/missions/:id/tools', async (req, res) =>
+    res.json(await runTool(req.actor!.id, String(req.params.id), toolCommand.parse(req.body))),
+  );
+  app.get('/api/missions/:id/reminders/:reminderId/calendar', async (req, res) =>
+    res.json(
+      await exportReminder(req.actor!.id, String(req.params.id), String(req.params.reminderId)),
+    ),
+  );
+
   // Profile editing and explicit approval are separate operations.
   app.post('/api/profiles/prepare', async (req, res) => {
     const { notes, currentProfile } = z
@@ -208,15 +228,26 @@ export function createApp() {
 
   // Capture the approved profile and advisory history before scheduling durable background work.
   app.post('/api/missions', async (req, res) => {
-    const { goal, minScore, simulateSourceFailure, analysisFeedback, sourceMissionId } = z
-      .object({
-        goal: z.string().trim().min(5).max(2000),
-        minScore: z.number().min(0).max(100).default(40),
-        simulateSourceFailure: z.boolean().default(false),
-        analysisFeedback: z.string().trim().max(2000).default(''),
-        sourceMissionId: z.string().uuid().optional(),
-      })
-      .parse(req.body);
+    const { goal, minScore, simulateSourceFailure, analysisFeedback, sourceMissionId, jobSearch } =
+      z
+        .object({
+          goal: z.string().trim().min(5).max(2000),
+          minScore: z.number().min(0).max(100).default(40),
+          simulateSourceFailure: z.boolean().default(false),
+          analysisFeedback: z.string().trim().max(2000).default(''),
+          sourceMissionId: z.string().uuid().optional(),
+          jobSearch: jobSearchSchema.default(
+            jobSearchSchema.parse({
+              provider: recruitmentSettings().defaults.provider,
+              board: 'spaceship',
+              country: recruitmentSettings().defaults.country,
+              region: '',
+              location: '',
+              keyword: '',
+            }),
+          ),
+        })
+        .parse(req.body);
     const profile = await db.profile.findFirst({
       where: { userId: req.actor!.id },
       orderBy: { version: 'desc' },
@@ -279,6 +310,7 @@ export function createApp() {
           apiCalls: 0,
           priorFeedback,
           minScore,
+          jobSearch,
           simulateSourceFailure: process.env.ENABLE_DEMO_LOGIN === 'true' && simulateSourceFailure,
           analysisFeedback,
           ...(sourceMissionId ? { refinedFromMissionId: sourceMissionId } : {}),
@@ -303,12 +335,53 @@ export function createApp() {
   app.get('/api/missions/:id', async (req, res) =>
     res.json(await ownedMission(req.actor!.id, String(req.params.id))),
   );
-  app.post('/api/missions/:id/decisions', async (req, res) => {
-    const m = await queueDecision(
-      req.actor!.id,
-      String(req.params.id),
-      decisionSchema.parse(req.body),
+  app.get('/api/missions/:id/application', async (req, res) =>
+    res.json(await prepareApplication(req.actor!.id, String(req.params.id))),
+  );
+  app.post('/api/missions/:id/applications', async (req, res) =>
+    res.json(
+      await recordApplication(
+        req.actor!.id,
+        String(req.params.id),
+        applicationRecordSchema.parse(req.body),
+      ),
+    ),
+  );
+  app.get('/api/missions/:id/jobs/:jobId/availability', async (req, res) => {
+    const m = await ownedMission(req.actor!.id, String(req.params.id));
+    const selected = (m.data as MissionData).matches?.find(
+      (r: any) => r.job.id === String(req.params.jobId),
     );
+    if (!selected) throw new AppError(404, 'NOT_FOUND', 'Job unavailable.');
+    res.json(await new JobRepository().revalidate(selected.job));
+  });
+  app.post('/api/missions/:id/decisions', async (req, res) => {
+    const decision = decisionSchema.parse(req.body);
+    if (decision.kind === 'job') {
+      const mission = await ownedMission(req.actor!.id, String(req.params.id));
+      const data = mission.data as MissionData;
+      const selected = data.matches?.find((r: any) => r.job.id === decision.jobId);
+      if (selected?.job.source?.provider === 'greenhouse') {
+        let check;
+        try {
+          check = await new JobRepository().revalidate(selected.job);
+        } catch {
+          throw new AppError(
+            503,
+            'VACANCY_CHECK_UNAVAILABLE',
+            'Cannot recheck this vacancy now. Retry selection later; nothing was selected.',
+          );
+        }
+        if (check.status !== 'published_at_check')
+          throw new AppError(
+            409,
+            'VACANCY_CLOSED',
+            'This vacancy was removed from the official API. Choose another result or run a new search.',
+          );
+      }
+    }
+
+    const m = await queueDecision(req.actor!.id, String(req.params.id), decision);
     await enqueue(m.id).catch(() => {});
     res.status(202).json(m);
   });
