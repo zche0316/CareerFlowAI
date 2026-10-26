@@ -4,6 +4,8 @@
 
 Latest integration: [26 October source integration and validation](docs/STAGE2_INTEGRATION_20261026.md). Earlier dated notes below describe historical snapshots; use the latest record for this branch.
 
+Latest Windows local checks: [UC4 failure recovery, revision approval and browser acceptance](docs/LOCAL_UC4_VALIDATION_20261026.md) — 65 non-browser tests and 7 browser tests passed with the persistent local database.
+
 Assessment preparation: [Stage 1 interview](docs/STAGE1_INTERVIEW_MEMBER3.md) · [Quick review](docs/STAGE1_QUICK_REVIEW.md) · [Week 13 readiness audit](docs/WEEK13_READINESS.md) · [Deployment rehearsal](docs/WEEK13_DEPLOYMENT.md) · [Contribution template](docs/CONTRIBUTION_STATEMENT_TEMPLATE.md). Create a source candidate with `npm run package:source`; review it before Canvas upload.
 
 A connected five-specialist career workspace with versioned profiles, background missions, explicit approval, evidence-linked resumes and interview practice. All application UI is English.
