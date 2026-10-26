@@ -8,6 +8,7 @@ import express from 'express';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
+import { approvedResumeText } from '../../../packages/contracts/src/resume-document.js';
 import { fileURLToPath } from 'node:url';
 import { db } from './db.js';
 import {
@@ -434,12 +435,7 @@ export function createApp() {
       }),
     );
     const c = r.content as any;
-    const text = [
-      c.name,
-      `Target role: ${c.jobTitle}`,
-      '',
-      ...c.claims.map((x: any) => `\n${x.kind.toUpperCase()}\n${x.text}`),
-    ].join('\n');
+    const text = approvedResumeText(c);
     res.setHeader('Content-Disposition', `attachment; filename="careerflow-approved-resume.txt"`);
     res.type('text/plain').send(text);
   });

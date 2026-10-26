@@ -3,6 +3,7 @@ import { db } from './db.js';
 import { digest, json, type MissionData, ownedMission } from './domain.js';
 import { AppError, requireValue } from './errors.js';
 import { z } from 'zod';
+import { approvedResumeText } from '../../../packages/contracts/src/resume-document.js';
 export const applicationRecordSchema = z.object({
   status: z.enum(['opened_official_site', 'submitted_self_reported']),
   contextHash: z.string().min(1),
@@ -39,7 +40,7 @@ function packet(m: any, resume: any) {
     approvedResumeId: resume.id,
     profileVersion: m.profile.version,
     contextHash,
-    resumeText: [c.name, 'Target: ' + c.jobTitle, ...c.claims.map((x: any) => x.text)].join('\n\n'),
+    resumeText: approvedResumeText(c),
     submissionSupported: false,
     notice:
       'No application is sent here. Review/download your approved resume and submit on the official site. A later confirmation is user-reported, not API-verified.',

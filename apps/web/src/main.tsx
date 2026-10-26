@@ -1,3 +1,4 @@
+import { ResumeReview } from './resume-review.js';
 import { suggestJobSearch } from '../../../packages/contracts/src/job-search.js';
 import {
   australianProfileDraft,
@@ -38,6 +39,7 @@ import {
 } from 'lucide-react';
 import type { CareerProfile } from '../../../packages/contracts/src/index.js';
 import './style.css';
+import './resume-review.css';
 
 // The session endpoint supplies this token; all JSON mutations share the same request wrapper.
 let csrf = '';
@@ -164,7 +166,7 @@ function App() {
     { id: 'tools', label: 'Optional tools', icon: Target },
   ];
   return (
-    <div className="shell">
+    <div className={`shell${tab === 'missions' && phase === 3 ? ' uc4-shell' : ''}`}>
       <aside className="sidebar">
         <a className="brand" href="/" aria-label="CareerFlow home">
           <span className="brandmark">
@@ -299,7 +301,7 @@ function App() {
               </button>
             </div>
           )}
-          {notice && (
+          {notice && !(tab === 'missions' && phase === 3) && (
             <div role="status" className="notice">
               {notice}
               <button aria-label="Dismiss notification" onClick={() => setNotice('')}>
@@ -1437,11 +1439,9 @@ function MissionDetail({
   onRefineAnalysis: (feedback: string) => Promise<void>;
 }) {
   const d = m.data,
-    [revision, setRevision] = useState(''),
     [answer, setAnswer] = useState(''),
     [question, setQuestion] = useState(0),
     [analysisFeedback, setAnalysisFeedback] = useState(''),
-    [confirm, setConfirm] = useState(false),
     [compareIds, setCompareIds] = useState<string[]>([]),
     [offerSalary, setOfferSalary] = useState(''),
     [targetSalary, setTargetSalary] = useState(''),
@@ -1456,11 +1456,6 @@ function MissionDetail({
   }, [q?.id, JSON.stringify(d.answers)]);
 
   useEffect(() => {
-    // A changed draft needs a fresh confirmation even if the previous version was reviewed.
-    setConfirm(false);
-  }, [d.resumeDraft?.hash]);
-
-  useEffect(() => {
     setAnalysisFeedback('');
   }, [m.id]);
 
@@ -1471,6 +1466,17 @@ function MissionDetail({
     setCurrency(salary?.currency || 'AUD');
     setNegotiationMessage('');
   }, [m.id, d.selectedJob?.job.id]);
+
+  if (phase === 3)
+    return (
+      <ResumeReview
+        mission={m}
+        busy={busy}
+        onAction={onAction}
+        onNavigate={onNavigate}
+        onBack={onBack}
+      />
+    );
 
   const stages = [
     { label: 'Approved profile', done: true },
@@ -1549,7 +1555,6 @@ function MissionDetail({
       {phase !== null &&
         ((phase === 1 && !d.analysis) ||
           (phase === 2 && !d.matches?.length && m.status !== 'NO_MATCHES') ||
-          (phase === 3 && !d.resumeDraft) ||
           (phase === 4 && !questions.length) ||
           (phase === 7 && (!d.selectedJob?.job?.applicationUrl || !d.approvedResumeId))) && (
           <section className="panel stage-prerequisite">
@@ -1558,19 +1563,15 @@ function MissionDetail({
               {phase === 7 ? '' : ' Agent'}
             </h2>
             <p>
-              {phase === 3
-                ? d.selectedJob
-                  ? `Target: ${d.selectedJob.job.title}. Your evidence-based draft is being prepared.`
-                  : 'Target: Select a target in Job matching first.'
-                : phase === 4
-                  ? d.approvedResumeId
-                    ? 'Your approved resume is saved. Interview questions are being prepared.'
-                    : 'Approve your evidence-based resume before starting interview practice.'
-                  : phase === 7
-                    ? 'Select a real target job and approve your resume before preparing an application.'
-                    : 'Your career team is preparing this step. Results are saved with this mission.'}
+              {phase === 4
+                ? d.approvedResumeId
+                  ? 'Your approved resume is saved. Interview questions are being prepared.'
+                  : 'Approve your evidence-based resume before starting interview practice.'
+                : phase === 7
+                  ? 'Select a real target job and approve your resume before preparing an application.'
+                  : 'Your career team is preparing this step. Results are saved with this mission.'}
             </p>
-            {(phase === 3 || phase === 7) && (
+            {phase === 7 && (
               <>
                 <button className="secondary" onClick={() => onNavigate(2)}>
                   Go to 03 Job matching
@@ -1885,138 +1886,14 @@ function MissionDetail({
             onRecord={(body) => onAction('applications', body)}
           />
         )}
-      {(phase === null || phase === 3) && d.resumeDraft && (
-        <section id="resume-tailoring" className="panel resume">
-          <div className="section-heading">
-            <h2>
-              <FileCheck2 size={20} />
-              Your evidence-grounded resume
-            </h2>
-            <span className="tag">
-              {d.approvedResumeId ? 'Approved & saved' : 'Review required'}
-            </span>
-          </div>
-          <p className="muted">
-            Proposed selection and ordering for {d.resumeDraft.jobTitle}. Candidate claims are
-            retained verbatim from approved profile v{d.resumeDraft.profileVersion}.
-          </p>
-          <div className="resume-header">
-            <h3>{d.resumeDraft.name}</h3>
-            <p>Application target: {d.resumeDraft.jobTitle}</p>
-          </div>
-          {d.resumeDraft.claims.map((c: any) => (
-            <div className="resume-claim" key={c.factId}>
-              <span className="claim-type">{c.kind}</span>
-              <p>{c.text}</p>
-              <details>
-                <summary>
-                  <ShieldCheck size={13} />
-                  Evidence passport · {c.factId}
-                </summary>
-                <p>
-                  Source: {c.source}. Profile v{d.resumeDraft.profileVersion}.
-                </p>
-                <p>Selection reason: {c.reason}</p>
-                <p>This claim matches the approved source text exactly.</p>
-              </details>
-            </div>
-          ))}
-          <div className="approval-controls">
-            <details>
-              <summary>Review proposed changes</summary>
-              <div className="info">
-                <ShieldCheck size={17} />
-                <span>
-                  Candidate facts are not rewritten. This resume proposes selecting and ordering
-                  only the evidence supported by your approved profile.
-                </span>
-              </div>
-              <h4>Included, in proposed order</h4>
-              <ol>
-                {d.resumeDraft.claims.map((c: any) => (
-                  <li key={c.factId}>
-                    {c.kind}: {c.text}
-                  </li>
-                ))}
-              </ol>
-              <h4>Omitted for this target role</h4>
-              {d.resumeDraft.omittedFacts?.length ? (
-                <ul>
-                  {d.resumeDraft.omittedFacts.map((f: any) => (
-                    <li key={f.id}>
-                      {f.kind}: {f.text}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="small muted">No eligible approved facts were omitted.</p>
-              )}
-            </details>
-          </div>
-          {m.status === 'AWAITING_APPROVAL' && (
-            <div className="approval-controls">
-              <label className="checkbox">
-                <input
-                  type="checkbox"
-                  checked={confirm}
-                  onChange={(e) => setConfirm(e.target.checked)}
-                />
-                I reviewed the selected claims and approve this exact resume draft.
-              </label>
-              <button
-                className="primary"
-                disabled={!confirm || busy}
-                onClick={() =>
-                  void onAction('decisions', {
-                    kind: 'resume',
-                    decision: 'approve',
-                    draftHash: d.resumeDraft.hash,
-                  })
-                }
-              >
-                <Check size={16} />
-                Approve & save resume
-              </button>
-              <details>
-                <summary>Request a revision instead</summary>
-                <label>
-                  Emphasis or ordering feedback
-                  <textarea
-                    value={revision}
-                    onChange={(e) => setRevision(e.target.value)}
-                    placeholder="Which supported experience should receive more emphasis?"
-                  />
-                </label>
-                <button
-                  className="secondary"
-                  disabled={busy || !revision.trim() || (d.revisions || 0) >= 2}
-                  onClick={() =>
-                    void onAction('decisions', {
-                      kind: 'resume',
-                      decision: 'revise',
-                      draftHash: d.resumeDraft.hash,
-                      feedback: revision,
-                    })
-                  }
-                >
-                  Request revision · {d.revisions || 0}/2 used
-                </button>
-                {(d.revisions || 0) >= 2 && (
-                  <p className="small muted" role="status">
-                    Both revisions have been used. You can approve this draft, or cancel and start a
-                    new mission with updated inputs.
-                  </p>
-                )}
-              </details>
-            </div>
-          )}
-          {d.approvedResumeId && (
-            <a className="secondary" href={`/api/resumes/${d.approvedResumeId}/download`}>
-              <Download size={16} />
-              Download approved resume
-            </a>
-          )}
-        </section>
+      {phase === null && d.resumeDraft && (
+        <ResumeReview
+          mission={m}
+          busy={busy}
+          onAction={onAction}
+          onNavigate={onNavigate}
+          embedded
+        />
       )}
       <div id="interview-practice" />
       {(phase === null || phase === 4) && questions.length > 0 && (
