@@ -1,5 +1,7 @@
 # UC4 interface review — 26 October 2026
 
+Subsequent implementation: [UC4 review workspace and acceptance evidence](UC4_UI_IMPLEMENTATION_20261026.md).
+
 Prepared for Raphael Wang's R4 / UC4 work. This is an AI-assisted design review,
 not an implemented redesign or a claim of independent team acceptance.
 
