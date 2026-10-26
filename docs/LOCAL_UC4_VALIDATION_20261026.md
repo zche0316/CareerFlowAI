@@ -1,13 +1,10 @@
 # Windows local UC4 validation — 26 October 2026
 
-## Result / 结果
+## Result
 
 The application started locally with a persistent portable database. All 65 non-browser tests,
 TypeScript checks, the production build and all 7 Playwright tests passed on this checkout.
 The new UC4 checks exercise real database write rejection, safe retry, cancellation and revision approval.
-
-本机已启动应用和持久化本地数据库。65 项非浏览器测试、类型检查、生产构建以及 7 项浏览器测试通过。
-此次新增验证覆盖简历写入失败、保留原版本、安全重试、取消和修改后的重新批准。
 
 ## Environment
 
@@ -60,12 +57,9 @@ npm.cmd run test:e2e
 - Screenshots (local, ignored): `output/acceptance/cfs-26-resume-revision-limit.png`,
   `output/acceptance/cfs-27-cancelled-resume-library.png`, `output/acceptance/local-app-ready.png`.
 
-## Scope / 范围
+## Scope
 
 This is local functional validation with fictional inputs. It makes no paid model calls.
 It does not establish current live-provider compatibility, real job-source availability,
 native PostgreSQL/Docker behavior for this patch, independent teammate acceptance, or Canvas
 upload/download deployment. Jira acceptance, assignments and sprint state are separate team decisions.
-
-本次使用虚构资料和明确标注的模拟数据，未调用付费模型。真实 AI、真实职位源、最终提交包部署及小组独立验收，
-仍需分别验证。本记录不代表上述交付环节已经完成。
