@@ -252,3 +252,27 @@ export const AGENTS = [
     purpose: 'Practise role-specific questions and learn from your feedback.',
   },
 ];
+
+export const jobSearchSchema = z.object({
+  provider: z
+    .enum(['employers', 'greenhouse', 'adzuna', 'fixtures', 'manual'])
+    .default('greenhouse'),
+  board: z
+    .string()
+    .regex(/^[a-zA-Z0-9_-]{1,80}$/)
+    .default('spaceship'),
+  country: z.enum(['au', 'nz', 'gb', 'us', 'ca', 'sg', 'de', 'fr']).default('au'),
+  region: z.string().max(150).default(''),
+  location: z.string().max(150).default(''),
+  keyword: z.string().max(150).default(''),
+  listing: z
+    .object({
+      url: z.string().max(2000),
+      title: z.string().trim().min(1).max(300),
+      company: z.string().trim().min(1).max(300),
+      location: z.string().trim().min(1).max(300),
+      description: z.string().trim().min(20).max(20000),
+    })
+    .optional(),
+});
+export type JobSearch = z.infer<typeof jobSearchSchema>;

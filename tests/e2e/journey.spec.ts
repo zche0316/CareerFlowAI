@@ -20,6 +20,7 @@ async function openRankedJobs(page: Page) {
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Career missions', exact: true }).click();
   await page.getByRole('button', { name: 'New career mission' }).click();
+  await page.getByLabel('Job source', { exact: true }).selectOption('fixtures');
   await page.getByRole('button', { name: 'Start career mission', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Select this opportunity' }).first()).toBeVisible({
     timeout: 30000,

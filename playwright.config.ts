@@ -5,7 +5,7 @@ export default defineConfig({
   workers: 1,
   timeout: 90000,
   use: {
-    baseURL: 'http://localhost:8787',
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8787',
     headless: true,
     viewport: { width: 1440, height: 1000 },
   },
