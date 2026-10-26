@@ -8,6 +8,8 @@ Latest Windows local checks: [UC4 failure recovery, revision approval and browse
 
 Latest UC4 interface: [collapsible details, grouped resume preview and direct approval](docs/UC4_UI_IMPLEMENTATION_20261026.md) — local verification passed 67 non-browser tests and 9 browser tests in fixture mode.
 
+Live UC4 rehearsal: [Groq free-tier configuration and bounded provider smoke test](docs/LIVE_UC4_TEST_PREPARATION_20261027.md). `npm run test:live:uc4` checks local configuration without a network request; add `-- --run` explicitly for real inference with fictional evidence.
+
 Assessment preparation: [Stage 1 interview](docs/STAGE1_INTERVIEW_MEMBER3.md) · [Quick review](docs/STAGE1_QUICK_REVIEW.md) · [Week 13 readiness audit](docs/WEEK13_READINESS.md) · [Deployment rehearsal](docs/WEEK13_DEPLOYMENT.md) · [Contribution template](docs/CONTRIBUTION_STATEMENT_TEMPLATE.md). Create a source candidate with `npm run package:source`; review it before Canvas upload.
 
 A connected five-specialist career workspace with versioned profiles, background missions, explicit approval, evidence-linked resumes and interview practice. All application UI is English.
