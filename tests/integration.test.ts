@@ -20,10 +20,20 @@ type Client = {
 };
 
 const users: string[] = [];
+const isolatedServers: Server[] = [];
 
-async function client(): Promise<Client> {
+async function client(isolateAuth = false): Promise<Client> {
+  // The new UC1 cases get independent auth limiters; production limits stay
+  // enabled, and adding acceptance cases cannot exhaust another test's quota.
+  let apiBase = base;
+  if (isolateAuth) {
+    const isolated = createApp().listen(0, '127.0.0.1');
+    isolatedServers.push(isolated);
+    await new Promise<void>((resolve) => isolated.once('listening', resolve));
+    apiBase = `http://127.0.0.1:${(isolated.address() as any).port}`;
+  }
   const email = `qa-${crypto.randomUUID()}@careerflow.test`;
-  const r = await fetch(base + '/api/auth/register', {
+  const r = await fetch(apiBase + '/api/auth/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password: 'Disposable-QA-password', name: 'QA Candidate' }),
@@ -37,7 +47,7 @@ async function client(): Promise<Client> {
     id: data.user.id,
   } as Client;
   c.request = async (path, method = 'GET', body) => {
-    const r = await fetch(base + '/api' + path, {
+    const r = await fetch(apiBase + '/api' + path, {
       method,
       headers: { cookie: c.cookie, 'Content-Type': 'application/json', 'X-CSRF-Token': c.csrf },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
@@ -110,6 +120,8 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   await closeQueue();
+  for (const isolated of isolatedServers)
+    await new Promise<void>((resolve) => isolated.close(() => resolve()));
   await new Promise<void>((r) => server.close(() => r()));
   for (const id of users) {
     const missions = await db.mission.findMany({ where: { userId: id }, select: { id: true } });
@@ -126,6 +138,102 @@ afterAll(async () => {
   }
   await db.$disconnect();
 });
+describe('UC1 Profile Builder acceptance', () => {
+  it('prepares a notes-only draft without fictional data, implicit sharing or persistence', async () => {
+    const c = await client(true);
+    const result = await c.request('/profiles/prepare', 'POST', {
+      notes: 'I want help organising my career information.',
+    });
+    expect(result.status).toBe(200);
+    expect(result.body.data.name).toBe('');
+    expect(result.body.data.skills).toEqual([]);
+    expect(result.body.data.education).toBe('');
+    expect(result.body.data.experience).toBe('');
+    expect(Object.values(result.body.data.sharing)).toEqual([false, false, false, false]);
+    expect(result.body.followUpQuestions.length).toBeGreaterThan(0);
+    expect(await db.profileDraft.count({ where: { userId: c.id } })).toBe(0);
+    expect((await c.request('/workspace')).body.profile).toBeNull();
+  });
+
+  it('uses only the signed-in owner profile as preparation context', async () => {
+    const owner = await client(true),
+      other = await client(true);
+    const approved = await profile(owner);
+    const response = await other.request('/profiles/prepare', 'POST', {
+      notes: 'Please organise my own career information.',
+    });
+    expect(response.status).toBe(200);
+    expect(response.body.data.name).toBe('');
+    expect(response.body.data.skills).toEqual([]);
+    const ownResponse = await owner.request('/profiles/prepare', 'POST', {
+      notes: 'Please keep my reviewed information unchanged.',
+      currentProfile: {
+        location: 'Melbourne',
+        sharing: { coach: false, matching: true, resume: false, interview: false },
+      },
+    });
+    expect(ownResponse.status).toBe(200);
+    expect(ownResponse.body.data.name).toBe(sampleProfile.name);
+    expect(ownResponse.body.data.location).toBe('Melbourne');
+    expect(ownResponse.body.data.sharing.coach).toBe(false);
+    expect((await owner.request('/workspace')).body.profile.id).toBe(approved.id);
+    expect((await owner.request('/workspace')).body.profile.data.location).toBe(
+      sampleProfile.location,
+    );
+  });
+
+  it('returns a recoverable provider failure while preserving the approved version and manual completion', async () => {
+    const c = await client(true);
+    const approved = await profile(c);
+    const mode = process.env.PROVIDER_MODE;
+    try {
+      process.env.PROVIDER_MODE = 'openai';
+      const response = await c.request('/profiles/prepare', 'POST', {
+        notes: 'Please organise my existing career profile.',
+      });
+      expect(response.status).toBe(503);
+      expect(response.body.code).toBe('PROFILE_BUILDER_UNAVAILABLE');
+    } finally {
+      process.env.PROVIDER_MODE = mode;
+    }
+    expect((await c.request('/workspace')).body.profile.id).toBe(approved.id);
+    const manual = await c.request('/profiles/drafts', 'POST', {
+      ...sampleProfile,
+      goals: 'Continue manually after an AI failure.',
+    });
+    expect(manual.status).toBe(201);
+    expect(
+      (await c.request(`/profiles/drafts/${manual.body.id}/approve`, 'POST', { reviewed: true }))
+        .status,
+    ).toBe(200);
+    expect((await c.request('/workspace')).body.profile.version).toBe(2);
+  });
+
+  it('allows only approval or cancellation to win for the same draft', async () => {
+    const c = await client(true);
+    await profile(c);
+    const made = await c.request('/profiles/drafts', 'POST', {
+      ...sampleProfile,
+      goals: 'An approval and cancellation compete for this draft.',
+    });
+    expect(made.status).toBe(201);
+    const [approval, cancellation] = await Promise.all([
+      c.request(`/profiles/drafts/${made.body.id}/approve`, 'POST', { reviewed: true }),
+      c.request(`/profiles/drafts/${made.body.id}`, 'DELETE'),
+    ]);
+    expect([approval.status, cancellation.status].filter((status) => status === 200)).toHaveLength(
+      1,
+    );
+    expect([200, 409]).toContain(approval.status);
+    expect([200, 404]).toContain(cancellation.status);
+    const stored = await db.profileDraft.findUniqueOrThrow({ where: { id: made.body.id } });
+    expect(stored.status).toBe(approval.status === 200 ? 'APPROVED' : 'DISCARDED');
+    expect((await c.request('/workspace')).body.profile.version).toBe(
+      approval.status === 200 ? 2 : 1,
+    );
+  });
+});
+
 describe('Owned, durable five-agent journey', () => {
   it('propagates request IDs and meets local load/save latency budgets', async () => {
     const c = await client();
