@@ -1,0 +1,25 @@
+npm notice run careerflow-ai@0.1.0 test:e2e
+npm notice run playwright test
+
+Running 16 tests using 1 worker
+
+(node:16720) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 tests/e2e/journey.spec.ts:42:1 › a user must explicitly review a profile before v1 is persisted (828ms)
+  ✓   2 tests/e2e/journey.spec.ts:61:1 › a user compares ranked jobs and selects one for downstream context (5.9s)
+  ✓   3 tests/e2e/journey.spec.ts:89:1 › a user finishes early and receives feedback from the saved response (9.7s)
+  ✓   4 tests/e2e/journey.spec.ts:124:1 › a user answers every interview question and receives complete feedback (9.7s)
+  ✓   5 tests/e2e/journey.spec.ts:185:1 › mobile workspace stays usable without horizontal scrolling (245ms)
+  ✓   6 tests/e2e/profile.spec.ts:52:1 › a new profile starts with no invented background or sharing permissions (156ms)
+  ✓   7 tests/e2e/profile.spec.ts:68:1 › an unchanged AI request fills an editable form and shows questions and evidence without saving (306ms)
+  ✓   8 tests/e2e/profile.spec.ts:125:1 › late AI results cannot replace manual edits or start a conflicting review (270ms)
+  ✓   9 tests/e2e/profile.spec.ts:158:1 › changing builder notes invalidates the in-flight suggestion (195ms)
+  ✓  10 tests/e2e/profile.spec.ts:185:1 › a prepared draft from older inputs cannot be approved after a manual edit (237ms)
+  ✓  11 tests/e2e/profile.spec.ts:209:1 › navigation makes an old AI response irrelevant to the new editing session (262ms)
+  ✓  12 tests/e2e/profile.spec.ts:239:1 › a newly approved version invalidates an older AI response (2.0s)
+  ✓  13 tests/e2e/profile.spec.ts:278:1 › a pending save locks the reviewed form and a failed save keeps it available (409ms)
+  ✓  14 tests/e2e/profile.spec.ts:308:1 › failed discard keeps the exact reviewed draft available for retry (524ms)
+  ✓  15 tests/e2e/profile.spec.ts:338:1 › field errors can be corrected and changed drafts require fresh review (457ms)
+  ✓  16 tests/e2e/profile.spec.ts:381:1 › AI failure preserves manual input and allows manual draft preparation (370ms)
+
+  16 passed (32.2s)
