@@ -36,7 +36,7 @@ import {
   AlertCircle,
   Target,
 } from 'lucide-react';
-import type { CareerProfile } from '../../../packages/contracts/src/index.js';
+import { blankProfile, type CareerProfile } from '../../../packages/contracts/src/index.js';
 import './style.css';
 
 // The session endpoint supplies this token; all JSON mutations share the same request wrapper.
@@ -325,11 +325,14 @@ function App() {
                   );
                 })
               }
-              onDiscard={async (id) =>
-                act(async () => {
+              onDiscard={async (id) => {
+                let discarded = false;
+                await act(async () => {
                   await api(`/profiles/drafts/${id}`, 'DELETE');
-                })
-              }
+                  discarded = true;
+                });
+                return discarded;
+              }}
             />
           ) : tab === 'missions' ? (
             <>
@@ -979,7 +982,7 @@ function Profile({
   }>;
   onDraft: (p: CareerProfile) => Promise<any>;
   onApprove: (id: string) => Promise<void>;
-  onDiscard: (id: string) => Promise<void>;
+  onDiscard: (id: string) => Promise<boolean>;
 }) {
   // Preserve raw comma-separated text while typing; parse it when preparing the draft.
   const [skillInput, setSkillInput] = useState(''),
@@ -989,6 +992,7 @@ function Profile({
     [reviewed, setReviewed] = useState(false),
     [preparing, setPreparing] = useState(false),
     [building, setBuilding] = useState(false),
+    [committing, setCommitting] = useState(false),
     [builderNotes, setBuilderNotes] = useState(''),
     [followUpQuestions, setFollowUpQuestions] = useState<string[]>([]),
     [proposedChanges, setProposedChanges] = useState<
@@ -997,38 +1001,59 @@ function Profile({
     [discardedFields, setDiscardedFields] = useState<string[]>([]),
     [error, setError] = useState(''),
     [fields, setFields] = useState<Record<string, string[]>>({});
+  const revision = useRef(0),
+    activeRequest = useRef<number | null>(null),
+    mounted = useRef(true);
 
-  useEffect(() => {
-    // Reset only when the approved version changes, not on each workspace poll.
-    if (profile?.data) {
-      setForm(profile.data);
-      setSkillInput(profile.data.skills.join(', '));
-      setInterestInput(profile.data.interests.join(', '));
-    } else if (sample) {
-      setForm({
-        ...sample,
-        name: '',
-        goals: '',
-        skills: [],
-        interests: [],
-        education: '',
-        experience: '',
-      });
-      setSkillInput('');
-      setInterestInput('');
-    }
+  // Inputs can still be edited while AI is running; its result belongs only to
+  // the exact input/version which started it, never to a later working copy.
+  const invalidateDraft = () => {
+    revision.current += 1;
     setDraft(null);
     setReviewed(false);
     setFollowUpQuestions([]);
     setProposedChanges([]);
     setDiscardedFields([]);
+  };
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      revision.current += 1;
+      activeRequest.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    // Reset only when the approved version changes, not on each workspace poll.
+    if (!profile?.data && !sample) return;
+    if (profile?.data) {
+      setForm(profile.data);
+      setSkillInput(profile.data.skills.join(', '));
+      setInterestInput(profile.data.interests.join(', '));
+    } else {
+      setForm(structuredClone(blankProfile));
+      setSkillInput('');
+      setInterestInput('');
+    }
+    invalidateDraft();
+    activeRequest.current = null;
+    setPreparing(false);
+    setBuilding(false);
+    setError('');
+    setFields({});
   }, [profile?.id, Boolean(sample)]);
   if (!form) return <div className="loading">Loading your profile…</div>;
 
   const change = (key: keyof CareerProfile, value: any) => {
-    setForm({ ...form, [key]: value });
-    setDraft(null);
-    setReviewed(false);
+    setForm((current) => ({ ...current!, [key]: value }));
+    invalidateDraft();
+    setFields((current) => {
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
   };
 
   const input = (
@@ -1040,12 +1065,26 @@ function Profile({
       {label}
       {options.area ? (
         <textarea
+          aria-label={label}
+          aria-invalid={Boolean(fields[key]?.length)}
+          aria-describedby={
+            fields[key]?.length
+              ? fields[key].map((_, index) => `profile-${key}-error-${index}`).join(' ')
+              : undefined
+          }
           value={String(form[key] ?? '')}
           placeholder={options.placeholder}
           onChange={(e) => change(key, e.target.value)}
         />
       ) : (
         <input
+          aria-label={label}
+          aria-invalid={Boolean(fields[key]?.length)}
+          aria-describedby={
+            fields[key]?.length
+              ? fields[key].map((_, index) => `profile-${key}-error-${index}`).join(' ')
+              : undefined
+          }
           type={options.type || 'text'}
           value={String(form[key] ?? '')}
           placeholder={options.placeholder}
@@ -1061,8 +1100,8 @@ function Profile({
           }
         />
       )}{' '}
-      {fields[key]?.map((s) => (
-        <span className="field-error" key={s}>
+      {fields[key]?.map((s, index) => (
+        <span className="field-error" id={`profile-${key}-error-${index}`} key={s}>
           {s}
         </span>
       ))}
@@ -1070,26 +1109,42 @@ function Profile({
   );
 
   async function prepare() {
+    if (activeRequest.current !== null || busy || committing) return;
+    const token = ++revision.current;
+    activeRequest.current = token;
     setPreparing(true);
+    setReviewed(false);
     setError('');
     setFields({});
     try {
-      setDraft(await onDraft(form!));
+      const result = await onDraft(form!);
+      if (!mounted.current || revision.current !== token) return;
+      setDraft(result);
       setReviewed(false);
     } catch (e) {
+      if (!mounted.current || revision.current !== token) return;
       setError((e as Error).message);
       setFields((e as any).fields || {});
     } finally {
-      setPreparing(false);
+      if (mounted.current && activeRequest.current === token) {
+        activeRequest.current = null;
+        setPreparing(false);
+      }
     }
   }
 
   async function buildWithAi() {
+    if (activeRequest.current !== null || busy || committing) return;
+    const token = ++revision.current;
+    activeRequest.current = token;
     setBuilding(true);
+    setDraft(null);
+    setReviewed(false);
     setError('');
     setFields({});
     try {
       const result = await onBuild({ notes: builderNotes, currentProfile: form! });
+      if (!mounted.current || revision.current !== token) return;
       setForm(result.data);
       setSkillInput(result.data.skills.join(', '));
       setInterestInput(result.data.interests.join(', '));
@@ -1099,10 +1154,43 @@ function Profile({
       setDraft(null);
       setReviewed(false);
     } catch (e) {
+      if (!mounted.current || revision.current !== token) return;
       // The current form remains intact so manual completion is always available.
       setError((e as Error).message);
     } finally {
-      setBuilding(false);
+      if (mounted.current && activeRequest.current === token) {
+        activeRequest.current = null;
+        setBuilding(false);
+      }
+    }
+  }
+
+  async function approve() {
+    if (!draft || !reviewed || activeRequest.current !== null || busy || committing) return;
+    setCommitting(true);
+    try {
+      await onApprove(draft.id);
+    } finally {
+      if (mounted.current) setCommitting(false);
+    }
+  }
+
+  async function discard() {
+    if (!draft || activeRequest.current !== null || busy || committing) return;
+    setCommitting(true);
+    try {
+      const discarded = await onDiscard(draft.id);
+      if (!mounted.current) return;
+      if (discarded) {
+        invalidateDraft();
+        setError('');
+      } else {
+        setError('The draft could not be discarded. It is still available; try again.');
+      }
+    } catch (e) {
+      if (mounted.current) setError((e as Error).message);
+    } finally {
+      if (mounted.current) setCommitting(false);
     }
   }
   return (
@@ -1112,300 +1200,310 @@ function Profile({
         title="Your career profile"
         text="Your confirmed facts give your agents a reliable place to start."
       />
-      <div className="profile-layout">
-        <section className="panel">
-          <div className="section-heading">
-            <h2>Career information</h2>
-            {profile ? (
-              <span className="tag">Approved v{profile.version}</span>
-            ) : (
-              <span className="tag">Not approved yet</span>
-            )}
-          </div>
-          <p className="muted">
-            Enter only information you can support. Use “none yet” for education or experience you
-            do not have.
-          </p>
-          {error && (
-            <div role="alert" className="error-banner">
-              {error}
+      <fieldset
+        disabled={busy || committing}
+        style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}
+      >
+        <div className="profile-layout">
+          <section className="panel">
+            <div className="section-heading">
+              <h2>Career information</h2>
+              {profile ? (
+                <span className="tag">Approved v{profile.version}</span>
+              ) : (
+                <span className="tag">Not approved yet</span>
+              )}
             </div>
-          )}
-          <div className="sharing">
-            <h3>Profile Builder</h3>
             <p className="muted">
-              Describe your background in your own words. Profile Builder can organise only the
-              supplied information, identify missing details and propose follow-up questions. You
-              still review, edit and approve every field.
+              Enter only information you can support. Use “none yet” for education or experience you
+              do not have.
             </p>
-            <label>
-              Notes for Profile Builder
-              <textarea
-                value={builderNotes}
-                onChange={(e) => setBuilderNotes(e.target.value)}
-                placeholder="For example: I studied information technology, know Python and SQL, want an entry-level data role in Sydney, and prefer hybrid work."
-              />
-            </label>
-            <div className="form-actions">
-              <button
-                className="secondary"
-                disabled={busy || building || builderNotes.trim().length < 10}
-                onClick={() => void buildWithAi()}
-              >
-                {building ? 'Organising…' : 'Organise with Profile Builder'}
-                <Compass size={15} />
-              </button>
-              <span className="small muted">
-                AI suggestions never approve or save the profile automatically.
-              </span>
-            </div>
-            {followUpQuestions.length > 0 && (
-              <div className="info">
-                <MessageSquare size={17} />
-                <div>
-                  <strong>Details to clarify</strong>
+            {error && (
+              <div role="alert" className="error-banner">
+                {error}
+              </div>
+            )}
+            <div className="sharing">
+              <h3>Profile Builder</h3>
+              <p className="muted">
+                Describe your background in your own words. Profile Builder can organise only the
+                supplied information, identify missing details and propose follow-up questions. You
+                still review, edit and approve every field.
+              </p>
+              <label>
+                Notes for Profile Builder
+                <textarea
+                  value={builderNotes}
+                  onChange={(e) => {
+                    setBuilderNotes(e.target.value);
+                    invalidateDraft();
+                  }}
+                  placeholder="For example: I studied information technology, know Python and SQL, want an entry-level data role in Sydney, and prefer hybrid work."
+                />
+              </label>
+              <div className="form-actions">
+                <button
+                  className="secondary"
+                  disabled={
+                    busy || committing || preparing || building || builderNotes.trim().length < 10
+                  }
+                  onClick={() => void buildWithAi()}
+                >
+                  {building ? 'Organising…' : 'Organise with Profile Builder'}
+                  <Compass size={15} />
+                </button>
+                <span className="small muted">
+                  AI suggestions never approve or save the profile automatically.
+                </span>
+              </div>
+              {followUpQuestions.length > 0 && (
+                <div className="info">
+                  <MessageSquare size={17} />
+                  <div>
+                    <strong>Details to clarify</strong>
+                    <ul>
+                      {followUpQuestions.map((question) => (
+                        <li key={question}>{question}</li>
+                      ))}
+                    </ul>
+                    <p className="small muted">
+                      Add these details to your notes, run Profile Builder again, or complete the
+                      fields manually.
+                    </p>
+                  </div>
+                </div>
+              )}
+              {proposedChanges.length > 0 && (
+                <details>
+                  <summary>Review Profile Builder proposed changes</summary>
                   <ul>
-                    {followUpQuestions.map((question) => (
-                      <li key={question}>{question}</li>
+                    {proposedChanges.map((change, index) => (
+                      <li key={`${change.field}-${index}`}>
+                        <strong>{nice(change.field)}</strong>: {change.proposedValue}
+                        <small>Evidence: “{change.evidence}”</small>
+                      </li>
                     ))}
                   </ul>
-                  <p className="small muted">
-                    Add these details to your notes, run Profile Builder again, or complete the
-                    fields manually.
-                  </p>
+                </details>
+              )}
+              {discardedFields.length > 0 && (
+                <div className="info">
+                  <AlertCircle size={17} />
+                  <span>
+                    Unsupported suggestions were discarded for:{' '}
+                    {discardedFields.map(nice).join(', ')}. Your current values were left unchanged.
+                  </span>
                 </div>
-              </div>
-            )}
-            {proposedChanges.length > 0 && (
-              <details>
-                <summary>Review Profile Builder proposed changes</summary>
-                <ul>
-                  {proposedChanges.map((change, index) => (
-                    <li key={`${change.field}-${index}`}>
-                      <strong>{nice(change.field)}</strong>: {change.proposedValue}
-                      <small>Evidence: “{change.evidence}”</small>
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            )}
-            {discardedFields.length > 0 && (
-              <div className="info">
-                <AlertCircle size={17} />
-                <span>
-                  Unsupported suggestions were discarded for: {discardedFields.map(nice).join(', ')}
-                  . Your current values were left unchanged.
-                </span>
-              </div>
-            )}
-          </div>
-          <div className="form-grid">
-            {input('name', 'Full name')}
-            {input('location', 'Preferred location', { placeholder: 'Optional' })}
-            <label className="wide">
-              Skills · comma separated
-              <input
-                value={skillInput}
-                onChange={(e) => {
-                  setSkillInput(e.target.value);
-                  change(
-                    'skills',
-                    e.target.value
-                      .split(',')
-                      .map((x) => x.trim())
-                      .filter(Boolean),
-                  );
-                }}
-              />
-              {fields.skills?.map((s) => (
-                <span className="field-error" key={s}>
-                  {s}
-                </span>
-              ))}
-            </label>
-            <label className="wide">
-              Career interests · comma separated
-              <input
-                value={interestInput}
-                onChange={(e) => {
-                  setInterestInput(e.target.value);
-                  change(
-                    'interests',
-                    e.target.value
-                      .split(',')
-                      .map((x) => x.trim())
-                      .filter(Boolean),
-                  );
-                }}
-              />
-            </label>
-            <div className="wide">{input('goals', 'Career goals', { area: true })}</div>
-            <div className="wide">
-              {input('education', 'Education or “none yet”', { area: true })}
+              )}
             </div>
-            <div className="wide">
-              {input('experience', 'Experience and projects or “none yet”', { area: true })}
-            </div>
-            {input('experienceYears', 'Years of experience', { type: 'number' })}
-            {input('employmentType', 'Employment preference', { placeholder: 'Optional' })}
-            {input('workArrangement', 'Work arrangement', { placeholder: 'e.g. Hybrid' })}
-            {input('companySize', 'Company size preference', { placeholder: 'Optional' })}
-            {input('industry', 'Industry preference', { placeholder: 'e.g. Technology' })}
-            {input('startDate', 'Experience start date (optional)', { type: 'date' })}
-            {input('endDate', 'Experience end date (optional)', { type: 'date' })}
-            <details className="wide">
-              <summary>Optional salary preferences</summary>
-              <div className="form-grid">
-                {input('salaryMin', 'Minimum', { type: 'number' })}
-                {input('salaryMax', 'Maximum', { type: 'number' })}
-                {input('currency', 'Currency', { placeholder: 'e.g. AUD' })}
-              </div>
-            </details>
-          </div>
-          <div className="sharing">
-            <h3>Authorised context sharing</h3>
-            <p className="muted">
-              Choose which specialists may use your approved career information. A complete mission
-              needs all four.
-            </p>
-            {Object.entries(form.sharing).map(([key, value]) => (
-              <label className="checkbox" key={key}>
+            <div className="form-grid">
+              {input('name', 'Full name')}
+              {input('location', 'Preferred location', { placeholder: 'Optional' })}
+              <label className="wide">
+                Skills · comma separated
                 <input
-                  type="checkbox"
-                  checked={value}
-                  onChange={(e) => change('sharing', { ...form.sharing, [key]: e.target.checked })}
+                  value={skillInput}
+                  onChange={(e) => {
+                    setSkillInput(e.target.value);
+                    change(
+                      'skills',
+                      e.target.value
+                        .split(',')
+                        .map((x) => x.trim())
+                        .filter(Boolean),
+                    );
+                  }}
                 />
-                {
-                  (
-                    {
-                      coach: 'Career Coach',
-                      matching: 'Job Matcher',
-                      resume: 'Resume Tailor',
-                      interview: 'Interview Coach',
-                    } as any
-                  )[key]
-                }
-              </label>
-            ))}
-          </div>
-          <div className="form-actions">
-            <button className="primary" disabled={busy || preparing} onClick={() => void prepare()}>
-              {preparing ? 'Preparing…' : 'Review profile draft'}
-              <ArrowRight size={16} />
-            </button>
-            <button
-              className="text-button"
-              onClick={() => {
-                setForm(structuredClone(sample!));
-                setSkillInput(sample!.skills.join(', '));
-                setInterestInput(sample!.interests.join(', '));
-                setDraft(null);
-                setReviewed(false);
-              }}
-            >
-              Use fictional example
-            </button>
-            <button
-              className="secondary"
-              onClick={() => {
-                const next = australianProfileDraft(profile?.data, userName);
-                setForm(next);
-                setSkillInput(next.skills.join(', '));
-                setInterestInput(next.interests.join(', '));
-                setDraft(null);
-                setReviewed(false);
-              }}
-            >
-              Autofill Australian resume draft
-            </button>
-            <button
-              className="secondary"
-              onClick={() => {
-                const text = australianResumeText(form);
-                const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'australian-resume-draft.txt';
-                a.click();
-                setTimeout(() => URL.revokeObjectURL(url), 1000);
-              }}
-            >
-              Download current resume draft
-            </button>
-            <p className="small muted">
-              Autofill reuses your approved facts when available. Missing education and experience
-              remain blank for you to complete. No draft is approved or sent automatically.
-            </p>
-          </div>
-        </section>
-        <aside>
-          <div className="guidance-card">
-            <ShieldCheck size={24} />
-            <h3>
-              Facts you approve.
-              <br />
-              Context you control.
-            </h3>
-            <p>
-              Drafts are kept separate from your approved profile. Cancelling or a failed save
-              leaves the previous version unchanged.
-            </p>
-            <hr />
-            <h4>How approval works</h4>
-            <ol>
-              <li>Enter your information.</li>
-              <li>Review the prepared draft.</li>
-              <li>Explicitly approve and save.</li>
-            </ol>
-            <span className="small muted">
-              Manual profile preparation is always available, including when AI is unavailable.
-            </span>
-          </div>
-          {draft && (
-            <section className="panel draft-preview">
-              <span className="eyebrow">REVIEW BEFORE SAVING</span>
-              <h3>{draft.data.name}</h3>
-              <p>{draft.data.goals}</p>
-              <div className="facts-preview">
-                {draft.facts.map((f: any) => (
-                  <div key={f.id}>
-                    <span>{f.kind}</span>
-                    <p>{f.text}</p>
-                  </div>
+                {fields.skills?.map((s) => (
+                  <span className="field-error" key={s}>
+                    {s}
+                  </span>
                 ))}
-              </div>
-              <label className="checkbox">
-                <input
-                  type="checkbox"
-                  checked={reviewed}
-                  onChange={(e) => setReviewed(e.target.checked)}
-                />
-                I reviewed this exact draft and confirm the information.
               </label>
+              <label className="wide">
+                Career interests · comma separated
+                <input
+                  value={interestInput}
+                  onChange={(e) => {
+                    setInterestInput(e.target.value);
+                    change(
+                      'interests',
+                      e.target.value
+                        .split(',')
+                        .map((x) => x.trim())
+                        .filter(Boolean),
+                    );
+                  }}
+                />
+              </label>
+              <div className="wide">{input('goals', 'Career goals', { area: true })}</div>
+              <div className="wide">
+                {input('education', 'Education or “none yet”', { area: true })}
+              </div>
+              <div className="wide">
+                {input('experience', 'Experience and projects or “none yet”', { area: true })}
+              </div>
+              {input('experienceYears', 'Years of experience', { type: 'number' })}
+              {input('employmentType', 'Employment preference', { placeholder: 'Optional' })}
+              {input('workArrangement', 'Work arrangement', { placeholder: 'e.g. Hybrid' })}
+              {input('companySize', 'Company size preference', { placeholder: 'Optional' })}
+              {input('industry', 'Industry preference', { placeholder: 'e.g. Technology' })}
+              {input('startDate', 'Experience start date (optional)', { type: 'date' })}
+              {input('endDate', 'Experience end date (optional)', { type: 'date' })}
+              <details className="wide">
+                <summary>Optional salary preferences</summary>
+                <div className="form-grid">
+                  {input('salaryMin', 'Minimum', { type: 'number' })}
+                  {input('salaryMax', 'Maximum', { type: 'number' })}
+                  {input('currency', 'Currency', { placeholder: 'e.g. AUD' })}
+                </div>
+              </details>
+            </div>
+            <div className="sharing">
+              <h3>Authorised context sharing</h3>
+              <p className="muted">
+                Choose which specialists may use your approved career information. A complete
+                mission needs all four.
+              </p>
+              {Object.entries(form.sharing).map(([key, value]) => (
+                <label className="checkbox" key={key}>
+                  <input
+                    type="checkbox"
+                    checked={value}
+                    onChange={(e) =>
+                      change('sharing', { ...form.sharing, [key]: e.target.checked })
+                    }
+                  />
+                  {
+                    (
+                      {
+                        coach: 'Career Coach',
+                        matching: 'Job Matcher',
+                        resume: 'Resume Tailor',
+                        interview: 'Interview Coach',
+                      } as any
+                    )[key]
+                  }
+                </label>
+              ))}
+            </div>
+            <div className="form-actions">
               <button
-                className="primary full"
-                disabled={!reviewed || busy}
-                onClick={() => void onApprove(draft.id)}
+                className="primary"
+                disabled={busy || committing || preparing || building}
+                onClick={() => void prepare()}
               >
-                <Check size={16} />
-                Approve & save profile
+                {preparing ? 'Preparing…' : 'Review profile draft'}
+                <ArrowRight size={16} />
               </button>
               <button
                 className="text-button"
-                disabled={busy}
-                onClick={() =>
-                  void onDiscard(draft.id).then(() => {
-                    setDraft(null);
-                    setReviewed(false);
-                  })
-                }
+                disabled={!sample}
+                onClick={() => {
+                  setForm(structuredClone(sample!));
+                  setSkillInput(sample!.skills.join(', '));
+                  setInterestInput(sample!.interests.join(', '));
+                  invalidateDraft();
+                }}
               >
-                Discard draft
+                Use fictional example
               </button>
-            </section>
-          )}
-        </aside>
-      </div>
+              <button
+                className="secondary"
+                onClick={() => {
+                  const next = australianProfileDraft(profile?.data, userName);
+                  setForm(next);
+                  setSkillInput(next.skills.join(', '));
+                  setInterestInput(next.interests.join(', '));
+                  invalidateDraft();
+                }}
+              >
+                Autofill Australian resume draft
+              </button>
+              <button
+                className="secondary"
+                onClick={() => {
+                  const text = australianResumeText(form);
+                  const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'australian-resume-draft.txt';
+                  a.click();
+                  setTimeout(() => URL.revokeObjectURL(url), 1000);
+                }}
+              >
+                Download current resume draft
+              </button>
+              <p className="small muted">
+                Autofill reuses your approved facts when available. Missing education and experience
+                remain blank for you to complete. No draft is approved or sent automatically.
+              </p>
+            </div>
+          </section>
+          <aside>
+            <div className="guidance-card">
+              <ShieldCheck size={24} />
+              <h3>
+                Facts you approve.
+                <br />
+                Context you control.
+              </h3>
+              <p>
+                Drafts are kept separate from your approved profile. Cancelling or a failed save
+                leaves the previous version unchanged.
+              </p>
+              <hr />
+              <h4>How approval works</h4>
+              <ol>
+                <li>Enter your information.</li>
+                <li>Review the prepared draft.</li>
+                <li>Explicitly approve and save.</li>
+              </ol>
+              <span className="small muted">
+                Manual profile preparation is always available, including when AI is unavailable.
+              </span>
+            </div>
+            {draft && (
+              <section className="panel draft-preview">
+                <span className="eyebrow">REVIEW BEFORE SAVING</span>
+                <h3>{draft.data.name}</h3>
+                <p>{draft.data.goals}</p>
+                <div className="facts-preview">
+                  {draft.facts.map((f: any) => (
+                    <div key={f.id}>
+                      <span>{f.kind}</span>
+                      <p>{f.text}</p>
+                    </div>
+                  ))}
+                </div>
+                <label className="checkbox">
+                  <input
+                    type="checkbox"
+                    checked={reviewed}
+                    onChange={(e) => setReviewed(e.target.checked)}
+                  />
+                  I reviewed this exact draft and confirm the information.
+                </label>
+                <button
+                  className="primary full"
+                  disabled={!reviewed || busy || committing || preparing || building}
+                  onClick={() => void approve()}
+                >
+                  <Check size={16} />
+                  Approve & save profile
+                </button>
+                <button
+                  className="text-button"
+                  disabled={busy || committing || preparing || building}
+                  onClick={() => void discard()}
+                >
+                  Discard draft
+                </button>
+              </section>
+            )}
+          </aside>
+        </div>
+      </fieldset>
     </>
   );
 }
