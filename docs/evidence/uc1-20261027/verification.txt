@@ -1,0 +1,55 @@
+npm notice run careerflow-ai@0.1.0 verify:local
+npm notice run node scripts/local-run.mjs --verify
+Persistent local development database ready on 127.0.0.1:55447
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+Datasource "db": PostgreSQL database "postgres", schema "public" at "127.0.0.1:55447"
+
+1 migration found in prisma/migrations
+
+
+┌─────────────────────────────────────────────────────────┐
+│  Update available 7.9.1 -> 8.0.0-rc.27                  │
+│                                                         │
+│  This is a major update - please follow the guide at    │
+│  https://pris.ly/d/major-version-upgrade                │
+│                                                         │
+│  Run the following to update                            │
+│    npm i --save-dev prisma@latest                       │
+│    npm i @prisma/client@latest                          │
+└─────────────────────────────────────────────────────────┘
+No pending migrations to apply.
+✔ approved profiles only; aliases normalised (0.577917ms)
+✔ requirement extraction distinguishes required, preferred and missing evidence (0.324459ms)
+✔ identical vectors = 1; unrelated = 0 (0.145583ms)
+✔ score bounded and independently reproducible; missing evidence exposed (0.556625ms)
+✔ orchestrator failure, retry, ranking, empty and verified handoff (5.356167ms)
+✔ O2 compares 2–4 distinct ranked jobs, preserves missing values and rejects stale profiles (1.910458ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 39.43575
+
+ RUN  v4.1.11 /Users/ww/Documents/Codex/2026-10-25/elec5620/work/CareerFlowAI
+
+
+ Test Files  11 passed (11)
+      Tests  79 passed (79)
+   Start at  17:48:28
+   Duration  53.88s (transform 116ms, setup 0ms, import 830ms, tests 52.52s, environment 0ms)
+
+vite v8.3.4 building client environment for production...
+transforming...
+✓ 2021 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.47 kB │ gzip:   0.31 kB
+dist/assets/index-DXQ4Y1oy.css   25.46 kB │ gzip:   6.36 kB
+dist/assets/index-BNnTHWm9.js   389.28 kB │ gzip: 117.03 kB
+
+✓ built in 424ms
