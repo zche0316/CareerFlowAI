@@ -60,6 +60,29 @@ export const profileSchema = z
 
 export type CareerProfile = z.infer<typeof profileSchema>;
 
+// A real user starts without candidate claims or permission to share their data.
+// The separately labelled sampleProfile is only used after an explicit demo action.
+export const blankProfile: CareerProfile = {
+  name: '',
+  goals: '',
+  skills: [],
+  interests: [],
+  education: '',
+  experience: '',
+  experienceYears: 0,
+  location: '',
+  employmentType: '',
+  workArrangement: '',
+  companySize: '',
+  industry: '',
+  startDate: null,
+  endDate: null,
+  salaryMin: null,
+  salaryMax: null,
+  currency: '',
+  sharing: { coach: false, matching: false, resume: false, interview: false },
+};
+
 export type Fact = { id: string; kind: string; text: string; source: string };
 
 const coachRecommendationSchema = z.object({
