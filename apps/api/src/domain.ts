@@ -73,6 +73,16 @@ export async function approveProfile(userId: string, draftId: string) {
     if (draft.status !== 'DRAFT')
       throw new AppError(409, 'DRAFT_USED', 'This draft has already been approved or discarded.');
 
+    // Claim this exact draft before changing the approved version. Discard uses the
+    // same conditional state transition, so cancellation and approval cannot both win.
+    // This claim rolls back with the rest of the transaction if persistence fails.
+    const claimed = await tx.profileDraft.updateMany({
+      where: { id: draft.id, userId, status: 'DRAFT' },
+      data: { status: 'APPROVED' },
+    });
+    if (claimed.count !== 1)
+      throw new AppError(409, 'DRAFT_USED', 'This draft has already been approved or discarded.');
+
     // Compare-and-increment prevents two drafts based on the same version from both being approved.
     const changed = await tx.user.updateMany({
       where: { id: userId, profileVersion: draft.baseVersion },
@@ -92,7 +102,6 @@ export async function approveProfile(userId: string, draftId: string) {
         facts: draft.facts as Prisma.InputJsonValue,
       },
     });
-    await tx.profileDraft.update({ where: { id: draft.id }, data: { status: 'APPROVED' } });
 
     // Invalidate unfinished work while retaining historical profiles and approved documents.
     await tx.mission.updateMany({
