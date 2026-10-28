@@ -28,13 +28,18 @@ apps/
     interview.ts       saved-answer and completion rules
     negotiation.ts     optional O5 practice and user decision
     queue.ts           durable pg-boss/LangGraph execution
+    recruitment.ts     owner-scoped application package and self-reported history
+    tools.ts           optional status, reminder, cover-letter and role-play tools
   web/src/
     main.tsx           React UI and interaction states
+    recruitment.tsx    real-job application preparation, history and availability UI
+    tools.tsx          optional application dashboard and reminder UI
     style.css          responsive presentation
 packages/
   agents/src/          LangGraph workflow, specialist prompts and provider boundary
   contracts/src/       shared Zod schemas, sample profile and agent metadata
   matching/            retained Member 3 matching algorithm and job fixtures
+  recruitment/src/     employer/Greenhouse/optional Adzuna retrieval and normalisation
 prisma/
   schema.prisma        persisted domain model
   migrations/          PostgreSQL schema history
@@ -53,9 +58,11 @@ does not choose a work item, approve a profile or resume, or decide whether a wo
 ### API and services
 
 `apps/api` owns authentication, CSRF checks, user scoping, profile approvals, mission transitions,
-interview answers, optional negotiation practice and resume downloads. `packages/agents` owns the
-LangGraph workflow and model context handoff. `packages/matching` contains the deterministic matching
-function and disclosed sample jobs. `packages/contracts` is the single source for shared Zod schemas.
+interview answers, optional negotiation practice, resume downloads, application preparation,
+self-reported application history and optional local tools. `packages/agents` owns the LangGraph
+workflow and model context handoff. `packages/matching` contains the deterministic matching function
+and disclosed sample jobs. `packages/recruitment` retrieves and normalises current employer-board
+records and optional Adzuna results. `packages/contracts` is the single source for shared Zod schemas.
 
 ### Data
 
@@ -69,7 +76,9 @@ PostgreSQL is the durable boundary:
 - PostgreSQL checkpoint tables and pg-boss tables support durable workflow execution.
 
 Approved facts and human decisions remain in domain rows. Model output is never silently promoted to
-a verified fact.
+a verified fact. Optional status, reminders, cover letters and practice negotiation state are stored
+inside the owner-scoped mission document. Application records are stored in mission history and are
+labelled as user-reported unless they represent only an official-site handoff.
 
 ## Shared input and output schemas
 
@@ -88,6 +97,11 @@ Schemas live in `packages/contracts/src/index.ts`:
 | `negotiationOutputSchema`   | Recruiter reply plus structured practice feedback                                |
 | `negotiationDecisionSchema` | User-owned `accept` or `decline` practice choice                                 |
 | `decisionSchema`            | Discriminated job, resume and interview human decisions                          |
+| `jobSearchSchema`           | Job-source provider, country, region, keyword and optional manual listing        |
+
+`apps/api/src/tools.ts` defines the API-local discriminated `toolCommand` schema.
+`apps/api/src/recruitment.ts` defines `applicationRecordSchema`. These schemas are validated on the
+server before any persisted update.
 
 ## HTTP endpoints
 
@@ -119,17 +133,181 @@ cannot replace another version.
 
 ### Missions and decisions
 
-| Method | Path                          | Body                                                                               | Purpose                                                               |
-| ------ | ----------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| GET    | `/api/workspace`              | -                                                                                  | Approved profile, owned missions, approved resumes and agent metadata |
-| POST   | `/api/missions`               | `{ goal, minScore?, analysisFeedback?, sourceMissionId?, simulateSourceFailure? }` | Queue an owned career mission                                         |
-| GET    | `/api/missions/:id`           | -                                                                                  | Read an owned mission and its persisted state                         |
-| POST   | `/api/missions/:id/decisions` | `decisionSchema`                                                                   | Select a job, approve/revise a resume or finish interview input       |
-| POST   | `/api/missions/:id/cancel`    | `{}`                                                                               | Cancel unfinished processing while preserving approved data           |
-| POST   | `/api/missions/:id/retry`     | `{}`                                                                               | Retry a recoverable failed step                                       |
+| Method | Path                          | Body                                                                                           | Purpose                                                               |
+| ------ | ----------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| GET    | `/api/workspace`              | -                                                                                              | Approved profile, owned missions, approved resumes and agent metadata |
+| POST   | `/api/missions`               | `{ goal, minScore?, analysisFeedback?, sourceMissionId?, simulateSourceFailure?, jobSearch? }` | Queue an owned career mission; `jobSearch` follows `jobSearchSchema`  |
+| GET    | `/api/missions/:id`           | -                                                                                              | Read an owned mission and its persisted state                         |
+| POST   | `/api/missions/:id/decisions` | `decisionSchema`                                                                               | Select a job, approve/revise a resume or finish interview input       |
+| POST   | `/api/missions/:id/cancel`    | `{}`                                                                                           | Cancel unfinished processing while preserving approved data           |
+| POST   | `/api/missions/:id/retry`     | `{}`                                                                                           | Retry a recoverable failed step                                       |
 
 Mission statuses include `QUEUED`, `RUNNING`, `AWAITING_JOB`, `AWAITING_APPROVAL`,
 `AWAITING_INTERVIEW`, `COMPLETE`, `FAILED`, `STALE`, `CANCELLED` and `NO_MATCHES`.
+
+`jobSearchSchema` accepts `provider` (`employers`, `greenhouse`, `adzuna`, `fixtures` or `manual`),
+`board`, `country`, `region`, `location` and `keyword`. A `manual` search also accepts a `listing`
+object with `url`, `title`, `company`, `location` and `description`. Search criteria are editable and
+are sent to a job source without the approved profile, user identity or career evidence. Missing
+Adzuna credentials produce a configuration error instead of fixture substitution.
+
+### Optional tools and reminders
+
+These routes require an authenticated `cf_session` and are limited to missions owned by the current
+user. `POST` requires the same `X-CSRF-Token` as every other mutation.
+
+| Method | Path                                               | Body          | Purpose                                               |
+| ------ | -------------------------------------------------- | ------------- | ----------------------------------------------------- |
+| GET    | `/api/tools/dashboard`                             | -             | Summarise owned application status and reminders      |
+| POST   | `/api/missions/:id/tools`                          | `toolCommand` | Persist a status, reminder, local letter or role-play |
+| GET    | `/api/missions/:id/reminders/:reminderId/calendar` | -             | Return an iCalendar document for one owned reminder   |
+
+`toolCommand` is a discriminated union:
+
+```json
+{ "kind": "status", "status": "applied" }
+{ "kind": "reminder", "title": "Follow up", "category": "follow-up", "dueAt": "2026-10-30T09:00:00.000Z" }
+{ "kind": "letter" }
+{ "kind": "negotiation", "offer": "Fictional offer context", "response": "Candidate practice response" }
+```
+
+Allowed statuses are `applied`, `interview`, `rejected` and `offer`. Reminder categories are
+`application`, `interview` and `follow-up`; `dueAt` must be an ISO date-time. Every tool command
+requires a selected target job on the owned mission and rejects a mission based on a stale approved
+profile.
+
+`GET /api/tools/dashboard` returns:
+
+```json
+{
+  "applications": [
+    {
+      "missionId": "uuid",
+      "title": "Data Analyst",
+      "status": "interview",
+      "updatedAt": "ISO-8601"
+    }
+  ],
+  "total": 1,
+  "interviewCount": 1,
+  "rejected": 0,
+  "interviewRate": 1,
+  "rejectionRate": 0,
+  "recurringGaps": [["Python", 2]],
+  "reminders": [
+    {
+      "id": "uuid",
+      "missionId": "uuid",
+      "title": "Follow up",
+      "category": "follow-up",
+      "dueAt": "ISO-8601",
+      "createdAt": "ISO-8601",
+      "jobId": "source-id"
+    }
+  ],
+  "limitations": ["Self-reported status limitation"]
+}
+```
+
+The dashboard contains only the current user's missions. Status values are self-reported, not
+employer-verified. Missing rates are `null`; offers count as having reached an interview.
+
+`POST /api/missions/:id/tools` returns the tool result that was persisted. A status result is
+`{ value, at }`; a reminder result is the reminder object; a letter result contains verbatim approved
+facts and `mode: "local-template"`; the local role-play result contains `reply`, `feedback` and
+`limitations`. No optional-tool endpoint contacts an employer or sends an external message.
+
+`GET /api/missions/:id/reminders/:reminderId/calendar` returns:
+
+```json
+{ "filename": "careerflow-reminder.ics", "content": "BEGIN:VCALENDAR\r\n..." }
+```
+
+The response is JSON containing calendar text, not a `text/calendar` file response. Calendar text is
+escaped and includes a 15-minute reminder alarm. A missing mission or reminder returns
+`404 NOT_FOUND`. Tool requests require a selected target and may return `409 STALE_PROFILE` or
+`409 TARGET_REQUIRED`.
+
+### Application preparation and availability
+
+These endpoints are owner-scoped. `GET` uses the authenticated session; `POST` additionally requires
+`X-CSRF-Token`.
+
+| Method | Path                                         | Body                      | Purpose                                                 |
+| ------ | -------------------------------------------- | ------------------------- | ------------------------------------------------------- |
+| GET    | `/api/missions/:id/application`              | -                         | Build the approved application-review package           |
+| POST   | `/api/missions/:id/applications`             | `applicationRecordSchema` | Record an official-site handoff or self-reported submit |
+| GET    | `/api/missions/:id/jobs/:jobId/availability` | -                         | Recheck one job from the mission's current matches      |
+
+`GET /api/missions/:id/application` returns:
+
+```json
+{
+  "missionId": "uuid",
+  "jobId": "source-id",
+  "company": "Employer",
+  "title": "Data Analyst",
+  "destination": "https://official.example/job/123",
+  "approvedResumeId": "uuid",
+  "profileVersion": 2,
+  "contextHash": "sha256-hex",
+  "resumeText": "Persisted approved resume text",
+  "submissionSupported": false,
+  "notice": "No application is sent here."
+}
+```
+
+The mission must pin an approved resume and a real API-retrieved or supported user-pasted external
+listing with a valid HTTPS destination. Fictional fixture jobs are rejected with
+`409 REAL_JOB_REQUIRED`. A changed current profile returns `409 STALE_PROFILE`; an invalid
+destination returns `422 INVALID_DESTINATION`.
+
+`applicationRecordSchema` accepts:
+
+```json
+{
+  "status": "opened_official_site",
+  "contextHash": "sha256-hex",
+  "confirmed": false,
+  "reference": ""
+}
+```
+
+or the same body with `status: "submitted_self_reported"` and `confirmed: true`. The server derives
+and compares `contextHash` with the current prepared package. A stale package returns
+`409 STALE_APPLICATION`; an unconfirmed self-reported submission returns
+`422 CONFIRMATION_REQUIRED`. The response is the persisted record:
+
+```json
+{
+  "id": "uuid",
+  "status": "submitted_self_reported",
+  "contextHash": "sha256-hex",
+  "jobId": "source-id",
+  "company": "Employer",
+  "title": "Data Analyst",
+  "approvedResumeId": "uuid",
+  "reference": "Candidate reference",
+  "at": "ISO-8601",
+  "verification": "User-reported; not API-confirmed"
+}
+```
+
+A repeated self-reported submission for the same context returns the existing record rather than
+creating a duplicate. This API never submits an application.
+
+`GET /api/missions/:id/jobs/:jobId/availability` first verifies mission ownership and that `jobId`
+exists in the persisted match results. For Greenhouse jobs it performs a bounded official API
+recheck. Possible successful responses include:
+
+- `{ status: "published_at_check", checkedAt, method }` for a confirmed current Greenhouse vacancy;
+- `{ status: "closed_or_removed", checkedAt, method }` when the official API returns 404/410;
+- `{ status: "unverified", checkedAt, reason }` for sources without a direct recheck.
+
+A missing mission or job returns `404 NOT_FOUND`. An upstream source failure currently falls through
+the generic error boundary as `500 INTERNAL_ERROR`; it does not mutate selected-job or approved data.
+Selection uses a stricter flow and returns `503 VACANCY_CHECK_UNAVAILABLE` or
+`409 VACANCY_CLOSED` before persisting a choice.
 
 ### Interview and optional negotiation
 
@@ -153,7 +331,9 @@ feedback. The model cannot accept an offer or record the final decision.
 Domain errors return JSON with `code` and `error`. Validation errors return `422 VALIDATION_ERROR`
 and field details. Important correction codes include `PROFILE_REQUIRED`, `SHARING_REQUIRED`,
 `STALE_DRAFT`, `DRAFT_USED`, `INVALID_JOB`, `STALE_APPROVAL`, `ANSWER_REQUIRED`,
-`INVALID_QUESTION`, `BUDGET_REACHED`, `STALE_PROFILE` and `NEGOTIATION_NOT_READY`.
+`INVALID_QUESTION`, `BUDGET_REACHED`, `STALE_PROFILE`, `NEGOTIATION_NOT_READY`,
+`TARGET_REQUIRED`, `REAL_JOB_REQUIRED`, `INVALID_DESTINATION`, `STALE_APPLICATION`,
+`CONFIRMATION_REQUIRED`, `VACANCY_CHECK_UNAVAILABLE` and `VACANCY_CLOSED`.
 
 Every response includes `X-Request-ID`. A valid caller-supplied value is echoed; otherwise the API
 generates a UUID. JSON error bodies include the same value as `requestId`.
