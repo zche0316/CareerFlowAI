@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import {
   recordKeys,
+  hasCareerContent,
   recordText,
   orderedRecords,
 } from '../../../packages/contracts/src/profile-records.js';
@@ -43,7 +44,7 @@ export function buildFacts(p: CareerProfile): Fact[] {
       text: s,
       source: 'User-reviewed career profile',
     })),
-    ...(p.education
+    ...(hasCareerContent(p.education) && !p.educations?.length
       ? [
           {
             id: 'education-1',
@@ -53,7 +54,7 @@ export function buildFacts(p: CareerProfile): Fact[] {
           },
         ]
       : []),
-    ...(p.experience
+    ...(hasCareerContent(p.experience) && !p.workExperiences?.length && !p.projects?.length
       ? [
           {
             id: 'experience-1',
@@ -64,17 +65,33 @@ export function buildFacts(p: CareerProfile): Fact[] {
         ]
       : []),
     ...recordKeys.flatMap((key) =>
-      orderedRecords(p[key]).map((r) => ({
-        id: `${key}-${r.id}`,
-        kind: key === 'educations' ? 'education' : 'experience',
-        text: recordText(r),
-        section: key,
-        recordId: r.id,
-        evidence: r.evidence,
-        source: r.evidence.length
-          ? 'User-reviewed imported record; original page quotes retained'
-          : 'User-reviewed structured record',
-      })),
+      orderedRecords(p[key]).flatMap((r) => {
+        const id = `${key}-${r.id}`;
+        const common = {
+          kind: key === 'educations' ? 'education' : 'experience',
+          section:
+            r.experienceType === 'volunteer'
+              ? 'volunteering'
+              : r.experienceType === 'club'
+                ? 'activities'
+                : key,
+          recordId: r.id,
+          evidence: r.evidence,
+          conversationEvidence: r.conversationEvidence,
+          memoryEvidence: r.memoryEvidence,
+          source:
+            'User-reviewed career record; complete original statements and source links retained',
+        };
+        return [
+          { ...common, id, text: recordText({ ...r, details: [] }) },
+          ...r.details.map((text, index) => ({
+            ...common,
+            id: `${id}-detail-${index + 1}`,
+            text,
+            recordHeaderId: id,
+          })),
+        ];
+      }),
     ),
     ...p.interests.map((s, i) => ({
       id: `interest-${i + 1}`,
@@ -85,8 +102,45 @@ export function buildFacts(p: CareerProfile): Fact[] {
   ];
 }
 
+async function validateMemorySources(userId: string, data: CareerProfile, client: any = db) {
+  for (const key of recordKeys)
+    for (const record of data[key] || [])
+      for (const e of record.memoryEvidence || []) {
+        const memory = await client.careerMemory.findFirst({
+          where: { id: e.memoryId, userId, revision: e.revision, status: 'CONFIRMED' },
+        });
+        if (
+          !memory ||
+          (memory.source as any).kind === 'interview' ||
+          !(memory.source as any).quote?.includes(e.quote)
+        )
+          throw new AppError(
+            422,
+            'STALE_STORY_SOURCE',
+            'A story was corrected, deleted or is unconfirmed. Review the current story source before approving this profile.',
+          );
+      }
+}
+
 export async function createDraft(userId: string, input: unknown) {
   const data = profileSchema.parse(input);
+  await validateMemorySources(userId, data);
+  for (const key of recordKeys)
+    for (const record of data[key] || [])
+      for (const evidence of record.conversationEvidence || []) {
+        const thread = await db.profileThread.findFirst({
+          where: { id: evidence.threadId, userId },
+        });
+        const message = (thread?.messages as any[] | undefined)?.find(
+          (m) => m.id === evidence.messageId && m.role === 'user',
+        );
+        if (!message?.text.includes(evidence.quote))
+          throw new AppError(
+            422,
+            'INVALID_CONVERSATION_EVIDENCE',
+            'Conversation evidence must cite your own saved message.',
+          );
+      }
   for (const key of recordKeys)
     for (const record of data[key] || [])
       for (const evidence of record.evidence) {
@@ -140,6 +194,7 @@ export async function approveProfile(userId: string, draftId: string) {
         'STALE_DRAFT',
         'Your profile changed. Review a new draft before approving.',
       );
+    await validateMemorySources(userId, draft.data as unknown as CareerProfile, tx);
     const profile = await tx.profile.create({
       data: {
         userId,
@@ -148,6 +203,19 @@ export async function approveProfile(userId: string, draftId: string) {
         facts: draft.facts as Prisma.InputJsonValue,
       },
     });
+
+    const approvedData = draft.data as unknown as CareerProfile;
+    for (const key of recordKeys)
+      for (const record of approvedData[key] || []) {
+        await tx.careerMemory.updateMany({
+          where: {
+            userId,
+            status: { in: ['DRAFT', 'CONFIRMED'] },
+            source: { path: ['id'], equals: `working-record:${record.id}` },
+          },
+          data: { recordId: record.id },
+        });
+      }
 
     // Invalidate unfinished work while retaining historical profiles and approved documents.
     await tx.mission.updateMany({
@@ -260,6 +328,26 @@ export function deduplicateResumeClaims(claims: { factId: string; reason: string
   });
 }
 
+export function includeRecordHeaders(claims: { factId: string; reason: string }[], facts: Fact[]) {
+  const output: { factId: string; reason: string }[] = [],
+    seen = new Set<string>();
+  for (const claim of claims) {
+    const fact = facts.find((f) => f.id === claim.factId);
+    if (fact?.recordHeaderId && !seen.has(fact.recordHeaderId)) {
+      output.push({
+        factId: fact.recordHeaderId,
+        reason: 'Role, organisation and date context for the selected statement.',
+      });
+      seen.add(fact.recordHeaderId);
+    }
+    if (!seen.has(claim.factId)) {
+      output.push(claim);
+      seen.add(claim.factId);
+    }
+  }
+  return output;
+}
+
 export function validateResumeClaims(claims: { factId: string; reason: string }[], facts: Fact[]) {
   const ids = new Set<string>();
   return claims.map((c) => {
@@ -280,9 +368,18 @@ export function validateResumeClaims(claims: { factId: string; reason: string }[
       ...c,
       text: fact.text,
       kind: fact.kind,
+      ...(fact.recordHeaderId ? { recordHeaderId: fact.recordHeaderId } : {}),
       source: fact.source,
       ...(fact.section
-        ? { section: fact.section, recordId: fact.recordId, evidence: fact.evidence }
+        ? {
+            section: fact.section,
+            recordId: fact.recordId,
+            evidence: fact.evidence,
+            ...(fact.memoryEvidence ? { memoryEvidence: fact.memoryEvidence } : {}),
+            ...(fact.conversationEvidence
+              ? { conversationEvidence: fact.conversationEvidence }
+              : {}),
+          }
         : {}),
     };
   });

@@ -2044,3 +2044,117 @@ h3,
 .structured-profile textarea {
   max-width: 100%;
 }
+.profile-assistant {
+  overflow-wrap: anywhere;
+  border: 1px solid #d4deea;
+  border-radius: 12px;
+  padding: 18px;
+  margin: 18px 0;
+  min-width: 0;
+}
+.conversation-log {
+  max-height: 460px;
+  overflow: auto;
+  padding: 4px;
+}
+.conversation-message {
+  background: #f3f6fa;
+  border-radius: 10px;
+  padding: 14px;
+  margin: 10px 0;
+  overflow-wrap: anywhere;
+}
+.conversation-message.user {
+  border-left: 3px solid #264a74;
+  background: #eaf1f8;
+}
+.conversation-message p,
+.evidence-card p {
+  white-space: pre-wrap;
+}
+.conversation-message small,
+.evidence-card small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.evidence-card {
+  border-top: 1px solid #d4deea;
+  margin-top: 16px;
+  padding: 14px 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.evidence-card pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 260px;
+  overflow: auto;
+}
+.evidence-card textarea {
+  min-height: 110px;
+}
+.profile-assistant select {
+  max-width: 100%;
+}
+
+/* One conversation is the primary profile entry; grouped records are its draft. */
+.chat-profile-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(320px, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.chat-profile-layout > *,
+.profile-draft-side {
+  min-width: 0;
+}
+.chat-first {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.chat-first .conversation-log {
+  min-height: 180px;
+  max-height: 480px;
+}
+.chat-first textarea {
+  min-height: 110px;
+}
+.profile-summary {
+  overflow-wrap: anywhere;
+}
+.profile-summary section {
+  margin-top: 20px;
+}
+.career-record-card {
+  border-left: 3px solid #d3ddda;
+  padding: 4px 0 4px 14px;
+  margin: 14px 0;
+}
+.career-record-card h4 {
+  margin: 0 0 6px;
+}
+.career-record-card li {
+  margin: 7px 0;
+  white-space: pre-wrap;
+}
+.conversation-proposal {
+  border: 1px solid #d3ddda;
+  border-radius: 10px;
+  padding: 14px;
+  margin: 16px 0;
+}
+.manual-profile-editor,
+.conversation-settings,
+.optional-memory {
+  margin: 20px 0;
+}
+.chat-profile-layout summary {
+  cursor: pointer;
+  padding: 8px 0;
+}
+@media (max-width: 1000px) {
+  .chat-profile-layout {
+    grid-template-columns: 1fr;
+  }
+}

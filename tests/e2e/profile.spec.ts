@@ -27,6 +27,7 @@ async function openProfile(page: Page, approvedProfile: () => unknown = () => nu
   );
   await page.goto('/');
   await page.getByRole('button', { name: 'My career profile', exact: true }).click();
+  await page.getByText('Edit profile details manually', { exact: true }).click();
   await expect(page.getByLabel('Full name', { exact: true })).toBeVisible();
 }
 
@@ -65,216 +66,6 @@ test('a new profile starts with no invented background or sharing permissions', 
   }
 });
 
-test('an unchanged AI request fills an editable form and shows questions and evidence without saving', async ({
-  page,
-}) => {
-  const notes = 'My name is Casey. I use Python and want a data analyst role in Sydney.';
-  const followUp = 'What education would you like to add, or should we record none yet?';
-  let prepareCount = 0;
-  let persistenceCount = 0;
-  await page.route('**/api/profiles/prepare', async (route) => {
-    prepareCount += 1;
-    expect(route.request().postDataJSON().notes).toBe(notes);
-    await route.fulfill({
-      json: {
-        data: {
-          ...sampleProfile,
-          name: 'Casey',
-          goals: 'Find a data analyst role in Sydney.',
-          skills: ['Python'],
-          interests: [],
-          education: '',
-          experience: '',
-          sharing: { coach: false, matching: false, resume: false, interview: false },
-        },
-        followUpQuestions: [followUp],
-        proposedChanges: [{ field: 'name', proposedValue: 'Casey', evidence: 'My name is Casey.' }],
-        discardedFields: ['experience'],
-      },
-    });
-  });
-  await page.route('**/api/profiles/drafts**', async (route) => {
-    persistenceCount += 1;
-    await route.fulfill({ status: 500, json: { error: 'Unexpected profile save request.' } });
-  });
-  await openProfile(page);
-  await page.getByLabel('Notes for Profile Builder').fill(notes);
-  await page.getByRole('button', { name: 'Organise with Profile Builder' }).click();
-  await expect(page.getByLabel('Full name', { exact: true })).toHaveValue('Casey');
-  await expect(page.getByLabel('Full name', { exact: true })).toBeEditable();
-  await expect(page.getByLabel('Skills · comma separated', { exact: true })).toHaveValue('Python');
-  await expect(page.getByRole('textbox', { name: 'Career goals', exact: true })).toHaveValue(
-    'Find a data analyst role in Sydney.',
-  );
-  await expect(page.getByText(followUp, { exact: true })).toBeVisible();
-  await page.getByText('Review Profile Builder proposed changes', { exact: true }).click();
-  await expect(page.getByText('Evidence: “My name is Casey.”', { exact: true })).toBeVisible();
-  await expect(
-    page.getByText(/Unsupported suggestions were discarded for: experience/),
-  ).toBeVisible();
-  await expect(page.getByText('Not approved yet', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Approve & save profile' })).toHaveCount(0);
-  expect(prepareCount).toBe(1);
-  expect(persistenceCount).toBe(0);
-  await page.screenshot({
-    path: 'output/acceptance/cfs-56-builder-supported-draft.png',
-    fullPage: true,
-  });
-});
-
-test('late AI results cannot replace manual edits or start a conflicting review', async ({
-  page,
-}) => {
-  const request = holdRequest();
-  await page.route('**/api/profiles/prepare', async (route) => {
-    request.arrived();
-    await request.released;
-    await route.fulfill({
-      json: {
-        data: { ...sampleProfile, name: 'Old AI draft' },
-        followUpQuestions: ['Old follow-up that should be ignored?'],
-        proposedChanges: [],
-        discardedFields: [],
-      },
-    });
-  });
-  await openProfile(page);
-  await page.getByLabel('Notes for Profile Builder').fill('I use Python and want a data role.');
-  await page.getByRole('button', { name: 'Organise with Profile Builder' }).click();
-  await request.started;
-  await expect(page.getByRole('button', { name: 'Review profile draft' })).toBeDisabled();
-  await page.getByLabel('Full name', { exact: true }).fill('My newer manual name');
-  request.release();
-  await expect(page.getByRole('button', { name: 'Organise with Profile Builder' })).toBeEnabled();
-  await expect(page.getByLabel('Full name', { exact: true })).toHaveValue('My newer manual name');
-  await expect(page.getByText('Old follow-up that should be ignored?')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Approve & save profile' })).toHaveCount(0);
-  await page.screenshot({
-    path: 'output/acceptance/cfs-56-late-ai-edit-preserved.png',
-    fullPage: true,
-  });
-});
-
-test('changing builder notes invalidates the in-flight suggestion', async ({ page }) => {
-  const request = holdRequest();
-  await page.route('**/api/profiles/prepare', async (route) => {
-    request.arrived();
-    await request.released;
-    await route.fulfill({
-      json: {
-        data: { ...sampleProfile, name: 'Outdated notes result' },
-        followUpQuestions: [],
-        proposedChanges: [],
-        discardedFields: [],
-      },
-    });
-  });
-  await openProfile(page);
-  await page.getByLabel('Notes for Profile Builder').fill('My first notes mention Python.');
-  await page.getByRole('button', { name: 'Organise with Profile Builder' }).click();
-  await request.started;
-  await page.getByLabel('Notes for Profile Builder').fill('My updated notes mention SQL instead.');
-  request.release();
-  await expect(page.getByRole('button', { name: 'Organise with Profile Builder' })).toBeEnabled();
-  await expect(page.getByLabel('Full name', { exact: true })).toHaveValue('');
-  await expect(page.getByLabel('Notes for Profile Builder')).toHaveValue(
-    'My updated notes mention SQL instead.',
-  );
-});
-
-test('a prepared draft from older inputs cannot be approved after a manual edit', async ({
-  page,
-}) => {
-  const request = holdRequest();
-  await page.route('**/api/profiles/drafts', async (route) => {
-    request.arrived();
-    await request.released;
-    await draftResponse(route);
-  });
-  await openProfile(page);
-  await page.getByRole('button', { name: 'Use fictional example' }).click();
-  await page.getByLabel('Notes for Profile Builder').fill('Additional background to review later.');
-  await page.getByRole('button', { name: 'Review profile draft' }).click();
-  await request.started;
-  await expect(page.getByRole('button', { name: 'Organise with Profile Builder' })).toBeDisabled();
-  await page.getByLabel('Full name', { exact: true }).fill('Changed while preparing');
-  request.release();
-  await expect(page.getByRole('button', { name: 'Review profile draft' })).toBeEnabled();
-  await expect(page.getByLabel('Full name', { exact: true })).toHaveValue(
-    'Changed while preparing',
-  );
-  await expect(page.getByRole('button', { name: 'Approve & save profile' })).toHaveCount(0);
-});
-
-test('navigation makes an old AI response irrelevant to the new editing session', async ({
-  page,
-}) => {
-  const request = holdRequest();
-  await page.route('**/api/profiles/prepare', async (route) => {
-    request.arrived();
-    await request.released;
-    await route.fulfill({
-      json: {
-        data: { ...sampleProfile, name: 'Previous session result' },
-        followUpQuestions: [],
-        proposedChanges: [],
-        discardedFields: [],
-      },
-    });
-  });
-  await openProfile(page);
-  await page
-    .getByLabel('Notes for Profile Builder')
-    .fill('I want a data analyst job using Python.');
-  await page.getByRole('button', { name: 'Organise with Profile Builder' }).click();
-  await request.started;
-  await page.getByRole('button', { name: 'Career missions', exact: true }).click();
-  await page.getByRole('button', { name: 'My career profile', exact: true }).click();
-  await page.getByLabel('Full name', { exact: true }).fill('New editing session');
-  request.release();
-  await expect(page.getByLabel('Full name', { exact: true })).toHaveValue('New editing session');
-  await expect(page.getByLabel('Notes for Profile Builder')).toHaveValue('');
-});
-
-test('a newly approved version invalidates an older AI response', async ({ page }) => {
-  let approved: unknown = null;
-  const request = holdRequest();
-  await page.route('**/api/profiles/prepare', async (route) => {
-    request.arrived();
-    await request.released;
-    await route.fulfill({
-      json: {
-        data: { ...sampleProfile, name: 'Old profile suggestion' },
-        followUpQuestions: [],
-        proposedChanges: [],
-        discardedFields: [],
-      },
-    });
-  });
-  await openProfile(page, () => approved);
-  await page
-    .getByLabel('Notes for Profile Builder')
-    .fill('I have a newer career goal to organise.');
-  await page.getByRole('button', { name: 'Organise with Profile Builder' }).click();
-  await request.started;
-  approved = {
-    id: 'new-approved-version',
-    version: 2,
-    data: { ...sampleProfile, name: 'New approved profile' },
-  };
-  await expect(page.getByText('Approved v2', { exact: true })).toBeVisible({ timeout: 7000 });
-  const response = page.waitForResponse((r) => r.url().endsWith('/api/profiles/prepare'));
-  request.release();
-  await (await response).finished();
-  await page.evaluate(
-    () =>
-      new Promise<void>((resolve) =>
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
-      ),
-  );
-  await expect(page.getByLabel('Full name', { exact: true })).toHaveValue('New approved profile');
-});
-
 test('a pending save locks the reviewed form and a failed save keeps it available', async ({
   page,
 }) => {
@@ -286,6 +77,7 @@ test('a pending save locks the reviewed form and a failed save keeps it availabl
     await route.fulfill({ status: 500, json: { error: 'Injected save failure' } });
   });
   await openProfile(page);
+  await page.getByText('Demo test data', { exact: true }).click();
   await page.getByRole('button', { name: 'Use fictional example' }).click();
   await page.getByRole('button', { name: 'Review profile draft' }).click();
   const reviewed = page.getByLabel('I reviewed this exact draft');
@@ -316,6 +108,7 @@ test('failed discard keeps the exact reviewed draft available for retry', async 
     });
   });
   await openProfile(page);
+  await page.getByText('Demo test data', { exact: true }).click();
   await page.getByRole('button', { name: 'Use fictional example' }).click();
   await page.getByRole('button', { name: 'Review profile draft' }).click();
   const reviewed = page.getByLabel('I reviewed this exact draft');
@@ -351,6 +144,7 @@ test('field errors can be corrected and changed drafts require fresh review', as
     }
   });
   await openProfile(page);
+  await page.getByText('Demo test data', { exact: true }).click();
   await page.getByRole('button', { name: 'Use fictional example' }).click();
   await page.getByLabel('Experience start date (optional)', { exact: true }).fill('2026-02-02');
   await page.getByLabel('Experience end date (optional)', { exact: true }).fill('2026-01-01');
@@ -378,32 +172,247 @@ test('field errors can be corrected and changed drafts require fresh review', as
   });
 });
 
-test('AI failure preserves manual input and allows manual draft preparation', async ({ page }) => {
-  await page.route('**/api/profiles/prepare', (route) =>
-    route.fulfill({
-      status: 503,
-      json: { error: 'Profile Builder is unavailable. Continue manually or retry.' },
+test('a delayed chat update cannot overwrite a manual edit or approve the profile', async ({
+  page,
+}) => {
+  const request = holdRequest();
+  const form = structuredClone(sampleProfile);
+  const thread = {
+    id: 'chat-ui',
+    revision: 2,
+    profileVersion: 0,
+    workingForm: form,
+    messages: [{ id: 'assistant', role: 'assistant', text: 'Review your name.' }],
+    proposals: [
+      {
+        id: 'name',
+        field: 'name',
+        before: '',
+        after: 'Suggested name',
+        evidence: [{ quote: 'Suggested name' }],
+        status: 'PENDING',
+      },
+    ],
+  };
+  await page.route('**/api/profile-threads', (r) =>
+    r.fulfill({ json: [{ id: 'chat-ui', title: 'Test' }] }),
+  );
+  await page.route('**/api/profile-threads/chat-ui', (r) => r.fulfill({ json: thread }));
+  await page.route('**/api/profile-threads/chat-ui/proposals', async (r) => {
+    request.arrived();
+    await request.released;
+    await r.fulfill({
+      json: {
+        fields: ['name'],
+        data: { ...form, name: 'Suggested name' },
+        thread: { ...thread, revision: 3, proposals: [] },
+      },
+    });
+  });
+  await openProfile(page);
+  await page.getByRole('button', { name: 'Use these details in my draft', exact: true }).click();
+  await request.started;
+  await page.getByLabel('Full name', { exact: true }).fill('My manual name');
+  request.release();
+  await expect(
+    page.getByText('You edited these details while the request ran.', { exact: false }),
+  ).toBeVisible();
+  await expect(page.getByLabel('Full name', { exact: true })).toHaveValue('My manual name');
+  await expect(page.getByRole('button', { name: 'Approve & save profile' })).toHaveCount(0);
+});
+
+test('a failed conversation keeps manual details and manual review available', async ({ page }) => {
+  const thread = {
+    id: 'failed-chat',
+    revision: 1,
+    profileVersion: 0,
+    workingForm: {},
+    proposals: [],
+    messages: [],
+  };
+  await page.route('**/api/profile-threads', (r) =>
+    r.fulfill({ json: r.request().method() === 'POST' ? thread : [] }),
+  );
+  await page.route('**/api/profile-threads/failed-chat/messages', (r) =>
+    r.fulfill({
+      json: {
+        ...thread,
+        revision: 2,
+        messages: [
+          {
+            id: 'failure',
+            role: 'assistant',
+            text: 'Model processing failed. Your message is saved.',
+            failed: true,
+          },
+        ],
+      },
     }),
   );
   await page.route('**/api/profiles/drafts', draftResponse);
   await openProfile(page);
-  await page.getByRole('button', { name: 'Use fictional example' }).click();
-  await page.getByLabel('Full name', { exact: true }).fill('Manual fallback QA');
+  await page.getByLabel('Full name', { exact: true }).fill('Manual candidate');
+  await page.getByLabel('Your next profile message').fill('I would like to explore analyst roles.');
   await page
-    .getByLabel('Notes for Profile Builder')
-    .fill('My existing form has the information I want to keep.');
-  await page.getByRole('button', { name: 'Organise with Profile Builder' }).click();
-  await expect(
-    page.getByText('Profile Builder is unavailable. Continue manually or retry.'),
-  ).toBeVisible();
-  await expect(page.getByLabel('Full name', { exact: true })).toHaveValue('Manual fallback QA');
-  await expect(page.getByLabel('Skills · comma separated', { exact: true })).toHaveValue(
-    'Python, SQL, Git, Excel',
-  );
-  await page.getByRole('button', { name: 'Review profile draft' }).click();
-  await expect(
-    page.getByRole('heading', { name: 'Manual fallback QA', exact: true }),
-  ).toBeVisible();
+    .getByLabel(
+      'I allow the configured model to process this conversation, working form and retrieved confirmed evidence.',
+    )
+    .check();
+  await page.getByRole('button', { name: 'Send profile message', exact: true }).click();
+  await expect(page.getByRole('log')).toContainText('Model processing failed.');
+  await expect(page.getByLabel('Full name', { exact: true })).toHaveValue('Manual candidate');
+  await page.getByRole('button', { name: 'Review profile draft', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Approve & save profile' })).toBeDisabled();
-  await page.screenshot({ path: 'output/acceptance/cfs-56-manual-fallback.png', fullPage: true });
+});
+
+test('a finished legacy conversation can prepare missing saved details without another interview or automatic approval', async ({
+  page,
+}) => {
+  const record = {
+    id: 'legacy-project',
+    title: 'Legacy Data Project',
+    organisation: '',
+    location: '',
+    startMonth: null,
+    endMonth: null,
+    current: false,
+    details: ['I used SQL.'],
+    technologies: ['SQL'],
+    url: '',
+    evidence: [],
+  };
+  let t: any = {
+    id: 'legacy-recovery',
+    revision: 1,
+    profileVersion: 0,
+    workingForm: sampleProfile,
+    proposals: [],
+    messages: [{ id: 'legacy-user', role: 'user', text: 'My Legacy Data Project used SQL.' }],
+    interview: {
+      phase: 'review',
+      active: null,
+      closed: ['projects:legacy data project:'],
+      addressed: [],
+      question: null,
+    },
+    hasUnfiledExperience: true,
+    interviewRecords: [],
+  };
+  await page.route('**/api/profile-threads', (r) =>
+    r.fulfill({ json: [{ id: t.id, title: 'Legacy conversation' }] }),
+  );
+  await page.route('**/api/profile-threads/legacy-recovery', (r) => r.fulfill({ json: t }));
+  await page.route('**/api/profile-threads/legacy-recovery/messages', async (r) => {
+    expect(r.request().postDataJSON().recoverSavedAnswers).toBe(true);
+    t = {
+      ...t,
+      revision: 2,
+      hasUnfiledExperience: false,
+      proposals: [
+        {
+          id: 'p',
+          field: 'projects',
+          after: [record],
+          status: 'PENDING',
+          evidence: [{ quote: 'My Legacy Data Project used SQL.' }],
+        },
+      ],
+    };
+    await r.fulfill({ json: t });
+  });
+  await page.route('**/api/profile-threads/legacy-recovery/proposals', (r) => {
+    t = { ...t, revision: 3, proposals: [] };
+    return r.fulfill({
+      json: { thread: t, data: { ...sampleProfile, projects: [record] }, fields: ['projects'] },
+    });
+  });
+  await openProfile(page);
+  await expect(page.getByLabel('Your next profile message')).not.toBeVisible();
+  await page
+    .getByLabel(
+      'I allow the configured model to process this conversation, working form and retrieved confirmed evidence.',
+    )
+    .check();
+  await page
+    .getByRole('button', { name: 'Prepare missing experience from saved answers', exact: true })
+    .click();
+  await expect(
+    page.getByRole('button', { name: 'Review profile draft now', exact: true }),
+  ).toBeDisabled();
+  await page.getByRole('button', { name: 'Use these details in my draft', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Legacy Data Project', exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Review profile draft now', exact: true }),
+  ).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Approve & save profile' })).toHaveCount(0);
+});
+
+test('saved-answer preparation with no proposals reports no changes instead of silently returning to review', async ({
+  page,
+}) => {
+  const t: any = {
+    id: 'empty-recovery',
+    revision: 1,
+    profileVersion: 0,
+    workingForm: sampleProfile,
+    proposals: [],
+    messages: [],
+    interview: {
+      phase: 'review',
+      active: null,
+      closed: ['projects:legacy:'],
+      addressed: [],
+      question: null,
+    },
+    hasUnfiledExperience: true,
+    interviewRecords: [],
+  };
+  await page.route('**/api/profile-threads', (r) =>
+    r.fulfill({ json: [{ id: t.id, title: 'Empty preparation' }] }),
+  );
+  await page.route('**/api/profile-threads/empty-recovery', (r) => r.fulfill({ json: t }));
+  await page.route('**/api/profile-threads/empty-recovery/messages', (r) =>
+    r.fulfill({
+      json: {
+        ...t,
+        revision: 2,
+        messages: [
+          {
+            id: 'result',
+            role: 'assistant',
+            text: 'No source-supported draft updates were prepared. Your draft is unchanged.',
+            preparation: {
+              status: 'no_changes',
+              modelRecords: 0,
+              acceptedRecords: 0,
+              changes: 0,
+              rejectedRecords: [],
+            },
+          },
+        ],
+      },
+    }),
+  );
+  await openProfile(page);
+  await page
+    .getByLabel(
+      'I allow the configured model to process this conversation, working form and retrieved confirmed evidence.',
+    )
+    .check();
+  await page
+    .getByRole('button', { name: 'Prepare missing experience from saved answers', exact: true })
+    .click();
+  await expect(page.getByRole('alert')).toContainText('No source-supported suggestions');
+  await expect(
+    page.getByRole('status').filter({ hasText: 'No draft updates were prepared' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Use these details in my draft', exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByText('Preparation details', { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Review current draft without this experience', exact: true }),
+  ).toBeVisible();
 });

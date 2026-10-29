@@ -8,6 +8,7 @@ import {
 const builderFields = [
   'name',
   'goals',
+  'careerStage',
   'skills',
   'interests',
   'education',
@@ -109,6 +110,7 @@ export async function prepareProfileBuilderDraft(input: {
   currentProfile?: unknown;
   existingProfile?: unknown;
   mode: Mode;
+  preparedResult?: import('zod').z.infer<typeof profileBuilderDraftSchema>;
 }) {
   const current = asRecord(input.currentProfile);
   const existing = asRecord(input.existingProfile);
@@ -117,7 +119,14 @@ export async function prepareProfileBuilderDraft(input: {
     ...pickFields(existing),
     ...pickFields(current),
     ...Object.fromEntries(
-      ['workExperiences', 'projects', 'educations', 'contact']
+      [
+        'workExperiences',
+        'projects',
+        'educations',
+        'contact',
+        'careerStage',
+        'useConfirmedMemories',
+      ]
         .filter((k) => current[k] !== undefined || existing[k] !== undefined)
         .map((k) => [k, current[k] ?? existing[k]]),
     ),
@@ -131,22 +140,24 @@ export async function prepareProfileBuilderDraft(input: {
     Object.entries(base).filter(([key]) => key !== 'sharing'),
   );
   const sources = [input.notes, ...profileValues(current), ...profileValues(existing)];
-  const result = await generate(
-    'profile',
-    {
-      goal: input.notes,
-      facts: [],
-      profileNotes: input.notes,
-      profileBase: profileForModel,
-    },
-    profileBuilderDraftSchema,
-    input.mode,
-    {
-      onCall: async () => {},
-      onTool: async () => {},
-      onUsage: async () => {},
-    },
-  );
+  const result =
+    input.preparedResult ??
+    (await generate(
+      'profile',
+      {
+        goal: input.notes,
+        facts: [],
+        profileNotes: input.notes,
+        profileBase: profileForModel,
+      },
+      profileBuilderDraftSchema,
+      input.mode,
+      {
+        onCall: async () => {},
+        onTool: async () => {},
+        onUsage: async () => {},
+      },
+    ));
 
   const prepared = { ...base } as Record<BuilderField | 'sharing', unknown>;
   const citedChanges = result.proposedChanges.filter((change) => {
@@ -216,4 +227,53 @@ export async function prepareProfileBuilderDraft(input: {
     proposedChanges: supportedChanges,
     discardedFields: [...new Set(discardedFields)],
   };
+}
+
+// Recover omitted model citations by locating exact user-authored clauses.
+// Existing support checks still reject unsupported/negated qualifications.
+export function citeExactUserValues(
+  result: import('zod').z.infer<typeof profileBuilderDraftSchema>,
+  sourceTexts: string[],
+) {
+  const clauses = sourceTexts.flatMap((text) =>
+    text
+      .split(/(?<=[.!?;])\s+|\n/)
+      .map((s) => s.trim())
+      .filter(Boolean),
+  );
+  result = { ...result, draft: { ...result.draft } };
+  if (result.draft.goals && !clauses.some((clause) => containsValue(clause, result.draft.goals))) {
+    const statedGoal = [...clauses]
+      .reverse()
+      .find((clause) =>
+        /\b(?:I want|I would like|my goal|I aim|I hope)\b.*\b(?:role|career|job|work|become|apply)\b|我(?:想|希望).*(?:岗位|职业|工作)/i.test(
+          clause,
+        ),
+      );
+    if (statedGoal && statedGoal.length <= 2000) result.draft.goals = statedGoal;
+  }
+  const proposals = [...result.proposedChanges];
+  for (const field of builderFields) {
+    for (const value of atomicValues(result.draft[field])) {
+      if (
+        proposals.some(
+          (p) =>
+            p.field === field &&
+            sourceTexts.some((source) => containsValue(source, p.evidence)) &&
+            supportsValue(field, value, p.evidence, sourceTexts),
+        )
+      )
+        continue;
+      const quote = clauses.find(
+        (clause) =>
+          containsValue(clause, value) &&
+          (field !== 'careerStage' ||
+            /\b(?:I am|I'm|my career stage is)\b|我是|我目前是/i.test(clause)) &&
+          supportsValue(field, value, clause, sourceTexts),
+      );
+      if (quote && quote.length <= 2000)
+        proposals.push({ field, proposedValue: String(value), evidence: quote });
+    }
+  }
+  return { ...result, proposedChanges: proposals.slice(0, 40) };
 }

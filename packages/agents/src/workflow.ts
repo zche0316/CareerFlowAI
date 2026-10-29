@@ -18,6 +18,7 @@ import {
   appendUsage,
   deduplicateResumeClaims,
   validateResumeClaims,
+  includeRecordHeaders,
   mutateRun,
   digest,
   json,
@@ -30,7 +31,15 @@ import {
   type Fact,
   type CareerProfile,
 } from '../../contracts/src/index.js';
+import { composeSelection } from '../../../apps/api/src/resume-composition.js';
+import {
+  resumeRecordIndex,
+  resumeObjective,
+  isResumeContribution,
+} from '../../contracts/src/resume-layout.js';
+import { missionContext } from './mission-context.js';
 import { generate, type Mode } from './provider.js';
+import { matchingProfileView } from '../../contracts/src/career-evidence.js';
 import { compare } from '../../matching/domain.js';
 
 // Checkpoints store a mission reference; approved evidence and results remain in domain tables.
@@ -78,18 +87,47 @@ export async function createWorkflow() {
     schema: Parameters<typeof generate<T>>[2],
   ) => {
     const c = await context(id, permission);
+    // Send one approved fact representation only. Source history and memory retrieval
+    // remain server-side and are not extra candidate context for this mission.
+    await patchRun(
+      id,
+      c.token,
+      {
+        evidenceRetrieval: {
+          strategy: 'approved-profile-only-v1',
+          query: c.m.goal,
+          searched: c.facts.length,
+          hits: c.facts.map(({ id, text }) => ({ id, text })),
+          insufficientRecall: c.facts.length === 0,
+          forRole: role,
+        },
+      },
+      role,
+      'context',
+      'Prepared approved profile facts only; source quotations and conversation history stay local.',
+    );
     const result = await generate(
       role,
-      {
+      missionContext(role, {
         goal: c.m.goal,
-        facts: c.facts,
+        facts:
+          role === 'questions' && c.d.resumeDraft?.claims?.length
+            ? c.facts.filter((f) =>
+                c.d.resumeDraft.claims.some((claim: any) => claim.factId === f.id),
+              )
+            : role === 'resume'
+              ? c.facts.filter(
+                  (f) => !f.recordId || f.kind !== 'experience' || isResumeContribution(f),
+                )
+              : c.facts,
+        profileBase: role === 'resume' ? { records: resumeRecordIndex(c.p) } : undefined,
         analysisFeedback: role === 'coach' ? c.d.analysisFeedback : undefined,
         job: c.d.selectedJob?.job,
         questions: c.d.questions,
         answers: c.d.answers,
         feedback: c.d.resumeFeedback,
         priorFeedback: c.d.priorFeedback,
-      },
+      }),
       schema,
       c.m.mode as Mode,
       {
@@ -170,7 +208,7 @@ export async function createWorkflow() {
         };
       }
       const corpus = jobs.map((j: any) => j.title + ' ' + j.description);
-      const legacy = { ...c.p, approved: true };
+      const legacy = matchingProfileView(c.p);
       const matches = jobs
         .map((j: any) => compare(legacy, j, corpus))
         .filter((r: any) => r.score >= (c.d.minScore ?? 40))
@@ -222,6 +260,7 @@ export async function createWorkflow() {
           .filter(
             (fact) =>
               ['skill', 'education', 'experience'].includes(fact.kind) &&
+              (!fact.recordId || fact.kind !== 'experience' || isResumeContribution(fact)) &&
               !/^none yet$/i.test(fact.text),
           )
           .map((fact) => [fact.id, fact]),
@@ -233,25 +272,41 @@ export async function createWorkflow() {
           'EVIDENCE_REQUIRED',
           'Approve at least one skill, education or experience fact before tailoring a resume.',
         );
-      const groundedResumeSchema = z.object({
-        claims: z
-          .array(
-            z.object({
-              factId: z.enum(eligibleFactIds as [string, ...string[]]),
-              reason: z.string().trim().min(1).max(1000),
-            }),
-          )
-          .min(1)
-          .max(20),
-      });
+      const groundedResumeSchema = z
+        .object({
+          claims: z
+            .array(
+              z.object({
+                factId: z.string().min(1).max(100),
+                reason: z.string().trim().min(1).max(1000),
+              }),
+            )
+            .min(1)
+            .max(20),
+        })
+        .superRefine((plan, ctx) => {
+          plan.claims.forEach((claim, index) => {
+            if (!eligibleFacts.has(claim.factId))
+              ctx.addIssue({
+                code: 'custom',
+                path: ['claims', index, 'factId'],
+                message: 'Select an eligible approved fact ID from the supplied context.',
+              });
+          });
+        });
       const plan = await model(s.missionId, 'resume', 'resume', groundedResumeSchema);
-      const claims = validateResumeClaims(deduplicateResumeClaims(plan.claims), c.facts);
+      const claims = validateResumeClaims(
+        composeSelection(plan.claims, c.facts, c.d.selectedJob.job.description),
+        c.facts,
+      );
       const draft = {
         missionId: s.missionId,
         jobTitle: c.d.selectedJob.job.title,
         name: c.p.name,
         ...(c.p.contact ? { contact: c.p.contact } : {}),
         profileVersion: c.m.profile.version,
+        records: resumeRecordIndex(c.p),
+        summary: resumeObjective(c.d.selectedJob.job.title, claims),
         claims,
         omittedFacts: c.facts.filter(
           (f) =>

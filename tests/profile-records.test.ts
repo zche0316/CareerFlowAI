@@ -23,7 +23,8 @@ it('supports multiple independent dated records and preserves IDs, source quotes
   });
   const f = buildFacts(p);
   expect(f.find((x) => x.id === 'workExperiences-work-one')?.text).toContain('2024-01 – 2025-02');
-  expect(f.filter((x) => x.kind === 'experience')).toHaveLength(3);
+  expect(f.filter((x) => x.kind === 'experience' && !x.recordHeaderId)).toHaveLength(3);
+  expect(f.filter((x) => x.recordHeaderId)).toHaveLength(4);
   const chosen = validateResumeClaims(
     [{ factId: 'projects-project-one', reason: 'Relevant confirmed project' }],
     f,
@@ -81,4 +82,91 @@ it('supports current education with a separately stated expected completion mont
   });
   expect(r.expectedEndMonth).toBe('2027-11');
   expect(() => recordSchema.parse({ ...r, expectedEndMonth: '2020-01' })).toThrow();
+});
+
+it('accepts explicit dotted and Chinese year-month dates without inferring months from a year alone', () => {
+  for (const dates of ['2024.01 - 2025.02', '2024 年 01 月 - 2025年2月']) {
+    const text = `Software Engineer at Example Pty Ltd ${dates} Built SQL reports.`;
+    const result = groundImportedRecords(
+      importResultSchema.parse({
+        records: [{ ...record, section: 'workExperiences', evidence: [{ page: 1, quote: text }] }],
+        questions: [],
+      }),
+      [{ page: 1, text, route: 'text', method: 'pdf-text' }],
+    );
+    expect(result.records).toHaveLength(1);
+  }
+  const text = 'Software Engineer at Example Pty Ltd 2024 - 2025 Built SQL reports.';
+  const result = groundImportedRecords(
+    importResultSchema.parse({
+      records: [{ ...record, section: 'workExperiences', evidence: [{ page: 1, quote: text }] }],
+      questions: [],
+    }),
+    [{ page: 1, text, route: 'text', method: 'pdf-text' }],
+  );
+  expect(result.records).toHaveLength(0);
+  expect(result.rejectedDetails[0].reasons.join(' ')).toContain('Start month');
+});
+
+it('retains anchored import records while omitting unsupported optional fields with exact diagnostics', () => {
+  const text = 'Software Engineer at Example Pty Ltd Jan 2024 - Feb 2025 Built SQL reports.';
+  const r = {
+    ...record,
+    section: 'workExperiences',
+    location: 'Sydney',
+    details: ['Built SQL reports.', 'Led five teams.'],
+    technologies: ['SQL', 'Rust'],
+    evidence: [{ page: 1, quote: text }],
+  };
+  const input = importResultSchema.parse({ records: [r], questions: [] });
+  const pages = [{ page: 1, text, route: 'text' as const, method: 'pdf-text' as const }];
+  expect(groundImportedRecords(input, pages).records).toHaveLength(0);
+  const partial = groundImportedRecords(input, pages, { salvageOptional: true });
+  expect(partial.records).toHaveLength(1);
+  expect(partial.records[0].location).toBe('');
+  expect(partial.records[0].details).toEqual(['Built SQL reports.']);
+  expect(partial.records[0].technologies).toEqual(['SQL']);
+  expect(partial.repairs[0].fields.map((f) => f.field)).toEqual([
+    'location',
+    'details[2]',
+    'technologies[2]',
+  ]);
+  expect(input.records[0].location).toBe('Sydney');
+  for (const patch of [
+    { title: 'Chief Technology Officer' },
+    { startMonth: '2020-01' },
+    { evidence: [{ page: 2, quote: text }] },
+  ]) {
+    const rejected = groundImportedRecords(
+      importResultSchema.parse({ records: [{ ...r, ...patch }], questions: [] }),
+      pages,
+      { salvageOptional: true },
+    );
+    expect(rejected.records).toHaveLength(0);
+    expect(rejected.repairs).toHaveLength(0);
+    expect(rejected.rejectedDetails).toHaveLength(1);
+  }
+});
+
+it('uses canonical grouped records instead of duplicate legacy summaries or absence markers', () => {
+  const p = {
+    ...sampleProfile,
+    education: 'Conflicting old education summary',
+    experience: 'none yet',
+    educations: [{ ...record, id: 'degree-only', title: 'Bachelor of IT' }],
+    projects: [{ ...record, id: 'project-only', title: 'Atlas' }],
+  };
+  const facts = buildFacts(p);
+  expect(facts.some((f) => ['education-1', 'experience-1'].includes(f.id))).toBe(false);
+  expect(facts.filter((f) => f.recordId === 'project-only')).toHaveLength(2);
+  expect(facts.find((f) => f.id === 'projects-project-only-detail-1')?.recordHeaderId).toBe(
+    'projects-project-only',
+  );
+  expect(
+    buildFacts({
+      ...sampleProfile,
+      education: 'none yet',
+      experience: 'No formal work experience yet',
+    }).some((f) => f.kind === 'education' || f.kind === 'experience'),
+  ).toBe(false);
 });

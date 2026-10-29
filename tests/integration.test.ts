@@ -1252,3 +1252,148 @@ it('retains owned import state through rate limits, explicit retry, stale proces
     mock.mockRestore();
   }
 });
+
+describe('Zero-resume product journey', () => {
+  it('retains complete story facts with unknown outcomes, selects an application subset and saves feedback only as a draft', async () => {
+    const c = await client(true);
+    const source = {
+      situation: 'A fictional course dataset had missing entries.',
+      task: 'I was responsible for checking the data quality.',
+      action: 'I used SQL to identify missing values and wrote a report.',
+      result: '',
+    };
+    const recordId = crypto.randomUUID();
+    const quote = Object.entries(source)
+      .filter(([, v]) => v)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join('\n');
+    const memory = await c.request('/career-memories', 'POST', {
+      kind: 'STAR',
+      title: 'Fictional course story',
+      star: source,
+      source: { kind: 'user', id: `working-record:${recordId}`, quote },
+    });
+    expect(memory.status).toBe(201);
+    const confirmed = await c.request(`/career-memories/${memory.body.id}`, 'PATCH', {
+      revision: memory.body.revision,
+      reviewed: true,
+    });
+    expect(confirmed.status).toBe(200);
+    expect(confirmed.body.star.result).toBe('');
+    const form = {
+      ...sampleProfile,
+      name: 'Fictional No-Resume QA',
+      careerStage: 'student',
+      education: 'Studying software engineering (fictional)',
+      experience: 'none yet',
+      goals: 'Find graduate SQL data analyst opportunities',
+      skills: ['SQL'],
+      projects: [
+        {
+          id: recordId,
+          title: 'Fictional course data project',
+          experienceType: 'course',
+          organisation: '',
+          location: '',
+          startMonth: null,
+          endMonth: null,
+          current: false,
+          details: Object.values(source).filter(Boolean),
+          technologies: ['SQL'],
+          url: '',
+          evidence: [],
+          memoryEvidence: [{ memoryId: memory.body.id, revision: confirmed.body.revision, quote }],
+        },
+      ],
+    };
+    const other = await client(true);
+    expect((await other.request('/profiles/drafts', 'POST', form)).status).toBe(422);
+    const approved = await profile(c, form as any);
+    const storedMemory = await db.careerMemory.findUniqueOrThrow({ where: { id: memory.body.id } });
+    expect(storedMemory.recordId).toBe(recordId);
+    const made = await c.request('/missions', 'POST', {
+      goal: form.goals,
+      minScore: 0,
+      jobSearch: { provider: 'fixtures' },
+    });
+    expect(made.status).toBe(202);
+    const jobs = await wait(c, made.body.id, 'AWAITING_JOB');
+    expect(jobs.data.evidenceRetrieval.hits.length).toBeGreaterThan(0);
+    await c.request(`/missions/${made.body.id}/decisions`, 'POST', {
+      kind: 'job',
+      jobId: jobs.data.matches[0].job.id,
+    });
+    const draft = await wait(c, made.body.id, 'AWAITING_APPROVAL');
+    const detailId = `projects-${recordId}-detail-3`;
+    const chosen = await c.request(`/missions/${made.body.id}/resume-selection`, 'POST', {
+      draftHash: draft.data.resumeDraft.hash,
+      orderedFactIds: [detailId, 'skill-1'],
+    });
+    expect(chosen.status).toBe(200);
+    expect(
+      (
+        await other.request(`/missions/${made.body.id}/resume-selection`, 'POST', {
+          draftHash: chosen.body.resumeDraft.hash,
+          orderedFactIds: ['skill-1'],
+        })
+      ).status,
+    ).toBe(404);
+    expect(chosen.body.resumeDraft.claims.map((f: any) => f.factId)).toEqual([
+      `projects-${recordId}`,
+      detailId,
+      'skill-1',
+    ]);
+    expect(
+      (
+        await c.request(`/missions/${made.body.id}/decisions`, 'POST', {
+          kind: 'resume',
+          decision: 'approve',
+          draftHash: draft.data.resumeDraft.hash,
+        })
+      ).status,
+    ).toBe(409);
+    await c.request(`/missions/${made.body.id}/decisions`, 'POST', {
+      kind: 'resume',
+      decision: 'approve',
+      draftHash: chosen.body.resumeDraft.hash,
+    });
+    const interview = await wait(c, made.body.id, 'AWAITING_INTERVIEW');
+    const [original] = await db.profile.findMany({ where: { id: approved.id } });
+    expect((original.data as any).projects[0].details).toEqual(
+      Object.values(source).filter(Boolean),
+    );
+    for (const format of ['pdf', 'docx']) {
+      const r = await fetch(
+        base + `/api/resumes/${interview.data.approvedResumeId}/download?format=${format}`,
+        { headers: { cookie: c.cookie } },
+      );
+      const bytes = Buffer.from(await r.arrayBuffer());
+      expect(r.status).toBe(200);
+      expect(bytes.subarray(0, format === 'pdf' ? 4 : 2).toString()).toBe(
+        format === 'pdf' ? '%PDF' : 'PK',
+      );
+    }
+    await c.request(`/missions/${made.body.id}/answers`, 'PUT', {
+      questionId: interview.data.questions[0].id,
+      answer: 'I checked missing entries using SQL in my fictional course project.',
+    });
+    await c.request(`/missions/${made.body.id}/decisions`, 'POST', {
+      kind: 'interview',
+      endedEarly: true,
+    });
+    await wait(c, made.body.id, 'COMPLETE');
+    const feedback = await c.request(`/missions/${made.body.id}/feedback-memory`, 'POST', {
+      saveAsDraft: true,
+    });
+    expect(feedback.body.status).toBe('DRAFT');
+    expect(feedback.body.source.kind).toBe('interview');
+    expect(
+      (
+        await other.request(`/missions/${made.body.id}/feedback-memory`, 'POST', {
+          saveAsDraft: true,
+        })
+      ).status,
+    ).toBe(404);
+    expect((await db.user.findUniqueOrThrow({ where: { id: c.id } })).profileVersion).toBe(1);
+  });
+});

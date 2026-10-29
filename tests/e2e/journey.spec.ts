@@ -7,13 +7,15 @@ async function createAccount(page: Page) {
   await page.getByLabel('Email address').fill(`browser-${Date.now()}@careerflow.test`);
   await page.getByLabel('Password', { exact: true }).fill('Browser-QA-password');
   await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'A clearer path forward.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your career profile' })).toBeVisible();
 }
 
 async function openRankedJobs(page: Page) {
   await createAccount(page);
   await page.getByRole('button', { name: 'My career profile', exact: true }).click();
+  await page.getByText('Demo test data', { exact: true }).click();
   await page.getByRole('button', { name: 'Use fictional example' }).click();
+  await page.getByText('Edit profile details manually', { exact: true }).click();
   await page.getByRole('button', { name: 'Review profile draft' }).click();
   await page.getByLabel('I reviewed this exact draft').check();
   await page.getByRole('button', { name: 'Approve & save profile' }).click();
@@ -33,16 +35,22 @@ async function openInterview(page: Page) {
   await expect(page.getByRole('heading', { name: 'Your evidence-grounded resume' })).toBeVisible({
     timeout: 30000,
   });
+  await page.getByRole('button', { name: '04 · Resume tailoring', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Approve & save resume' })).toBeDisabled();
   await page.getByLabel('I reviewed the selected claims').check();
   await page.getByRole('button', { name: 'Approve & save resume' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Interview practice', exact: true }),
+  ).toBeVisible();
   await expect(page.getByLabel('Your response', { exact: true })).toBeVisible({ timeout: 30000 });
 }
 
 test('a user must explicitly review a profile before v1 is persisted', async ({ page }) => {
   await createAccount(page);
   await page.getByRole('button', { name: 'My career profile', exact: true }).click();
+  await page.getByText('Demo test data', { exact: true }).click();
   await page.getByRole('button', { name: 'Use fictional example' }).click();
+  await page.getByText('Edit profile details manually', { exact: true }).click();
   await page.getByRole('button', { name: 'Review profile draft' }).click();
   const approve = page.getByRole('button', { name: 'Approve & save profile' });
   await expect(approve).toBeDisabled();
@@ -161,6 +169,9 @@ test('a user answers every interview question and receives complete feedback', a
     fullPage: true,
   });
 
+  await page
+    .getByRole('button', { name: 'View full mission & optional practice', exact: true })
+    .click();
   await page.getByLabel('Practice offer salary').fill('65000');
   await page.getByLabel('Your target salary').fill('72000');
   await page.getByLabel('Currency').fill('AUD');
@@ -188,7 +199,7 @@ test('mobile workspace stays usable without horizontal scrolling', async ({ page
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   await page.getByRole('button', { name: 'Open demo workspace' }).click();
-  await expect(page.getByRole('heading', { name: 'A clearer path forward.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your career profile' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );

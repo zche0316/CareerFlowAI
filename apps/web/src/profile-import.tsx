@@ -16,23 +16,37 @@ export function ProfileImport({
     [error, setError] = useState(''),
     [consent, setConsent] = useState(false),
     [reviewed, setReviewed] = useState(false),
-    [pages, setPages] = useState<number[]>([]);
+    [pages, setPages] = useState<number[]>([]),
+    [organizePages, setOrganizePages] = useState<number[]>([]);
+  const generation = useRef(0);
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
     void api('/profiles/imports')
-      .then(setHistory)
+      .then((rows) => {
+        if (mounted.current && generation.current === 0) setHistory(rows);
+      })
       .catch(() => {});
     return () => {
       mounted.current = false;
+      generation.current += 1;
     };
   }, []);
-  async function run(operation: () => Promise<any>) {
+  async function run(operation: () => Promise<any>, replace = false) {
+    const token = ++generation.current;
+    if (replace) {
+      setSource(null);
+      setPages([]);
+      setOrganizePages([]);
+      setReviewed(false);
+      setConsent(false);
+    }
     setBusy(true);
+    setReviewed(false);
     setError('');
     try {
       const r = await operation();
-      if (!mounted.current) return;
+      if (!mounted.current || generation.current !== token) return;
       setSource(r);
       setReviewed(false);
       setPages(
@@ -41,11 +55,30 @@ export function ProfileImport({
           .slice(0, 3)
           .map((p: any) => p.page),
       );
-      setHistory(await api('/profiles/imports'));
+      let chars = 0;
+      const included: number[] = [];
+      for (const p of r.pages) {
+        if (!p.text.trim() || p.route === 'vision') continue;
+        if (chars + p.text.length > 16000) break;
+        chars += p.text.length;
+        included.push(p.page);
+      }
+      const organized = [...r.events]
+        .reverse()
+        .find((e: any) => e.action === 'proposed' && e.sourcePages);
+      setOrganizePages(organized?.sourcePages || included);
+      const rows = await api('/profiles/imports').catch(() => null);
+      if (rows && mounted.current && generation.current === token) setHistory(rows);
     } catch (e) {
-      if (mounted.current) setError((e as Error).message);
+      if (mounted.current && generation.current === token) {
+        setError((e as Error).message);
+        if (!replace && source?.id) {
+          const latest = await api('/profiles/imports/' + source.id).catch(() => null);
+          if (latest && mounted.current && generation.current === token) setSource(latest);
+        }
+      }
     } finally {
-      if (mounted.current) setBusy(false);
+      if (mounted.current && generation.current === token) setBusy(false);
     }
   }
   return (
@@ -65,6 +98,11 @@ export function ProfileImport({
           onChange={(e) => {
             const f = e.target.files?.[0];
             if (!f) return;
+            setSource(null);
+            setPages([]);
+            setOrganizePages([]);
+            setReviewed(false);
+            setConsent(false);
             if (f.size > 4 * 1024 * 1024) {
               setError('Choose a file up to 4 MB.');
               return;
@@ -80,7 +118,7 @@ export function ProfileImport({
                 mime: f.type || (f.name.endsWith('.txt') ? 'text/plain' : 'application/pdf'),
                 base64: btoa(binary),
               });
-            });
+            }, true);
           }}
         />
       </label>
@@ -94,7 +132,7 @@ export function ProfileImport({
             onChange={(e) => {
               if (e.target.value) {
                 setConsent(false);
-                void run(() => api('/profiles/imports/' + e.target.value));
+                void run(() => api('/profiles/imports/' + e.target.value), true);
               }
             }}
           >
@@ -116,14 +154,28 @@ export function ProfileImport({
       {source && (
         <>
           <h4>
-            {source.filename} · {source.status}
+            {source.filename} ·{' '}
+            {source.status === 'READY_FOR_REVIEW' && !source.proposed.records.length
+              ? 'NEEDS_CORRECTION'
+              : source.status}
           </h4>
+          <p role="status">
+            Current file: {source.pages.length} page(s). This view contains only this import; saved
+            imports are separate.
+          </p>
+          <p className="info">
+            {source.proposed.records.length
+              ? 'Next: compare the proposed records with the source, then add them to the editable profile below. Review and approve the full profile separately.'
+              : source.pages.some((p: any) => p.route === 'text')
+                ? 'Text is available. Qwen is optional: check the text preview, select source pages below, then organize the text into records.'
+                : 'No readable text yet. Select pages and allow visual recognition, or continue manually.'}
+          </p>
           <p className="small muted">
             Router: local text first · Text: {source.router.lightModel} · Vision:{' '}
             {source.router.visionModel} · {source.calls}/8 model calls
           </p>
           {source.pages.map((p: any) => (
-            <details key={p.page} open={source.pages.length === 1}>
+            <details key={`${source.id}:${p.page}`} open={source.pages.length === 1}>
               <summary>
                 Page {p.page} · {p.method} ·{' '}
                 {p.route === 'vision' ? 'visual recognition suggested' : 'text available'}
@@ -153,6 +205,38 @@ export function ProfileImport({
               </label>
             ))}
           </div>
+          <h4>Source pages for record organization</h4>
+          <p>
+            For a bilingual resume, choose one language version to avoid duplicate records. Up to
+            16,000 characters per request; long files start with the first text pages that fit.
+          </p>
+          {source.pages.map((p: any) => (
+            <label className="checkbox" key={`organize-${source.id}-${p.page}`}>
+              <input
+                type="checkbox"
+                checked={organizePages.includes(p.page)}
+                disabled={busy || disabled || !p.text.trim()}
+                onChange={(e) => {
+                  setOrganizePages(
+                    e.target.checked
+                      ? [...organizePages, p.page]
+                      : organizePages.filter((n) => n !== p.page),
+                  );
+                  setReviewed(false);
+                }}
+              />
+              Include page {p.page} in record organization · {p.text.length.toLocaleString()}{' '}
+              characters
+            </label>
+          ))}
+          <p role="status">
+            Selected organization pages: {organizePages.join(', ') || 'none'} ·{' '}
+            {source.pages
+              .filter((p: any) => organizePages.includes(p.page))
+              .reduce((n: number, p: any) => n + p.text.length, 0)
+              .toLocaleString()}{' '}
+            / 16,000 characters
+          </p>
           <label className="checkbox">
             <input
               type="checkbox"
@@ -183,12 +267,18 @@ export function ProfileImport({
                 busy ||
                 disabled ||
                 !consent ||
-                !source.pages.some((p: any) => p.text.trim()) ||
+                !organizePages.length ||
+                source.pages
+                  .filter((p: any) => organizePages.includes(p.page))
+                  .reduce((n: number, p: any) => n + p.text.length, 0) > 16000 ||
                 source.calls >= 8
               }
               onClick={() =>
                 void run(() =>
-                  api(`/profiles/imports/${source.id}/structure`, 'POST', { consent: true }),
+                  api(`/profiles/imports/${source.id}/structure`, 'POST', {
+                    consent: true,
+                    pages: organizePages,
+                  }),
                 )
               }
             >
@@ -242,7 +332,7 @@ export function ProfileImport({
               <button
                 type="button"
                 className="secondary"
-                disabled={busy || disabled || !reviewed}
+                disabled={busy || disabled || !reviewed || Boolean(error)}
                 onClick={() => {
                   onApply(source.proposed.records);
                   setReviewed(false);
@@ -257,9 +347,51 @@ export function ProfileImport({
           ))}
           {source.proposed.rejected.length > 0 && (
             <p role="status">
-              Excluded {source.proposed.rejected.length} unsupported records. Add missing
-              information manually.
+              Excluded {source.proposed.rejected.length} records that failed source/date validation.
+              This does not mean your resume is false. Check the details below, choose the correct
+              source pages, or add verified information manually.
             </p>
+          )}
+          {source.proposed.repairs?.length > 0 && (
+            <details open>
+              <summary>Fields needing your confirmation</summary>
+              <p>
+                Source-supported record content was retained. These model-suggested values were
+                omitted because their quotes do not support them. Add them manually only if you can
+                confirm them.
+              </p>
+              {source.proposed.repairs.map((r: any, i: number) => (
+                <div key={i}>
+                  <strong>{r.title}</strong>
+                  {r.fields.map((f: any, j: number) => (
+                    <p key={j}>
+                      {f.field}: “{f.value}”
+                    </p>
+                  ))}
+                </div>
+              ))}
+            </details>
+          )}
+          {source.proposed.rejectedDetails?.length > 0 && (
+            <details>
+              <summary>Why records were excluded</summary>
+              {source.proposed.rejectedDetails.map((r: any, i: number) => (
+                <div key={i}>
+                  <strong>{r.title}</strong>
+                  <ul>
+                    {r.reasons.map((reason: string) => (
+                      <li key={reason}>{reason}</li>
+                    ))}
+                  </ul>
+                  {r.fields?.map((f: any, i: number) => (
+                    <p key={i}>
+                      <strong>{f.field}</strong>: “{f.value}” — not found in this record’s cited
+                      excerpts.
+                    </p>
+                  ))}
+                </div>
+              ))}
+            </details>
           )}
           <details>
             <summary>Import activity and model usage</summary>
@@ -267,6 +399,7 @@ export function ProfileImport({
               <p key={i}>
                 {event.agent} · {event.action}
                 {event.page ? ` · page ${event.page}` : ''}
+                {event.sourcePages ? ` · source pages ${event.sourcePages.join(', ')}` : ''}
                 {event.model
                   ? ` · ${event.model} · ${event.inputTokens} input / ${event.outputTokens} output tokens`
                   : ''}

@@ -53,3 +53,19 @@ After dependency installation, the installed PGlite engine expected PostgreSQL 1
 The local private configuration now enables `PROVIDER_MODE=openai` for new requests. Text remains GPT-OSS 120B; Qwen is a separate vision route, and the optional 20B override remains blank. Existing fixture missions retain their captured mode. The real browser acceptance uploaded the synthetic scan, called Qwen and then 120B (two requests total), reviewed the three proposed records, explicitly approved QA Profile v2, and reopened the same saved import and structured records after refresh. No real applicant credentials or employment claims were used. An additional integration journey checks those structured record IDs, dates, original quotes and section metadata through job selection, resume approval and interview handoff.
 
 After the final credential-origin guard and corrupted-text router fix, ten targeted router/profile/provider tests and type checking passed. The browser suite also checked comma-separated technology entry and the structured profile at a 390px mobile viewport.
+# Import workflow clarification — 29 October 2026
+
+- `text available` means readable text exists, not that structured records were accepted or a profile was approved. `pdf-text` is local extraction; `qwen-vision` is optional visual transcription. Use vision only for unreadable text or a visibly incorrect reading order.
+- The active filename and page count belong to one saved import. Uploading/selecting another file clears the prior view, selected pages, consent and review state immediately; earlier imports remain separately accessible in history. Late responses cannot replace a newer selection.
+- Select **Source pages for record organization** before organising. A bilingual PDF may contain both language versions as separate physical pages. Choose one version to avoid duplicate records. Only selected pages are sent and grounded; their total must fit 16,000 characters. Qwen recognition retains its separate three-page request limit.
+- After organising, review proposed records and quotes, then **Add proposed records to editable profile**. Check/edit the full profile and use its separate review/approval controls. Importing does not erase previously approved profile data.
+- Zero accepted records now gives `NEEDS_CORRECTION` rather than `READY_FOR_REVIEW`; individual exclusion reasons distinguish unsupported text, dates, page quotes and ongoing status. Dotted and Chinese year-month forms are supported; year-only dates never imply an invented month. Stored quotes retain the actual source spelling/whitespace.
+- Re-recognising a page invalidates earlier unapproved record proposals. Failed operations reload their saved state and invalidate review confirmation; they do not replace approved profiles.
+
+Regression evidence: 123 unit/integration tests, 6 original matching tests and 21 browser tests passed locally. The supplied personal PDF was inspected locally only; no personal document was sent to a model during this check.
+
+## Field-level grounding follow-up
+
+The earlier validator excluded a whole record whenever any nonempty field was absent from its cited excerpts. Resume imports now retain an anchored record while omitting unsupported optional organisation/location/URL/detail/technology values, with explicit omitted-field/value diagnostics. Title identity, page quotes and date checks still block invalid records. The conversational extraction path retains its stricter default; import-specific recovery is explicit. Old saved exclusions cannot be reconstructed because raw rejected model records were not stored; run organization again to obtain the new result and diagnostics.
+
+Focused verification after this change: 16 grounding/profile/API tests, 2 import browser tests, TypeScript and the production build passed. No personal resume was sent to an external model for this follow-up.

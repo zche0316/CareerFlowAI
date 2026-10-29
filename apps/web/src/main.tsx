@@ -1,10 +1,11 @@
+import { ResumePreview } from './resume-preview.js';
 import { suggestJobSearch } from '../../../packages/contracts/src/job-search.js';
-import {
-  australianProfileDraft,
-  australianResumeText,
-} from '../../../packages/contracts/src/australian-resume.js';
 import { ProfileRecords } from './profile-records.js';
 import { ProfileImport } from './profile-import.js';
+import { ResumeSelection } from './resume-selection.js';
+import { ProfileSummary } from './profile-summary.js';
+import { ProfileConversation } from './profile-conversation.js';
+import { WordingStudio } from './resume-wording.js';
 import { recordKeys } from '../../../packages/contracts/src/profile-records.js';
 import { OptionalTools } from './tools.js';
 import {
@@ -110,7 +111,10 @@ function App() {
         setSession(s);
         if (s.recruitment?.defaults)
           setJobSearch({ ...defaultJobSearch, ...s.recruitment.defaults });
-        if (s.user) void refresh();
+        if (s.user)
+          void refresh().then((w) => {
+            if (!w.profile) setTab('profile');
+          });
       })
       .catch((e) => setError(e.message))
       .finally(() => setReady(true));
@@ -139,7 +143,16 @@ function App() {
     }
   }
 
+  const interviewHandoff = useRef<string | null>(null);
   const mission = workspace?.missions.find((m: any) => m.id === selected);
+  useEffect(() => {
+    if (interviewHandoff.current !== mission?.id || mission?.status !== 'AWAITING_INTERVIEW')
+      return;
+    interviewHandoff.current = null;
+    setNotice('Your resume is saved. Your interview questions are ready.');
+    document.getElementById('interview-practice')?.scrollIntoView({ block: 'start' });
+  }, [mission?.id, mission?.status]);
+
   const approvals =
     workspace?.missions.filter((m: any) =>
       ['AWAITING_JOB', 'AWAITING_APPROVAL'].includes(m.status),
@@ -154,7 +167,9 @@ function App() {
           csrf = s.csrf;
           setSession({ ...session, ...s });
           setError('');
-          void refresh();
+          void refresh().then((w) => {
+            if (!w.profile) setTab('profile');
+          });
         }}
       />
     );
@@ -317,8 +332,13 @@ function App() {
               profile={workspace?.profile}
               userName={session.user.name}
               sample={workspace?.sampleProfile}
+              onMission={() => {
+                setPhase(null);
+                setTab('missions');
+                setCreating(true);
+              }}
+              onLibrary={() => setTab('library')}
               busy={busy}
-              onBuild={async (input) => api('/profiles/prepare', 'POST', input)}
               onDraft={async (input) => api('/profiles/drafts', 'POST', input)}
               onApprove={async (id) =>
                 act(async () => {
@@ -353,6 +373,15 @@ function App() {
                   onAction={(kind, body) =>
                     act(async () => {
                       await api(`/missions/${mission.id}/${kind}`, 'POST', body || {});
+                      if (
+                        kind === 'decisions' &&
+                        (body as any)?.kind === 'resume' &&
+                        (body as any)?.decision === 'approve'
+                      ) {
+                        interviewHandoff.current = mission.id;
+                        setPhase(4);
+                        setNotice('Resume approved. Preparing your interview questions…');
+                      }
                     })
                   }
                   onSaveAnswer={(a) =>
@@ -616,6 +645,7 @@ function App() {
                 title="Document library"
                 text="Approved versions stay available, even when you update your profile."
               />
+              <WordingStudio api={api} resumes={workspace?.resumes || []} onSaved={refresh} />
               {workspace?.resumes.length ? (
                 workspace.resumes.map((r: any) => (
                   <div className="document-card" key={r.id}>
@@ -972,40 +1002,31 @@ function Profile({
   userName,
   sample,
   busy,
-  onBuild,
   onDraft,
   onApprove,
   onDiscard,
+  onMission,
+  onLibrary,
 }: {
   profile: any;
+  onMission: () => void;
+  onLibrary: () => void;
   userName: string;
   sample: CareerProfile | undefined;
   busy: boolean;
-  onBuild: (input: { notes: string; currentProfile: CareerProfile }) => Promise<{
-    data: CareerProfile;
-    followUpQuestions: string[];
-    proposedChanges: { field: string; proposedValue: string; evidence: string }[];
-    discardedFields: string[];
-  }>;
   onDraft: (p: CareerProfile) => Promise<any>;
   onApprove: (id: string) => Promise<void>;
   onDiscard: (id: string) => Promise<boolean>;
 }) {
   // Preserve raw comma-separated text while typing; parse it when preparing the draft.
+  const [hasPendingSuggestions, setHasPendingSuggestions] = useState(false);
   const [skillInput, setSkillInput] = useState(''),
     [interestInput, setInterestInput] = useState('');
   const [form, setForm] = useState<CareerProfile | null>(null),
     [draft, setDraft] = useState<any>(null),
     [reviewed, setReviewed] = useState(false),
     [preparing, setPreparing] = useState(false),
-    [building, setBuilding] = useState(false),
     [committing, setCommitting] = useState(false),
-    [builderNotes, setBuilderNotes] = useState(''),
-    [followUpQuestions, setFollowUpQuestions] = useState<string[]>([]),
-    [proposedChanges, setProposedChanges] = useState<
-      { field: string; proposedValue: string; evidence: string }[]
-    >([]),
-    [discardedFields, setDiscardedFields] = useState<string[]>([]),
     [error, setError] = useState(''),
     [fields, setFields] = useState<Record<string, string[]>>({});
   const revision = useRef(0),
@@ -1018,9 +1039,6 @@ function Profile({
     revision.current += 1;
     setDraft(null);
     setReviewed(false);
-    setFollowUpQuestions([]);
-    setProposedChanges([]);
-    setDiscardedFields([]);
   };
 
   useEffect(() => {
@@ -1047,7 +1065,6 @@ function Profile({
     invalidateDraft();
     activeRequest.current = null;
     setPreparing(false);
-    setBuilding(false);
     setError('');
     setFields({});
   }, [profile?.id, Boolean(sample)]);
@@ -1116,7 +1133,7 @@ function Profile({
   );
 
   async function prepare() {
-    if (activeRequest.current !== null || busy || committing) return;
+    if (activeRequest.current !== null || busy || committing || hasPendingSuggestions) return;
     const token = ++revision.current;
     activeRequest.current = token;
     setPreparing(true);
@@ -1136,38 +1153,6 @@ function Profile({
       if (mounted.current && activeRequest.current === token) {
         activeRequest.current = null;
         setPreparing(false);
-      }
-    }
-  }
-
-  async function buildWithAi() {
-    if (activeRequest.current !== null || busy || committing) return;
-    const token = ++revision.current;
-    activeRequest.current = token;
-    setBuilding(true);
-    setDraft(null);
-    setReviewed(false);
-    setError('');
-    setFields({});
-    try {
-      const result = await onBuild({ notes: builderNotes, currentProfile: form! });
-      if (!mounted.current || revision.current !== token) return;
-      setForm(result.data);
-      setSkillInput(result.data.skills.join(', '));
-      setInterestInput(result.data.interests.join(', '));
-      setFollowUpQuestions(result.followUpQuestions);
-      setProposedChanges(result.proposedChanges);
-      setDiscardedFields(result.discardedFields);
-      setDraft(null);
-      setReviewed(false);
-    } catch (e) {
-      if (!mounted.current || revision.current !== token) return;
-      // The current form remains intact so manual completion is always available.
-      setError((e as Error).message);
-    } finally {
-      if (mounted.current && activeRequest.current === token) {
-        activeRequest.current = null;
-        setBuilding(false);
       }
     }
   }
@@ -1211,303 +1196,233 @@ function Profile({
         disabled={busy || committing}
         style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}
       >
-        <div className="profile-layout">
-          <section className="panel">
-            <div className="section-heading">
-              <h2>Career information</h2>
-              {profile ? (
-                <span className="tag">Approved v{profile.version}</span>
-              ) : (
-                <span className="tag">Not approved yet</span>
-              )}
-            </div>
+        <div className="chat-profile-layout">
+          <section className="panel profile-chat-main">
+            <h2>Build your profile through conversation</h2>
             <p className="muted">
-              Enter only information you can support. Use “none yet” for education or experience you
-              do not have.
+              Tell your story one answer at a time. No resume or formal work experience is required.
+              Suggestions stay in a working draft until you approve.
             </p>
             {error && (
               <div role="alert" className="error-banner">
                 {error}
               </div>
             )}
-            <div className="sharing">
-              <ProfileImport
-                api={api}
-                disabled={busy || committing || preparing || building}
-                onApply={(records) => {
-                  setForm((current) => ({
-                    ...current!,
-                    ...Object.fromEntries(
-                      recordKeys.map((key) => [
-                        key,
-                        [
-                          ...(current?.[key] || []),
-                          ...records
-                            .filter(
-                              (r) =>
-                                r.section === key && !current?.[key]?.some((x) => x.id === r.id),
-                            )
-                            .map(({ section, ...r }) => r),
-                        ],
-                      ]),
-                    ),
-                  }));
-                  invalidateDraft();
-                }}
-              />
-              <h3>Profile Builder</h3>
-              <p className="muted">
-                Describe your background in your own words. Profile Builder can organise only the
-                supplied information, identify missing details and propose follow-up questions. You
-                still review, edit and approve every field.
-              </p>
-              <label>
-                Notes for Profile Builder
-                <textarea
-                  value={builderNotes}
-                  onChange={(e) => {
-                    setBuilderNotes(e.target.value);
-                    invalidateDraft();
-                  }}
-                  placeholder="For example: I studied information technology, know Python and SQL, want an entry-level data role in Sydney, and prefer hybrid work."
-                />
-              </label>
-              <div className="form-actions">
-                <button
-                  className="secondary"
-                  disabled={
-                    busy || committing || preparing || building || builderNotes.trim().length < 10
-                  }
-                  onClick={() => void buildWithAi()}
-                >
-                  {building ? 'Organising…' : 'Organise with Profile Builder'}
-                  <Compass size={15} />
-                </button>
-                <span className="small muted">
-                  AI suggestions never approve or save the profile automatically.
+            <ProfileConversation
+              onReview={() => void prepare()}
+              onPendingChange={setHasPendingSuggestions}
+              profileVersion={profile?.version || 0}
+              form={form}
+              api={api}
+              onChange={(key, value) => {
+                change(key, value);
+                if (key === 'skills') setSkillInput(value.join(', '));
+                if (key === 'interests') setInterestInput(value.join(', '));
+              }}
+            />
+          </section>
+          <aside className="profile-draft-side">
+            <section className="panel">
+              <div className="section-heading">
+                <h2>Your profile draft</h2>
+                <span className="tag">
+                  {profile
+                    ? JSON.stringify(form) === JSON.stringify(profile.data)
+                      ? `Approved v${profile.version}`
+                      : `Unsaved changes · based on v${profile.version}`
+                    : 'Not approved yet'}
                 </span>
               </div>
-              {followUpQuestions.length > 0 && (
-                <div className="info">
-                  <MessageSquare size={17} />
-                  <div>
-                    <strong>Details to clarify</strong>
-                    <ul>
-                      {followUpQuestions.map((question) => (
-                        <li key={question}>{question}</li>
-                      ))}
-                    </ul>
-                    <p className="small muted">
-                      Add these details to your notes, run Profile Builder again, or complete the
-                      fields manually.
-                    </p>
-                  </div>
-                </div>
-              )}
-              {proposedChanges.length > 0 && (
-                <details>
-                  <summary>Review Profile Builder proposed changes</summary>
-                  <ul>
-                    {proposedChanges.map((change, index) => (
-                      <li key={`${change.field}-${index}`}>
-                        <strong>{nice(change.field)}</strong>: {change.proposedValue}
-                        <small>Evidence: “{change.evidence}”</small>
-                      </li>
-                    ))}
-                  </ul>
+              <ProfileSummary data={draft?.data || form} />
+              <details className="manual-profile-editor">
+                <summary>Edit profile details manually</summary>
+                <details className="optional-import">
+                  <summary>Already have career material? Optional resume import</summary>
+                  <ProfileImport
+                    api={api}
+                    disabled={busy || committing || preparing}
+                    onApply={(records) => {
+                      setForm((current) => ({
+                        ...current!,
+                        ...Object.fromEntries(
+                          recordKeys.map((key) => [
+                            key,
+                            [
+                              ...(current?.[key] || []),
+                              ...records
+                                .filter(
+                                  (r) =>
+                                    r.section === key &&
+                                    !current?.[key]?.some((x) => x.id === r.id),
+                                )
+                                .map(({ section, ...r }) => r),
+                            ],
+                          ]),
+                        ),
+                      }));
+                      invalidateDraft();
+                    }}
+                  />
                 </details>
-              )}
-              {discardedFields.length > 0 && (
-                <div className="info">
-                  <AlertCircle size={17} />
-                  <span>
-                    Unsupported suggestions were discarded for:{' '}
-                    {discardedFields.map(nice).join(', ')}. Your current values were left unchanged.
-                  </span>
-                </div>
-              )}
-            </div>
-            <div className="form-grid">
-              {input('name', 'Full name')}
-              {input('location', 'Preferred location', { placeholder: 'Optional' })}
-              <label className="wide">
-                Skills · comma separated
-                <input
-                  value={skillInput}
-                  onChange={(e) => {
-                    setSkillInput(e.target.value);
-                    change(
-                      'skills',
-                      e.target.value
-                        .split(',')
-                        .map((x) => x.trim())
-                        .filter(Boolean),
-                    );
-                  }}
-                />
-                {fields.skills?.map((s) => (
-                  <span className="field-error" key={s}>
-                    {s}
-                  </span>
-                ))}
-              </label>
-              <label className="wide">
-                Career interests · comma separated
-                <input
-                  value={interestInput}
-                  onChange={(e) => {
-                    setInterestInput(e.target.value);
-                    change(
-                      'interests',
-                      e.target.value
-                        .split(',')
-                        .map((x) => x.trim())
-                        .filter(Boolean),
-                    );
-                  }}
-                />
-              </label>
-              <div className="wide">{input('goals', 'Career goals', { area: true })}</div>
-              <div className="wide">
-                {input('education', 'Education or “none yet”', { area: true })}
-              </div>
-              <div className="wide">
-                {input('experience', 'Experience and projects or “none yet”', { area: true })}
-              </div>
-              <ProfileRecords form={form} onChange={change} errors={fields} />
-              {input('experienceYears', 'Years of experience', { type: 'number' })}
-              {input('employmentType', 'Employment preference', { placeholder: 'Optional' })}
-              {input('workArrangement', 'Work arrangement', { placeholder: 'e.g. Hybrid' })}
-              {input('companySize', 'Company size preference', { placeholder: 'Optional' })}
-              {input('industry', 'Industry preference', { placeholder: 'e.g. Technology' })}
-              {input('startDate', 'Experience start date (optional)', { type: 'date' })}
-              {input('endDate', 'Experience end date (optional)', { type: 'date' })}
-              <details className="wide">
-                <summary>Optional salary preferences</summary>
                 <div className="form-grid">
-                  {input('salaryMin', 'Minimum', { type: 'number' })}
-                  {input('salaryMax', 'Maximum', { type: 'number' })}
-                  {input('currency', 'Currency', { placeholder: 'e.g. AUD' })}
+                  {input('name', 'Full name')}
+                  {input('location', 'Preferred location', { placeholder: 'Optional' })}
+                  <label>
+                    Career stage
+                    <select
+                      value={form.careerStage || ''}
+                      onChange={(e) => change('careerStage', e.target.value || undefined)}
+                    >
+                      <option value="">Not specified</option>
+                      {['student', 'graduate', 'early-career', 'experienced', 'career-change'].map(
+                        (v) => (
+                          <option key={v} value={v}>
+                            {nice(v)}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                  </label>
+                  <label className="wide">
+                    Skills · comma separated
+                    <input
+                      value={skillInput}
+                      onChange={(e) => {
+                        setSkillInput(e.target.value);
+                        change(
+                          'skills',
+                          e.target.value
+                            .split(',')
+                            .map((x) => x.trim())
+                            .filter(Boolean),
+                        );
+                      }}
+                    />
+                    {fields.skills?.map((s) => (
+                      <span className="field-error" key={s}>
+                        {s}
+                      </span>
+                    ))}
+                  </label>
+                  <label className="wide">
+                    Career interests · comma separated
+                    <input
+                      value={interestInput}
+                      onChange={(e) => {
+                        setInterestInput(e.target.value);
+                        change(
+                          'interests',
+                          e.target.value
+                            .split(',')
+                            .map((x) => x.trim())
+                            .filter(Boolean),
+                        );
+                      }}
+                    />
+                  </label>
+                  <div className="wide">{input('goals', 'Career goals', { area: true })}</div>
+                  {!form.educations?.length && (
+                    <div className="wide">
+                      {input('education', 'Education or “none yet”', { area: true })}
+                    </div>
+                  )}
+                  {!form.workExperiences?.length && !form.projects?.length && (
+                    <div className="wide">
+                      {input('experience', 'Experience and projects or “none yet”', { area: true })}
+                    </div>
+                  )}
+                  <ProfileRecords form={form} onChange={change} errors={fields} />
+                  {input('experienceYears', 'Years of experience', { type: 'number' })}
+                  {input('employmentType', 'Employment preference', { placeholder: 'Optional' })}
+                  {input('workArrangement', 'Work arrangement', { placeholder: 'e.g. Hybrid' })}
+                  {input('companySize', 'Company size preference', { placeholder: 'Optional' })}
+                  {input('industry', 'Industry preference', { placeholder: 'e.g. Technology' })}
+                  {input('startDate', 'Experience start date (optional)', { type: 'date' })}
+                  {input('endDate', 'Experience end date (optional)', { type: 'date' })}
+                  <details className="wide">
+                    <summary>Optional salary preferences</summary>
+                    <div className="form-grid">
+                      {input('salaryMin', 'Minimum', { type: 'number' })}
+                      {input('salaryMax', 'Maximum', { type: 'number' })}
+                      {input('currency', 'Currency', { placeholder: 'e.g. AUD' })}
+                    </div>
+                  </details>
                 </div>
               </details>
-            </div>
-            <div className="sharing">
-              <h3>Authorised context sharing</h3>
-              <p className="muted">
-                Choose which specialists may use your approved career information. A complete
-                mission needs all four.
-              </p>
-              {Object.entries(form.sharing).map(([key, value]) => (
-                <label className="checkbox" key={key}>
-                  <input
-                    type="checkbox"
-                    checked={value}
-                    onChange={(e) =>
-                      change('sharing', { ...form.sharing, [key]: e.target.checked })
+              <div className="sharing">
+                <h3>Authorised context sharing</h3>
+                <p className="muted">
+                  Missions use approved profile facts only. Conversation transcripts, source
+                  quotations and separate career memories are not sent. Review and add memory facts
+                  to your profile before using them in a mission.
+                </p>
+                <p className="muted">
+                  Choose which specialists may use your approved career information. A complete
+                  mission needs all four.
+                </p>
+                {Object.entries(form.sharing).map(([key, value]) => (
+                  <label className="checkbox" key={key}>
+                    <input
+                      type="checkbox"
+                      checked={value}
+                      onChange={(e) =>
+                        change('sharing', { ...form.sharing, [key]: e.target.checked })
+                      }
+                    />
+                    {
+                      (
+                        {
+                          coach: 'Career Coach',
+                          matching: 'Job Matcher',
+                          resume: 'Resume Tailor',
+                          interview: 'Interview Coach',
+                        } as any
+                      )[key]
                     }
-                  />
-                  {
-                    (
-                      {
-                        coach: 'Career Coach',
-                        matching: 'Job Matcher',
-                        resume: 'Resume Tailor',
-                        interview: 'Interview Coach',
-                      } as any
-                    )[key]
-                  }
-                </label>
-              ))}
-            </div>
-            <div className="form-actions">
-              <button
-                className="primary"
-                disabled={busy || committing || preparing || building}
-                onClick={() => void prepare()}
-              >
-                {preparing ? 'Preparing…' : 'Review profile draft'}
-                <ArrowRight size={16} />
-              </button>
-              <button
-                className="text-button"
-                disabled={!sample}
-                onClick={() => {
-                  setForm(structuredClone(sample!));
-                  setSkillInput(sample!.skills.join(', '));
-                  setInterestInput(sample!.interests.join(', '));
-                  invalidateDraft();
-                }}
-              >
-                Use fictional example
-              </button>
-              <button
-                className="secondary"
-                onClick={() => {
-                  const next = australianProfileDraft(profile?.data, userName);
-                  setForm(next);
-                  setSkillInput(next.skills.join(', '));
-                  setInterestInput(next.interests.join(', '));
-                  invalidateDraft();
-                }}
-              >
-                Autofill Australian resume draft
-              </button>
-              <button
-                className="secondary"
-                onClick={() => {
-                  const text = australianResumeText(form);
-                  const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = 'australian-resume-draft.txt';
-                  a.click();
-                  setTimeout(() => URL.revokeObjectURL(url), 1000);
-                }}
-              >
-                Download current resume draft
-              </button>
-              <p className="small muted">
-                Autofill reuses your approved facts when available. Missing education and experience
-                remain blank for you to complete. No draft is approved or sent automatically.
-              </p>
-            </div>
-          </section>
-          <aside>
-            <div className="guidance-card">
-              <ShieldCheck size={24} />
-              <h3>
-                Facts you approve.
-                <br />
-                Context you control.
-              </h3>
-              <p>
-                Drafts are kept separate from your approved profile. Cancelling or a failed save
-                leaves the previous version unchanged.
-              </p>
-              <hr />
-              <h4>How approval works</h4>
-              <ol>
-                <li>Enter your information.</li>
-                <li>Review the prepared draft.</li>
-                <li>Explicitly approve and save.</li>
-              </ol>
-              <span className="small muted">
-                Manual profile preparation is always available, including when AI is unavailable.
-              </span>
-            </div>
+                  </label>
+                ))}
+              </div>
+              <div className="form-actions">
+                <button
+                  className="primary"
+                  disabled={busy || committing || preparing || hasPendingSuggestions}
+                  onClick={() => void prepare()}
+                >
+                  {preparing ? 'Preparing…' : 'Review profile draft'}
+                  <ArrowRight size={16} />
+                </button>
+              </div>
+              {profile && (
+                <button
+                  className="primary"
+                  disabled={JSON.stringify(form) !== JSON.stringify(profile.data)}
+                  onClick={onMission}
+                >
+                  Find jobs using this approved profile
+                </button>
+              )}
+              <details>
+                <summary>Demo test data</summary>
+                <p>Replaces the current unsaved draft with fictional sample information.</p>
+                <button
+                  className="text-button"
+                  disabled={!sample}
+                  onClick={() => {
+                    setForm(structuredClone(sample!));
+                    setSkillInput(sample!.skills.join(', '));
+                    setInterestInput(sample!.interests.join(', '));
+                    invalidateDraft();
+                  }}
+                >
+                  Use fictional example
+                </button>
+              </details>
+            </section>
             {draft && (
               <section className="panel draft-preview">
                 <span className="eyebrow">REVIEW BEFORE SAVING</span>
-                <h3>{draft.data.name}</h3>
-                <p>{draft.data.goals}</p>
-                <div className="facts-preview">
-                  {draft.facts.map((f: any) => (
-                    <div key={f.id}>
-                      <span>{f.kind}</span>
-                      <p>{f.text}</p>
-                    </div>
-                  ))}
-                </div>
+                <h3>Confirm this exact profile draft</h3>
+                <p>The grouped details above are the snapshot you are approving.</p>
                 <label className="checkbox">
                   <input
                     type="checkbox"
@@ -1518,7 +1433,7 @@ function Profile({
                 </label>
                 <button
                   className="primary full"
-                  disabled={!reviewed || busy || committing || preparing || building}
+                  disabled={!reviewed || busy || committing || preparing}
                   onClick={() => void approve()}
                 >
                   <Check size={16} />
@@ -1526,7 +1441,7 @@ function Profile({
                 </button>
                 <button
                   className="text-button"
-                  disabled={busy || committing || preparing || building}
+                  disabled={busy || committing || preparing}
                   onClick={() => void discard()}
                 >
                   Discard draft
@@ -1556,7 +1471,7 @@ function MissionDetail({
 }: {
   mission: any;
   phase: number | null;
-  onNavigate: (phase: number) => void;
+  onNavigate: (phase: number | null) => void;
   onNewSearch: () => void;
   busy: boolean;
   onBack: () => void;
@@ -1572,6 +1487,7 @@ function MissionDetail({
     [question, setQuestion] = useState(0),
     [analysisFeedback, setAnalysisFeedback] = useState(''),
     [confirm, setConfirm] = useState(false),
+    [selectionDirty, setSelectionDirty] = useState(false),
     [compareIds, setCompareIds] = useState<string[]>([]),
     [offerSalary, setOfferSalary] = useState(''),
     [targetSalary, setTargetSalary] = useState(''),
@@ -2042,27 +1958,18 @@ function MissionDetail({
             Proposed selection and ordering for {d.resumeDraft.jobTitle}. Candidate claims are
             retained verbatim from approved profile v{d.resumeDraft.profileVersion}.
           </p>
-          <div className="resume-header">
-            <h3>{d.resumeDraft.name}</h3>
-            <p>Application target: {d.resumeDraft.jobTitle}</p>
-          </div>
-          {d.resumeDraft.claims.map((c: any) => (
-            <div className="resume-claim" key={c.factId}>
-              <span className="claim-type">{c.kind}</span>
-              <p>{c.text}</p>
-              <details>
-                <summary>
-                  <ShieldCheck size={13} />
-                  Evidence passport · {c.factId}
-                </summary>
-                <p>
-                  Source: {c.source}. Profile v{d.resumeDraft.profileVersion}.
+          <ResumePreview content={d.resumeDraft} />
+          <details>
+            <summary>Sources and selection reasons</summary>
+            {d.resumeDraft.claims.map((c: any) => (
+              <div key={c.factId}>
+                <p>{c.text}</p>
+                <p className="small muted">
+                  {c.factId} · {c.reason} · Profile v{d.resumeDraft.profileVersion}
                 </p>
-                <p>Selection reason: {c.reason}</p>
-                <p>This claim matches the approved source text exactly.</p>
-              </details>
-            </div>
-          ))}
+              </div>
+            ))}
+          </details>
           <div className="approval-controls">
             <details>
               <summary>Review proposed changes</summary>
@@ -2096,6 +2003,16 @@ function MissionDetail({
             </details>
           </div>
           {m.status === 'AWAITING_APPROVAL' && (
+            <ResumeSelection
+              draft={d.resumeDraft}
+              busy={busy}
+              onDirty={setSelectionDirty}
+              onSave={(ids) =>
+                onAction('resume-selection', { draftHash: d.resumeDraft.hash, orderedFactIds: ids })
+              }
+            />
+          )}
+          {m.status === 'AWAITING_APPROVAL' && (
             <div className="approval-controls">
               <label className="checkbox">
                 <input
@@ -2107,7 +2024,7 @@ function MissionDetail({
               </label>
               <button
                 className="primary"
-                disabled={!confirm || busy}
+                disabled={!confirm || busy || selectionDirty}
                 onClick={() =>
                   void onAction('decisions', {
                     kind: 'resume',
@@ -2155,7 +2072,25 @@ function MissionDetail({
           )}
         </section>
       )}
+      {d.approvedResumeId && (phase === null || phase === 3) && (
+        <button className="primary" onClick={() => onNavigate(4)}>
+          Continue to interview practice
+        </button>
+      )}
       <div id="interview-practice" />
+      {phase === 4 &&
+        d.approvedResumeId &&
+        !questions.length &&
+        ['QUEUED', 'RUNNING'].includes(m.status) && (
+          <section className="panel" role="status">
+            <h2>Preparing your interview questions</h2>
+            <p>
+              Your approved resume is saved. Your interview coach is preparing role-specific
+              questions.
+            </p>
+          </section>
+        )}
+
       {(phase === null || phase === 4) && questions.length > 0 && (
         <section className="panel interview">
           <div className="section-heading">
@@ -2229,6 +2164,11 @@ function MissionDetail({
               {d.endedEarly ? 'You finished early; feedback reflects the available answers.' : ''}
             </p>
           )}
+          {d.feedback && phase === 4 && (
+            <button className="secondary" onClick={() => onNavigate(null)}>
+              View full mission & optional practice
+            </button>
+          )}
           {d.feedback && (
             <div className="feedback-grid">
               {[
@@ -2247,6 +2187,38 @@ function MissionDetail({
               ))}
             </div>
           )}
+        </section>
+      )}
+      {(phase === null || phase === 4) && d.feedback && (
+        <section className="panel">
+          <h3>Use feedback to strengthen your career evidence</h3>
+          <p>
+            Save feedback as a draft learning note. Add or correct real experience in My career
+            profile; practice answers never become qualifications automatically.
+          </p>
+          <button
+            className="secondary"
+            disabled={busy}
+            onClick={() => void onAction('feedback-memory', { saveAsDraft: true })}
+          >
+            Save interview feedback as draft learning memory
+          </button>
+        </section>
+      )}
+      {d.evidenceRetrieval && (phase === null || phase === 2) && (
+        <section className="panel">
+          <h3>Retrieved career evidence</h3>
+          <p>{d.evidenceRetrieval.notice}</p>
+          <p>
+            Retrieval: {d.evidenceRetrieval.strategy}. Only approved profile fact IDs can become
+            application claims.
+          </p>
+          {d.evidenceRetrieval.hits.map((h: any) => (
+            <details key={h.id}>
+              <summary>{h.id}</summary>
+              <p>{h.text}</p>
+            </details>
+          ))}
         </section>
       )}
       {(phase === null || phase === 5) && d.feedback && d.selectedJob && (

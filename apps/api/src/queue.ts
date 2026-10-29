@@ -144,11 +144,15 @@ async function executeMission(id: string) {
       const publicMessage =
         e instanceof JobSourceError
           ? e.message
-          : /Live AI requires|Job source|sharing|budget|profile changed|unsupported|evidence|revision limit|Mission unavailable/i.test(
-                message,
-              )
-            ? message
-            : 'The specialist could not complete this step. Your approved data and saved answers are preserved. Retry the step or check provider availability.';
+          : (e as any)?.status === 429
+            ? `AI provider rate limit reached${/tokens per day|TPD/i.test(message) ? ' (daily token allowance)' : ''}. Retry after the allowance recovers; repeated retries will not resolve this limit. Your approved profile and saved answers are preserved.`
+            : (e as any)?.status === 413
+              ? 'The AI request exceeded the provider size limit. Your approved profile and saved answers are preserved.'
+              : /Live AI requires|Job source|sharing|budget|profile changed|unsupported|evidence|revision limit|Mission unavailable/i.test(
+                    message,
+                  )
+                ? message
+                : 'The specialist could not complete this step. Your approved data and saved answers are preserved. Retry the step or check provider availability.';
       await db.mission.updateMany({
         where: { id, status: 'RUNNING', leaseToken: lease },
         data: {

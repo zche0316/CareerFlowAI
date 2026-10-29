@@ -7,6 +7,12 @@ import { prepareApplication, recordApplication, applicationRecordSchema } from '
 import express from 'express';
 import { resumeText, resumeDocx, resumePdf } from '../../../packages/documents/src/resume.js';
 import { registerProfileImports } from './profile-import.js';
+import { registerExperienceOrganisation } from './experience-organisation.js';
+import { registerProfileConversations } from './profile-conversations.js';
+import { registerCareerMemory } from './career-memory.js';
+import { registerResumeWording } from './resume-wording.js';
+import { registerApplicationReadiness } from './application-readiness.js';
+import { registerApplicationVersions } from './application-versions.js';
 import { routerSettings } from '../../../packages/agents/src/router.js';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { z } from 'zod';
@@ -216,6 +222,12 @@ export function createApp() {
     }
   });
   registerProfileImports(app);
+  registerProfileConversations(app);
+  registerExperienceOrganisation(app);
+  registerCareerMemory(app);
+  registerResumeWording(app);
+  registerApplicationReadiness(app);
+  registerApplicationVersions(app);
   app.post('/api/profiles/drafts', async (req, res) =>
     res.status(201).json(await createDraft(req.actor!.id, req.body)),
   );
@@ -484,13 +496,11 @@ export function createApp() {
         requestId: res.locals.requestId,
       });
     if (err?.type === 'entity.too.large')
-      return res
-        .status(413)
-        .json({
-          code: 'FILE_TOO_LARGE',
-          error: 'Request exceeds the permitted size.',
-          requestId: res.locals.requestId,
-        });
+      return res.status(413).json({
+        code: 'FILE_TOO_LARGE',
+        error: 'Request exceeds the permitted size.',
+        requestId: res.locals.requestId,
+      });
     if (err?.type === 'entity.parse.failed')
       return res.status(400).json({
         code: 'INVALID_JSON',
