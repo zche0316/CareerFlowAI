@@ -1,4 +1,5 @@
 import type { CareerProfile } from './index.js';
+import { recordKeys, recordText, orderedRecords } from './profile-records.js';
 // Reuse approved evidence only. An account name is editable and not an employment claim.
 export function australianProfileDraft(
   approved: CareerProfile | undefined,
@@ -6,6 +7,8 @@ export function australianProfileDraft(
 ): CareerProfile {
   return {
     name: approved?.name || name,
+    ...Object.fromEntries(recordKeys.map((key) => [key, structuredClone(approved?.[key] || [])])),
+    ...(approved?.contact ? { contact: structuredClone(approved.contact) } : {}),
     goals: approved?.goals || 'Find a suitable technology role in Australia.',
     skills: [...(approved?.skills || [])],
     interests: [...(approved?.interests || ['Technology roles in Australia'])],
@@ -44,7 +47,11 @@ export function australianResumeText(p: CareerProfile) {
     p.education || '[Add degree, institution and dates]',
     '',
     'EXPERIENCE / PROJECTS',
-    p.experience || '[Add factual responsibilities, project contributions and dates]',
+    p.experience ||
+      (!p.workExperiences?.length && !p.projects?.length
+        ? '[Add factual responsibilities, project contributions and dates]'
+        : ''),
+    ...recordKeys.flatMap((key) => orderedRecords(p[key]).map(recordText)),
     '',
     'LOCATION PREFERENCE',
     p.location || 'Australia',

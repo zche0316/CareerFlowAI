@@ -16,6 +16,7 @@ model User {
   profiles Profile[]
   missions Mission[]
   resumes ApprovedResume[]
+  imports ProfileImport[]
 }
 model Session {
   id String @id @default(uuid())
@@ -76,4 +77,22 @@ model ApprovedResume {
   draftHash String @unique
   content Json
   approvedAt DateTime @default(now())
+}
+
+model ProfileImport {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  filename String
+  mime String
+  file Bytes
+  status String @default("EXTRACTED")
+  pages Json
+  proposed Json
+  events Json
+  error String?
+  calls Int @default(0)
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  @@index([userId, createdAt])
 }

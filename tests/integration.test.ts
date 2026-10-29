@@ -1,4 +1,5 @@
-import { afterAll, beforeAll, describe, it, expect } from 'vitest';
+import { afterAll, beforeAll, describe, it, expect, vi } from 'vitest';
+import * as importProvider from '../packages/agents/src/import-model.js';
 import type { Server } from 'node:http';
 import { createApp } from '../apps/api/src/app.js';
 import { initQueue, closeQueue } from '../apps/api/src/queue.js';
@@ -1067,4 +1068,187 @@ describe('Owned, durable five-agent journey', () => {
       ).status,
     ).toBe(403);
   });
+});
+
+describe('Structured profiles and owned resume imports', () => {
+  it('persists multiple dated records, requires approval, rejects foreign import evidence and retains original page quotes', async () => {
+    const a = await client(true),
+      b = await client(true);
+    const text = 'Software Engineer at Example Pty Ltd\nJan 2024 - Feb 2025\nBuilt SQL reports.';
+    const imported = await a.request('/profiles/imports', 'POST', {
+      filename: 'fictional-resume.txt',
+      mime: 'text/plain',
+      base64: Buffer.from(text).toString('base64'),
+    });
+    expect(imported.status).toBe(201);
+    expect(imported.body.pages[0].text).toBe(text);
+    expect(imported.body.calls).toBe(0);
+    expect(imported.body.file).toBeUndefined();
+    expect((await b.request('/profiles/imports/' + imported.body.id)).status).toBe(404);
+    expect(
+      (await a.request('/profiles/imports/' + imported.body.id + '/structure', 'POST', {})).status,
+    ).toBe(422);
+    expect(
+      (
+        await a.request('/profiles/imports/' + imported.body.id + '/structure', 'POST', {
+          consent: true,
+        })
+      ).body.code,
+    ).toBe('LIVE_IMPORT_REQUIRED');
+    expect(
+      (
+        await a.request('/profiles/imports', 'POST', {
+          filename: 'broken.pdf',
+          mime: 'application/pdf',
+          base64: Buffer.from('broken').toString('base64'),
+        })
+      ).status,
+    ).toBe(422);
+    const entry = {
+      id: 'qa-work-one',
+      title: 'Software Engineer',
+      organisation: 'Example Pty Ltd',
+      location: '',
+      startMonth: '2024-01',
+      endMonth: '2025-02',
+      current: false,
+      details: ['Built SQL reports.'],
+      technologies: [],
+      url: '',
+      evidence: [{ importId: imported.body.id, page: 1, quote: text }],
+    };
+    const input = {
+      ...sampleProfile,
+      education: '',
+      experience: '',
+      workExperiences: [entry, { ...entry, id: 'qa-work-two', evidence: [] }],
+      projects: [{ ...entry, id: 'qa-project', evidence: [] }],
+      educations: [{ ...entry, id: 'qa-education', title: 'Bachelor of IT', evidence: [] }],
+    };
+    expect((await b.request('/profiles/drafts', 'POST', input)).status).toBe(422);
+    const made = await a.request('/profiles/drafts', 'POST', input);
+    expect(made.status).toBe(201);
+    expect((await a.request('/workspace')).body.profile).toBeFalsy();
+    const approved = await a.request('/profiles/drafts/' + made.body.id + '/approve', 'POST', {
+      reviewed: true,
+    });
+    expect(approved.status).toBe(200);
+    expect(approved.body.data.workExperiences).toHaveLength(2);
+    expect(
+      approved.body.facts.find((f: any) => f.id === 'workExperiences-qa-work-one').evidence[0]
+        .quote,
+    ).toBe(text);
+    expect((await a.request('/profiles/imports/' + imported.body.id)).body.pages[0].text).toBe(
+      text,
+    );
+    const mission = await a.request('/missions', 'POST', {
+      goal: 'Validate structured evidence from imported profile through resume approval.',
+      minScore: 0,
+      jobSearch: { provider: 'fixtures' },
+    });
+    expect(mission.status).toBe(202);
+    const ranked = await wait(a, mission.body.id, 'AWAITING_JOB');
+    expect(
+      (
+        await a.request(`/missions/${mission.body.id}/decisions`, 'POST', {
+          kind: 'job',
+          jobId: ranked.data.matches[0].job.id,
+        })
+      ).status,
+    ).toBe(202);
+    const resume = await wait(a, mission.body.id, 'AWAITING_APPROVAL');
+    const claim = resume.data.resumeDraft.claims.find(
+      (c: any) => c.factId === 'workExperiences-qa-work-one',
+    );
+    expect(claim.section).toBe('workExperiences');
+    expect(claim.text).toContain('2024-01 – 2025-02');
+    expect(claim.evidence[0].quote).toBe(text);
+    expect(resume.data.resumeDraft.claims.some((c: any) => c.section === 'projects')).toBe(true);
+    expect(
+      (
+        await a.request(`/missions/${mission.body.id}/decisions`, 'POST', {
+          kind: 'resume',
+          decision: 'approve',
+          draftHash: resume.data.resumeDraft.hash,
+        })
+      ).status,
+    ).toBe(202);
+    const interview = await wait(a, mission.body.id, 'AWAITING_INTERVIEW');
+    expect(interview.data.approvedResumeId).toBeTruthy();
+  });
+  it('exports only owned approved snapshots as genuine PDF and DOCX', async () => {
+    const a = await client(true),
+      b = await client(true);
+    const { id } = await prepareInterview(a, 'Validate approved resume file exports.');
+    const mission = await a.request('/missions/' + id);
+    const resumeId = mission.body.data.approvedResumeId;
+    expect(resumeId).toBeTruthy();
+    for (const format of ['pdf', 'docx']) {
+      const url = base + '/api/resumes/' + resumeId + '/download?format=' + format;
+      const denied = await fetch(url, { headers: { cookie: b.cookie } });
+      expect(denied.status).toBe(404);
+      const response = await fetch(url, { headers: { cookie: a.cookie } });
+      expect(response.status).toBe(200);
+      const bytes = Buffer.from(await response.arrayBuffer());
+      expect(bytes.subarray(0, format === 'pdf' ? 5 : 2).toString()).toBe(
+        format === 'pdf' ? '%PDF-' : 'PK',
+      );
+    }
+  });
+});
+
+it('retains owned import state through rate limits, explicit retry, stale processing recovery and budget gates', async () => {
+  const a = await client(true);
+  const created = await a.request('/profiles/imports', 'POST', {
+    filename: 'retry-qa.txt',
+    mime: 'text/plain',
+    base64: Buffer.from(
+      'Fictional QA resume text. Software Engineer, Example Company, Jan 2024.',
+    ).toString('base64'),
+  });
+  const id = created.body.id;
+  const previous = process.env.PROVIDER_MODE;
+  const mock = vi.spyOn(importProvider, 'importModel');
+  process.env.PROVIDER_MODE = 'openai';
+  try {
+    mock.mockRejectedValueOnce({ status: 429, headers: new Headers({ 'retry-after': '2' }) });
+    const failed = await a.request(`/profiles/imports/${id}/structure`, 'POST', { consent: true });
+    expect(failed.status).toBe(429);
+    expect(failed.body.error).toContain('Retry after 2 seconds');
+    const saved = await a.request(`/profiles/imports/${id}`);
+    expect(saved.body.status).toBe('FAILED');
+    expect(saved.body.calls).toBe(1);
+    expect(saved.body.pages).toEqual(created.body.pages);
+    mock.mockResolvedValueOnce({
+      result: { records: [], questions: ['Please confirm the role dates.'] },
+      usage: { model: 'mock-text', inputTokens: 20, outputTokens: 10 },
+    });
+    const retry = await a.request(`/profiles/imports/${id}/structure`, 'POST', { consent: true });
+    expect(retry.status).toBe(200);
+    expect(retry.body.calls).toBe(2);
+    expect(retry.body.events.some((e: any) => e.action === 'failed')).toBe(true);
+    await db.profileImport.update({ where: { id }, data: { status: 'PROCESSING' } });
+    expect(
+      (await a.request(`/profiles/imports/${id}/structure`, 'POST', { consent: true })).status,
+    ).toBe(409);
+    await db.profileImport.update({
+      where: { id },
+      data: { updatedAt: new Date(Date.now() - 130000) },
+    });
+    mock.mockResolvedValueOnce({
+      result: { records: [], questions: [] },
+      usage: { model: 'mock-text', inputTokens: 20, outputTokens: 10 },
+    });
+    expect(
+      (await a.request(`/profiles/imports/${id}/structure`, 'POST', { consent: true })).status,
+    ).toBe(200);
+    await db.profileImport.update({ where: { id }, data: { calls: 8 } });
+    expect(
+      (await a.request(`/profiles/imports/${id}/structure`, 'POST', { consent: true })).body.code,
+    ).toBe('IMPORT_BUDGET');
+    expect(mock).toHaveBeenCalledTimes(3);
+  } finally {
+    process.env.PROVIDER_MODE = previous;
+    mock.mockRestore();
+  }
 });

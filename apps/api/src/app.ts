@@ -5,6 +5,9 @@ import {
 import { toolsDashboard, runTool, toolCommand, exportReminder } from './tools.js';
 import { prepareApplication, recordApplication, applicationRecordSchema } from './recruitment.js';
 import express from 'express';
+import { resumeText, resumeDocx, resumePdf } from '../../../packages/documents/src/resume.js';
+import { registerProfileImports } from './profile-import.js';
+import { routerSettings } from '../../../packages/agents/src/router.js';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
@@ -59,6 +62,7 @@ function requestId(value: unknown) {
 export function createApp() {
   const app = express();
   app.disable('x-powered-by');
+  app.use('/api/profiles/imports', express.json({ limit: '6mb' }));
   app.use(express.json({ limit: '150kb' }));
   app.use((req, res, next) => {
     const id = requestId(req.get('X-Request-ID'));
@@ -91,6 +95,7 @@ export function createApp() {
       csrf: req.session?.csrf || null,
       mode: configuredMode(),
       recruitment: recruitmentSettings(),
+      router: routerSettings(),
       demoEnabled: process.env.ENABLE_DEMO_LOGIN === 'true',
     }),
   );
@@ -210,6 +215,7 @@ export function createApp() {
       );
     }
   });
+  registerProfileImports(app);
   app.post('/api/profiles/drafts', async (req, res) =>
     res.status(201).json(await createDraft(req.actor!.id, req.body)),
   );
@@ -361,7 +367,7 @@ export function createApp() {
       const mission = await ownedMission(req.actor!.id, String(req.params.id));
       const data = mission.data as MissionData;
       const selected = data.matches?.find((r: any) => r.job.id === decision.jobId);
-      if (selected?.job.source?.provider === 'greenhouse') {
+      if (['greenhouse', 'lever', 'ashby'].includes(selected?.job.source?.provider)) {
         let check;
         try {
           check = await new JobRepository().revalidate(selected.job);
@@ -434,14 +440,26 @@ export function createApp() {
       }),
     );
     const c = r.content as any;
-    const text = [
-      c.name,
-      `Target role: ${c.jobTitle}`,
-      '',
-      ...c.claims.map((x: any) => `\n${x.kind.toUpperCase()}\n${x.text}`),
-    ].join('\n');
-    res.setHeader('Content-Disposition', `attachment; filename="careerflow-approved-resume.txt"`);
-    res.type('text/plain').send(text);
+    const format = z.enum(['txt', 'pdf', 'docx']).parse(req.query.format || 'txt');
+    const buffer =
+      format === 'pdf'
+        ? await resumePdf(c)
+        : format === 'docx'
+          ? await resumeDocx(c)
+          : resumeText(c);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="careerflow-approved-resume.${format}"`,
+    );
+    res
+      .type(
+        format === 'pdf'
+          ? 'application/pdf'
+          : format === 'docx'
+            ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            : 'text/plain',
+      )
+      .send(buffer);
   });
   app.use('/api', (_req, _res, next) =>
     next(new AppError(404, 'NOT_FOUND', 'API route not found.')),
@@ -465,6 +483,14 @@ export function createApp() {
         error: err.message,
         requestId: res.locals.requestId,
       });
+    if (err?.type === 'entity.too.large')
+      return res
+        .status(413)
+        .json({
+          code: 'FILE_TOO_LARGE',
+          error: 'Request exceeds the permitted size.',
+          requestId: res.locals.requestId,
+        });
     if (err?.type === 'entity.parse.failed')
       return res.status(400).json({
         code: 'INVALID_JSON',

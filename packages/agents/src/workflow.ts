@@ -164,6 +164,7 @@ export async function createWorkflow() {
           duplicateCount: fetched.duplicateCount ?? 0,
           geography: fetched.geography,
           sources: fetched.sources || [],
+          discovery: fetched.discovery || null,
           limitations: fetched.limitations || [],
           fetchedAt: new Date().toISOString(),
         };
@@ -249,6 +250,7 @@ export async function createWorkflow() {
         missionId: s.missionId,
         jobTitle: c.d.selectedJob.job.title,
         name: c.p.name,
+        ...(c.p.contact ? { contact: c.p.contact } : {}),
         profileVersion: c.m.profile.version,
         claims,
         omittedFacts: c.facts.filter(

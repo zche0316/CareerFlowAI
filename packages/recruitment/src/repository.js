@@ -1,3 +1,6 @@
+import { JobSourceError } from './source-error.js';
+export { JobSourceError } from './source-error.js';
+import { discoverTavily, postingIdentity, tavilyAccess, verifyPosting } from './tavily.js';
 import { countries, countrySpec, filterGeography } from './geography.js';
 export const employerBoards = [
   { board: 'spaceship', company: 'Spaceship', hosts: [] },
@@ -5,23 +8,18 @@ export const employerBoards = [
   { board: 'gofundme', company: 'GoFundMe', hosts: [] },
   { board: 'mongodb', company: 'MongoDB', hosts: ['www.mongodb.com', 'mongodb.com'] },
 ];
-export class JobSourceError extends Error {
-  constructor(code, message, status = 503, retryAfter = null) {
-    super(message);
-    this.name = 'JobSourceError';
-    this.code = code;
-    this.status = status;
-    this.retryAfter = retryAfter;
-  }
-}
 export function recruitmentSettings(env = process.env) {
-  const provider = ['employers', 'greenhouse', 'adzuna', 'fixtures'].includes(env.JOB_SOURCE)
+  const provider = ['employers', 'greenhouse', 'tavily', 'adzuna', 'fixtures'].includes(
+    env.JOB_SOURCE,
+  )
     ? env.JOB_SOURCE
     : 'employers';
   const country = countries.some((c) => c.code === env.ADZUNA_COUNTRY) ? env.ADZUNA_COUNTRY : 'au';
   return {
     defaults: { provider, country },
     adzunaConfigured: Boolean(env.ADZUNA_APP_ID && env.ADZUNA_APP_KEY),
+    tavilyConfigured: tavilyAccess(env).configured,
+    tavilyAccessMode: tavilyAccess(env).mode,
   };
 }
 export function uniqueJobs(jobs) {
@@ -122,6 +120,7 @@ export class JobRepository {
   capabilities() {
     return {
       greenhouse: { search: true, credentialsRequired: false },
+      tavily: { search: tavilyAccess().configured, accessMode: tavilyAccess().mode },
       adzuna: {
         search: Boolean(this.adzunaId && this.adzunaKey),
         countries: countries.map((c) => c.code),
@@ -215,6 +214,34 @@ export class JobRepository {
     };
   }
   async revalidate(job, { signal } = {}) {
+    if (['lever', 'ashby'].includes(job?.source?.provider)) {
+      const identity = postingIdentity(job.applicationUrl);
+      if (
+        !identity ||
+        identity.provider !== job.source.provider ||
+        identity.board !== job.source.board ||
+        identity.id !== job.source.listingId
+      )
+        throw Error('Job source identity is invalid.');
+      try {
+        const fresh = await verifyPosting(this, identity, signal);
+        if (fresh.applicationUrl !== job.applicationUrl)
+          throw Error('Posting destination changed.');
+        return {
+          status: 'published_at_check',
+          checkedAt: new Date().toISOString(),
+          method: 'official-job-board-api',
+        };
+      } catch (e) {
+        if (/HTTP (404|410)/.test(e.message))
+          return {
+            status: 'closed_or_removed',
+            checkedAt: new Date().toISOString(),
+            method: 'official-job-board-api',
+          };
+        throw e;
+      }
+    }
     if (job?.source?.provider !== 'greenhouse')
       return {
         status: 'unverified',
@@ -272,6 +299,7 @@ export class JobRepository {
         geography: { country, region },
         limitations: ['User-provided content; availability and accuracy have not been verified.'],
       };
+    if (b.provider === 'tavily') return discoverTavily(this, b, signal);
     if (b.provider === 'employers') {
       const outcomes = await Promise.allSettled(
         employerBoards.map((source) =>

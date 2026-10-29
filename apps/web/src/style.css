@@ -2007,3 +2007,40 @@ h3,
 .shell {
   flex-direction: column;
 }
+
+/* Structured resume records reuse the existing navy and numbered-stage interface. */
+.profile-record {
+  border: 1px solid var(--border, #dce2e8);
+  border-radius: 10px;
+  padding: 16px;
+  margin: 16px 0;
+  min-width: 0;
+}
+.record-section {
+  margin: 20px 0;
+}
+.source-preview {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 340px;
+  overflow-y: auto;
+  background: #f4f6f8;
+  padding: 12px;
+  font: inherit;
+  font-size: 13px;
+}
+.import-panel details {
+  margin: 12px 0;
+}
+.profile-record blockquote,
+.import-panel blockquote {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 12px 0;
+  border-left: 3px solid #bccbd9;
+  padding-left: 12px;
+}
+.structured-profile input,
+.structured-profile textarea {
+  max-width: 100%;
+}

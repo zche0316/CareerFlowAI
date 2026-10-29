@@ -125,6 +125,7 @@ it('routes both tool and structured-output requests to the configured compatible
 });
 
 it('disables DeepSeek thinking mode for the required context-tool handshake', async () => {
+  vi.stubEnv('OPENAI_API_KEY', '');
   vi.stubEnv('DEEPSEEK_API_KEY', 'test-only-not-a-real-key');
   vi.stubEnv('OPENAI_MODEL', 'deepseek-flash');
   vi.stubEnv('OPENAI_BASE_URL', 'https://api.deepseek.com');

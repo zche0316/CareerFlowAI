@@ -116,6 +116,11 @@ export async function prepareProfileBuilderDraft(input: {
     ...structuredClone(blankProfile),
     ...pickFields(existing),
     ...pickFields(current),
+    ...Object.fromEntries(
+      ['workExperiences', 'projects', 'educations', 'contact']
+        .filter((k) => current[k] !== undefined || existing[k] !== undefined)
+        .map((k) => [k, current[k] ?? existing[k]]),
+    ),
     sharing: {
       ...blankProfile.sharing,
       ...sharingValues(existing.sharing),

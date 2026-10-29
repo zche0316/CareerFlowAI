@@ -117,7 +117,9 @@ test('a user finishes early and receives feedback from the saved response', asyn
     fullPage: true,
   });
   await page.getByRole('button', { name: 'Document library', exact: true }).click();
-  await expect(page.getByRole('link', { name: 'Download', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Download TXT', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Download DOCX', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Download PDF', exact: true })).toBeVisible();
   await page.screenshot({ path: 'output/acceptance/desktop-journey.png', fullPage: true });
 });
 

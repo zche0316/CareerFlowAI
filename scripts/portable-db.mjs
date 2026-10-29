@@ -37,7 +37,8 @@ export async function startLocalDatabase() {
   }
   console.log(`Persistent local development database ready on 127.0.0.1:${port}`);
   return {
-    url: `postgresql://postgres:postgres@127.0.0.1:${port}/postgres`,
+    // The loopback-only portable server does not implement TLS negotiation.
+    url: `postgresql://postgres:postgres@127.0.0.1:${port}/postgres?sslmode=disable`,
     async close() {
       await server.stop();
       await db.close();
