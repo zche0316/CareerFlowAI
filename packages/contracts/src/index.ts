@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { recordSchema } from './profile-records.js';
 
 // Shared input contracts drive server validation and client field types.
 export const profileSchema = z
@@ -7,11 +8,24 @@ export const profileSchema = z
     goals: z.string().trim().min(3).max(2000),
     skills: z.array(z.string().trim().min(1).max(80)).max(40),
     interests: z.array(z.string().trim().min(1).max(80)).max(20).default([]),
-    education: z.string().trim().min(1, 'Enter education or explicitly state none yet.').max(2000),
+    education: z.string().trim().max(2000),
+    workExperiences: z.array(recordSchema).max(20).optional(),
+    projects: z.array(recordSchema).max(20).optional(),
+    educations: z.array(recordSchema).max(10).optional(),
+    contact: z
+      .object({
+        email: z.union([z.literal(''), z.string().email()]).default(''),
+        phone: z.string().max(80).default(''),
+        city: z.string().max(100).default(''),
+        linkedin: z.union([z.literal(''), z.string().url()]).default(''),
+        portfolio: z.union([z.literal(''), z.string().url()]).default(''),
+        workRights: z.string().max(300).default(''),
+      })
+      .optional(),
     experience: z
       .string()
       .trim()
-      .min(1, 'Enter experience or explicitly state none yet.')
+
       .max(4000),
     experienceYears: z.number().min(0).max(60),
     location: z.string().trim().max(100).default(''),
@@ -34,6 +48,31 @@ export const profileSchema = z
 
   // Cross-field rules cannot be expressed by individual field validators.
   .superRefine((p, c) => {
+    if (!p.education && !p.educations?.length)
+      c.addIssue({
+        code: 'custom',
+        path: ['education'],
+        message: 'Enter education or explicitly state none yet.',
+      });
+    if (!p.experience && !p.workExperiences?.length && !p.projects?.length)
+      c.addIssue({
+        code: 'custom',
+        path: ['experience'],
+        message: 'Enter experience or explicitly state none yet.',
+      });
+    for (const key of ['workExperiences', 'projects', 'educations'] as const) {
+      const ids = new Set<string>();
+      p[key]?.forEach((r, i) => {
+        if (ids.has(r.id))
+          c.addIssue({
+            code: 'custom',
+            path: [key, i, 'id'],
+            message: 'Record IDs must be unique.',
+          });
+        ids.add(r.id);
+      });
+    }
+
     if (!p.skills.length && !p.interests.length)
       c.addIssue({
         code: 'custom',
@@ -83,7 +122,15 @@ export const blankProfile: CareerProfile = {
   sharing: { coach: false, matching: false, resume: false, interview: false },
 };
 
-export type Fact = { id: string; kind: string; text: string; source: string };
+export type Fact = {
+  id: string;
+  kind: string;
+  text: string;
+  source: string;
+  section?: string;
+  recordId?: string;
+  evidence?: { importId: string; page: number; quote: string }[];
+};
 
 const coachRecommendationSchema = z.object({
   text: z.string().trim().min(1).max(1000),
@@ -278,7 +325,7 @@ export const AGENTS = [
 
 export const jobSearchSchema = z.object({
   provider: z
-    .enum(['employers', 'greenhouse', 'adzuna', 'fixtures', 'manual'])
+    .enum(['employers', 'greenhouse', 'tavily', 'adzuna', 'fixtures', 'manual'])
     .default('greenhouse'),
   board: z
     .string()

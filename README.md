@@ -30,7 +30,7 @@ It starts the local database, applies migrations, runs type checking, matching/u
 
 ### Quick start with local PostgreSQL
 
-Requires Node.js 22.12+ (Node 24 LTS recommended), npm and PostgreSQL 15+.
+Requires Node.js 22.13+ (Node 24 LTS recommended), npm and PostgreSQL 15+.
 
 ```sh
 cp .env.example .env
@@ -76,8 +76,15 @@ Configure `.env` as follows, insert your own Groq key, then restart the server (
 PROVIDER_MODE=openai
 OPENAI_BASE_URL=https://api.groq.com/openai/v1
 OPENAI_API_KEY=your-local-groq-key
-OPENAI_MODEL=openai/gpt-oss-20b
+OPENAI_MODEL=openai/gpt-oss-120b
 ```
+
+For an optional Groq Qwen preview comparison, change only `OPENAI_MODEL` to
+`qwen/qwen3.8-27b`; use the same Groq key and base URL. This is configuration
+support, not a claim that this model has passed the application's live workflow.
+Keep the production baseline available until tool calls, structured results,
+evidence grounding, response times and failure handling have been checked.
+Do not overwrite a populated `.env` with `.env.example`.
 
 `openai` denotes the compatible protocol; the endpoint above sends requests to Groq. The selected model must support function calling and strict structured outputs. This adapter normally uses two requests, separating tool execution from the structured final response, and permits one schema-correction request when a compatible provider returns an invalid field. Groq Responses API is beta; local transport tests do not establish live provider compatibility or account access. Missing credentials produce a recoverable error, not fixture output. Leave `OPENAI_BASE_URL` blank to return to the default OpenAI endpoint. Docker Compose forwards this setting too.
 
@@ -120,6 +127,14 @@ Exclude `.git`, `node_modules`, `.env`, `.runtime`, `output`, `dist`, browser re
 
 See [architecture and requirement mapping](docs/architecture.md), the [API and repository contract](docs/API.md), [orchestration and profile handoff](docs/ORCHESTRATION.md), [integration quality checks](docs/QUALITY_CHECKS.md) and the [CFS-41 integration acceptance record](docs/INTEGRATION_ACCEPTANCE.md). Member 3 source provenance is documented in [packages/matching/NOTICE.md](packages/matching/NOTICE.md).
 
+
+### Structured profiles and model router (29 October 2026)
+
+Profiles now support multiple dated employment, project and education records, optional contact details, and source-backed resume imports. PDF/TXT text extraction runs locally; Qwen vision and text organization require explicit consent and live mode. Approved resumes export as TXT, DOCX or searchable PDF. See [setup, workflow, model routing and verification boundaries](docs/PROFILE_IMPORT_AND_MODEL_ROUTER.md). Defaults retain GPT-OSS 120B text with a separately configurable Qwen vision branch and optional economical 20B organizer.
+
+### Tavily discovery (28 October 2026)
+
+Tavily is now an optional job source inside the existing mission workflow. See [configuration, usage and verification boundaries](docs/TAVILY_INTEGRATION.md). Configure `TAVILY_ACCESS_MODE=api_key` and `TAVILY_API_KEY` in the private `.env`, restart, then select **Tavily discovery · verified public job boards**. The backend discovers up to five links and confirms postings through public Greenhouse, Lever or Ashby APIs before matching. Public ATS reads need no keys; Tavily account-backed search needs its own key. Explicit limited `keyless` mode is supported separately. Adzuna remains optional legacy support and is omitted from `.env.example`.
 
 ### Desktop integration: real recruitment
 

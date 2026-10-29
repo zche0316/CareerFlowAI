@@ -1,0 +1,21 @@
+import { it, expect, vi, afterEach } from 'vitest';
+import { modelRoute, routerSettings } from '../packages/agents/src/router.js';
+afterEach(() => vi.unstubAllEnvs());
+it('keeps main text, economical text and vision assignments independent without exposing secrets', () => {
+  vi.stubEnv('OPENAI_API_KEY', 'test-key-never-expose');
+  vi.stubEnv('OPENAI_BASE_URL', 'https://api.groq.com/openai/v1');
+  vi.stubEnv('VISION_BASE_URL', 'https://api.groq.com/openai/v1');
+  vi.stubEnv('OPENAI_MODEL', 'openai/gpt-oss-120b');
+  vi.stubEnv('TEXT_MODEL', '');
+  vi.stubEnv('LIGHT_TEXT_MODEL', 'openai/gpt-oss-20b');
+  vi.stubEnv('VISION_MODEL', 'qwen/qwen3.8-27b');
+  vi.stubEnv('VISION_API_KEY', '');
+  expect(modelRoute('text').model).toBe('openai/gpt-oss-120b');
+  expect(modelRoute('light').model).toBe('openai/gpt-oss-20b');
+  expect(modelRoute('vision').model).toBe('qwen/qwen3.8-27b');
+  expect(modelRoute('vision').apiKey).toBe('test-key-never-expose');
+  expect(JSON.stringify(routerSettings())).not.toContain('test-key');
+  vi.stubEnv('OPENAI_BASE_URL', 'https://api.openai.com/v1');
+  expect(modelRoute('vision').apiKey).toBe('');
+  expect(routerSettings().visionConfigured).toBe(false);
+});

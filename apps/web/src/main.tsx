@@ -3,6 +3,9 @@ import {
   australianProfileDraft,
   australianResumeText,
 } from '../../../packages/contracts/src/australian-resume.js';
+import { ProfileRecords } from './profile-records.js';
+import { ProfileImport } from './profile-import.js';
+import { recordKeys } from '../../../packages/contracts/src/profile-records.js';
 import { OptionalTools } from './tools.js';
 import {
   JobSearchFields,
@@ -626,8 +629,9 @@ function App() {
                     </div>
                     <a className="secondary" href={`/api/resumes/${r.id}/download`}>
                       <Download size={16} />
-                      Download
+                      Download TXT
                     </a>
+                    <ResumeDownloads id={r.id} />
                   </div>
                 ))
               ) : (
@@ -701,6 +705,8 @@ function App() {
               value={jobSearch}
               onChange={setJobSearch}
               adzunaConfigured={session?.recruitment?.adzunaConfigured}
+              tavilyConfigured={session?.recruitment?.tavilyConfigured}
+              tavilyAccessMode={session?.recruitment?.tavilyAccessMode}
             />
             {workspace?.profile?.data && (
               <button
@@ -754,7 +760,8 @@ function App() {
                 disabled={
                   busy ||
                   goal.trim().length < 5 ||
-                  (jobSearch.provider === 'adzuna' && !session?.recruitment?.adzunaConfigured)
+                  (jobSearch.provider === 'adzuna' && !session?.recruitment?.adzunaConfigured) ||
+                  (jobSearch.provider === 'tavily' && !session?.recruitment?.tavilyConfigured)
                 }
                 onClick={() =>
                   void act(async () => {
@@ -1224,6 +1231,30 @@ function Profile({
               </div>
             )}
             <div className="sharing">
+              <ProfileImport
+                api={api}
+                disabled={busy || committing || preparing || building}
+                onApply={(records) => {
+                  setForm((current) => ({
+                    ...current!,
+                    ...Object.fromEntries(
+                      recordKeys.map((key) => [
+                        key,
+                        [
+                          ...(current?.[key] || []),
+                          ...records
+                            .filter(
+                              (r) =>
+                                r.section === key && !current?.[key]?.some((x) => x.id === r.id),
+                            )
+                            .map(({ section, ...r }) => r),
+                        ],
+                      ]),
+                    ),
+                  }));
+                  invalidateDraft();
+                }}
+              />
               <h3>Profile Builder</h3>
               <p className="muted">
                 Describe your background in your own words. Profile Builder can organise only the
@@ -1343,6 +1374,7 @@ function Profile({
               <div className="wide">
                 {input('experience', 'Experience and projects or “none yet”', { area: true })}
               </div>
+              <ProfileRecords form={form} onChange={change} errors={fields} />
               {input('experienceYears', 'Years of experience', { type: 'number' })}
               {input('employmentType', 'Employment preference', { placeholder: 'Optional' })}
               {input('workArrangement', 'Work arrangement', { placeholder: 'e.g. Hybrid' })}
@@ -1789,6 +1821,13 @@ function MissionDetail({
             {d.jobRetrieval.geography?.countryName || d.jobSearch?.country?.toUpperCase()} ·{' '}
             {d.jobRetrieval.geography?.region || 'All regions'}
           </p>
+          {d.jobRetrieval.discovery && (
+            <p>
+              Tavily: {d.jobRetrieval.discovery.discovered} indexed links ·{' '}
+              {d.jobRetrieval.discovery.verified} officially verified · {d.jobRetrieval.count}{' '}
+              location matches · {d.jobRetrieval.discovery.credits ?? 'Unknown'} search credits
+            </p>
+          )}
           {d.jobRetrieval.duplicateCount > 0 && (
             <p>{d.jobRetrieval.duplicateCount} duplicate source records removed.</p>
           )}
@@ -1798,8 +1837,13 @@ function MissionDetail({
             </p>
           )}
           {d.jobRetrieval.sources?.map((source: any) => (
-            <p key={source.board}>
-              {source.company} · {source.status} · {source.count} matching location/keyword filters
+            <p
+              key={`${source.provider || ''}-${source.board}-${source.listingId || source.status}`}
+            >
+              {source.company || source.board} · {source.status}
+              {source.count !== undefined
+                ? ` · ${source.count} matching location/keyword filters`
+                : ''}
             </p>
           ))}
           {d.jobRetrieval.limitations?.map((text: string) => (
@@ -2102,6 +2146,7 @@ function MissionDetail({
               </details>
             </div>
           )}
+          {d.approvedResumeId && <ResumeDownloads id={d.approvedResumeId} />}
           {d.approvedResumeId && (
             <a className="secondary" href={`/api/resumes/${d.approvedResumeId}/download`}>
               <Download size={16} />
@@ -2366,3 +2411,16 @@ function MissionDetail({
 }
 
 createRoot(document.getElementById('root')!).render(<App />);
+
+function ResumeDownloads({ id }: { id: string }) {
+  return (
+    <span className="form-actions">
+      <a className="secondary" href={`/api/resumes/${id}/download?format=docx`}>
+        Download DOCX
+      </a>
+      <a className="secondary" href={`/api/resumes/${id}/download?format=pdf`}>
+        Download PDF
+      </a>
+    </span>
+  );
+}

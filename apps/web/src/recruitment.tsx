@@ -13,9 +13,13 @@ export function JobSearchFields({
   value,
   onChange,
   adzunaConfigured,
+  tavilyConfigured,
+  tavilyAccessMode,
 }: {
   value: typeof defaultJobSearch;
   adzunaConfigured?: boolean;
+  tavilyConfigured?: boolean;
+  tavilyAccessMode?: string;
   onChange: (v: typeof defaultJobSearch) => void;
 }) {
   const update = (p: Partial<typeof defaultJobSearch>) => onChange({ ...value, ...p });
@@ -31,11 +35,19 @@ export function JobSearchFields({
         >
           <option value="employers">Official employer boards · multiple companies</option>
           <option value="greenhouse">Live company careers (Greenhouse)</option>
+          <option value="tavily">Tavily discovery · verified public job boards</option>
           <option value="adzuna">Live country-wide search (Adzuna credentials required)</option>
           <option value="manual">SEEK / Indeed · paste a listing</option>
           <option value="fixtures">Fictional demo jobs (explicit offline choice)</option>
         </select>
       </label>
+      {value.provider === 'tavily' && (
+        <p role="status" className="info">
+          {tavilyConfigured
+            ? `Tavily ${tavilyAccessMode === 'keyless' ? 'limited keyless access' : 'API access'}: one basic search, up to five links. Only postings confirmed through official Greenhouse, Lever or Ashby APIs are matched.`
+            : 'Tavily is not configured. Set TAVILY_API_KEY on the server, or explicitly choose limited TAVILY_ACCESS_MODE=keyless, then restart.'}
+        </p>
+      )}
       {value.provider === 'adzuna' && (
         <p role="status" className="info">
           {adzunaConfigured
@@ -274,7 +286,7 @@ export function JobSourceActions({
           · {new Date(availability.checkedAt).toLocaleString()}
         </p>
       )}
-      {job.source?.provider === 'greenhouse' && (
+      {['greenhouse', 'lever', 'ashby'].includes(job.source?.provider) && (
         <button className="secondary" disabled={busy} onClick={() => void check()}>
           {busy ? 'Checking official source…' : 'Recheck availability'}
         </button>

@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { modelRoute } from './router.js';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { z } from 'zod';
 import type { Fact } from '../../contracts/src/index.js';
@@ -192,14 +193,15 @@ export async function generate<T>(
                   };
     return schema.parse(result);
   }
-  const apiKey = process.env.OPENAI_API_KEY || process.env.DEEPSEEK_API_KEY;
-  if (!apiKey || !process.env.OPENAI_MODEL)
+  const route = modelRoute(role === 'profile' ? 'light' : 'text');
+  const apiKey = route.apiKey;
+  if (!apiKey || !route.model)
     throw Error(
       'Live AI requires OPENAI_API_KEY or DEEPSEEK_API_KEY, and OPENAI_MODEL. Your previous approved data is unchanged.',
     );
 
   // Disable SDK retries: mission-level retries and call accounting remain explicit.
-  const baseURL = process.env.OPENAI_BASE_URL?.trim() || undefined;
+  const baseURL = route.baseURL;
   const client = new OpenAI({
     apiKey,
     baseURL,
@@ -239,7 +241,7 @@ export async function generate<T>(
   // First require the allowlisted context tool; the model has no arbitrary browser or shell access.
   const first = await client.responses.create(
     {
-      model: process.env.OPENAI_MODEL,
+      model: route.model,
       store: false,
       input: [
         { role: 'system', content: instruction },
@@ -290,7 +292,7 @@ export async function generate<T>(
     await hooks.onCall();
     return client.responses.parse(
       {
-        model: process.env.OPENAI_MODEL,
+        model: route.model,
         store: false,
         input: [
           { role: 'system', content: instruction },
@@ -322,7 +324,7 @@ export async function generate<T>(
   try {
     response = await client.responses.parse(
       {
-        model: process.env.OPENAI_MODEL,
+        model: route.model,
         store: false,
         input: [
           { role: 'system', content: instruction },

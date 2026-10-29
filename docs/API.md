@@ -385,3 +385,19 @@ npm run test:e2e
 
 Use `PROVIDER_MODE=fixture` for deterministic tests. Live mode requires a server-side key and a model
 that supports tools and structured Responses API output; credentials must never be committed.
+
+### Structured profile records and resume import (29 October 2026)
+
+`profileSchema` additionally accepts optional `workExperiences`, `projects`, `educations` arrays and `contact`. Each record has a stable client ID, title, organisation, location, independent YYYY-MM dates, Current/Present, optional expected completion month, details, technologies, URL and original import page quotes. Legacy free-text fields remain compatible. The existing draft/review/approval endpoints remain the only way to approve a profile.
+
+Authenticated import endpoints (mutations require the existing CSRF token):
+
+- `POST /api/profiles/imports`: `{filename,mime,base64}`; PDF/TXT/PNG/JPEG, maximum 4 MB, ten PDF pages. Performs local extraction only and persists an owner-scoped import. Does not return raw file bytes.
+- `GET /api/profiles/imports`: the current user's latest ten imports.
+- `GET /api/profiles/imports/:id`: saved page previews, proposed records, status, errors, router/model availability and usage events.
+- `POST /api/profiles/imports/:id/recognize`: `{consent:true,pages?:number[]}`; recognize up to three selected pages with the configured vision model. Without an explicit list, the first three pages suggested for vision are used.
+- `POST /api/profiles/imports/:id/structure`: `{consent:true}`; organize up to 16,000 extracted characters through the configured text model and filter unsupported proposals against actual source-page quotes.
+
+Model operations require `PROVIDER_MODE=openai`; fixture mode never creates fake import records. Eight calls per import are reserved before requests; repeated/overlapping operations are rejected. Failures retain source data and require explicit retries. A processing record older than two minutes can be retried after a server interruption. No model output controls ownership or approval.
+
+`GET /api/resumes/:id/download?format=txt|docx|pdf` exports the current user's persisted approved snapshot, with TXT as the backwards-compatible default. DOCX is editable and PDF retains searchable text. Unsupported formats return validation errors; another user's resume remains unavailable. Imports and model configuration are documented in `docs/PROFILE_IMPORT_AND_MODEL_ROUTER.md`.

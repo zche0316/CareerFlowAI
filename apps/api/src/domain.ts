@@ -1,4 +1,9 @@
 import { createHash } from 'node:crypto';
+import {
+  recordKeys,
+  recordText,
+  orderedRecords,
+} from '../../../packages/contracts/src/profile-records.js';
 import { Prisma, type Mission } from '@prisma/client';
 import { z } from 'zod';
 import { db } from './db.js';
@@ -38,13 +43,39 @@ export function buildFacts(p: CareerProfile): Fact[] {
       text: s,
       source: 'User-reviewed career profile',
     })),
-    { id: 'education-1', kind: 'education', text: p.education, source: 'User-reviewed education' },
-    {
-      id: 'experience-1',
-      kind: 'experience',
-      text: p.experience,
-      source: 'User-reviewed experience',
-    },
+    ...(p.education
+      ? [
+          {
+            id: 'education-1',
+            kind: 'education',
+            text: p.education,
+            source: 'User-reviewed education',
+          },
+        ]
+      : []),
+    ...(p.experience
+      ? [
+          {
+            id: 'experience-1',
+            kind: 'experience',
+            text: p.experience,
+            source: 'User-reviewed experience',
+          },
+        ]
+      : []),
+    ...recordKeys.flatMap((key) =>
+      orderedRecords(p[key]).map((r) => ({
+        id: `${key}-${r.id}`,
+        kind: key === 'educations' ? 'education' : 'experience',
+        text: recordText(r),
+        section: key,
+        recordId: r.id,
+        evidence: r.evidence,
+        source: r.evidence.length
+          ? 'User-reviewed imported record; original page quotes retained'
+          : 'User-reviewed structured record',
+      })),
+    ),
     ...p.interests.map((s, i) => ({
       id: `interest-${i + 1}`,
       kind: 'interest',
@@ -56,6 +87,21 @@ export function buildFacts(p: CareerProfile): Fact[] {
 
 export async function createDraft(userId: string, input: unknown) {
   const data = profileSchema.parse(input);
+  for (const key of recordKeys)
+    for (const record of data[key] || [])
+      for (const evidence of record.evidence) {
+        const source = await db.profileImport.findFirst({
+          where: { id: evidence.importId, userId },
+        });
+        const page = (source?.pages as any[])?.find((p) => p.page === evidence.page);
+        const normal = (s: string) => s.replace(/\s+/g, ' ').trim();
+        if (!page || !normal(page.text).includes(normal(evidence.quote)))
+          throw new AppError(
+            422,
+            'INVALID_IMPORT_EVIDENCE',
+            'Import evidence must refer to your own saved source page.',
+          );
+      }
   const u = requireValue(await db.user.findUnique({ where: { id: userId } }));
   return db.profileDraft.create({
     data: {
@@ -230,7 +276,15 @@ export function validateResumeClaims(claims: { factId: string; reason: string }[
         'The resume contains a duplicate or unsupported candidate claim.',
       );
     ids.add(fact.id);
-    return { ...c, text: fact.text, kind: fact.kind, source: fact.source };
+    return {
+      ...c,
+      text: fact.text,
+      kind: fact.kind,
+      source: fact.source,
+      ...(fact.section
+        ? { section: fact.section, recordId: fact.recordId, evidence: fact.evidence }
+        : {}),
+    };
   });
 }
 
