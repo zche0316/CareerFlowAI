@@ -1899,6 +1899,59 @@ function MissionDetail({
                     <p>
                       <strong>Gaps:</strong> {r.gaps.join('; ') || 'No explicit gaps identified.'}
                     </p>
+                    {r.scoringVersion === 'matching-v2' && (
+                      <>
+                        <p>
+                          <strong>Required skills:</strong>{' '}
+                          {r.requirements.required.join(', ') || 'Unknown — not explicitly stated'}
+                        </p>
+                        <p>
+                          <strong>Preferred skills (optional):</strong>{' '}
+                          {r.requirements.preferred.join(', ') || 'Not stated'}. Evidenced:{' '}
+                          {r.preferredMatches?.join(', ') || 'None identified'}.
+                        </p>
+                        <p>
+                          <strong>Other skill mentions:</strong>{' '}
+                          {r.requirements.mentioned?.join(', ') || 'None'}. These are excluded from
+                          skill requirement scoring.
+                        </p>
+                        <p>
+                          <strong>Education:</strong>{' '}
+                          {r.assessment.education.status.replace('_', ' ')} —{' '}
+                          {r.assessment.education.reason}
+                        </p>
+                        <p>
+                          <strong>Location:</strong>{' '}
+                          {r.assessment.location.status.replace('_', ' ')} —{' '}
+                          {r.assessment.location.reason}
+                        </p>
+                        <p>
+                          <strong>Experience:</strong> {r.assessment.experience.replace('_', ' ')}.
+                          Unknown requirements receive neutral half-credit.
+                        </p>
+                        <ul aria-label="Suitability score components">
+                          {Object.entries(r.scoringWeights as Record<string, number>).map(
+                            ([key, weight]) => (
+                              <li key={key}>
+                                {key === 'semantic' ? 'TF-IDF overlap' : key}:{' '}
+                                {Math.round(weight * 100)}% weight ·{' '}
+                                {Math.round(r.components[key] * 100)}% component
+                              </li>
+                            ),
+                          )}
+                        </ul>
+                        <details>
+                          <summary>Skill extraction evidence</summary>
+                          <ul>
+                            {r.requirements.skillEvidence?.map((item: any, index: number) => (
+                              <li key={index}>
+                                {item.kind}: {item.skills.join(', ')} — {item.text}
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
+                      </>
+                    )}
                     <p>{r.job.description}</p>
                     <ul>
                       {r.limitations?.map((limit: string) => (
@@ -1919,8 +1972,9 @@ function MissionDetail({
                           : 'Fictional sample vacancy.'}
                     </p>
                     <p>
-                      45% skills · 15% experience · 10% education · 15% preferences · 15% TF-IDF
-                      overlap.
+                      {r.scoringVersion === 'matching-v2'
+                        ? '40% required skills · 5% preferred skills · 15% experience · 10% education · 15% preferences · 15% TF-IDF overlap. Unknown components receive neutral half-credit.'
+                        : '45% skills · 15% experience · 10% education · 15% preferences · 15% TF-IDF overlap (saved legacy result).'}
                     </p>
                     <p>Scores indicate heuristic suitability, not hiring probabilities.</p>
                   </details>
