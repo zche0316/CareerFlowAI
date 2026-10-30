@@ -34,6 +34,8 @@ export function labelledExperience(text: string, page: number) {
   const link = fields.get('public link') || '';
   return {
     section: type === 'work' ? ('workExperiences' as const) : ('projects' as const),
+    experienceType:
+      type === 'course project' ? 'course' : type === 'personal project' ? 'personal' : type,
     title,
     organisation,
     location: /^unknown\b/i.test(location) ? '' : location,
