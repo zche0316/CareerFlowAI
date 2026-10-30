@@ -90,9 +90,16 @@ test('a user compares ranked jobs and selects one for downstream context', async
   await page.getByRole('button', { name: '03 · Job matching', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Your selected opportunity' })).toBeVisible();
   await expect(page.locator('article.job-card')).toHaveCount(1);
-  await expect(
-    page.getByText(`Selected ${selectedTitle} for resume and interview preparation.`),
-  ).toBeVisible();
+  await expect(page.locator('article.job-card h3')).toHaveText(selectedTitle);
+  // Verify persisted context rather than a transient selection notice.
+  await page.reload();
+  await page.getByRole('button', { name: 'Review your resume', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Your evidence-grounded resume' })).toBeVisible({
+    timeout: 30000,
+  });
+  await expect(page.locator('#resume-tailoring')).toContainText(
+    `Proposed selection and ordering for ${selectedTitle}.`,
+  );
   await page.screenshot({
     path: 'output/acceptance/cfs-21-selected-job-handoff.png',
     fullPage: true,
