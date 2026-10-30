@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { Request } from './profile-conversation.js';
 export function WordingStudio({
   api,
@@ -19,12 +19,18 @@ export function WordingStudio({
     [error, setError] = useState(''),
     [saved, setSaved] = useState<any>(null);
   const resume = resumes.find((r) => r.id === selected);
-  const load = async () => setRows(await api(`/resumes/${selected}/wording`));
+  const requestVersion = useRef(0);
+  const load = async () => {
+    const version = ++requestVersion.current;
+    const next = await api(`/resumes/${selected}/wording`);
+    if (version === requestVersion.current) setRows(next);
+  };
   useEffect(() => {
     if (!selected && resumes[0]) setSelected(resumes[0].id);
   }, [resumes[0]?.id]);
   useEffect(() => {
     let active = true;
+    const version = ++requestVersion.current;
     setRows([]);
     setEdits({});
     setReviewed(false);
@@ -33,13 +39,14 @@ export function WordingStudio({
     if (selected)
       void api(`/resumes/${selected}/wording`)
         .then((r) => {
-          if (active) setRows(r);
+          if (active && version === requestVersion.current) setRows(r);
         })
         .catch((e) => {
-          if (active) setError(e.message);
+          if (active && version === requestVersion.current) setError(e.message);
         });
     return () => {
       active = false;
+      requestVersion.current++;
     };
   }, [selected]);
   const run = async (fn: () => Promise<void>) => {
@@ -220,3 +227,4 @@ export function WordingStudio({
     </section>
   );
 }
+
