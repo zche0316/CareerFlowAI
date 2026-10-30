@@ -13,14 +13,14 @@
     "build": "vite build --config apps/web/vite.config.ts",
     "start": "tsx apps/api/src/server.ts",
     "typecheck": "tsc --noEmit",
-    "db:generate": "prisma generate",
+    "db:generate": "node scripts/generate-client.mjs",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx scripts/seed.ts",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "verify": "npm run typecheck && npm run test:matching && npm test && npm run build",
     "test:matching": "node --test packages/matching/original.test.js",
-    "postinstall": "prisma generate",
+    "postinstall": "node scripts/generate-client.mjs",
     "start:local": "node scripts/local-run.mjs",
     "verify:local": "node scripts/local-run.mjs --verify",
     "package:source": "python3 scripts/package-source.py"
@@ -64,3 +64,4 @@
     "zod": "4.6.7"
   }
 }
+
