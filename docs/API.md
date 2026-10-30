@@ -401,3 +401,44 @@ Authenticated import endpoints (mutations require the existing CSRF token):
 Model operations require `PROVIDER_MODE=openai`; fixture mode never creates fake import records. Eight calls per import are reserved before requests; repeated/overlapping operations are rejected. Failures retain source data and require explicit retries. A processing record older than two minutes can be retried after a server interruption. No model output controls ownership or approval.
 
 `GET /api/resumes/:id/download?format=txt|docx|pdf` exports the current user's persisted approved snapshot, with TXT as the backwards-compatible default. DOCX is editable and PDF retains searchable text. Unsupported formats return validation errors; another user's resume remains unavailable. Imports and model configuration are documented in `docs/PROFILE_IMPORT_AND_MODEL_ROUTER.md`.
+# Conversational profile and evidence endpoints
+
+All routes below require the existing signed-in account; mutations require its CSRF token.
+
+- `GET/POST /api/profile-threads`, `GET /api/profile-threads/:id`: owned saved conversations and working-form snapshots.
+- `POST /api/profile-threads/:id/messages`: `{text,currentProfile,revision,consent:true}`. A model failure is represented as a saved failed assistant turn, with no field changes.
+- `POST /api/profile-threads/:id/proposals/:proposalId`: `{decision:"apply"|"reject",currentProfile,revision}`. Returns one field patch; does not approve a profile.
+- `GET/POST /api/career-memories`: list or create a draft note/STAR with source, record/application scope and optional `supersedesId`.
+- `PATCH /api/career-memories/:id`: `{revision,reviewed:true}` confirms the draft and atomically supersedes its predecessor.
+- `DELETE /api/career-memories/:id`: `{revision}` purges memory content from future retrieval.
+- `GET /api/career-evidence?q=...&recordId=...&missionId=...`: confirmed owner-scoped lexical evidence with scores, source IDs and explicit insufficient-recall state.
+- `GET/POST /api/resumes/:id/wording`: list/propose wording for `{factId,consent:true}`.
+- `PATCH /api/resume-wordings/:id`: `{decision:"accept"|"reject",reviewed:true,after?}` reviews one expression without changing original facts.
+- `POST /api/resumes/:id/wording/finalize`: `{reviewed:true}` creates an idempotent separate approved edition; original content and the mission's existing application packet remain unchanged.
+- `GET/POST /api/missions/:id/application-readiness`: fetch supported public questions or save `{hash,answers,reviewed:true}` against the current schema. Preparation only; no external submission.
+
+See [CONVERSATIONAL_PROFILE.md](CONVERSATIONAL_PROFILE.md) for scope, model configuration, limits and manual testing.
+
+## Zero-resume application workflow
+
+- Profile records retain full source statements; facts expose separate record headers and individually selectable statements. `recordHeaderId` preserves context when selecting statements.
+- STAR drafts accept incomplete stories. Confirmation requires situation, task and personal action; an unknown result remains empty. Confirming a correction retires the preceding draft chain and its last confirmed source atomically.
+- Optional `careerStage` and `useConfirmedMemories` belong to the approved profile. Memory context is opt-in; retrieval never authorises new resume claims.
+- `POST /api/missions/:id/resume-selection`: `{draftHash,orderedFactIds}` selects/orders approved facts for the current awaiting-approval draft. Required record headers are included. The new hash invalidates the previous approval; source profiles remain unchanged.
+- `POST /api/missions/:id/feedback-memory`: `{saveAsDraft:true}` retains actual interview feedback as a draft learning note. Feedback cannot become a qualification through grounding.
+
+See [PRODUCT_WORKFLOW.md](PRODUCT_WORKFLOW.md) for the source/profile/application separation and the six-stage user outcome.
+
+### Chat-first profile review
+
+`POST /api/profile-threads/:id/proposals` accepts `{currentProfile,revision,reviewed:true}` and applies all pending suggestions to the owned working draft in one transaction. A changed field, stale thread/profile or corrected memory rejects the whole update. It never approves a profile. Field equality ignores JSON object-key order because PostgreSQL JSONB does not preserve that order. Existing per-proposal routes remain compatible.
+
+Conversational replies expose a short reply and one follow-up question. Grounded later answers merge into the same title/organisation record with stable ID and retained source citations. New profile facts suppress absence markers and use structured education/experience instead of parallel legacy summaries. Historical approved documents remain unchanged.
+
+### Interview progression and recovery
+
+`POST /api/profile-threads/:id/controls` accepts `{currentProfile,revision,action,recordKey?}`. Actions: finish_experience, next_experience, finish_interview, skip_question, resume, keep_current_draft. Controls use ownership and revision/CAS guards, preserve working content and pending suggestions, and never call the model or approve a profile. Interview state is persisted on assistant-message metadata: phase, closed scopes, active scope, addressed question slots and inventory baseline.
+
+`POST .../:id/messages` optionally supports `retryMessageId` for the latest failed saved answer, or `recoverSavedAnswers:true` in review stage to prepare pending data from saved history. Both avoid duplicate user messages. Recovery keeps the interview finished. Conversation sources can cite up to 30 complete user messages within an 18,000-character context budget; commands are excluded from candidate evidence. Resume-import page limits remain unchanged.
+
+`POST /api/profile-threads/:id/organise`: body `{currentProfile, revision, recordSection: "workExperiences" | "projects", recordId, consent: true}`. Generates labelled source-index story groups, atomically saves a pending profile suggestion and DRAFT career memory, and returns `{memoryId, revision}`. GET the owned thread to review the new suggestion. Does not apply the suggestion, confirm memory or approve a profile. Concurrent/stale updates return 409; unsupported/empty sources return 422; provider failures return 503 with originals unchanged. Current records must include the selected section and ID. New complete labelled chat answers map to records without a second generative extraction; free-form answers continue through the conversational model.

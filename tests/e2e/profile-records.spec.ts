@@ -9,7 +9,9 @@ test('structured records and locally imported text remain separate from approval
   await page.getByLabel('Password', { exact: true }).fill('Fictional-import-QA-password');
   await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
   await page.getByRole('button', { name: 'My career profile', exact: true }).click();
+  await page.getByText('Demo test data', { exact: true }).click();
   await page.getByRole('button', { name: 'Use fictional example', exact: true }).click();
+  await page.getByText('Edit profile details manually', { exact: true }).click();
   await page.getByRole('button', { name: 'Add Work experience', exact: true }).click();
   await page
     .getByLabel('Work experience 1 title', { exact: true })
@@ -38,6 +40,9 @@ test('structured records and locally imported text remain separate from approval
   await page.getByRole('button', { name: 'Remove Work experience 3', exact: true }).click();
   await page.getByRole('button', { name: 'Add Projects', exact: true }).click();
   await page.getByLabel('Projects 1 title', { exact: true }).fill('Fictional Dashboard Project');
+  await page
+    .getByText('Already have career material? Optional resume import', { exact: true })
+    .click();
   await page.getByLabel('Resume file', { exact: true }).setInputFiles({
     name: 'fictional-import.txt',
     mimeType: 'text/plain',
@@ -54,6 +59,7 @@ test('structured records and locally imported text remain separate from approval
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
   await page.reload();
   await page.getByRole('button', { name: 'My career profile', exact: true }).click();
+  await page.getByText('Edit profile details manually', { exact: true }).click();
   await expect(page.getByLabel('Work experience 1 title', { exact: true })).toHaveValue(
     'Fictional Software Engineer',
   );
@@ -67,6 +73,9 @@ test('structured records and locally imported text remain separate from approval
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 2),
   ).toBe(true);
+  await page
+    .getByText('Already have career material? Optional resume import', { exact: true })
+    .click();
   await expect(page.getByLabel('Saved imports')).toBeVisible();
   await page.screenshot({
     path: 'output/profile-workflow-20261029/structured-profile.png',

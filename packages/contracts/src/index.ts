@@ -6,6 +6,10 @@ export const profileSchema = z
   .object({
     name: z.string().trim().min(1).max(100),
     goals: z.string().trim().min(3).max(2000),
+    useConfirmedMemories: z.boolean().optional(),
+    careerStage: z
+      .enum(['student', 'graduate', 'early-career', 'experienced', 'career-change'])
+      .optional(),
     skills: z.array(z.string().trim().min(1).max(80)).max(40),
     interests: z.array(z.string().trim().min(1).max(80)).max(20).default([]),
     education: z.string().trim().max(2000),
@@ -129,7 +133,10 @@ export type Fact = {
   source: string;
   section?: string;
   recordId?: string;
+  recordHeaderId?: string;
   evidence?: { importId: string; page: number; quote: string }[];
+  conversationEvidence?: { threadId: string; messageId: string; quote: string }[];
+  memoryEvidence?: { memoryId: string; revision: number; quote: string }[];
 };
 
 const coachRecommendationSchema = z.object({
@@ -149,10 +156,13 @@ export const profileBuilderDraftSchema = z.object({
   draft: z.object({
     name: z.string().trim().min(1).max(100).optional(),
     goals: z.string().trim().min(3).max(2000).optional(),
+    careerStage: z
+      .enum(['student', 'graduate', 'early-career', 'experienced', 'career-change'])
+      .optional(),
     skills: z.array(z.string().trim().min(1).max(80)).max(40).default([]),
     interests: z.array(z.string().trim().min(1).max(80)).max(20).default([]),
-    education: z.string().trim().min(1).max(2000).optional(),
-    experience: z.string().trim().min(1).max(4000).optional(),
+    education: z.string().trim().max(2000).optional(),
+    experience: z.string().trim().max(4000).optional(),
     experienceYears: z.number().min(0).max(60).optional(),
     location: z.string().trim().max(100).optional(),
     employmentType: z.string().trim().max(100).optional(),
@@ -172,6 +182,7 @@ export const profileBuilderDraftSchema = z.object({
         field: z.enum([
           'name',
           'goals',
+          'careerStage',
           'skills',
           'interests',
           'education',

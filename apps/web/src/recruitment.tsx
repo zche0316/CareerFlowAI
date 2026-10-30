@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ApplicationReadiness } from './application-readiness.js';
 import { countries } from '../../../packages/recruitment/src/geography.js';
 export const defaultJobSearch = {
   provider: 'employers',
@@ -164,6 +165,7 @@ export function ApplicationPanel({
   return (
     <section className="panel">
       <h2>Prepare your real application</h2>
+      <ApplicationReadiness key={mission.id} missionId={mission.id} api={request} />
       <p>
         Review the exact approved resume and official destination before continuing. SEEK/Indeed
         direct auto-submit is unavailable without platform partner authorization.

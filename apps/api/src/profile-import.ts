@@ -89,7 +89,7 @@ export function registerProfileImports(app: Express) {
     app.post(`/api/profiles/imports/:id/${action}`, async (req, res) => {
       z.object({
         consent: z.literal(true),
-        pages: z.array(z.number().int().min(1).max(10)).max(3).optional(),
+        pages: z.array(z.number().int().min(1).max(10)).max(10).optional(),
       }).parse(req.body);
       const r = await owner(req.actor!.id, String(req.params.id));
       if (configuredMode() !== 'openai')
@@ -116,27 +116,46 @@ export function registerProfileImports(app: Express) {
               )
               .slice(0, 3)
           : [];
+      if (action === 'recognize' && req.body.pages?.length > 3)
+        throw new AppError(
+          422,
+          'PAGE_LIMIT',
+          'Select at most three pages for visual transcription.',
+        );
+      const structurePages = pages.filter(
+        (p) => !req.body.pages || req.body.pages.includes(p.page),
+      );
       if (action === 'recognize' && !selected.length)
         throw new AppError(422, 'NO_PAGES', 'Select up to three pages for visual transcription.');
-      if (action === 'structure' && !pages.some((p) => p.text.trim()))
+      if (action === 'structure' && !structurePages.some((p) => p.text.trim()))
         throw new AppError(422, 'NO_TEXT', 'Extract or transcribe text before organizing records.');
-      if (action === 'structure' && pages.reduce((n, p) => n + p.text.length, 0) > 16000)
+      if (action === 'structure' && structurePages.reduce((n, p) => n + p.text.length, 0) > 16000)
         throw new AppError(
           422,
           'TEXT_LIMIT',
-          'AI organization accepts up to 16,000 extracted characters. Use a shorter resume or continue manually.',
+          'Select source pages totalling at most 16,000 characters. For bilingual resumes, choose one language version.',
         );
       const cost = action === 'recognize' ? selected.length : 1;
       if (r.calls + cost > 8)
         throw new AppError(409, 'IMPORT_BUDGET', 'Not enough calls remain for these pages.');
       const locked = await db.profileImport.updateMany({
         where: { id: r.id, userId: r.userId, updatedAt: r.updatedAt },
-        data: { status: 'PROCESSING', error: null, calls: { increment: cost } },
+        data: {
+          status: 'PROCESSING',
+          error: null,
+          calls: { increment: cost },
+          ...(action === 'recognize'
+            ? { proposed: json({ records: [], questions: [], rejected: [] }) }
+            : {}),
+        },
       });
       if (!locked.count)
         throw new AppError(409, 'IMPORT_CHANGED', 'Import changed. Reload before retrying.');
       const events = [...(r.events as any[])];
-      let proposed = json(r.proposed);
+      let proposed =
+        action === 'recognize'
+          ? json({ records: [], questions: [], rejected: [] })
+          : json(r.proposed);
       try {
         if (action === 'recognize')
           for (const page of selected) {
@@ -160,9 +179,11 @@ export function registerProfileImports(app: Express) {
         else {
           const { result, usage } = await importModel(
             'light',
-            pages.map(({ page, text }) => ({ page, text })) as SourcePage[],
+            structurePages.map(({ page, text }) => ({ page, text })) as SourcePage[],
           );
-          const grounded = groundImportedRecords(importResultSchema.parse(result), pages);
+          const grounded = groundImportedRecords(importResultSchema.parse(result), structurePages, {
+            salvageOptional: true,
+          });
           proposed = json({
             ...grounded,
             records: grounded.records.map((record) => ({
@@ -177,6 +198,7 @@ export function registerProfileImports(app: Express) {
             action: 'proposed',
             ...usage,
             rejected: grounded.rejected.length,
+            sourcePages: structurePages.map((p) => p.page),
           });
         }
         const saved = await db.profileImport.update({
@@ -186,7 +208,9 @@ export function registerProfileImports(app: Express) {
             proposed,
             status:
               action === 'structure'
-                ? 'READY_FOR_REVIEW'
+                ? (proposed as any).records.length
+                  ? 'READY_FOR_REVIEW'
+                  : 'NEEDS_CORRECTION'
                 : pages.some((p) => p.route === 'vision')
                   ? 'NEEDS_VISION'
                   : 'EXTRACTED',

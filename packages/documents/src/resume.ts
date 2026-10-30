@@ -1,3 +1,4 @@
+import { resumeLayout, type ResumeRecord } from '../../contracts/src/resume-layout.js';
 import PDFDocument from 'pdfkit';
 import {
   Document,
@@ -11,6 +12,8 @@ import {
 } from 'docx';
 import { fileURLToPath } from 'node:url';
 export type ResumeContent = {
+  records?: ResumeRecord[];
+  summary?: string;
   name: string;
   jobTitle: string;
   profileVersion?: number;
@@ -22,7 +25,13 @@ export type ResumeContent = {
     portfolio?: string;
     workRights?: string;
   };
-  claims: { text: string; kind: string; section?: string }[];
+  claims: {
+    text: string;
+    kind: string;
+    section?: string;
+    recordId?: string;
+    recordHeaderId?: string;
+  }[];
 };
 const headings: Record<string, string> = {
   skill: 'Skills',
@@ -30,17 +39,12 @@ const headings: Record<string, string> = {
   experience: 'Experience',
   workExperiences: 'Work Experience',
   projects: 'Projects',
+  volunteering: 'Volunteering',
+  activities: 'Clubs & Activities',
   educations: 'Education',
 };
 export function resumeSections(c: ResumeContent) {
-  const groups = new Map<string, string[]>();
-  for (const claim of c.claims) {
-    const key = claim.section || claim.kind;
-    if (!headings[key]) continue;
-    const label = headings[key];
-    groups.set(label, [...(groups.get(label) || []), claim.text]);
-  }
-  return [...groups].map(([title, items]) => ({ title, items }));
+  return resumeLayout(c);
 }
 const contactLine = (c: ResumeContent) =>
   [c.contact?.email, c.contact?.phone, c.contact?.city, c.contact?.linkedin, c.contact?.portfolio]
@@ -78,7 +82,7 @@ export async function resumeDocx(c: ResumeContent) {
       for (const [i, line] of item.split('\n').entries())
         children.push(
           new Paragraph({
-            children: [new TextRun({ text: line, bold: i === 0 && section.title !== 'Skills' })],
+            children: [new TextRun({ text: line, bold: i === 0 && !['Skills', 'Career Objective'].includes(section.title) })],
             spacing: { after: 100 },
             keepNext: i === 0 && item.includes('\n'),
           }),
@@ -167,7 +171,7 @@ export async function resumePdf(c: ResumeContent): Promise<Buffer> {
         if (doc.y > doc.page.height - 110) doc.addPage();
         lines.forEach((line, i) =>
           doc
-            .font(i === 0 && section.title !== 'Skills' ? 'ResumeBold' : 'Resume')
+            .font(i === 0 && !['Skills', 'Career Objective'].includes(section.title) ? 'ResumeBold' : 'Resume')
             .fontSize(10.5)
             .fillColor('#111111')
             .text(line, { lineGap: 2 }),
