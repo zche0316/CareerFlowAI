@@ -23,6 +23,7 @@ test('interview controls stop and skip without model calls, survive reload and l
   await page.getByText('Conversation history & recovery', { exact: true }).click();
   await page.getByRole('button', { name: 'Start profile conversation', exact: true }).click();
   await expect(page.getByRole('log')).toContainText('When did Alpha data project start?');
+  await page.getByText('More interview options', { exact: true }).click();
   await page.getByRole('button', { name: 'Skip this question', exact: true }).click();
   await expect(page.getByRole('log').locator('article').last()).toContainText(
     'end, or is it ongoing',
@@ -35,6 +36,7 @@ test('interview controls stop and skip without model calls, survive reload and l
   await page.reload();
   await page.getByRole('button', { name: 'My career profile', exact: true }).click();
   await expect(page.getByText('Finished experiences', { exact: true })).toBeVisible();
+  await page.getByText('More interview options', { exact: true }).click();
   await page.getByRole('button', { name: 'Add another experience', exact: true }).click();
   await expect(page.getByRole('log').locator('article').last()).toContainText(
     'different experience',
@@ -43,9 +45,7 @@ test('interview controls stop and skip without model calls, survive reload and l
   await expect(page.getByLabel('Your next profile message')).not.toBeVisible();
   await page.reload();
   await page.getByRole('button', { name: 'My career profile', exact: true }).click();
-  await expect(
-    page.getByText('Interview finished — review your draft.', { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText('Your story, ready to check', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Resume interview', exact: true }).click();
   await expect(page.getByRole('log').locator('article').last()).not.toContainText('When did Alpha');
   await page.getByText('Finished experiences', { exact: true }).click();
@@ -97,6 +97,7 @@ test('finishing a pending new experience requests organisation before any draft 
   await expect(
     page.getByRole('button', { name: 'Use these details in my draft', exact: true }),
   ).toBeVisible();
+  await page.getByText('More interview options', { exact: true }).click();
   await page.getByRole('button', { name: 'Finish this experience', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('Test organiser unavailable');
   expect(requestBody.recordSection).toBe('projects');
