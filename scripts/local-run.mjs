@@ -34,6 +34,7 @@ function run(args) {
   });
 }
 try {
+  await run(['node_modules/prisma/build/index.js', 'generate']);
   await run(['node_modules/prisma/build/index.js', 'migrate', 'deploy']);
   if (process.argv.includes('--verify')) {
     await run(['node_modules/typescript/bin/tsc', '--noEmit']);
@@ -54,3 +55,4 @@ try {
   process.removeListener('SIGINT', stop);
   process.removeListener('SIGTERM', stop);
 }
+
