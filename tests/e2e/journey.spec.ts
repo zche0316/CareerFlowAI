@@ -83,6 +83,11 @@ test('a user compares ranked jobs and selects one for downstream context', async
   await expect(page.getByRole('heading', { name: 'Your evidence-grounded resume' })).toBeVisible({
     timeout: 30000,
   });
+  await expect(page.locator('#resume-tailoring')).toContainText(
+    `Proposed selection and ordering for ${selectedTitle}.`,
+  );
+  // Selection opens resume review; the chosen opportunity remains available in Job matching.
+  await page.getByRole('button', { name: '03 · Job matching', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Your selected opportunity' })).toBeVisible();
   await expect(page.locator('article.job-card')).toHaveCount(1);
   await expect(
@@ -205,3 +210,4 @@ test('mobile workspace stays usable without horizontal scrolling', async ({ page
   );
   await page.screenshot({ path: 'output/acceptance/mobile-workspace.png', fullPage: true });
 });
+
