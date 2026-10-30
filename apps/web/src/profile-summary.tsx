@@ -30,8 +30,14 @@ export function ProfileSummary({ data }: { data: CareerProfile }) {
         <p>{[data.location, data.workArrangement].filter(Boolean).join(' · ')}</p>
       )}
       {!!data.skills.length && (
-        <p>
-          <strong>Skills:</strong> {data.skills.join(', ')}
+        <p className="profile-skills">
+          <strong>Skills:</strong>{' '}
+          {data.skills.map((skill, i) => (
+            <React.Fragment key={`${skill}-${i}`}>
+              <span className="skill-pill">{skill}</span>
+              {i < data.skills.length - 1 && <span className="sr-only">, </span>}
+            </React.Fragment>
+          ))}
         </p>
       )}
       {groups.map(([key, label]) => (

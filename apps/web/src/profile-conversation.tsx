@@ -516,39 +516,43 @@ export function ProfileConversation({
             )}
           </section>
         )}
-        {!reviewStage && (
-          <label>
-            Your next profile message
-            <textarea
-              aria-label="Your next profile message"
-              placeholder="Tell me about your goals or an experience…"
-              value={message}
-              maxLength={4000}
-              disabled={busy}
-              onChange={(e) => setMessage(e.target.value)}
-            />
-          </label>
-        )}
-        {(thread || !reviewStage) && (
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={consent}
-              onChange={(e) => setConsent(e.target.checked)}
-            />
-            I allow the configured model to process this conversation, working form and retrieved
-            confirmed evidence.
-          </label>
-        )}
-        {!reviewStage && (
-          <button
-            className="primary"
-            disabled={busy || !message.trim() || !consent}
-            onClick={() => void send()}
-          >
-            {busy ? 'Preparing a reply…' : 'Send profile message'}
-          </button>
-        )}
+        <div className="chat-composer">
+          {!reviewStage && (
+            <label>
+              Your next profile message
+              <textarea
+                aria-label="Your next profile message"
+                placeholder="Tell me about your goals or an experience…"
+                value={message}
+                maxLength={4000}
+                disabled={busy}
+                onChange={(e) => setMessage(e.target.value)}
+              />
+            </label>
+          )}
+          <div className="composer-footer">
+            {(thread || !reviewStage) && (
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={consent}
+                  onChange={(e) => setConsent(e.target.checked)}
+                />
+                I allow the configured model to process this conversation, working form and
+                retrieved confirmed evidence.
+              </label>
+            )}
+            {!reviewStage && (
+              <button
+                className="primary"
+                disabled={busy || !message.trim() || !consent}
+                onClick={() => void send()}
+              >
+                {busy ? 'Preparing a reply…' : 'Send profile message'}
+              </button>
+            )}
+          </div>
+        </div>
         {thread?.messages.at(-1)?.failed && (
           <button className="secondary" disabled={busy || !consent} onClick={() => void retry()}>
             Retry saved answer

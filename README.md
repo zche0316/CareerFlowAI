@@ -2,6 +2,8 @@
 
 ## CareerFlow AI prototype
 
+Latest presentation: [30 October minimal SaaS refactor](docs/UI_SAAS_REFACTOR_20261030.md) — compact 56px header, locally bundled fonts, responsive profile/review workspace and preserved workflow controls.
+
 Latest integration: [26 October source integration and validation](docs/STAGE2_INTEGRATION_20261026.md). Earlier dated notes below describe historical snapshots; use the latest record for this branch.
 
 Assessment preparation: [Stage 1 interview](docs/STAGE1_INTERVIEW_MEMBER3.md) · [Quick review](docs/STAGE1_QUICK_REVIEW.md) · [Week 13 readiness audit](docs/WEEK13_READINESS.md) · [Deployment rehearsal](docs/WEEK13_DEPLOYMENT.md) · [Contribution template](docs/CONTRIBUTION_STATEMENT_TEMPLATE.md). Create a source candidate with `npm run package:source`; review it before Canvas upload.

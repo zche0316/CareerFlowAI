@@ -209,12 +209,11 @@ test('a user answers every interview question and receives complete feedback', a
 
 test('mobile workspace stays usable without horizontal scrolling', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Open demo workspace' }).click();
+  // The shared demo may already have an approved profile in a persistent local database.
+  await createAccount(page);
   await expect(page.getByRole('heading', { name: 'Your career profile' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
   await page.screenshot({ path: 'output/acceptance/mobile-workspace.png', fullPage: true });
 });
-

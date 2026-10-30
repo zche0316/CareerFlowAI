@@ -55,60 +55,64 @@ export function WordingStudio({
   };
   if (!resumes.length) return null;
   return (
-    <section className="panel" aria-label="Evidence-grounded wording workshop">
+    <section className="panel wording-studio" aria-label="Evidence-grounded wording workshop">
       <h2>Review resume wording</h2>
       <p>
         Facts and expression are saved separately. Suggestions are constrained to source-supported
         words, numbers and qualifiers; you still review every sentence. Unsupported new claims
         require a profile correction.
       </p>
-      <label>
-        Resume for wording review
-        <select
-          disabled={busy}
-          aria-label="Resume for wording review"
-          value={selected}
-          onChange={(e) => setSelected(e.target.value)}
+      <div className="wording-fields">
+        <label>
+          Resume for wording review
+          <select
+            disabled={busy}
+            aria-label="Resume for wording review"
+            value={selected}
+            onChange={(e) => setSelected(e.target.value)}
+          >
+            {resumes.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.content.jobTitle} · {new Date(r.approvedAt).toLocaleString()}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Source claim
+          <select
+            disabled={busy}
+            aria-label="Source claim"
+            value={fact}
+            onChange={(e) => setFact(e.target.value)}
+          >
+            {resume?.content.claims.map((c: any) => (
+              <option value={c.factId} key={c.factId}>
+                {c.text.slice(0, 130)}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="wording-action-row">
+        <label className="checkbox">
+          <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+          I allow the configured model to process this selected approved claim.
+        </label>
+        <button
+          className="secondary"
+          disabled={busy || !fact || !consent}
+          onClick={() =>
+            void run(async () => {
+              await api(`/resumes/${selected}/wording`, 'POST', { factId: fact, consent: true });
+              await load();
+              setReviewed(false);
+            })
+          }
         >
-          {resumes.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.content.jobTitle} · {new Date(r.approvedAt).toLocaleString()}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        Source claim
-        <select
-          disabled={busy}
-          aria-label="Source claim"
-          value={fact}
-          onChange={(e) => setFact(e.target.value)}
-        >
-          {resume?.content.claims.map((c: any) => (
-            <option value={c.factId} key={c.factId}>
-              {c.text.slice(0, 130)}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="checkbox">
-        <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />I
-        allow the configured model to process this selected approved claim.
-      </label>
-      <button
-        className="secondary"
-        disabled={busy || !fact || !consent}
-        onClick={() =>
-          void run(async () => {
-            await api(`/resumes/${selected}/wording`, 'POST', { factId: fact, consent: true });
-            await load();
-            setReviewed(false);
-          })
-        }
-      >
-        Suggest source-grounded wording
-      </button>
+          Suggest source-grounded wording
+        </button>
+      </div>
       {error && (
         <p role="alert" className="error-banner">
           {error}
@@ -179,26 +183,32 @@ export function WordingStudio({
           )}
         </article>
       ))}
-      <label className="checkbox">
-        <input type="checkbox" checked={reviewed} onChange={(e) => setReviewed(e.target.checked)} />
-        I reviewed the accepted wording and want a separate approved resume edition.
-      </label>
-      <button
-        className="secondary"
-        disabled={busy || !reviewed || !rows.some((r) => r.status === 'ACCEPTED')}
-        onClick={() =>
-          void run(async () => {
-            const r = await api(`/resumes/${selected}/wording/finalize`, 'POST', {
-              reviewed: true,
-            });
-            setSaved(r);
-            setReviewed(false);
-            await onSaved();
-          })
-        }
-      >
-        Save reviewed wording edition
-      </button>
+      <div className="wording-action-row wording-save-row">
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={reviewed}
+            onChange={(e) => setReviewed(e.target.checked)}
+          />
+          I reviewed the accepted wording and want a separate approved resume edition.
+        </label>
+        <button
+          className="secondary"
+          disabled={busy || !reviewed || !rows.some((r) => r.status === 'ACCEPTED')}
+          onClick={() =>
+            void run(async () => {
+              const r = await api(`/resumes/${selected}/wording/finalize`, 'POST', {
+                reviewed: true,
+              });
+              setSaved(r);
+              setReviewed(false);
+              await onSaved();
+            })
+          }
+        >
+          Save reviewed wording edition
+        </button>
+      </div>
       {saved && (
         <div role="status">
           <p>

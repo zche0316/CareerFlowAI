@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 import { blankProfile, type CareerProfile } from '../../../packages/contracts/src/index.js';
 import './style.css';
+import './saas.css';
 
 // The session endpoint supplies this token; all JSON mutations share the same request wrapper.
 let csrf = '';
@@ -185,7 +186,7 @@ function App() {
   ];
   return (
     <div className="shell">
-      <aside className="sidebar">
+      <header className="sidebar">
         <a className="brand" href="/" aria-label="CareerFlow home">
           <span className="brandmark">
             <Compass size={25} />
@@ -217,7 +218,7 @@ function App() {
               }}
             >
               <n.icon size={18} />
-              {n.label}
+              <span className="nav-label">{n.label}</span>
               {n.id === 'approvals' && approvals.length > 0 && (
                 <span className="count">{approvals.length}</span>
               )}
@@ -238,6 +239,22 @@ function App() {
             <i>RT</i>
             <i>IC</i>
           </div>
+        </div>
+        <div className="topbar">
+          <div>
+            <span className="breadcrumb">Workspace</span>
+            <ChevronRight size={14} />
+            <span>{phase !== null ? phaseNames[phase] : nav.find((n) => n.id === tab)?.label}</span>
+          </div>
+          <span
+            className={`provider ${session.mode === 'fixture' ? 'fixture' : ''}`}
+            title={session.mode === 'fixture' ? 'Demo fixtures · no live AI' : 'Live AI enabled'}
+          >
+            <i />
+            <span className="provider-label">
+              {session.mode === 'fixture' ? 'Demo fixtures · no live AI' : 'Live AI enabled'}
+            </span>
+          </span>
         </div>
         <div className="account">
           <span className="avatar">
@@ -265,19 +282,8 @@ function App() {
             <LogOut size={16} />
           </button>
         </div>
-      </aside>
+      </header>
       <div className="content">
-        <header className="topbar">
-          <div>
-            <span className="breadcrumb">Workspace</span>
-            <ChevronRight size={14} />
-            <span>{phase !== null ? phaseNames[phase] : nav.find((n) => n.id === tab)?.label}</span>
-          </div>
-          <span className={`provider ${session.mode === 'fixture' ? 'fixture' : ''}`}>
-            <i />
-            {session.mode === 'fixture' ? 'Demo fixtures · no live AI' : 'Live AI enabled'}
-          </span>
-        </header>
         <main>
           {error && (
             <div role="alert" className="error-banner">
@@ -519,11 +525,13 @@ function App() {
                         {r.content.claims.length} evidence-linked claims
                       </p>
                     </div>
-                    <a className="secondary" href={`/api/resumes/${r.id}/download`}>
-                      <Download size={16} />
-                      Download TXT
-                    </a>
-                    <ResumeDownloads id={r.id} />
+                    <div className="export-actions">
+                      <a className="secondary" href={`/api/resumes/${r.id}/download`}>
+                        <Download size={16} />
+                        Download TXT
+                      </a>
+                      <ResumeDownloads id={r.id} />
+                    </div>
                   </div>
                 ))
               ) : (
@@ -855,10 +863,10 @@ const coachText = (item: any) =>
 function CoachEvidence({ item }: { item: any }) {
   if (!item || typeof item === 'string') return null;
   return (
-    <small>
-      Evidence: {item.evidenceIds?.join(', ') || 'Unavailable'}
-      {item.reason ? ` · ${item.reason}` : ''}
-    </small>
+    <details className="citation">
+      <summary>Evidence: {item.evidenceIds?.join(', ') || 'Unavailable'}</summary>
+      <small>{item.reason ? ` · ${item.reason}` : ''}</small>
+    </details>
   );
 }
 
@@ -1386,10 +1394,10 @@ function MissionDetail({
 
   return (
     <>
-      <button className="back" onClick={onBack}>
-        ← All missions
-      </button>
       <div className="mission-heading">
+        <button className="back" onClick={onBack}>
+          ← All missions
+        </button>
         <div>
           <span className="eyebrow">
             CAREER MISSION · {m.mode === 'fixture' ? 'LOCAL AI DEMO MODE' : 'LIVE AI'}
@@ -1403,11 +1411,6 @@ function MissionDetail({
         </div>
         <Status value={m.status} />
       </div>
-      {phase === 2 && (
-        <button className="primary" onClick={onNewSearch}>
-          Search Australian jobs
-        </button>
-      )}
       {m.error && (
         <div className="error-banner">
           <AlertCircle size={18} />
@@ -1415,6 +1418,11 @@ function MissionDetail({
         </div>
       )}
       <div className="mission-actions">
+        {phase === 2 && (
+          <button className="primary" onClick={onNewSearch}>
+            Search Australian jobs
+          </button>
+        )}
         {m.status === 'FAILED' && (
           <button className="secondary" disabled={busy} onClick={() => void onAction('retry')}>
             <RefreshCw size={15} />
@@ -1669,7 +1677,9 @@ function MissionDetail({
               <article className="job-card" key={r.job.id}>
                 <div className="job-card-top">
                   <div className="company-letter">{r.job.company[0]}</div>
-                  <div className="score">
+                  <div
+                    className={`score ${r.score >= 75 ? 'fit-high' : r.score >= 50 ? 'fit-medium' : 'fit-low'}`}
+                  >
                     {r.score}
                     <small>/ 100 fit</small>
                   </div>
@@ -1878,7 +1888,7 @@ function MissionDetail({
             />
           )}
           {m.status === 'AWAITING_APPROVAL' && (
-            <div className="approval-controls">
+            <div className="approval-controls resume-action-bar">
               <label className="checkbox">
                 <input
                   type="checkbox"
