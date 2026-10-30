@@ -1,3 +1,4 @@
+import { WorkspaceHome, nextMissionStep } from './workspace-home.js';
 import { ResumePreview } from './resume-preview.js';
 import { suggestJobSearch } from '../../../packages/contracts/src/job-search.js';
 import { ProfileRecords } from './profile-records.js';
@@ -178,6 +179,7 @@ function App() {
     { id: 'profile', label: 'My career profile', icon: Layers },
     { id: 'approvals', label: 'Approval inbox', icon: FileCheck2 },
     { id: 'library', label: 'Document library', icon: BookOpen },
+    { id: 'applications', label: 'Applications', icon: BriefcaseBusiness },
     { id: 'activity', label: 'Activity timeline', icon: Activity },
     { id: 'tools', label: 'Optional tools', icon: Target },
   ];
@@ -197,6 +199,17 @@ function App() {
               key={n.id}
               className={tab === n.id ? 'nav active' : 'nav'}
               onClick={() => {
+                if (n.id === 'applications') {
+                  setTab('missions');
+                  setPhase(7);
+                  setSelected(
+                    workspace?.missions.find((m: any) => m.data?.approvedResumeId)?.id ||
+                      workspace?.missions[0]?.id ||
+                      null,
+                  );
+                  setError('');
+                  return;
+                }
                 setTab(n.id as Tab);
                 setSelected(null);
                 setPhase(null);
@@ -226,48 +239,6 @@ function App() {
             <i>IC</i>
           </div>
         </div>
-        <nav className="phase-nav" aria-label="Career workflow">
-          {[
-            '01 · Profile building',
-            '02 · Career analysis',
-            '03 · Job matching',
-            '04 · Resume tailoring',
-            '05 · Interview practice',
-            '06 · Activity',
-            '07 · Optional tools',
-            '08 · Real applications',
-          ].map((label, i) => (
-            <button
-              key={label}
-              title={label}
-              aria-label={label}
-              aria-current={
-                phase === i ||
-                (i === 0 && tab === 'profile') ||
-                (i === 5 && tab === 'activity') ||
-                (i === 6 && tab === 'tools')
-                  ? 'step'
-                  : undefined
-              }
-              onClick={() => {
-                setPhase(i);
-                setError('');
-                if (i === 0) setTab('profile');
-                else if (i === 5) setTab('activity');
-                else if (i === 6) setTab('tools');
-                else {
-                  setTab('missions');
-                  const latest = mission || workspace?.missions[0];
-                  setSelected(latest?.id || null);
-                }
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-            >
-              <span className="phase-number">{label.slice(0, 2)}</span>
-              <span className="phase-label">{label.slice(5)}</span>
-            </button>
-          ))}
-        </nav>
         <div className="account">
           <span className="avatar">
             {session.user.name
@@ -325,6 +296,38 @@ function App() {
               </button>
             </div>
           )}
+          {(tab === 'profile' || (tab === 'missions' && (selected || phase !== null))) && (
+            <nav className="phase-nav" aria-label="Career workflow">
+              {[
+                '01 · Profile building',
+                '02 · Career analysis',
+                '03 · Job matching',
+                '04 · Resume tailoring',
+                '05 · Interview practice',
+              ].map((label, i) => (
+                <button
+                  key={label}
+                  title={label}
+                  aria-label={label}
+                  aria-current={phase === i || (i === 0 && tab === 'profile') ? 'step' : undefined}
+                  onClick={() => {
+                    setPhase(i);
+                    setError('');
+                    if (i === 0) setTab('profile');
+                    else {
+                      setTab('missions');
+                      const latest = mission || workspace?.missions[0];
+                      setSelected(latest?.id || null);
+                    }
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                >
+                  <span className="phase-number">{label.slice(0, 2)}</span>
+                  <span className="phase-label">{label.slice(5)}</span>
+                </button>
+              ))}
+            </nav>
+          )}
           {tab === 'tools' ? (
             <OptionalTools missions={workspace?.missions || []} request={api} onRefresh={refresh} />
           ) : tab === 'profile' ? (
@@ -373,6 +376,10 @@ function App() {
                   onAction={(kind, body) =>
                     act(async () => {
                       await api(`/missions/${mission.id}/${kind}`, 'POST', body || {});
+                      if (kind === 'decisions' && (body as any)?.kind === 'job') {
+                        setPhase(3);
+                        setNotice('Job selected. Preparing your resume…');
+                      }
                       if (
                         kind === 'decisions' &&
                         (body as any)?.kind === 'resume' &&
@@ -436,168 +443,22 @@ function App() {
                 </>
               ) : (
                 <>
-                  <div className="page-heading">
-                    <div>
-                      <div className="eyebrow">BUILD YOUR NEXT CHAPTER</div>
-                      <h1>A clearer path forward.</h1>
-                      <p>Set your direction. Let your career team take the next steps.</p>
-                    </div>
-                    <button className="primary" onClick={() => setCreating(true)}>
-                      <Plus size={17} />
-                      New career mission
-                    </button>
-                  </div>
-                  <section className="hero">
-                    <div className="hero-copy">
-                      <span className="tag light">YOUR CAREER, CONNECTED</span>
-                      <h2>
-                        One goal.
-                        <br />
-                        Five specialists on your side.
-                      </h2>
-                      <p>
-                        From understanding your strengths to preparing for an interview, keep every
-                        step connected to the facts that make you, you.
-                      </p>
-                      <button
-                        className="hero-link"
-                        onClick={() => (workspace?.profile ? setCreating(true) : setTab('profile'))}
-                      >
-                        {workspace?.profile
-                          ? 'Start your next mission'
-                          : 'Build your career profile'}
-                        <ArrowUpRight size={18} />
-                      </button>
-                    </div>
-                    <div className="hero-orbit" aria-hidden="true">
-                      <div className="orbit-label orbit-a">
-                        <Layers size={17} />
-                        Your profile
-                      </div>
-                      <div className="orbit-label orbit-b">
-                        <BriefcaseBusiness size={17} />
-                        The right opportunity
-                      </div>
-                      <div className="orbit-label orbit-c">
-                        <MessageSquare size={17} />
-                        Your next conversation
-                      </div>
-                      <div className="orbit-center">
-                        <Compass size={48} />
-                        <span>YOUR DIRECTION</span>
-                      </div>
-                      <div className="orbit-ring" />
-                    </div>
-                  </section>
-                  <div className="stats">
-                    <Stat
-                      label="Career missions"
-                      value={workspace?.missions.length || 0}
-                      sub="Every goal in one place"
-                    />
-                    <Stat
-                      label="Waiting for you"
-                      value={
-                        workspace?.missions.filter((m: any) => m.status.startsWith('AWAITING'))
-                          .length || 0
-                      }
-                      sub="Meaningful decisions only"
-                    />
-                    <Stat
-                      label="Approved documents"
-                      value={workspace?.resumes.length || 0}
-                      sub="Grounded in your evidence"
-                    />
-                    <Stat
-                      label="Career profile"
-                      value={workspace?.profile ? 'v' + workspace.profile.version : 'Not set'}
-                      sub={workspace?.profile ? 'Reviewed and approved' : 'Your first step forward'}
-                    />
-                  </div>
-                  <section>
-                    <div className="section-heading">
-                      <h2>
-                        Your missions <span>{workspace?.missions.length || 0}</span>
-                      </h2>
-                      <span className="muted">Progress continues while this page is closed</span>
-                    </div>
-                    {workspace?.missions.length ? (
-                      <div className="mission-grid">
-                        {workspace.missions.map((m: any) => (
-                          <button
-                            className="mission-card"
-                            key={m.id}
-                            onClick={() => setSelected(m.id)}
-                          >
-                            <div className="card-top">
-                              <span className="mission-icon">
-                                <Target size={20} />
-                              </span>
-                              <Status value={m.status} />
-                            </div>
-                            <h3>{m.goal}</h3>
-                            <p>
-                              {m.status === 'COMPLETE'
-                                ? 'Your interview feedback is ready. Review your next steps.'
-                                : m.status === 'AWAITING_JOB'
-                                  ? 'Your ranked opportunities are ready. Choose a target role.'
-                                  : m.status === 'AWAITING_APPROVAL'
-                                    ? 'Your factual resume draft is ready for review.'
-                                    : m.status === 'AWAITING_INTERVIEW'
-                                      ? 'Your personalised interview practice is ready.'
-                                      : m.status === 'FAILED'
-                                        ? m.error
-                                        : m.status === 'STALE'
-                                          ? 'Your profile changed. Start a new mission using current evidence.'
-                                          : 'Your career team is working through the next step.'}
-                            </p>
-                            <div className="card-footer">
-                              <span>
-                                {date(m.createdAt)} ·{' '}
-                                {m.mode === 'fixture' ? 'Demo fixtures' : 'Live AI'}
-                              </span>
-                              <ArrowUpRight size={17} />
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="empty-state">
-                        <Compass size={30} />
-                        <h3>Your next opportunity starts with a mission.</h3>
-                        <p>
-                          {workspace?.profile
-                            ? 'Choose a career goal and your team will help you move it forward.'
-                            : 'Review and approve your career profile, then start a goal-led mission.'}
-                        </p>
-                        <button
-                          className="secondary"
-                          onClick={() =>
-                            workspace?.profile ? setCreating(true) : setTab('profile')
-                          }
-                        >
-                          {workspace?.profile ? 'Create your first mission' : 'Create your profile'}
-                          <ArrowRight size={15} />
-                        </button>
-                      </div>
-                    )}
-                  </section>
-                  <section className="team">
-                    <div className="section-heading">
-                      <h2>Meet your career team</h2>
-                      <span className="muted">Specialist roles. Shared, approved context.</span>
-                    </div>
-                    <div className="team-grid">
-                      {workspace?.agents.map((a: any, i: number) => (
-                        <div key={a.id}>
-                          <span className="team-number">0{i + 1}</span>
-                          <h3>{a.name}</h3>
-                          <p>{a.purpose}</p>
-                          <span className="tiny-label">{a.requirement}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
+                  <WorkspaceHome
+                    workspace={workspace}
+                    onProfile={() => {
+                      setTab('profile');
+                      setPhase(0);
+                    }}
+                    onSearch={() => setCreating(true)}
+                    onLibrary={() => {
+                      setTab('library');
+                      setPhase(null);
+                    }}
+                    onOpen={(m, targetPhase) => {
+                      setSelected(m.id);
+                      setPhase(targetPhase ?? nextMissionStep(m));
+                    }}
+                  />
                 </>
               )}
             </>
@@ -616,6 +477,7 @@ function App() {
                     onClick={() => {
                       setTab('missions');
                       setSelected(m.id);
+                      setPhase(nextMissionStep(m));
                     }}
                   >
                     <FileCheck2 size={24} />
@@ -713,6 +575,9 @@ function App() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="mission-title"
+            onKeyDown={(event) => {
+              if (event.key === 'Escape' && !busy) setCreating(false);
+            }}
           >
             <button
               className="modal-close"
@@ -805,6 +670,7 @@ function App() {
                     });
                     setCreating(false);
                     setSelected(m.id);
+                    setPhase(2);
                   })
                 }
               >
@@ -1518,13 +1384,6 @@ function MissionDetail({
     setNegotiationMessage('');
   }, [m.id, d.selectedJob?.job.id]);
 
-  const stages = [
-    { label: 'Approved profile', done: true },
-    { label: 'Career analysis', done: !!d.analysis },
-    { label: 'Job selection', done: !!d.selectedJob },
-    { label: 'Resume approval', done: !!d.approvedResumeId },
-    { label: 'Interview feedback', done: !!d.feedback },
-  ];
   return (
     <>
       <button className="back" onClick={onBack}>
@@ -1549,14 +1408,6 @@ function MissionDetail({
           Search Australian jobs
         </button>
       )}
-      <div className="progress-track">
-        {stages.map((s, i) => (
-          <div className={s.done ? 'done' : ''} key={s.label}>
-            <span>{s.done ? <Check size={14} /> : String(i + 1).padStart(2, '0')}</span>
-            {s.label}
-          </div>
-        ))}
-      </div>
       {m.error && (
         <div className="error-banner">
           <AlertCircle size={18} />
@@ -1576,16 +1427,27 @@ function MissionDetail({
             Cancel further work
           </button>
         )}
-        <span className="muted small">
-          {d.apiCalls || 0} / 12 model calls ·{' '}
-          {((d.inputTokens || 0) + (d.outputTokens || 0)).toLocaleString()} tokens recorded
-        </span>
+        <details className="run-details">
+          <summary>Run details</summary>
+          <span className="muted small">
+            {d.apiCalls || 0} / 12 model calls ·{' '}
+            {((d.inputTokens || 0) + (d.outputTokens || 0)).toLocaleString()} tokens recorded
+          </span>
+        </details>
       </div>
       {['RUNNING', 'QUEUED'].includes(m.status) && (
         <div role="status" className="working">
           <span className="pulse" />
           <div>
-            <strong>Your career team is on it.</strong>
+            <strong>
+              {phase === 2
+                ? 'Finding and matching jobs…'
+                : phase === 3
+                  ? 'Preparing your resume…'
+                  : phase === 4
+                    ? 'Preparing your interview…'
+                    : 'Preparing your next step…'}
+            </strong>
             <p>
               You can leave this page. Your mission will keep running while the server is available.
             </p>
@@ -1737,36 +1599,39 @@ function MissionDetail({
             {d.jobRetrieval.geography?.countryName || d.jobSearch?.country?.toUpperCase()} ·{' '}
             {d.jobRetrieval.geography?.region || 'All regions'}
           </p>
-          {d.jobRetrieval.discovery && (
-            <p>
-              Tavily: {d.jobRetrieval.discovery.discovered} indexed links ·{' '}
-              {d.jobRetrieval.discovery.verified} officially verified · {d.jobRetrieval.count}{' '}
-              location matches · {d.jobRetrieval.discovery.credits ?? 'Unknown'} search credits
-            </p>
-          )}
-          {d.jobRetrieval.duplicateCount > 0 && (
-            <p>{d.jobRetrieval.duplicateCount} duplicate source records removed.</p>
-          )}
-          {d.jobRetrieval.sourceTotal !== null && d.jobRetrieval.sourceTotal !== undefined && (
-            <p>
-              Provider total: {d.jobRetrieval.sourceTotal}. This run uses a limited result page.
-            </p>
-          )}
-          {d.jobRetrieval.sources?.map((source: any) => (
-            <p
-              key={`${source.provider || ''}-${source.board}-${source.listingId || source.status}`}
-            >
-              {source.company || source.board} · {source.status}
-              {source.count !== undefined
-                ? ` · ${source.count} matching location/keyword filters`
-                : ''}
-            </p>
-          ))}
-          {d.jobRetrieval.limitations?.map((text: string) => (
-            <p className="small muted" key={text}>
-              {text}
-            </p>
-          ))}
+          <details>
+            <summary>Search sources and coverage</summary>
+            {d.jobRetrieval.discovery && (
+              <p>
+                Tavily: {d.jobRetrieval.discovery.discovered} indexed links ·{' '}
+                {d.jobRetrieval.discovery.verified} officially verified · {d.jobRetrieval.count}{' '}
+                location matches · {d.jobRetrieval.discovery.credits ?? 'Unknown'} search credits
+              </p>
+            )}
+            {d.jobRetrieval.duplicateCount > 0 && (
+              <p>{d.jobRetrieval.duplicateCount} duplicate source records removed.</p>
+            )}
+            {d.jobRetrieval.sourceTotal !== null && d.jobRetrieval.sourceTotal !== undefined && (
+              <p>
+                Provider total: {d.jobRetrieval.sourceTotal}. This run uses a limited result page.
+              </p>
+            )}
+            {d.jobRetrieval.sources?.map((source: any) => (
+              <p
+                key={`${source.provider || ''}-${source.board}-${source.listingId || source.status}`}
+              >
+                {source.company || source.board} · {source.status}
+                {source.count !== undefined
+                  ? ` · ${source.count} matching location/keyword filters`
+                  : ''}
+              </p>
+            ))}
+            {d.jobRetrieval.limitations?.map((text: string) => (
+              <p className="small muted" key={text}>
+                {text}
+              </p>
+            ))}
+          </details>
         </section>
       )}
       {(phase === null || phase === 2) && m.status === 'NO_MATCHES' && (
@@ -1777,8 +1642,8 @@ function MissionDetail({
             Lower the minimum suitability or broaden your preferences, then start another mission.
             Your approved profile remains unchanged.
           </p>
-          <button className="secondary" onClick={onBack}>
-            Back to missions
+          <button className="primary" onClick={onNewSearch}>
+            Adjust search criteria
           </button>
         </div>
       )}
@@ -2357,7 +2222,8 @@ function MissionDetail({
         </section>
       )}
       {phase === null && (
-        <section className="panel mission-activity">
+        <details className="panel mission-activity">
+          <summary>Activity and agent details</summary>
           <div className="section-heading">
             <h2>
               <Activity size={20} />
@@ -2376,7 +2242,7 @@ function MissionDetail({
               </div>
             </div>
           ))}
-        </section>
+        </details>
       )}
     </>
   );
