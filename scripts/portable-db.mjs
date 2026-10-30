@@ -1,4 +1,5 @@
 import { PGlite } from '@electric-sql/pglite';
+import { useSocketProtocol } from './portable-protocol.mjs';
 import { PGLiteSocketServer } from '@electric-sql/pglite-socket';
 import { createConnection } from 'node:net';
 import { mkdir } from 'node:fs/promises';
@@ -25,7 +26,8 @@ export async function startLocalDatabase() {
     );
   const dataDir = fileURLToPath(new URL('../.runtime/pglite', import.meta.url));
   await mkdir(dataDir, { recursive: true });
-  const db = await PGlite.create({ dataDir });
+  const db = useSocketProtocol(await PGlite.create({ dataDir }));
+
   // App consumers share one pg client. Extra sessions are reserved for migrations
   // before app startup; do not run parallel application/test processes on this DB.
   const server = new PGLiteSocketServer({ db, host: '127.0.0.1', port, maxConnections: 16 });
