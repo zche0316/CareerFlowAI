@@ -132,7 +132,7 @@ test('reviewed wording creates a downloadable edition and application answers st
   await page.getByLabel('I reviewed the selected claims').check();
   await page.getByRole('button', { name: 'Approve & save resume', exact: true }).click();
   await expect(page.getByLabel('Your response', { exact: true })).toBeVisible({ timeout: 30000 });
-  await page.getByRole('button', { name: '08 · Real applications', exact: true }).click();
+  await page.getByRole('button', { name: 'Applications', exact: true }).click();
   await page.getByRole('button', { name: 'Check application fields', exact: true }).click();
   await expect(page.getByText('Full application schema unknown', { exact: false })).toBeVisible();
   await page.getByRole('button', { name: 'Document library', exact: true }).click();
@@ -162,3 +162,4 @@ test('reviewed wording creates a downloadable edition and application answers st
     fullPage: true,
   });
 });
+
