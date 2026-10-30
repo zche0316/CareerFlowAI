@@ -61,6 +61,7 @@ test('a new profile starts with no invented background or sharing permissions', 
   await expect(
     page.getByLabel('Experience and projects or “none yet”', { exact: true }),
   ).toHaveValue('');
+  await page.getByText('Choose who can use your profile', { exact: true }).click();
   for (const name of ['Career Coach', 'Job Matcher', 'Resume Tailor', 'Interview Coach']) {
     await expect(page.getByRole('checkbox', { name, exact: true })).not.toBeChecked();
   }
@@ -340,6 +341,7 @@ test('a finished legacy conversation can prepare missing saved details without a
     page.getByRole('button', { name: 'Review profile draft now', exact: true }),
   ).toBeDisabled();
   await page.getByRole('button', { name: 'Use these details in my draft', exact: true }).click();
+  await page.getByText('View all draft details', { exact: true }).click();
   await expect(
     page.getByRole('heading', { name: 'Legacy Data Project', exact: true }),
   ).toBeVisible();
@@ -415,4 +417,100 @@ test('saved-answer preparation with no proposals reports no changes instead of s
   await expect(
     page.getByRole('button', { name: 'Review current draft without this experience', exact: true }),
   ).toBeVisible();
+});
+
+test('focused review keeps unsent conversation text and consent when returning to the draft', async ({
+  page,
+}) => {
+  await page.route('**/api/profile-threads', (route) => route.fulfill({ json: [] }));
+  await page.route('**/api/profiles/drafts', draftResponse);
+  await page.route('**/api/profiles/drafts/profile-ui-draft', (route) =>
+    route.fulfill({ json: { discarded: true } }),
+  );
+  await openProfile(page);
+  await page.getByLabel('Full name', { exact: true }).fill('Fictional review candidate');
+  await page.getByLabel('Your next profile message').fill('An unsent answer I want to keep.');
+  const consent = page.getByLabel(
+    'I allow the configured model to process this conversation, working form and retrieved confirmed evidence.',
+  );
+  await consent.check();
+  await page.getByRole('button', { name: 'Review profile draft', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Check your profile', exact: true }),
+  ).toBeFocused();
+  await expect(page.getByLabel('Your next profile message')).not.toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Approve & save profile', exact: true }),
+  ).toBeDisabled();
+  await page.getByRole('button', { name: 'Discard draft', exact: true }).click();
+  await expect(page.getByLabel('Your next profile message')).toHaveValue(
+    'An unsent answer I want to keep.',
+  );
+  await expect(consent).toBeChecked();
+  await expect(page.getByLabel('Full name', { exact: true })).toHaveValue(
+    'Fictional review candidate',
+  );
+});
+
+test('experience picker sends only the selected record and section after consent', async ({
+  page,
+}) => {
+  const record = {
+    id: 'same-id',
+    title: 'Fictional employment',
+    organisation: '',
+    location: '',
+    startMonth: null,
+    endMonth: null,
+    current: false,
+    details: ['I cleaned a fictional dataset.'],
+    technologies: ['SQL'],
+    url: '',
+    evidence: [],
+  };
+  const workingForm = {
+    ...sampleProfile,
+    workExperiences: [record],
+    projects: [{ ...record, title: 'Fictional project' }],
+  };
+  const thread = {
+    id: 'picker-qa',
+    revision: 1,
+    profileVersion: 0,
+    workingForm,
+    messages: [],
+    proposals: [],
+    interview: { phase: 'review', closed: [] },
+  };
+  await page.route('**/api/profile-threads', (route) => route.fulfill({ json: [thread] }));
+  await page.route('**/api/profile-threads/picker-qa', (route) => route.fulfill({ json: thread }));
+  let submitted: any;
+  await page.route('**/api/profile-threads/picker-qa/organise', async (route) => {
+    submitted = route.request().postDataJSON();
+    await route.fulfill({ json: {} });
+  });
+  await openProfile(page);
+  await expect(page.getByRole('button', { name: /^Organise:/ })).toHaveCount(0);
+  await page.getByText('Organise experience answers & draft memories', { exact: true }).click();
+  const action = page.getByRole('button', { name: 'Organise selected experience', exact: true });
+  await expect(action).toBeDisabled();
+  await page.getByLabel('Experience to organise', { exact: true }).selectOption('projects:same-id');
+  await expect(action).toBeDisabled();
+  await page
+    .getByLabel(
+      'I allow the configured model to process this conversation, working form and retrieved confirmed evidence.',
+    )
+    .check();
+  await action.click();
+  await expect.poll(() => submitted?.recordSection).toBe('projects');
+  expect(submitted.recordId).toBe('same-id');
+  expect(submitted.consent).toBe(true);
+  await expect(
+    page.getByRole('button', { name: 'Approve & save profile', exact: true }),
+  ).toHaveCount(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByLabel('Experience to organise', { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
 });
