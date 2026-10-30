@@ -14,7 +14,7 @@ test('a candidate with no resume or formal work builds a story, selects job cont
   await page.getByLabel('Password', { exact: true }).fill('Native-QA-disposable-password');
   await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
   await expect(
-    page.getByRole('heading', { name: 'Build your profile through conversation' }),
+    page.getByRole('heading', { name: 'Tell us your story' }),
   ).toBeVisible();
   await expect(page.getByLabel('Full name', { exact: true })).not.toBeVisible();
   await expect(page.getByLabel('Resume file', { exact: true })).not.toBeVisible();
@@ -127,7 +127,8 @@ test('a candidate with no resume or formal work builds a story, selects job cont
   await expect(
     page
       .locator('.profile-draft-side')
-      .getByRole('heading', { name: 'Fictional course data project', exact: true }),
+      .locator('summary')
+      .filter({ hasText: 'Fictional course data project' }),
   ).toHaveCount(1);
   for (const name of ['Career Coach', 'Job Matcher', 'Resume Tailor', 'Interview Coach'])
     await page.getByRole('checkbox', { name, exact: true }).check();
@@ -175,7 +176,7 @@ test('a candidate with no resume or formal work builds a story, selects job cont
   await page
     .getByRole('button', { name: 'Save interview feedback as draft learning memory', exact: true })
     .click();
-  await page.getByRole('button', { name: 'Document library', exact: true }).click();
+  await page.getByRole('button', { name: 'My documents', exact: true }).click();
   await page.getByLabel('Source claim', { exact: true }).selectOption({ label: action });
   await page
     .getByLabel('I allow the configured model to process this selected approved claim.')

@@ -14,7 +14,15 @@ const labels: Record<string, string> = {
   other: 'Additional context',
 };
 // A source statement is selectable evidence, not a separate employment record.
-export function ProfileSummary({ data }: { data: CareerProfile }) {
+export function ProfileSummary({
+  data,
+  showName = true,
+  showSkills = true,
+}: {
+  data: CareerProfile;
+  showName?: boolean;
+  showSkills?: boolean;
+}) {
   const groups = [
     ['educations', 'Education'],
     ['workExperiences', 'Work experience'],
@@ -22,14 +30,36 @@ export function ProfileSummary({ data }: { data: CareerProfile }) {
   ] as const;
   return (
     <div className="profile-summary">
-      <p>
-        <strong>{data.name || 'Name to add'}</strong>
-      </p>
+      {showName && (
+        <p>
+          <strong>{data.name || 'Name to add'}</strong>
+        </p>
+      )}
       <p>{data.goals || 'Career direction to explore'}</p>
+      {data.contact &&
+        [
+          data.contact.email,
+          data.contact.phone,
+          data.contact.city,
+          data.contact.linkedin,
+          data.contact.portfolio,
+        ].filter(Boolean).length > 0 && (
+          <p className="profile-contact">
+            {[
+              data.contact.email,
+              data.contact.phone,
+              data.contact.city,
+              data.contact.linkedin,
+              data.contact.portfolio,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </p>
+        )}
       {!!data.location && (
         <p>{[data.location, data.workArrangement].filter(Boolean).join(' · ')}</p>
       )}
-      {!!data.skills.length && (
+      {showSkills && !!data.skills.length && (
         <p>
           <strong>Skills:</strong> {data.skills.join(', ')}
         </p>
@@ -43,8 +73,10 @@ export function ProfileSummary({ data }: { data: CareerProfile }) {
                 ? r.organisedStory
                 : undefined;
             return (
-              <article className="career-record-card" key={r.id}>
-                <h4>{r.title}</h4>
+              <details className="career-record-card" key={r.id}>
+                <summary>
+                  <strong>{r.title}</strong>
+                </summary>
                 <p className="muted">
                   {[
                     r.organisation,
@@ -93,7 +125,7 @@ export function ProfileSummary({ data }: { data: CareerProfile }) {
                 {!r.details.length && key !== 'educations' && (
                   <p className="muted">Your contribution is still to be explored.</p>
                 )}
-              </article>
+              </details>
             );
           })}
           {!data[key]?.length && key === 'educations' && hasCareerContent(data.education) && (

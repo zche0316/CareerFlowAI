@@ -7,7 +7,7 @@ async function signup(page: Page) {
   await page.getByLabel('Email address').fill(`memory-browser-${Date.now()}@careerflow.test`);
   await page.getByLabel('Password', { exact: true }).fill('Memory-QA-disposable-password');
   await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
-  await page.getByRole('button', { name: 'My career profile', exact: true }).click();
+  await page.getByRole('button', { name: 'Career chat', exact: true }).click();
 }
 test('saved profile conversation survives reload, retains manual form edits and manages confirmed memory', async ({
   page,
@@ -34,7 +34,7 @@ test('saved profile conversation survives reload, retains manual form edits and 
   );
   await expect(page.getByLabel('Full name', { exact: true })).toHaveValue('Manual edit stays');
   await page.reload();
-  await page.getByRole('button', { name: 'My career profile', exact: true }).click();
+  await page.getByRole('button', { name: 'Career chat', exact: true }).click();
   await expect(page.getByRole('log', { name: 'Saved profile messages' })).toContainText(
     'Atlas student project',
   );
@@ -47,11 +47,13 @@ test('saved profile conversation survives reload, retains manual form edits and 
   await page.getByLabel('Memory title', { exact: true }).fill('Atlas SQL evidence');
   await page.getByRole('button', { name: 'Save draft memory', exact: true }).click();
   await expect(page.getByText('Draft memory saved.', { exact: false })).toBeVisible();
+  await page.getByText('Find confirmed evidence', { exact: true }).click();
   await page.getByLabel('Evidence search', { exact: true }).fill('Atlas');
   await page.getByRole('button', { name: 'Search confirmed evidence', exact: true }).click();
   await expect(page.getByText('No keyword match.', { exact: false })).toBeVisible();
+  await page.getByText('Atlas SQL evidence', { exact: true }).click();
   await page.getByRole('button', { name: 'Confirm reviewed memory', exact: true }).click();
-  await expect(page.getByText('CONFIRMED', { exact: true })).toBeVisible();
+  await expect(page.getByText('Confirmed', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Search confirmed evidence', exact: true }).click();
   await expect(page.locator('code').filter({ hasText: 'memory:' })).toHaveCount(1);
   await page.getByRole('button', { name: 'Edit / correct memory', exact: true }).click();
@@ -60,6 +62,12 @@ test('saved profile conversation survives reload, retains manual form edits and 
     .getByLabel('Memory text', { exact: true })
     .fill('Fictional QA: I used Python in the Atlas student project.');
   await page.getByRole('button', { name: 'Save draft memory', exact: true }).click();
+  await page.getByText('Atlas Python evidence', { exact: true }).click();
+  const correctedMemory = page
+    .locator('details.memory-item')
+    .filter({ hasText: 'Atlas Python evidence' });
+  await correctedMemory.getByText('Source and applicability', { exact: true }).click();
+  await expect(correctedMemory).toContainText('conversation');
   await page.getByRole('button', { name: 'Confirm reviewed memory', exact: true }).click();
   await expect(page.getByText('SUPERSEDED', { exact: true })).toBeVisible();
   await page.getByLabel('Evidence search', { exact: true }).fill('SQL');
@@ -78,6 +86,7 @@ test('saved profile conversation survives reload, retains manual form edits and 
 test('STAR drafts allow unknown outcomes and remain user-reviewed memories', async ({ page }) => {
   await signup(page);
   await page.getByText('Career memory & STAR library', { exact: true }).click();
+  await page.getByText('Add a memory', { exact: true }).click();
   await page.getByLabel('Memory type', { exact: true }).selectOption('STAR');
   await page.getByLabel('Memory title', { exact: true }).fill('Fictional Atlas story');
   await page
@@ -88,11 +97,12 @@ test('STAR drafts allow unknown outcomes and remain user-reviewed memories', asy
     .fill('My task was to document missing values.');
   await page.getByLabel('STAR action', { exact: true }).fill('I used SQL to count missing values.');
   await page.getByRole('button', { name: 'Save draft memory', exact: true }).click();
+  await page.getByText('Fictional Atlas story', { exact: true }).click();
   await expect(
     page.getByRole('button', { name: 'Confirm reviewed memory', exact: true }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Confirm reviewed memory', exact: true }).click();
-  await expect(page.getByText('CONFIRMED', { exact: true })).toBeVisible();
+  await expect(page.getByText('Confirmed', { exact: true })).toBeVisible();
   await expect(page.getByText('Approved v1', { exact: true })).toHaveCount(0);
 });
 
@@ -110,7 +120,7 @@ test('reviewed wording creates a downloadable edition and application answers st
   await page.getByLabel('I reviewed this exact draft').check();
   await page.getByRole('button', { name: 'Approve & save profile', exact: true }).click();
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Career missions', exact: true }).click();
+  await page.getByRole('button', { name: 'Overview', exact: true }).click();
   await page.getByRole('button', { name: 'New career mission', exact: true }).click();
   await page.getByLabel('Job source', { exact: true }).selectOption('manual');
   await page
@@ -132,10 +142,11 @@ test('reviewed wording creates a downloadable edition and application answers st
   await page.getByLabel('I reviewed the selected claims').check();
   await page.getByRole('button', { name: 'Approve & save resume', exact: true }).click();
   await expect(page.getByLabel('Your response', { exact: true })).toBeVisible({ timeout: 30000 });
+  await page.getByText('More', { exact: true }).click();
   await page.getByRole('button', { name: 'Applications', exact: true }).click();
   await page.getByRole('button', { name: 'Check application fields', exact: true }).click();
   await expect(page.getByText('Full application schema unknown', { exact: false })).toBeVisible();
-  await page.getByRole('button', { name: 'Document library', exact: true }).click();
+  await page.getByRole('button', { name: 'My documents', exact: true }).click();
   await page.getByLabel('Source claim', { exact: true }).selectOption('experience-1');
   await page
     .getByLabel('I allow the configured model to process this selected approved claim.')
@@ -162,4 +173,3 @@ test('reviewed wording creates a downloadable edition and application answers st
     fullPage: true,
   });
 });
-

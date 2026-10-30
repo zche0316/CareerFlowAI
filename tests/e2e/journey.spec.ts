@@ -7,12 +7,12 @@ async function createAccount(page: Page) {
   await page.getByLabel('Email address').fill(`browser-${Date.now()}@careerflow.test`);
   await page.getByLabel('Password', { exact: true }).fill('Browser-QA-password');
   await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Your career profile' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Build your profile' })).toBeVisible();
 }
 
 async function openRankedJobs(page: Page) {
   await createAccount(page);
-  await page.getByRole('button', { name: 'My career profile', exact: true }).click();
+  await page.getByRole('button', { name: 'Career chat', exact: true }).click();
   await page.getByText('Demo test data', { exact: true }).click();
   await page.getByRole('button', { name: 'Use fictional example' }).click();
   await page.getByText('Edit profile details manually', { exact: true }).click();
@@ -20,7 +20,7 @@ async function openRankedJobs(page: Page) {
   await page.getByLabel('I reviewed this exact draft').check();
   await page.getByRole('button', { name: 'Approve & save profile' }).click();
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Career missions', exact: true }).click();
+  await page.getByRole('button', { name: 'Overview', exact: true }).click();
   await page.getByRole('button', { name: 'New career mission' }).click();
   await page.getByLabel('Job source', { exact: true }).selectOption('fixtures');
   await page.getByRole('button', { name: 'Start career mission', exact: true }).click();
@@ -40,14 +40,14 @@ async function openInterview(page: Page) {
   await page.getByLabel('I reviewed the selected claims').check();
   await page.getByRole('button', { name: 'Approve & save resume' }).click();
   await expect(
-    page.getByRole('heading', { name: 'Interview practice', exact: true }),
+    page.getByRole('heading', { name: 'Get ready for the conversation', exact: true }),
   ).toBeVisible();
   await expect(page.getByLabel('Your response', { exact: true })).toBeVisible({ timeout: 30000 });
 }
 
 test('a user must explicitly review a profile before v1 is persisted', async ({ page }) => {
   await createAccount(page);
-  await page.getByRole('button', { name: 'My career profile', exact: true }).click();
+  await page.getByRole('button', { name: 'Career chat', exact: true }).click();
   await page.getByText('Demo test data', { exact: true }).click();
   await page.getByRole('button', { name: 'Use fictional example' }).click();
   await page.getByText('Edit profile details manually', { exact: true }).click();
@@ -61,7 +61,7 @@ test('a user must explicitly review a profile before v1 is persisted', async ({ 
   await approve.click();
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
   await page.reload();
-  await page.getByRole('button', { name: 'My career profile', exact: true }).click();
+  await page.getByRole('button', { name: 'Career chat', exact: true }).click();
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
   await page.screenshot({ path: 'output/acceptance/cfs-13-approved-v1.png', fullPage: true });
 });
@@ -84,7 +84,7 @@ test('a user compares ranked jobs and selects one for downstream context', async
     timeout: 30000,
   });
   await expect(page.locator('#resume-tailoring')).toContainText(
-    `Proposed selection and ordering for ${selectedTitle}.`,
+    selectedTitle,
   );
   // Selection opens resume review; the chosen opportunity remains available in Job matching.
   await page.getByRole('button', { name: '03 · Job matching', exact: true }).click();
@@ -98,7 +98,7 @@ test('a user compares ranked jobs and selects one for downstream context', async
     timeout: 30000,
   });
   await expect(page.locator('#resume-tailoring')).toContainText(
-    `Proposed selection and ordering for ${selectedTitle}.`,
+    selectedTitle,
   );
   await page.screenshot({
     path: 'output/acceptance/cfs-21-selected-job-handoff.png',
@@ -136,7 +136,7 @@ test('a user finishes early and receives feedback from the saved response', asyn
     path: `output/acceptance/interview-early-exit-${process.env.PROVIDER_MODE === 'openai' ? 'live' : 'fixture'}.png`,
     fullPage: true,
   });
-  await page.getByRole('button', { name: 'Document library', exact: true }).click();
+  await page.getByRole('button', { name: 'My documents', exact: true }).click();
   await expect(page.getByRole('link', { name: 'Download TXT', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Download DOCX', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Download PDF', exact: true })).toBeVisible();
@@ -211,10 +211,9 @@ test('mobile workspace stays usable without horizontal scrolling', async ({ page
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   await page.getByRole('button', { name: 'Open demo workspace' }).click();
-  await expect(page.getByRole('heading', { name: 'Your career profile' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Build your profile' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
   await page.screenshot({ path: 'output/acceptance/mobile-workspace.png', fullPage: true });
 });
-

@@ -261,9 +261,6 @@ export function ProfileConversation({
           {thread?.messages.map((m: any) => (
             <article className={`conversation-message ${m.role}`} key={m.id}>
               <strong>{m.role === 'user' ? 'You' : 'Profile Builder'}</strong>
-              {m.role === 'user' && m.answerTag && (
-                <p className="small muted">Answer field: {m.answerTag.split(':').at(-1)}</p>
-              )}
               <p>{narrative(m)}</p>
               {m.questions?.slice(0, 1).map((q: string) => (
                 <p key={q}>{q}</p>

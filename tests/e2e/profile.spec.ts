@@ -26,7 +26,7 @@ async function openProfile(page: Page, approvedProfile: () => unknown = () => nu
     }),
   );
   await page.goto('/');
-  await page.getByRole('button', { name: 'My career profile', exact: true }).click();
+  await page.getByRole('button', { name: 'Career chat', exact: true }).click();
   await page.getByText('Edit profile details manually', { exact: true }).click();
   await expect(page.getByLabel('Full name', { exact: true })).toBeVisible();
 }
