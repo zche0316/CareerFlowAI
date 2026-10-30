@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from './db.js';
 import { json } from './domain.js';
 import { AppError, requireValue } from './errors.js';
+import { localSemanticSearch } from './semantic-evidence.js';
 import {
   memorySchema,
   memoryText,
@@ -269,6 +270,43 @@ export function registerCareerMemory(app: Express) {
       requireValue(
         await db.mission.findFirst({ where: { id: q.missionId, userId: req.actor!.id } }),
       );
-    res.json(await retrieveEvidence(req.actor!.id, q.q, q));
+    const result = await retrieveEvidence(req.actor!.id, q.q, q);
+    // Semantic results are separately labelled suggestions, never agent evidence.
+    if (process.env.ENABLE_LOCAL_SEMANTIC_SEARCH === 'true') {
+      const [profile, memories] = await Promise.all([
+        db.profile.findFirst({ where: { userId: req.actor!.id }, orderBy: { version: 'desc' } }),
+        db.careerMemory.findMany({ where: { userId: req.actor!.id, status: 'CONFIRMED' } }),
+      ]);
+      const rows = [
+        ...((profile?.facts as any[] | undefined) || []).map((f) => ({
+          id: `profile:${profile!.version}:${f.id}`,
+          text: f.text as string,
+          recordId: f.recordId || null,
+          missionId: null,
+          source: f.source,
+          kind: 'approved-profile',
+        })),
+        ...memories.map((m) => ({
+          id: `memory:${m.id}:${m.revision}`,
+          text: `${m.title}\n${memoryText(m)}`,
+          recordId: m.recordId,
+          missionId: m.missionId,
+          source: m.source,
+          kind: (m.source as any)?.kind === 'interview' ? 'advisory-feedback' : 'confirmed-memory',
+        })),
+      ];
+      try {
+        const semantic = await localSemanticSearch(rows, q.q, q);
+        res.json({
+          ...result,
+          semanticHits: semantic.filter((s) => !result.hits.some((h) => h.id === s.id)),
+          semanticStatus: 'available',
+        });
+      } catch {
+        res.json({ ...result, semanticHits: [], semanticStatus: 'unavailable' });
+      }
+      return;
+    }
+    res.json(result);
   });
 }

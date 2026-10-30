@@ -26,7 +26,7 @@ async function openProfile(page: Page, approvedProfile: () => unknown = () => nu
     }),
   );
   await page.goto('/');
-  await page.getByRole('button', { name: 'My career profile', exact: true }).click();
+  await page.getByRole('button', { name: 'Career chat', exact: true }).click();
   await page.getByText('Edit profile details manually', { exact: true }).click();
   await expect(page.getByLabel('Full name', { exact: true })).toBeVisible();
 }
@@ -340,9 +340,7 @@ test('a finished legacy conversation can prepare missing saved details without a
     page.getByRole('button', { name: 'Review profile draft now', exact: true }),
   ).toBeDisabled();
   await page.getByRole('button', { name: 'Use these details in my draft', exact: true }).click();
-  await expect(
-    page.getByRole('heading', { name: 'Legacy Data Project', exact: true }),
-  ).toBeVisible();
+  await expect(page.getByLabel('Projects 1 title')).toHaveValue('Legacy Data Project');
   await expect(
     page.getByRole('button', { name: 'Review profile draft now', exact: true }),
   ).toBeEnabled();

@@ -56,6 +56,13 @@ export function WorkspaceHome({
       go: onProfile,
     },
     {
+      title: 'Career analysis',
+      text: 'Explore your strengths and direction.',
+      icon: Layers,
+      done: !!current?.data?.analysis,
+      go: current ? () => onOpen(current, 1) : hasProfile ? onSearch : onProfile,
+    },
+    {
       title: 'Find a job',
       text: 'Explore ranked jobs and choose a role.',
       icon: BriefcaseBusiness,
@@ -82,6 +89,7 @@ export function WorkspaceHome({
     : current
       ? actionText[current.status] || 'View progress'
       : 'Find matching jobs';
+  const firstIncomplete = steps.findIndex((step) => !step.done);
   return (
     <div className="workspace-home">
       <div className="page-heading">
@@ -94,51 +102,140 @@ export function WorkspaceHome({
           New career mission <ArrowRight size={16} />
         </button>
       </div>
-      <section className="next-action" aria-labelledby="next-action-title">
-        <div>
-          <span className="eyebrow">NEXT STEP</span>
-          <h2 id="next-action-title">
-            {!hasProfile
-              ? 'Start with your experience'
-              : current
-                ? nextLabel
-                : 'Find the right opportunity'}
-          </h2>
-          <p>
-            {!hasProfile
-              ? 'No resume needed. Tell us about your work, study or projects, then review the profile before using it.'
-              : current
-                ? current.goal
-                : 'Your approved profile is ready. Choose a location and search for matching jobs.'}
-          </p>
-          {hasProfile && (
-            <span className="small muted">
-              Approved profile v{workspace.profile.version} · {workspace.resumes?.length || 0} saved
-              documents
-            </span>
-          )}
-        </div>
-        <button
-          className="primary"
-          onClick={!hasProfile ? onProfile : current ? () => onOpen(current) : onSearch}
-        >
-          {nextLabel}
-          <ArrowRight size={17} />
-        </button>
-      </section>
-      <section className="journey-overview" aria-label="Application steps">
-        {steps.map((s, i) => (
-          <button key={s.title} onClick={s.go}>
-            <span className={s.done ? 'step-badge complete' : 'step-badge'}>
-              {s.done ? <Check size={17} /> : i + 1}
-            </span>
+      <div className="prototype-overview-layout">
+        <div className="prototype-overview-main">
+          <section className="next-action" aria-labelledby="next-action-title">
+            <img className="workspace-hero-art" src="/careerflow-journey.svg" alt="" />
             <div>
-              <strong>{s.title}</strong>
-              <p>{s.text}</p>
+              <span className="eyebrow">NEXT STEP</span>
+              <h2 id="next-action-title">
+                {!hasProfile
+                  ? 'Start with your experience'
+                  : current
+                    ? nextLabel
+                    : 'Find the right opportunity'}
+              </h2>
+              <p>
+                {!hasProfile
+                  ? 'No resume needed. Tell us about your work, study or projects, then review the profile before using it.'
+                  : current
+                    ? current.goal
+                    : 'Your approved profile is ready. Choose a location and search for matching jobs.'}
+              </p>
+              {hasProfile && (
+                <span className="small muted">
+                  Approved profile v{workspace.profile.version} · {workspace.resumes?.length || 0}{' '}
+                  saved documents
+                </span>
+              )}
             </div>
-          </button>
-        ))}
-      </section>
+            <button
+              className="primary"
+              onClick={!hasProfile ? onProfile : current ? () => onOpen(current) : onSearch}
+            >
+              {nextLabel}
+              <ArrowRight size={17} />
+            </button>
+          </section>
+          <div className="journey-title">
+            <h2>Your career journey</h2>
+            <span>
+              {steps.filter((step) => step.done).length} of {steps.length} steps complete
+            </span>
+          </div>
+          <section className="journey-overview" aria-label="Application steps">
+            {steps.map((s, i) => (
+              <button
+                key={s.title}
+                onClick={s.go}
+                className={s.done ? 'journey-done' : i === firstIncomplete ? 'journey-current' : ''}
+              >
+                <span className={s.done ? 'step-badge complete' : 'step-badge'}>
+                  {s.done ? <Check size={17} /> : i + 1}
+                </span>
+                <div>
+                  <strong>{s.title}</strong>
+                  <p>{s.text}</p>
+                </div>
+              </button>
+            ))}
+          </section>
+        </div>
+        <aside className="prototype-overview-side">
+          <section className="prototype-side-panel">
+            <div className="prototype-side-heading">
+              <h2>Your progress</h2>
+              <button className="text-button" onClick={onProfile}>
+                View profile <ArrowRight size={14} />
+              </button>
+            </div>
+            <div className="prototype-progress">
+              <div
+                className="prototype-progress-ring"
+                style={
+                  {
+                    '--progress': `${(steps.filter((step) => step.done).length / steps.length) * 100}%`,
+                  } as React.CSSProperties
+                }
+              >
+                <strong>
+                  {Math.round((steps.filter((step) => step.done).length / steps.length) * 100)}%
+                </strong>
+              </div>
+              <div>
+                <p>
+                  {steps.filter((step) => step.done).length} of {steps.length} steps completed
+                </p>
+              </div>
+            </div>
+            <div className="prototype-mini-steps">
+              {steps.map((step, i) => (
+                <button
+                  key={step.title}
+                  type="button"
+                  onClick={step.go}
+                  className={i === firstIncomplete ? 'current' : ''}
+                >
+                  <span>{step.done ? <Check size={13} /> : i + 1}</span>
+                  {step.title}
+                  <ArrowRight size={14} />
+                </button>
+              ))}
+            </div>
+          </section>
+          <section className="prototype-side-panel">
+            <h2>Career coach</h2>
+            <p>Continue the conversation about your career and experience.</p>
+            <button className="prototype-coach-link" onClick={onProfile}>
+              Open profile conversation <ArrowRight size={16} />
+            </button>
+          </section>
+          <section className="prototype-side-panel">
+            <div className="prototype-side-heading">
+              <h2>Your profile</h2>
+              <button className="text-button" onClick={onProfile}>
+                View <ArrowRight size={14} />
+              </button>
+            </div>
+            <div className="prototype-profile-row">
+              <span>
+                {String(workspace?.profile?.data?.name || 'You')
+                  .slice(0, 1)
+                  .toUpperCase()}
+              </span>
+              <div>
+                <strong>{workspace?.profile?.data?.name || 'Your profile'}</strong>
+                <p>{workspace?.profile?.data?.location || 'Add your location'}</p>
+              </div>
+            </div>
+            <div className="prototype-skill-list">
+              {(workspace?.profile?.data?.skills || []).slice(0, 4).map((skill: string) => (
+                <span key={skill}>{skill}</span>
+              ))}
+            </div>
+          </section>
+        </aside>
+      </div>
       <section aria-labelledby="recent-searches-title">
         <div className="section-heading">
           <h2 id="recent-searches-title">
