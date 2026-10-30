@@ -2096,6 +2096,94 @@ h3,
 .profile-assistant select {
   max-width: 100%;
 }
+.profile-assistant > h3 {
+  font-size: 20px;
+  margin-bottom: 12px;
+}
+.profile-assistant .conversation-log {
+  border: 1px solid #dce3ef;
+  border-radius: 10px;
+  background: #f8faff;
+  padding: 12px;
+}
+.profile-assistant .conversation-message {
+  max-width: 88%;
+  border: 1px solid #e2e7ef;
+  background: #fff;
+  padding: 12px 14px;
+}
+.profile-assistant .conversation-message.user {
+  margin-left: auto;
+  border-left: 1px solid #cbd7ee;
+  background: #edf2fb;
+}
+.profile-assistant .conversation-message p {
+  margin: 5px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.experience-organiser,
+.more-actions,
+.ai-consent {
+  border-top: 1px solid #e3e8f0;
+  margin-top: 14px;
+  padding-top: 10px;
+}
+.experience-organiser .compact-help,
+.ai-consent details p {
+  color: #63718a;
+  font-size: 12px;
+  margin: 4px 0 10px;
+  line-height: 1.55;
+}
+.experience-organiser label {
+  margin: 8px 0;
+}
+.experience-organiser select {
+  width: 100%;
+}
+.experience-organiser .secondary {
+  margin-top: 8px;
+}
+.interview-controls {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid #e3e8f0;
+  margin-top: 16px;
+  padding-top: 14px;
+}
+.interview-status {
+  color: #34435e;
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0;
+}
+.primary-action-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.action-menu {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+  padding: 8px 0 0 12px;
+}
+.action-menu p {
+  color: #63718a;
+  font-size: 12px;
+  margin: 4px 0 8px;
+}
+.ai-consent .checkbox {
+  color: #45546d;
+}
+.ai-consent details {
+  margin-left: 23px;
+}
+.ai-consent details summary {
+  color: #63718a;
+  font-size: 12px;
+}
 
 /* One conversation is the primary profile entry; grouped records are its draft. */
 .chat-profile-layout {
@@ -2156,6 +2244,18 @@ h3,
 @media (max-width: 1000px) {
   .chat-profile-layout {
     grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 600px) {
+  .profile-assistant .conversation-message {
+    max-width: 100%;
+  }
+  .primary-action-row,
+  .primary-action-row > button {
+    width: 100%;
+  }
+  .primary-action-row > button {
+    justify-content: center;
   }
 }
 

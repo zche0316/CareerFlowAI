@@ -21,11 +21,7 @@ test('saved profile conversation survives reload, retains manual form edits and 
   await page
     .getByLabel('Your next profile message')
     .fill('Fictional QA: I used SQL in the Atlas student project.');
-  await page
-    .getByLabel(
-      'I allow the configured model to process this conversation, working form and retrieved confirmed evidence.',
-    )
-    .check();
+  await page.getByLabel('Allow AI assistance for this profile conversation.').check();
   await page.getByRole('button', { name: 'Send profile message', exact: true }).click();
   await page.getByText('Edit profile details manually', { exact: true }).click();
   await page.getByLabel('Full name', { exact: true }).fill('Manual edit stays');
@@ -162,4 +158,3 @@ test('reviewed wording creates a downloadable edition and application answers st
     fullPage: true,
   });
 });
-

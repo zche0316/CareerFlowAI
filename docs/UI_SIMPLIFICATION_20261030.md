@@ -34,6 +34,28 @@ The Prisma startup error was caused by a missing generated client. Installation 
 
 The sandbox rejected a local listener, so database integration, browser acceptance and visual acceptance have not been completed for this update. Run those checks in a normal local terminal before merging.
 
+## Profile conversation follow-up
+
+The profile interview previously exposed every saved experience as a separate button and showed
+review, resume, skip, finish and history actions together. The follow-up keeps the conversation and
+current answer as the main path:
+
+- one compact experience selector and one `Organise selected experience` action;
+- one contextual interview action instead of four equal-weight buttons;
+- skip, finish-interview, resume and missing-experience recovery behind `More actions`;
+- a short AI-consent label with a separate `What is shared?` explanation;
+- one primary review action once the interview is finished.
+
+This increment changes presentation and interaction hierarchy only. Conversation persistence,
+approval, evidence checks, ownership and provider behavior are unchanged.
+
+Validation on a native PostgreSQL test database:
+
+- TypeScript check and production frontend build passed.
+- 13 profile-conversation, interview-control and profile-playwright scenarios passed.
+- The zero-resume end-to-end journey passed.
+- Prettier and `git diff --check` passed.
+
 ## Run with the group backend
 
 Install the upstream lockfile dependencies with `npm ci`, then use `npm run start:local` or the existing VS Code launch task. Use an isolated fixture database for `npm run verify:local` and `npm run test:e2e`; do not run tests against a portable database that the application is already using. Preserve the team's server-side environment file and never commit credentials.

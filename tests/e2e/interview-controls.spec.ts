@@ -1,4 +1,9 @@
 import { test, expect } from '@playwright/test';
+async function openMoreActions(page: import('@playwright/test').Page) {
+  const details = page.locator('details.more-actions');
+  if (!(await details.evaluate((element) => element.hasAttribute('open'))))
+    await details.locator('summary').click();
+}
 test('interview controls stop and skip without model calls, survive reload and lead to review without approval', async ({
   page,
 }) => {
@@ -23,6 +28,8 @@ test('interview controls stop and skip without model calls, survive reload and l
   await page.getByText('Conversation history & recovery', { exact: true }).click();
   await page.getByRole('button', { name: 'Start profile conversation', exact: true }).click();
   await expect(page.getByRole('log')).toContainText('When did Alpha data project start?');
+  await expect(page.getByRole('button', { name: 'Skip this question', exact: true })).toBeHidden();
+  await openMoreActions(page);
   await page.getByRole('button', { name: 'Skip this question', exact: true }).click();
   await expect(page.getByRole('log').locator('article').last()).toContainText(
     'end, or is it ongoing',
@@ -39,6 +46,7 @@ test('interview controls stop and skip without model calls, survive reload and l
   await expect(page.getByRole('log').locator('article').last()).toContainText(
     'different experience',
   );
+  await openMoreActions(page);
   await page.getByRole('button', { name: 'Finish interview & review', exact: true }).click();
   await expect(page.getByLabel('Your next profile message')).not.toBeVisible();
   await page.reload();
@@ -46,6 +54,8 @@ test('interview controls stop and skip without model calls, survive reload and l
   await expect(
     page.getByText('Interview finished — review your draft.', { exact: true }),
   ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Resume interview', exact: true })).toBeHidden();
+  await openMoreActions(page);
   await page.getByRole('button', { name: 'Resume interview', exact: true }).click();
   await expect(page.getByRole('log').locator('article').last()).not.toContainText('When did Alpha');
   await page.getByText('Finished experiences', { exact: true }).click();
@@ -53,6 +63,7 @@ test('interview controls stop and skip without model calls, survive reload and l
   await expect(page.getByRole('log').locator('article').last()).toContainText(
     'end, or is it ongoing',
   );
+  await openMoreActions(page);
   await page.getByRole('button', { name: 'Finish interview & review', exact: true }).click();
   await page.getByRole('button', { name: 'Review profile draft now', exact: true }).click();
   await expect(page.getByLabel('I reviewed this exact draft')).not.toBeChecked();
@@ -87,12 +98,7 @@ test('finishing a pending new experience requests organisation before any draft 
     .fill(
       'Title: Fictional Pending Story\nType: course project\nOrganisation: Example University\nDates: 2025-01 to 2025-02, completed.\nBackground: We checked synthetic data.\nPersonal actions: I wrote SQL checks.\nOutcomes: The result is unknown.\nTools: SQL\nReflection: I learned to test assumptions.',
     );
-  await page
-    .getByLabel(
-      'I allow the configured model to process this conversation, working form and retrieved confirmed evidence.',
-      { exact: true },
-    )
-    .check();
+  await page.getByLabel('Allow AI assistance for this profile conversation.').check();
   await page.getByRole('button', { name: 'Send profile message', exact: true }).click();
   await expect(
     page.getByRole('button', { name: 'Use these details in my draft', exact: true }),

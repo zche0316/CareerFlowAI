@@ -41,7 +41,8 @@ export function ProfileConversation({
     [preparingSaved, setPreparingSaved] = useState(false),
     [preparationNotice, setPreparationNotice] = useState(''),
     [remember, setRemember] = useState<any>(null),
-    [memoryOpen, setMemoryOpen] = useState(false);
+    [memoryOpen, setMemoryOpen] = useState(false),
+    [organiseTargetId, setOrganiseTargetId] = useState('');
   const version = useRef(profileVersion);
   version.current = profileVersion;
   const latest = useRef(form),
@@ -244,6 +245,23 @@ export function ProfileConversation({
     form,
     ...pending.map((p: any) => ({ [p.field]: p.after })),
   );
+  const organisableExperiences = [
+    ...(form.workExperiences || []).map((record: any) => ({
+      record,
+      section: 'workExperiences' as const,
+    })),
+    ...(form.projects || []).map((record: any) => ({
+      record,
+      section: 'projects' as const,
+    })),
+  ].filter(({ record }) => record.details?.length);
+  const activeExperienceId = experiences(form).find(
+    (record: any) => record.key === thread?.interview?.active,
+  )?.id;
+  const selectedOrganisable =
+    organisableExperiences.find(({ record }) => record.id === organiseTargetId) ||
+    organisableExperiences.find(({ record }) => record.id === activeExperienceId) ||
+    organisableExperiences[0];
   return (
     <>
       <section className="profile-assistant chat-first" aria-label="Persistent Profile Builder">
@@ -372,41 +390,39 @@ export function ProfileConversation({
             </button>
           </section>
         )}
-        {thread &&
-          [...(form.workExperiences || []), ...(form.projects || [])].some(
-            (r) => r.details.length,
-          ) && (
-            <details>
-              <summary>Organise experience answers & draft memories</summary>
-              <p>
-                Group each experience into background, personal actions, outcomes and reflection.
-                Original answers stay available. Memories remain drafts until confirmed.
-              </p>
-              {[...(form.workExperiences || []), ...(form.projects || [])]
-                .filter((r) => r.details.length)
-                .map((r) => (
-                  <p key={r.id}>
-                    <button
-                      className="secondary"
-                      disabled={busy || !consent || pending.length > 0}
-                      onClick={() =>
-                        void run(() =>
-                          organise(
-                            thread,
-                            r.id,
-                            (form.workExperiences || []).includes(r)
-                              ? 'workExperiences'
-                              : 'projects',
-                          ),
-                        )
-                      }
-                    >
-                      Organise: {r.title}
-                    </button>
-                  </p>
+        {thread && selectedOrganisable && (
+          <details className="experience-organiser">
+            <summary>Organise saved experience answers</summary>
+            <p className="compact-help">
+              Turn one experience into a draft memory. Original answers stay unchanged.
+            </p>
+            <label>
+              Experience
+              <select
+                value={selectedOrganisable.record.id}
+                disabled={busy}
+                onChange={(e) => setOrganiseTargetId(e.target.value)}
+              >
+                {organisableExperiences.map(({ record }) => (
+                  <option key={record.id} value={record.id}>
+                    {record.title}
+                  </option>
                 ))}
-            </details>
-          )}
+              </select>
+            </label>
+            <button
+              className="secondary"
+              disabled={busy || !consent || pending.length > 0}
+              onClick={() =>
+                void run(() =>
+                  organise(thread, selectedOrganisable.record.id, selectedOrganisable.section),
+                )
+              }
+            >
+              Organise selected experience
+            </button>
+          </details>
+        )}
         {preparationNotice && (
           <p role="status" aria-live="polite">
             {preparationNotice}
@@ -414,7 +430,7 @@ export function ProfileConversation({
         )}
         {thread && (
           <section className="interview-controls" aria-label="Interview progress">
-            <p role="status">
+            <p className="interview-status" role="status">
               {reviewStage
                 ? 'Interview finished — review your draft.'
                 : thread.interview?.active
@@ -423,77 +439,96 @@ export function ProfileConversation({
             </p>
             {reviewStage ? (
               <>
-                {thread.hasUnfiledExperience && (
-                  <div className="info">
-                    <div>
-                      <p>
-                        A finished experience is saved in the conversation but is not yet a
-                        structured draft record. Organise those answers without another interview,
-                        or review the current draft.
-                      </p>
-                      <button
-                        className="secondary"
-                        disabled={busy || !consent}
-                        onClick={() => void recoverAnswers()}
-                      >
-                        {preparingSaved
-                          ? 'Preparing saved answers…'
-                          : 'Prepare missing experience from saved answers'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-                <button
-                  className="primary"
-                  disabled={busy || pending.length > 0 || !onReview}
-                  onClick={onReview}
-                >
-                  {thread.hasUnfiledExperience
-                    ? 'Review current draft without this experience'
-                    : 'Review profile draft now'}
-                </button>
+                <div className="primary-action-row">
+                  <button
+                    className="primary"
+                    disabled={busy || pending.length > 0 || !onReview}
+                    onClick={onReview}
+                  >
+                    {thread.hasUnfiledExperience
+                      ? 'Review current draft without this experience'
+                      : 'Review profile draft now'}
+                  </button>
+                </div>
                 {pending.length > 0 && (
                   <p>Use or decline the pending details above before preparing the final draft.</p>
                 )}
-                <button
-                  className="text-button"
-                  disabled={busy}
-                  onClick={() => void control('resume')}
-                >
-                  Resume interview
-                </button>
+                <details className="more-actions">
+                  <summary>More actions</summary>
+                  <div className="action-menu">
+                    {thread.hasUnfiledExperience && (
+                      <>
+                        <p>
+                          One saved experience is not yet structured. Organise it before review if
+                          you want it included.
+                        </p>
+                        <button
+                          className="secondary"
+                          disabled={busy || !consent}
+                          onClick={() => void recoverAnswers()}
+                        >
+                          {preparingSaved
+                            ? 'Preparing saved answers…'
+                            : 'Prepare missing experience'}
+                        </button>
+                      </>
+                    )}
+                    <button
+                      className="text-button"
+                      disabled={busy}
+                      onClick={() => void control('resume')}
+                    >
+                      Resume interview
+                    </button>
+                  </div>
+                </details>
               </>
             ) : (
-              <div className="form-actions">
-                <button
-                  className="secondary"
-                  disabled={busy || !thread.interview?.active}
-                  onClick={() => void control('finish_experience')}
-                >
-                  Finish this experience
-                </button>
-                <button
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() => void control('next_experience')}
-                >
-                  Add another experience
-                </button>
-                <button
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() => void control('finish_interview')}
-                >
-                  Finish interview & review
-                </button>
-                <button
-                  className="text-button"
-                  disabled={busy || !thread.interview?.question}
-                  onClick={() => void control('skip_question')}
-                >
-                  Skip this question
-                </button>
-              </div>
+              <>
+                <div className="primary-action-row">
+                  <button
+                    className="secondary"
+                    disabled={busy}
+                    onClick={() =>
+                      void control(
+                        thread.interview?.active ? 'finish_experience' : 'next_experience',
+                      )
+                    }
+                  >
+                    {thread.interview?.active ? 'Finish this experience' : 'Add another experience'}
+                  </button>
+                </div>
+                <details className="more-actions">
+                  <summary>More actions</summary>
+                  <div className="action-menu">
+                    {thread.interview?.active && (
+                      <>
+                        <button
+                          className="text-button"
+                          disabled={busy}
+                          onClick={() => void control('next_experience')}
+                        >
+                          Add another experience
+                        </button>
+                        <button
+                          className="text-button"
+                          disabled={busy || !thread.interview?.question}
+                          onClick={() => void control('skip_question')}
+                        >
+                          Skip this question
+                        </button>
+                      </>
+                    )}
+                    <button
+                      className="text-button"
+                      disabled={busy}
+                      onClick={() => void control('finish_interview')}
+                    >
+                      Finish interview & review
+                    </button>
+                  </div>
+                </details>
+              </>
             )}
             {!!thread.interview?.closed?.length && (
               <details>
@@ -530,15 +565,23 @@ export function ProfileConversation({
           </label>
         )}
         {(thread || !reviewStage) && (
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={consent}
-              onChange={(e) => setConsent(e.target.checked)}
-            />
-            I allow the configured model to process this conversation, working form and retrieved
-            confirmed evidence.
-          </label>
+          <div className="ai-consent">
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={consent}
+                onChange={(e) => setConsent(e.target.checked)}
+              />
+              <span>Allow AI assistance for this profile conversation.</span>
+            </label>
+            <details>
+              <summary>What is shared?</summary>
+              <p>
+                The AI receives this conversation, your current profile draft and confirmed evidence
+                you choose to use. Nothing is approved automatically.
+              </p>
+            </details>
+          </div>
         )}
         {!reviewStage && (
           <button

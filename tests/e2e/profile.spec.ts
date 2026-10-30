@@ -253,11 +253,7 @@ test('a failed conversation keeps manual details and manual review available', a
   await openProfile(page);
   await page.getByLabel('Full name', { exact: true }).fill('Manual candidate');
   await page.getByLabel('Your next profile message').fill('I would like to explore analyst roles.');
-  await page
-    .getByLabel(
-      'I allow the configured model to process this conversation, working form and retrieved confirmed evidence.',
-    )
-    .check();
+  await page.getByLabel('Allow AI assistance for this profile conversation.').check();
   await page.getByRole('button', { name: 'Send profile message', exact: true }).click();
   await expect(page.getByRole('log')).toContainText('Model processing failed.');
   await expect(page.getByLabel('Full name', { exact: true })).toHaveValue('Manual candidate');
@@ -328,14 +324,9 @@ test('a finished legacy conversation can prepare missing saved details without a
   });
   await openProfile(page);
   await expect(page.getByLabel('Your next profile message')).not.toBeVisible();
-  await page
-    .getByLabel(
-      'I allow the configured model to process this conversation, working form and retrieved confirmed evidence.',
-    )
-    .check();
-  await page
-    .getByRole('button', { name: 'Prepare missing experience from saved answers', exact: true })
-    .click();
+  await page.getByLabel('Allow AI assistance for this profile conversation.').check();
+  await page.getByText('More actions', { exact: true }).click();
+  await page.getByRole('button', { name: 'Prepare missing experience', exact: true }).click();
   await expect(
     page.getByRole('button', { name: 'Review profile draft now', exact: true }),
   ).toBeDisabled();
@@ -396,14 +387,9 @@ test('saved-answer preparation with no proposals reports no changes instead of s
     }),
   );
   await openProfile(page);
-  await page
-    .getByLabel(
-      'I allow the configured model to process this conversation, working form and retrieved confirmed evidence.',
-    )
-    .check();
-  await page
-    .getByRole('button', { name: 'Prepare missing experience from saved answers', exact: true })
-    .click();
+  await page.getByLabel('Allow AI assistance for this profile conversation.').check();
+  await page.getByText('More actions', { exact: true }).click();
+  await page.getByRole('button', { name: 'Prepare missing experience', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('No source-supported suggestions');
   await expect(
     page.getByRole('status').filter({ hasText: 'No draft updates were prepared' }),

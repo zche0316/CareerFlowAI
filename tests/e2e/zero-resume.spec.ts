@@ -116,11 +116,7 @@ test('a candidate with no resume or formal work builds a story, selects job cont
         [situation, task, action].join(' ') +
         ' The outcome is not known yet.',
     );
-  await page
-    .getByLabel(
-      'I allow the configured model to process this conversation, working form and retrieved confirmed evidence.',
-    )
-    .check();
+  await page.getByLabel('Allow AI assistance for this profile conversation.').check();
   await page.getByRole('button', { name: 'Send profile message', exact: true }).click();
   await expect(page.getByRole('log')).not.toContainText('When did the project start?');
   await page.getByRole('button', { name: 'Use these details in my draft', exact: true }).click();
