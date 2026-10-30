@@ -1,3 +1,5 @@
+> Historical verification record. Counts, capabilities and measurements below apply to their stated revision. For current capabilities and release checks, start with [CURRENT_DELIVERY.md](CURRENT_DELIVERY.md).
+
 # Integration and quality checks
 
 This document records the practical test contract for CFS-39.
@@ -57,3 +59,4 @@ npm run test:e2e
 
 The CI workflow executes the same verification and browser checks with a PostgreSQL service
 container.
+
