@@ -2,7 +2,7 @@
 
 ## CareerFlow AI prototype
 
-Latest integration: [26 October source integration and validation](docs/STAGE2_INTEGRATION_20261026.md). Earlier dated notes below describe historical snapshots; use the latest record for this branch.
+Current delivery: [capabilities and verification](docs/CURRENT_DELIVERY.md), [technology evidence](docs/TECHNOLOGY_EVIDENCE.md), and [Agile demonstration preparation](docs/AGILE_DEMO_PREPARATION.md). Dated records elsewhere retain historical results and do not establish acceptance of later revisions.
 
 Assessment preparation: [Stage 1 interview](docs/STAGE1_INTERVIEW_MEMBER3.md) · [Quick review](docs/STAGE1_QUICK_REVIEW.md) · [Week 13 readiness audit](docs/WEEK13_READINESS.md) · [Deployment rehearsal](docs/WEEK13_DEPLOYMENT.md) · [Contribution template](docs/CONTRIBUTION_STATEMENT_TEMPLATE.md). Create a source candidate with `npm run package:source`; review it before Canvas upload.
 
@@ -196,3 +196,4 @@ The group application now uses the navy header and horizontal 01–08 workflow t
 See [setup and acceptance evidence](docs/SPRINT1_JOB_MATCHING.md). Recruitment defaults now read `JOB_SOURCE` and `ADZUNA_COUNTRY`; Adzuna availability is shown without exposing keys. 03 can suggest editable keywords/location from the approved profile, sending only search terms to the job source. Normalization now deduplicates records, preserves missing salary, distinguishes estimated salaries and shows provider total/page limits. Rate limits, Retry-After, rejected credentials and timeouts have explicit safe messages. The user has not applied for Adzuna credentials yet: live Adzuna validation remains pending and mocked transport tests are labelled accordingly.
 
 Sprint 1 update verification: `npm run verify:local` passed all 44 tests, type checking, migrations and production build. This includes mocked Adzuna scoring/handoff and rate-limit retry integration tests. It does not claim real Adzuna access without credentials.
+
