@@ -176,15 +176,45 @@ test('a candidate with no resume or formal work builds a story, selects job cont
   await page
     .getByRole('button', { name: 'Save interview feedback as draft learning memory', exact: true })
     .click();
+  // Force an old initial list response to arrive after a newly created suggestion.
+  let releaseInitial!: () => void;
+  let initialSeen!: () => void;
+  let initialReturned!: () => void;
+  const gate = new Promise<void>((resolve) => { releaseInitial = resolve; });
+  const seen = new Promise<void>((resolve) => { initialSeen = resolve; });
+  const returned = new Promise<void>((resolve) => { initialReturned = resolve; });
+  let initial = true;
+  await page.route('**/api/resumes/*/wording', async (route) => {
+    if (route.request().method() === 'GET' && initial) {
+      initial = false;
+      initialSeen();
+      await gate;
+      await route.fulfill({ json: [] });
+      initialReturned();
+    } else await route.continue();
+  });
   await page.getByRole('button', { name: 'My documents', exact: true }).click();
+  await seen;
   await page.getByLabel('Source claim', { exact: true }).selectOption({ label: action });
   await page
     .getByLabel('I allow the configured model to process this selected approved claim.')
     .check();
+  const suggestionResponse = page.waitForResponse((response) =>
+    response.request().method() === 'POST' && /\/api\/resumes\/[^/]+\/wording$/.test(response.url()),
+  );
   await page.getByRole('button', { name: 'Suggest source-grounded wording', exact: true }).click();
+  const suggestion = await suggestionResponse;
+  expect(suggestion.status()).toBe(201);
+  expect((await suggestion.json()).status).toBe('PENDING');
   await expect(
     page.getByRole('button', { name: 'Accept reviewed wording', exact: true }),
   ).toBeVisible();
+  releaseInitial();
+  await returned;
+  // The stale empty response must not erase the actionable new suggestion.
+  await expect(page.getByLabel('Suggested expression', { exact: true })).toHaveValue(
+    action.replace(/^I\s+/i, ''),
+  );
   await page.getByRole('button', { name: 'Accept reviewed wording', exact: true }).click();
   await page
     .getByLabel('I reviewed the accepted wording and want a separate approved resume edition.')
@@ -198,3 +228,4 @@ test('a candidate with no resume or formal work builds a story, selects job cont
   expect(uploads).toBe(0);
   await page.screenshot({ path: 'output/chat-first-20261029/native-edition.png', fullPage: true });
 });
+
