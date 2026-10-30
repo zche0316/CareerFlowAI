@@ -75,7 +75,17 @@ test('a user compares ranked jobs and selects one for downstream context', async
   const scores = scoreTexts.map((text) => Number(text.match(/\d+/)?.[0]));
   expect(scores).toEqual([...scores].sort((left, right) => right - left));
   await expect(page.getByText('Evidence, gaps & source', { exact: true })).toHaveCount(jobCount);
-  await expect(jobCards.locator('details')).toHaveCount(jobCount);
+  await expect(
+    jobCards.locator('details > summary').filter({ hasText: 'Evidence, gaps & source' }),
+  ).toHaveCount(jobCount);
+  await jobCards.first().getByText('Evidence, gaps & source', { exact: true }).click();
+  await expect(jobCards.first()).toContainText('Preferred skills (optional)');
+  await expect(jobCards.first()).toContainText('40% required skills');
+  await expect(
+    jobCards.first().getByRole('list', { name: 'Suitability score components' }),
+  ).toContainText('preferred: 5% weight');
+  await jobCards.first().getByText('Skill extraction evidence', { exact: true }).click();
+  await expect(jobCards.first()).toContainText('Required skills:');
   await page.screenshot({ path: 'output/acceptance/cfs-21-ranked-jobs.png', fullPage: true });
 
   const selectedTitle = await jobCards.locator('h3').first().innerText();
@@ -83,9 +93,7 @@ test('a user compares ranked jobs and selects one for downstream context', async
   await expect(page.getByRole('heading', { name: 'Your evidence-grounded resume' })).toBeVisible({
     timeout: 30000,
   });
-  await expect(page.locator('#resume-tailoring')).toContainText(
-    selectedTitle,
-  );
+  await expect(page.locator('#resume-tailoring')).toContainText(selectedTitle);
   // Selection opens resume review; the chosen opportunity remains available in Job matching.
   await page.getByRole('button', { name: '03 · Job matching', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Your selected opportunity' })).toBeVisible();
@@ -97,9 +105,7 @@ test('a user compares ranked jobs and selects one for downstream context', async
   await expect(page.getByRole('heading', { name: 'Your evidence-grounded resume' })).toBeVisible({
     timeout: 30000,
   });
-  await expect(page.locator('#resume-tailoring')).toContainText(
-    selectedTitle,
-  );
+  await expect(page.locator('#resume-tailoring')).toContainText(selectedTitle);
   await page.screenshot({
     path: 'output/acceptance/cfs-21-selected-job-handoff.png',
     fullPage: true,
