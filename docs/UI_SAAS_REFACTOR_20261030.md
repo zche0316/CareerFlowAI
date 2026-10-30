@@ -66,3 +66,19 @@ database schema, model/provider configuration, authentication, approvals and
 workflow transitions were not edited. Local checks used fixture AI, fictional
 candidate/job data and the existing persistent PGlite server. No live-provider,
 production, deployment or independent teammate acceptance claim is made here.
+
+## Readability follow-up — 30 October 2026
+
+Following the user's live review, small supporting text is generally increased
+from 10–11px to 12px, with profile/job descriptions at 13px and citation labels
+at 11px. Consent text, skills, document metadata, navigation and resume review
+controls use the larger sizes on narrow screens as well. Pale secondary text is
+darkened. The mobile approval buttons share equal available width and can wrap
+their unchanged labels. Search coverage keeps its existing structure and spacing;
+no search coverage-specific rule or component was changed.
+
+This follow-up changes CSS and this note only. The production build, both existing
+focused SaaS browser scenarios and `git diff --check` passed after the final
+adjustment. Desktop Profile and 390px resume output were visually inspected.
+The full 23-scenario suite above belongs to the preceding refactor; it was not
+rerun for this typography-only follow-up.

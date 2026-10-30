@@ -19,7 +19,7 @@
   --surface: #fff;
   --border: #e2e8f0;
   --ink: #0f172a;
-  --muted: #64748b;
+  --muted: #526176;
   --accent: #4f46e5;
   --accent-soft: #eef2ff;
   --success: #059669;
@@ -256,7 +256,7 @@ button:disabled {
   margin: 0;
   padding: 7px 9px;
   gap: 6px;
-  font-size: 11px;
+  font-size: 12px;
   color: #64748b;
   border-radius: 7px;
 }
@@ -302,7 +302,7 @@ button:disabled {
   background: #ecfdf5;
   border: 1px solid #d1fae5;
   border-radius: 20px;
-  font-size: 10px;
+  font-size: 11px;
   padding: 4px 8px;
   white-space: nowrap;
 }
@@ -394,7 +394,7 @@ button:disabled {
 }
 .panel > .muted {
   margin-bottom: 16px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .section-heading {
   gap: 12px;
@@ -456,8 +456,8 @@ main:has(> .phase-nav) > .page-heading {
 .mission-heading .back {
   margin: 0;
   padding: 6px 0;
-  font-size: 11px;
-  color: #94a3b8;
+  font-size: 12px;
+  color: #64748b;
   white-space: nowrap;
 }
 .mission-heading .back:hover {
@@ -472,12 +472,12 @@ main:has(> .phase-nav) > .page-heading {
   margin: 0;
 }
 .mission-actions .text-button {
-  font-size: 11px;
+  font-size: 12px;
   white-space: nowrap;
   color: #64748b;
 }
 .mission-actions .primary {
-  font-size: 11px;
+  font-size: 12px;
   min-height: 30px;
   padding: 5px 10px;
 }
@@ -485,7 +485,7 @@ main:has(> .phase-nav) > .page-heading {
   position: relative;
   margin: 0;
   color: #64748b;
-  font-size: 11px;
+  font-size: 12px;
 }
 .run-details > summary {
   border: 0;
@@ -528,8 +528,8 @@ main > .phase-nav button {
   gap: 6px;
   padding: 6px 10px;
   border-radius: 6px;
-  font-size: 11px;
-  color: #94a3b8;
+  font-size: 12px;
+  color: #64748b;
   white-space: nowrap;
 }
 main > .phase-nav button:hover {
@@ -554,7 +554,7 @@ pre,
 .phase-number {
   min-width: 0;
   margin: 0;
-  font-size: 10px;
+  font-size: 11px;
   opacity: 0.6;
   color: inherit;
 }
@@ -562,7 +562,7 @@ pre,
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 10px;
+  font-size: 11px;
   padding: 4px 7px;
   border: 1px solid var(--border);
   background: #f8fafc;
@@ -682,7 +682,7 @@ details[open] {
   border: 1px solid var(--border);
   border-radius: 20px;
   padding: 4px 8px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 500;
   line-height: 1.4;
   white-space: nowrap;
@@ -713,7 +713,7 @@ details[open] {
 .analysis h3,
 .next-steps h3 {
   color: #475569;
-  font-size: 12px;
+  font-size: 13px;
   margin-bottom: 12px;
 }
 .strength {
@@ -762,7 +762,7 @@ details.citation {
   min-height: 0;
   max-width: 100%;
   padding: 2px 6px;
-  font-size: 9px;
+  font-size: 11px;
   color: #6366f1;
   background: #eef2ff;
   border: 1px solid #e0e7ff;
@@ -790,7 +790,7 @@ details.citation {
   border: 1px solid var(--border);
   border-radius: 7px;
   font:
-    11px/1.6 'Inter Variable',
+    12px/1.6 'Inter Variable',
     sans-serif;
   max-width: 440px;
 }
@@ -839,7 +839,7 @@ details.citation {
   border-radius: 10px;
   padding: 14px;
   margin: 0 0 12px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .conversation-message.assistant > strong {
   margin-bottom: 9px;
@@ -853,7 +853,7 @@ details.citation {
 }
 .conversation-message.user > strong {
   color: #6366f1;
-  font-size: 10px;
+  font-size: 12px;
 }
 .conversation-message p {
   line-height: 1.75;
@@ -873,8 +873,8 @@ details.citation {
 .chat-composer > label {
   margin: 0;
   padding: 10px 12px 0;
-  font-size: 10px;
-  color: #94a3b8;
+  font-size: 12px;
+  color: #64748b;
 }
 .chat-composer textarea {
   display: block;
@@ -885,7 +885,7 @@ details.citation {
   background: transparent;
   box-shadow: none;
   color: #334155;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.7;
 }
 .composer-footer {
@@ -900,13 +900,13 @@ details.citation {
   flex: 1;
   min-width: 0;
   margin: 0;
-  font-size: 10px;
+  font-size: 12px;
   color: #64748b;
   gap: 7px;
 }
 .composer-footer .primary {
   flex-shrink: 0;
-  font-size: 10px;
+  font-size: 12px;
   padding: 7px 10px;
   min-height: 30px;
 }
@@ -940,7 +940,7 @@ details.citation {
 }
 .profile-summary > p {
   color: #64748b;
-  font-size: 11px;
+  font-size: 13px;
   margin: 5px 0;
 }
 .profile-summary > p:first-child strong {
@@ -951,7 +951,7 @@ details.citation {
   margin-top: 18px;
 }
 .profile-summary section h3 {
-  font-size: 11px;
+  font-size: 12px;
   color: #334155;
   margin-bottom: 7px;
 }
@@ -961,7 +961,7 @@ details.citation {
 }
 .profile-summary .career-record-card h4,
 .profile-summary .career-record-card p {
-  font-size: 11px;
+  font-size: 13px;
 }
 .profile-skills {
   display: flex;
@@ -971,8 +971,8 @@ details.citation {
   margin: 12px 0 !important;
 }
 .profile-skills > strong {
-  font-size: 10px;
-  color: #94a3b8;
+  font-size: 12px;
+  color: #64748b;
   margin-right: 3px;
 }
 .skill-pill,
@@ -983,7 +983,7 @@ details.citation {
   color: #475569;
   border: 1px solid #e2e8f0;
   border-radius: 20px;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.4;
 }
 .profile-draft-side .sharing {
@@ -992,14 +992,14 @@ details.citation {
   border-color: #f1f5f9;
 }
 .sharing h3 {
-  font-size: 11px;
+  font-size: 12px;
 }
 .sharing .muted {
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.6;
 }
 .sharing .checkbox {
-  font-size: 11px;
+  font-size: 12px;
 }
 .draft-preview {
   margin-top: 14px;
@@ -1010,7 +1010,7 @@ details.citation {
   gap: 0 16px;
 }
 label {
-  font-size: 12px;
+  font-size: 13px;
 }
 .record-section {
   border-color: var(--border);
@@ -1027,7 +1027,7 @@ label {
   border-color: var(--border);
   background: #f8fafc;
   color: #475569;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 /* Uniform job cards with a quiet score hierarchy. */
@@ -1059,7 +1059,7 @@ label {
 }
 .job-card > p {
   margin: 0;
-  font-size: 11px;
+  font-size: 13px;
 }
 .job-card > .pills {
   margin: 3px 0;
@@ -1093,7 +1093,7 @@ label {
 .score small {
   display: inline;
   color: inherit;
-  font-size: 8px;
+  font-size: 10px;
 }
 .score.fit-high {
   background: #ecfdf5;
@@ -1115,7 +1115,7 @@ label {
   margin-bottom: 4px;
 }
 .job-card details p {
-  font-size: 11px;
+  font-size: 12px;
   color: #64748b;
 }
 .job-card .secondary {
@@ -1126,7 +1126,7 @@ label {
 }
 .job-card .checkbox {
   margin: 2px 0 0;
-  font-size: 10px;
+  font-size: 12px;
 }
 .comparison {
   overflow: hidden;
@@ -1134,7 +1134,7 @@ label {
 th,
 td {
   border-color: var(--border);
-  font-size: 11px;
+  font-size: 12px;
 }
 th {
   color: #64748b;
@@ -1168,14 +1168,14 @@ th {
 }
 .resume-header p {
   color: #64748b;
-  font-size: 11px;
+  font-size: 13px;
 }
 .resume-document > section {
   margin-top: 20px;
 }
 .resume-document > section > h3 {
   color: #6366f1;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   margin-bottom: 8px;
 }
@@ -1214,7 +1214,7 @@ th {
 }
 .resume-action-bar > .checkbox {
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
   color: #475569;
 }
 .resume-action-bar > details {
@@ -1224,7 +1224,7 @@ th {
   padding: 0;
 }
 .resume-action-bar > details > summary {
-  font-size: 11px;
+  font-size: 12px;
   border: 1px solid var(--border);
   border-radius: 7px;
   padding: 7px 10px;
@@ -1256,7 +1256,7 @@ th {
   margin-bottom: 6px;
 }
 .wording-studio > p {
-  font-size: 12px;
+  font-size: 13px;
   color: #64748b;
   max-width: 920px;
 }
@@ -1269,7 +1269,7 @@ th {
 .wording-fields label {
   min-width: 0;
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
   color: #475569;
 }
 .wording-fields select {
@@ -1280,7 +1280,7 @@ th {
   display: inline-flex;
   margin-right: 14px;
   color: #64748b;
-  font-size: 11px;
+  font-size: 12px;
 }
 .wording-action-row {
   display: flex;
@@ -1295,12 +1295,12 @@ th {
   flex: 1;
   min-width: 0;
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
   color: #64748b;
 }
 .wording-action-row > button {
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: 12px;
 }
 .document-card {
   display: flex;
@@ -1321,8 +1321,8 @@ th {
   font-size: 14px;
 }
 .document-card p {
-  color: #94a3b8;
-  font-size: 11px;
+  color: #64748b;
+  font-size: 12px;
   margin-top: 3px;
 }
 .export-actions {
@@ -1338,7 +1338,7 @@ th {
   border-radius: 0;
   margin: 0;
   min-height: 32px;
-  font-size: 10px;
+  font-size: 12px;
 }
 .export-actions > .secondary {
   border-radius: 7px 0 0 7px;
@@ -1363,13 +1363,13 @@ th {
   letter-spacing: -0.7px;
 }
 .next-action p {
-  font-size: 12px;
+  font-size: 13px;
   color: #64748b;
   margin-bottom: 8px;
 }
 .next-action .small {
-  color: #94a3b8;
-  font-size: 10px;
+  color: #64748b;
+  font-size: 12px;
 }
 .journey-overview {
   gap: 12px;
@@ -1383,15 +1383,15 @@ th {
   font-size: 12px;
 }
 .journey-overview p {
-  color: #94a3b8;
-  font-size: 10px;
+  color: #64748b;
+  font-size: 12px;
   margin-top: 4px;
 }
 .step-badge {
   width: 26px;
   height: 26px;
   background: #f1f5f9;
-  color: #94a3b8;
+  color: #64748b;
   font-size: 11px;
   border-radius: 7px;
 }
@@ -1414,7 +1414,7 @@ th {
 }
 .search-row p,
 .row-action {
-  font-size: 10px;
+  font-size: 12px;
 }
 .row-action {
   color: #6366f1;
@@ -1446,7 +1446,7 @@ th {
   border: 1px solid var(--border);
   background: #fff;
   border-radius: 7px;
-  font-size: 11px;
+  font-size: 12px;
   padding: 7px 11px;
   color: #64748b;
 }
@@ -1485,11 +1485,11 @@ th {
   background: #f1f5f9;
   color: #64748b;
   border-radius: 4px;
-  font-size: 9px;
+  font-size: 11px;
 }
 .timeline-event p {
   color: #64748b;
-  font-size: 11px;
+  font-size: 12px;
 }
 .modal-backdrop {
   background: #0f172a38;
@@ -1506,7 +1506,7 @@ th {
   letter-spacing: -0.8px;
 }
 .modal > p {
-  font-size: 12px;
+  font-size: 13px;
   color: #64748b;
 }
 .login-page {
@@ -1543,8 +1543,8 @@ th {
   letter-spacing: -0.8px;
 }
 footer {
-  color: #94a3b8;
-  font-size: 10px;
+  color: #64748b;
+  font-size: 11px;
   border-color: #e2e8f0;
   padding: 18px 32px;
   background: var(--canvas);
@@ -1556,7 +1556,7 @@ footer {
     padding-inline: 18px;
   }
   .sidebar .nav {
-    font-size: 10px;
+    font-size: 12px;
     padding-inline: 7px;
   }
   .provider-label {
@@ -1585,7 +1585,7 @@ footer {
     display: none;
   }
   .sidebar .nav {
-    font-size: 10px;
+    font-size: 12px;
   }
   .chat-profile-layout {
     grid-template-columns: minmax(0, 1fr);
@@ -1607,13 +1607,13 @@ footer {
     font-size: 19px;
   }
   .mission-heading .back {
-    font-size: 10px;
+    font-size: 12px;
   }
   .mission-actions {
     gap: 4px;
   }
   .mission-actions .text-button {
-    font-size: 10px;
+    font-size: 12px;
   }
   .document-card {
     flex-wrap: wrap;
@@ -1685,7 +1685,7 @@ footer {
   }
   main > .phase-nav button {
     padding: 6px 8px;
-    font-size: 10px;
+    font-size: 12px;
     min-width: 0;
   }
   .phase-nav button[aria-current='step'] .phase-label {
@@ -1701,7 +1701,7 @@ footer {
     font-size: 22px;
   }
   .page-heading .secondary {
-    font-size: 10px;
+    font-size: 12px;
     padding-inline: 9px;
     white-space: normal;
   }
@@ -1712,7 +1712,7 @@ footer {
     flex: 0 0 auto;
   }
   .status {
-    font-size: 9px;
+    font-size: 11px;
   }
   .panel,
   .profile-chat-main {
@@ -1734,7 +1734,7 @@ footer {
   }
   .composer-footer .checkbox {
     flex-basis: 100%;
-    font-size: 10px;
+    font-size: 12px;
   }
   .composer-footer .primary {
     margin-left: auto;
@@ -1757,21 +1757,22 @@ footer {
   }
   .resume-action-bar {
     bottom: 8px;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
     padding: 12px;
     margin-inline: -6px;
   }
   .resume-action-bar > .checkbox {
     grid-column: 1 / -1;
-    font-size: 10px;
+    font-size: 12px;
   }
   .resume-action-bar > .primary {
-    font-size: 10px;
+    font-size: 12px;
     padding-inline: 8px;
+    white-space: normal;
   }
   .resume-action-bar > details > summary {
-    font-size: 10px;
+    font-size: 12px;
   }
   .wording-fields {
     grid-template-columns: minmax(0, 1fr);
@@ -1814,10 +1815,10 @@ footer {
     align-items: flex-start;
   }
   .journey-overview strong {
-    font-size: 11px;
+    font-size: 12px;
   }
   .journey-overview p {
-    font-size: 10px;
+    font-size: 12px;
   }
   .search-row {
     padding: 14px;
