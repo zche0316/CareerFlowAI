@@ -41,7 +41,8 @@ export function ProfileConversation({
     [preparingSaved, setPreparingSaved] = useState(false),
     [preparationNotice, setPreparationNotice] = useState(''),
     [remember, setRemember] = useState<any>(null),
-    [memoryOpen, setMemoryOpen] = useState(false);
+    [memoryOpen, setMemoryOpen] = useState(false),
+    [selectedExperience, setSelectedExperience] = useState('');
   const version = useRef(profileVersion);
   version.current = profileVersion;
   const latest = useRef(form),
@@ -129,7 +130,7 @@ export function ProfileConversation({
       });
     } catch (e) {
       setPreparationNotice(
-        'Organisation failed. Original answers and your draft are unchanged. Retry using the experience button below.',
+        'Organisation failed. Original answers and your draft are unchanged. Choose the experience below and try again.',
       );
       throw e;
     }
@@ -247,7 +248,16 @@ export function ProfileConversation({
   return (
     <>
       <section className="profile-assistant chat-first" aria-label="Persistent Profile Builder">
-        <h3>Your career conversation</h3>
+        <div className="conversation-stage">
+          <span className={`status-dot ${reviewStage ? 'complete' : ''}`} aria-hidden="true" />
+          <span>{reviewStage ? 'Ready to review' : 'Your career conversation'}</span>
+          {thread?.interview?.active && !reviewStage && (
+            <span className="current-experience">
+              {thread.interviewRecords?.find((r: any) => r.key === thread.interview.active)
+                ?.title || 'Current experience'}
+            </span>
+          )}
+        </div>
         <div ref={log} className="conversation-log" role="log" aria-label="Saved profile messages">
           {!thread && (
             <article className="conversation-message assistant">
@@ -372,41 +382,6 @@ export function ProfileConversation({
             </button>
           </section>
         )}
-        {thread &&
-          [...(form.workExperiences || []), ...(form.projects || [])].some(
-            (r) => r.details.length,
-          ) && (
-            <details>
-              <summary>Organise experience answers & draft memories</summary>
-              <p>
-                Group each experience into background, personal actions, outcomes and reflection.
-                Original answers stay available. Memories remain drafts until confirmed.
-              </p>
-              {[...(form.workExperiences || []), ...(form.projects || [])]
-                .filter((r) => r.details.length)
-                .map((r) => (
-                  <p key={r.id}>
-                    <button
-                      className="secondary"
-                      disabled={busy || !consent || pending.length > 0}
-                      onClick={() =>
-                        void run(() =>
-                          organise(
-                            thread,
-                            r.id,
-                            (form.workExperiences || []).includes(r)
-                              ? 'workExperiences'
-                              : 'projects',
-                          ),
-                        )
-                      }
-                    >
-                      Organise: {r.title}
-                    </button>
-                  </p>
-                ))}
-            </details>
-          )}
         {preparationNotice && (
           <p role="status" aria-live="polite">
             {preparationNotice}
@@ -414,13 +389,14 @@ export function ProfileConversation({
         )}
         {thread && (
           <section className="interview-controls" aria-label="Interview progress">
-            <p role="status">
-              {reviewStage
-                ? 'Interview finished — review your draft.'
-                : thread.interview?.active
-                  ? `Discussing: ${thread.interviewRecords?.find((r: any) => r.key === thread.interview.active)?.title || 'current experience'}`
-                  : 'Choose an experience or finish when ready.'}
-            </p>
+            {reviewStage && (
+              <div className="review-ready-heading">
+                <h3>Your story, ready to check</h3>
+                <p className="muted">
+                  Review your draft next. You can still return to the conversation.
+                </p>
+              </div>
+            )}
             {reviewStage ? (
               <>
                 {thread.hasUnfiledExperience && (
@@ -463,38 +439,7 @@ export function ProfileConversation({
                   Resume interview
                 </button>
               </>
-            ) : (
-              <div className="form-actions">
-                <button
-                  className="secondary"
-                  disabled={busy || !thread.interview?.active}
-                  onClick={() => void control('finish_experience')}
-                >
-                  Finish this experience
-                </button>
-                <button
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() => void control('next_experience')}
-                >
-                  Add another experience
-                </button>
-                <button
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() => void control('finish_interview')}
-                >
-                  Finish interview & review
-                </button>
-                <button
-                  className="text-button"
-                  disabled={busy || !thread.interview?.question}
-                  onClick={() => void control('skip_question')}
-                >
-                  Skip this question
-                </button>
-              </div>
-            )}
+            ) : null}
             {!!thread.interview?.closed?.length && (
               <details>
                 <summary>Finished experiences</summary>
@@ -516,44 +461,152 @@ export function ProfileConversation({
             )}
           </section>
         )}
-        {!reviewStage && (
-          <label>
-            Your next profile message
-            <textarea
-              aria-label="Your next profile message"
-              placeholder="Tell me about your goals or an experience…"
-              value={message}
-              maxLength={4000}
-              disabled={busy}
-              onChange={(e) => setMessage(e.target.value)}
-            />
-          </label>
+        <div className={`conversation-composer ${reviewStage ? 'review-consent' : ''}`}>
+          {!reviewStage && (
+            <label>
+              Your next profile message
+              <textarea
+                aria-label="Your next profile message"
+                placeholder="Tell me about your goals or an experience…"
+                value={message}
+                maxLength={4000}
+                disabled={busy}
+                onChange={(e) => setMessage(e.target.value)}
+              />
+            </label>
+          )}
+          {(thread || !reviewStage) && (
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={consent}
+                onChange={(e) => setConsent(e.target.checked)}
+              />
+              I allow the configured model to process this conversation, working form and retrieved
+              confirmed evidence.
+            </label>
+          )}
+          {!reviewStage && (
+            <div className="composer-actions">
+              <button
+                className="primary"
+                disabled={busy || !message.trim() || !consent}
+                onClick={() => void send()}
+              >
+                {busy ? 'Preparing a reply…' : 'Send profile message'}
+              </button>
+              {thread && (
+                <button
+                  className="text-button"
+                  disabled={busy}
+                  onClick={() => void control('finish_interview')}
+                >
+                  Finish interview & review <span aria-hidden="true">→</span>
+                </button>
+              )}
+            </div>
+          )}
+          {thread?.messages.at(-1)?.failed && (
+            <button className="secondary" disabled={busy || !consent} onClick={() => void retry()}>
+              Retry saved answer
+            </button>
+          )}
+        </div>
+        {thread && !reviewStage && (
+          <details className="interview-options">
+            <summary>More interview options</summary>
+            <div className="form-actions">
+              <button
+                className="secondary"
+                disabled={busy || !thread.interview?.active}
+                onClick={() => void control('finish_experience')}
+              >
+                Finish this experience
+              </button>
+              <button
+                className="secondary"
+                disabled={busy}
+                onClick={() => void control('next_experience')}
+              >
+                Add another experience
+              </button>
+
+              <button
+                className="text-button"
+                disabled={busy || !thread.interview?.question}
+                onClick={() => void control('skip_question')}
+              >
+                Skip this question
+              </button>
+            </div>
+          </details>
         )}
-        {(thread || !reviewStage) && (
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={consent}
-              onChange={(e) => setConsent(e.target.checked)}
-            />
-            I allow the configured model to process this conversation, working form and retrieved
-            confirmed evidence.
-          </label>
-        )}
-        {!reviewStage && (
-          <button
-            className="primary"
-            disabled={busy || !message.trim() || !consent}
-            onClick={() => void send()}
-          >
-            {busy ? 'Preparing a reply…' : 'Send profile message'}
-          </button>
-        )}
-        {thread?.messages.at(-1)?.failed && (
-          <button className="secondary" disabled={busy || !consent} onClick={() => void retry()}>
-            Retry saved answer
-          </button>
-        )}
+        {thread &&
+          [...(form.workExperiences || []), ...(form.projects || [])].some(
+            (r) => r.details.length > 0,
+          ) && (
+            <details className="experience-organiser">
+              <summary>Organise experience answers & draft memories</summary>
+              <p className="muted">
+                Group one experience into background, actions, outcomes and reflection. Original
+                answers stay available; memories need your confirmation.
+              </p>
+              <div className="organise-controls">
+                <label>
+                  Experience to organise
+                  <select
+                    aria-label="Experience to organise"
+                    value={selectedExperience}
+                    disabled={busy}
+                    onChange={(e) => setSelectedExperience(e.target.value)}
+                  >
+                    <option value="">Choose an experience</option>
+                    {(['workExperiences', 'projects'] as const).flatMap((section) =>
+                      (form[section] || [])
+                        .filter((r) => r.details.length > 0)
+                        .map((r) => (
+                          <option key={`${section}:${r.id}`} value={`${section}:${r.id}`}>
+                            {r.title}
+                          </option>
+                        )),
+                    )}
+                  </select>
+                </label>
+                <button
+                  className="secondary"
+                  disabled={
+                    busy ||
+                    !consent ||
+                    pending.length > 0 ||
+                    !(['workExperiences', 'projects'] as const).some((section) =>
+                      (form[section] || []).some(
+                        (r) => r.details.length > 0 && `${section}:${r.id}` === selectedExperience,
+                      ),
+                    )
+                  }
+                  onClick={() => {
+                    const section = selectedExperience.startsWith('workExperiences:')
+                      ? 'workExperiences'
+                      : 'projects';
+                    const record = (form[section] || []).find(
+                      (r) => `${section}:${r.id}` === selectedExperience,
+                    );
+                    if (record) void run(() => organise(thread, record.id, section));
+                  }}
+                >
+                  Organise selected experience
+                </button>
+              </div>
+              {!consent && (
+                <p className="small muted">
+                  Allow model processing above to organise your answers.
+                </p>
+              )}
+              {pending.length > 0 && (
+                <p className="small muted">Use or decline the pending suggestions first.</p>
+              )}
+            </details>
+          )}
         <details className="conversation-settings">
           <summary>Conversation history & recovery</summary>
           <label>
