@@ -10,6 +10,10 @@ The approved-profile → career analysis → job matching/selection → reviewed
 
 Missing experience requirements now remain null and receive neutral half-credit rather than full credit. Explicit zero years receives full credit. Common experience ranges and plus-years are recognised. Known degree levels are compared without treating a master-data project as a qualification; unknown requirements retain neutral treatment. Australian city/state forms are normalised without treating different cities or region-limited remote jobs as equivalent. Weights remain 45/15/10/15/15; scores are heuristic and not calibrated hiring probabilities. Preferred skills remain descriptive, not a separate score. Skill mentions in unstructured adverts remain low-confidence inference. Degree subject equivalence and work-rights eligibility are not inferred.
 
+## Export review recovery
+
+A slow initial wording-list response could overwrite newer suggestions. The wording studio now versions list requests and ignores superseded responses, including after changing documents. The zero-resume browser scenario deliberately delays the first empty list, creates a real fixture-provider suggestion and verifies that the later stale response does not remove it before review and export.
+
 ## Checks performed for this branch
 
 - TypeScript check and production build passed locally.
