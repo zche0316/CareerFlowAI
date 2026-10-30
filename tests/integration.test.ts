@@ -66,6 +66,26 @@ async function profile(c: Client, input = sampleProfile) {
   return r.body;
 }
 
+it('exposes selected job evidence only to the mission owner', async () => {
+  const owner = await client(true), stranger = await client(true);
+  const approved = await profile(owner);
+  const mission = await db.mission.create({
+    data: {
+      userId: owner.id, profileId: approved.id, goal: 'Find a role', mode: 'fixture',
+      data: json({ selectedJob: {
+        job: { title: 'Data Analyst', company: 'Example', description: 'Required skills: Python and SQL.' },
+        requirements: { required: ['python', 'sql'], inferred: false },
+      } }), events: json([]),
+    },
+  });
+  const result = await owner.request(`/missions/${mission.id}/job-fit`);
+  expect(result.status).toBe(200);
+  expect(result.body.profileVersion).toBe(approved.version);
+  expect(result.body.items[0].excerpt).toBe('Required skills: Python and SQL.');
+  expect(result.body.items[0].evidence.length).toBeGreaterThan(0);
+  expect((await stranger.request(`/missions/${mission.id}/job-fit`)).status).toBe(404);
+});
+
 async function wait(c: Client, id: string, status: string) {
   for (let i = 0; i < 250; i++) {
     const r = await c.request('/missions/' + id);

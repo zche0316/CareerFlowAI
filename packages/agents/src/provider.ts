@@ -8,7 +8,7 @@ export type Mode = 'fixture' | 'openai';
 
 export type ProviderContext = {
   goal: string;
-  facts: Fact[];
+  facts: Pick<Fact, 'id' | 'kind' | 'text'>[];
   analysisFeedback?: string;
   profileNotes?: string;
   profileBase?: Record<string, unknown>;
@@ -260,7 +260,7 @@ export async function generate<T>(
     profile:
       'Organise only the information supplied by the user into a partial profile draft. Return relevant follow-up questions for missing or ambiguous fields. Every proposed change must quote the exact supporting user text in evidence. Never infer qualifications, achievements, dates, salary or experience.',
     coach:
-      'Identify strengths, potential skill gaps, suitable directions and useful development actions. Every item in all four arrays must contain text, at least one valid evidenceIds value from the supplied facts, and a reason explaining the recommendation. Recommendations are advisory, not hiring probabilities.',
+      'Identify strengths, potential skill gaps, suitable directions and useful development actions. Every item in all four arrays must contain text, at least one valid evidenceIds value from the supplied facts, and a reason explaining the recommendation. Recommendations are advisory, not hiring probabilities. Never invent example candidate achievements, numeric outcomes, dataset sizes or certifications in resume advice. Refer to actual supplied evidence, or ask the user to supply a missing measurement. Future learning goals must be clearly described as future actions, never existing qualifications.',
     resume:
       'Use profileBase.records to choose the two or three most relevant experiences first, then select personal contribution/outcome fact IDs for each using their record ID prefixes. Choose and order up to eight strongest confirmed fact IDs relevant to the job. Give one short sentence per reason. Select actual personal contribution or outcome statements, not experience title headers or administrative Type, Dates, Organisation or Tools lines. Skills and education are valid. Keep team achievements distinct from personal actions. Never create candidate facts. Select individual source statements and retain their record header context. Never shorten the source library. Reasons explain relevance; the application renders the original fact text verbatim.',
     questions:
@@ -268,7 +268,7 @@ export async function generate<T>(
     feedback:
       'Return an object with all three required fields: strengths, improvements, and nextSteps. Each field must be a non-empty array of at most two short actionable strings. Always include all three keys, even when the answers are limited. Keep the complete JSON concise and finish every required field before adding detail. Give feedback on the supplied interview answers against the selected role. Distinguish observed answer quality from candidate qualifications. Never promote a practice answer to a verified profile fact.',
     negotiation:
-      'Simulate one fictional recruiter reply to the candidate salary negotiation, then give actionable strengths, improvements and next steps. Use only the selected role, approved profile context and the supplied practice offer/target/message. Never claim market benchmarks, recommend accepting a specific real offer, or make the final decision for the user. Make clear that acceptance remains the user practice choice.',
+      'Return recruiterReply and feedback. Keep recruiterReply under 150 words. feedback must contain all three keys strengths, improvements and nextSteps, each a non-empty array of at most two concise strings. Simulate one fictional recruiter reply to the candidate salary negotiation, then give actionable strengths, improvements and next steps. Use only the selected role, approved profile context and the supplied practice offer/target/message. Never claim market benchmarks, recommend accepting a specific real offer, or make the final decision for the user. Make clear that acceptance remains the user practice choice.',
   }[role];
   const instruction =
     'You are one specialist in CareerFlow AI. ' +

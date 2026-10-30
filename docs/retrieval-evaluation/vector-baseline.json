@@ -1,0 +1,439 @@
+{
+  "model": "intfloat/multilingual-e5-small",
+  "description": "Synthetic benchmark, raw top 5 without a relevance threshold; unlabelled results require human review. CPU timings exclude database/network and include model warm-up. No personal data or paid API used.",
+  "loadMs": 120475.37029199884,
+  "indexMs": 245.37854200752918,
+  "categories": {
+    "exact": {
+      "cases": 3,
+      "meanRecallAt5": 1.0,
+      "returnedUnlabelled": 11
+    },
+    "paraphrase": {
+      "cases": 3,
+      "meanRecallAt5": 1.0,
+      "returnedUnlabelled": 10
+    },
+    "cross-language": {
+      "cases": 3,
+      "meanRecallAt5": 1.0,
+      "returnedUnlabelled": 10
+    },
+    "cross-story": {
+      "cases": 3,
+      "meanRecallAt5": 1.0,
+      "returnedUnlabelled": 7
+    },
+    "negative": {
+      "cases": 2,
+      "meanRecallAt5": null,
+      "returnedUnlabelled": 10
+    }
+  },
+  "results": [
+    {
+      "category": "exact",
+      "query": "Python Pandas missing values duplicate rows",
+      "relevant": [
+        "data-en",
+        "data-zh"
+      ],
+      "hits": [
+        "data-en",
+        "data-zh",
+        "testing",
+        "dashboard",
+        "support-zh"
+      ],
+      "scores": [
+        0.897,
+        0.83699,
+        0.82139,
+        0.77695,
+        0.77059
+      ],
+      "recall": 1.0,
+      "unlabelled": [
+        "testing",
+        "dashboard",
+        "support-zh"
+      ],
+      "elapsedMs": 11.916249990463257
+    },
+    {
+      "category": "exact",
+      "query": "SQL reporting dashboard",
+      "relevant": [
+        "dashboard"
+      ],
+      "hits": [
+        "dashboard",
+        "data-en",
+        "testing",
+        "support-zh",
+        "data-zh"
+      ],
+      "scores": [
+        0.85796,
+        0.80468,
+        0.7876,
+        0.77911,
+        0.77896
+      ],
+      "recall": 1.0,
+      "unlabelled": [
+        "data-en",
+        "testing",
+        "support-zh",
+        "data-zh"
+      ],
+      "elapsedMs": 9.25124999776017
+    },
+    {
+      "category": "exact",
+      "query": "pytest unit tests CSV importer",
+      "relevant": [
+        "testing"
+      ],
+      "hits": [
+        "testing",
+        "data-en",
+        "data-zh",
+        "dashboard",
+        "backend"
+      ],
+      "scores": [
+        0.89897,
+        0.82136,
+        0.80101,
+        0.79101,
+        0.78852
+      ],
+      "recall": 1.0,
+      "unlabelled": [
+        "data-en",
+        "data-zh",
+        "dashboard",
+        "backend"
+      ],
+      "elapsedMs": 7.648166996659711
+    },
+    {
+      "category": "paraphrase",
+      "query": "How did I fix incomplete and repeated records?",
+      "relevant": [
+        "data-en",
+        "data-zh"
+      ],
+      "hits": [
+        "data-en",
+        "testing",
+        "dashboard",
+        "data-zh",
+        "backend"
+      ],
+      "scores": [
+        0.8557,
+        0.84714,
+        0.83652,
+        0.83169,
+        0.8178
+      ],
+      "recall": 1.0,
+      "unlabelled": [
+        "testing",
+        "dashboard",
+        "backend"
+      ],
+      "elapsedMs": 8.462625002721325
+    },
+    {
+      "category": "paraphrase",
+      "query": "When did I explain a tool to other people?",
+      "relevant": [
+        "support-en",
+        "support-zh"
+      ],
+      "hits": [
+        "support-en",
+        "support-zh",
+        "testing",
+        "dashboard",
+        "data-en"
+      ],
+      "scores": [
+        0.81846,
+        0.80988,
+        0.80704,
+        0.80673,
+        0.80328
+      ],
+      "recall": 1.0,
+      "unlabelled": [
+        "testing",
+        "dashboard",
+        "data-en"
+      ],
+      "elapsedMs": 7.98016699263826
+    },
+    {
+      "category": "paraphrase",
+      "query": "Give an example of checking software against bad input",
+      "relevant": [
+        "testing"
+      ],
+      "hits": [
+        "testing",
+        "data-en",
+        "dashboard",
+        "data-zh",
+        "backend"
+      ],
+      "scores": [
+        0.83021,
+        0.80475,
+        0.78575,
+        0.77643,
+        0.77073
+      ],
+      "recall": 1.0,
+      "unlabelled": [
+        "data-en",
+        "dashboard",
+        "data-zh",
+        "backend"
+      ],
+      "elapsedMs": 7.764916997984983
+    },
+    {
+      "category": "cross-language",
+      "query": "How did I clean a dataset and remove duplicates?",
+      "relevant": [
+        "data-en",
+        "data-zh"
+      ],
+      "hits": [
+        "data-en",
+        "testing",
+        "data-zh",
+        "dashboard",
+        "backend"
+      ],
+      "scores": [
+        0.89654,
+        0.83784,
+        0.83027,
+        0.829,
+        0.79394
+      ],
+      "recall": 1.0,
+      "unlabelled": [
+        "testing",
+        "dashboard",
+        "backend"
+      ],
+      "elapsedMs": 7.667541998671368
+    },
+    {
+      "category": "cross-language",
+      "query": "Describe supporting users with spreadsheets",
+      "relevant": [
+        "support-en",
+        "support-zh"
+      ],
+      "hits": [
+        "support-en",
+        "support-zh",
+        "data-en",
+        "testing",
+        "data-zh"
+      ],
+      "scores": [
+        0.83029,
+        0.82394,
+        0.81332,
+        0.80719,
+        0.80434
+      ],
+      "recall": 1.0,
+      "unlabelled": [
+        "data-en",
+        "testing",
+        "data-zh"
+      ],
+      "elapsedMs": 7.988124998519197
+    },
+    {
+      "category": "cross-language",
+      "query": "我在哪个项目中开发了数据报表？",
+      "relevant": [
+        "dashboard"
+      ],
+      "hits": [
+        "data-zh",
+        "support-zh",
+        "dashboard",
+        "testing",
+        "data-en"
+      ],
+      "scores": [
+        0.88313,
+        0.86475,
+        0.82413,
+        0.80669,
+        0.79614
+      ],
+      "recall": 1.0,
+      "unlabelled": [
+        "data-zh",
+        "support-zh",
+        "testing",
+        "data-en"
+      ],
+      "elapsedMs": 7.593832997372374
+    },
+    {
+      "category": "cross-story",
+      "query": "Which examples show Python data cleaning and SQL reporting?",
+      "relevant": [
+        "data-en",
+        "data-zh",
+        "dashboard"
+      ],
+      "hits": [
+        "data-en",
+        "dashboard",
+        "testing",
+        "data-zh",
+        "backend"
+      ],
+      "scores": [
+        0.84142,
+        0.81724,
+        0.80769,
+        0.80474,
+        0.76695
+      ],
+      "recall": 1.0,
+      "unlabelled": [
+        "testing",
+        "backend"
+      ],
+      "elapsedMs": 7.736332991044037
+    },
+    {
+      "category": "cross-story",
+      "query": "Find examples of testing software and helping workshop participants",
+      "relevant": [
+        "testing",
+        "support-en",
+        "support-zh"
+      ],
+      "hits": [
+        "testing",
+        "data-en",
+        "support-en",
+        "support-zh",
+        "data-zh"
+      ],
+      "scores": [
+        0.81815,
+        0.80018,
+        0.79767,
+        0.79678,
+        0.79436
+      ],
+      "recall": 1.0,
+      "unlabelled": [
+        "data-en",
+        "data-zh"
+      ],
+      "elapsedMs": 7.334041991271079
+    },
+    {
+      "category": "cross-story",
+      "query": "Show API development and team coordination",
+      "relevant": [
+        "backend",
+        "team"
+      ],
+      "hits": [
+        "backend",
+        "team",
+        "support-zh",
+        "data-zh",
+        "data-en"
+      ],
+      "scores": [
+        0.82755,
+        0.81364,
+        0.79286,
+        0.78496,
+        0.78242
+      ],
+      "recall": 1.0,
+      "unlabelled": [
+        "support-zh",
+        "data-zh",
+        "data-en"
+      ],
+      "elapsedMs": 7.4078750039916486
+    },
+    {
+      "category": "negative",
+      "query": "Where did I administer Kubernetes clusters?",
+      "relevant": [],
+      "hits": [
+        "team",
+        "backend",
+        "dashboard",
+        "testing",
+        "data-en"
+      ],
+      "scores": [
+        0.80276,
+        0.8006,
+        0.7973,
+        0.78702,
+        0.77607
+      ],
+      "recall": null,
+      "unlabelled": [
+        "team",
+        "backend",
+        "dashboard",
+        "testing",
+        "data-en"
+      ],
+      "elapsedMs": 8.247874997323379
+    },
+    {
+      "category": "negative",
+      "query": "Describe my Salesforce implementation",
+      "relevant": [],
+      "hits": [
+        "dashboard",
+        "backend",
+        "testing",
+        "support-zh",
+        "data-en"
+      ],
+      "scores": [
+        0.8352,
+        0.82832,
+        0.82763,
+        0.82162,
+        0.82104
+      ],
+      "recall": null,
+      "unlabelled": [
+        "dashboard",
+        "backend",
+        "testing",
+        "support-zh",
+        "data-en"
+      ],
+      "elapsedMs": 7.66745800501667
+    }
+  ]
+}

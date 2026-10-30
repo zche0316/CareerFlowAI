@@ -154,8 +154,12 @@ export async function runNegotiationPractice(userId: string, id: string, input: 
       'negotiation',
       {
         goal: mission.goal,
-        facts: mission.profile.facts as unknown as Fact[],
-        job: data.selectedJob.job,
+        facts: (mission.profile.facts as unknown as Fact[]).map(({ id, kind, text }) => ({
+          id,
+          kind,
+          text,
+        })),
+        job: { title: data.selectedJob.job.title, description: data.selectedJob.job.description },
         offerSalary: parsed.offerSalary,
         targetSalary: parsed.targetSalary,
         currency: parsed.currency,
@@ -209,6 +213,16 @@ export async function runNegotiationPractice(userId: string, id: string, input: 
     });
     return ownedMission(userId, id);
   } catch (error) {
+    // Log diagnostic categories only: never profile, provider response or credentials.
+    console.error('Negotiation practice failed', {
+      missionId: id,
+      type: error instanceof Error ? error.name : 'UnknownError',
+      status: (error as { status?: number })?.status,
+      validation:
+        error instanceof z.ZodError
+          ? error.issues.map(({ path, code }) => ({ path, code }))
+          : undefined,
+    });
     const message = error instanceof Error ? error.message : 'Negotiation practice failed.';
     const publicMessage = /Live AI requires|budget|profile changed|superseded|sharing/i.test(
       message,
