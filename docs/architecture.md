@@ -38,7 +38,7 @@ The Operations/Activity views in this prototype cover the signed-in user's works
 
 ## Honest modes and proof boundaries
 
-`fixture` is a deterministic development provider, not a local LLM. Jobs and salary/growth data are labelled fictional. `openai` uses the Responses API, a controlled context tool and Zod structured outputs. Live mode never silently falls back to fixtures. Missing configuration or provider failures become recoverable mission failures and preserve approved data.
+`fixture` is a deterministic development provider, not a local LLM. Fixture jobs and their salary/growth data are labelled fictional; external jobs retain source and retrieval metadata. `openai` uses the Responses API, a controlled context tool and Zod structured outputs. Live mode never silently falls back to fixtures. Missing configuration or provider failures become recoverable mission failures and preserve approved data.
 
 Live vacancy retrieval is implemented through supported official employer APIs and optional configured discovery/aggregator sources. Pasted listings remain unverified. Direct SEEK/Indeed API submission, browser auto-application, email/calendar connectors and hosted deployment are not claimed. See CURRENT_DELIVERY.md for the current evidence boundary. Model choice is configured with `OPENAI_MODEL`; deterministic fixtures and locally exercised live-provider paths are kept separate.
 

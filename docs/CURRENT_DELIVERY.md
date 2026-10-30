@@ -19,7 +19,7 @@ Missing experience requirements now remain null and receive neutral half-credit 
 - Official Spaceship board response was observed on 30 October with Product Builder, Sydney, posting 8119027; its official single-job API was also checked and returned the same ID/title/link. A saved response can be replayed through normalisation, comparison and export using `node --import tsx scripts/export-review.ts --snapshot`. This is snapshot replay, not an authenticated mission or a guarantee the vacancy remains open.
 - Full local verify could not bind the portable database port in the execution sandbox (EPERM). Full integration and browser acceptance must be taken from the new PR's final CI result, not inferred from the base commit.
 
-Artifacts are under ignored output/release-review/. No candidate data or credentials are included. Reproduce the fictional exporter sample with `node --import tsx scripts/export-review.ts`.
+Artifacts are under ignored output/release-review/. No candidate data or credentials are included. Reproduce the fictional exporter sample with `node --import tsx scripts/export-review.ts`. With network access, add `--live` for a fresh official Australian search, single-job revalidation and fictional-candidate export; it fails visibly on empty/unavailable sources. This optional live script path was not executed successfully in the restricted shell.
 
 ## Final source rehearsal
 

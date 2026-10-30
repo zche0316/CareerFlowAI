@@ -25,3 +25,7 @@ Matching quality has four targeted regression scenarios: unknown-vs-zero experie
 ## Demonstration prompts
 
 Show a retained answer after failure, a rejected stale approval, a resumed checkpoint, a source limitation and a CI regression fix. Explain the practical value of each rather than listing technology names. The teaching team decides whether technologies are sufficiently distinct and integrated for the rubric.
+
+## Matching measurement on this branch
+
+`node scripts/measure-matching.mjs` performed 5 warm-ups and 30 measured runs per input size on Node 24.20.0, macOS arm64. Eight fictional jobs: median 0.519 ms, p95 0.735 ms. Eighty repeated fictional jobs: median 29.068 ms, p95 30.624 ms. Raw samples summary and algorithm hash: MATCHING_BENCHMARK_20261030.json. These measurements exclude retrieval, database, LLM, export and concurrency. The superlinear increase reflects repeated TF-IDF corpus work; do not use it to claim production scalability or a before/after speedup. It identifies a bounded prototype workload and a future optimisation target.
