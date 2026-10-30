@@ -1,0 +1,249 @@
+{
+  "description": "Synthetic, manually labelled examples; unlabelled hits are candidates for manual review, not verified false associations. In-memory latency excludes network and database.",
+  "records": [
+    {
+      "id": "data-en",
+      "text": "In a course project I used Python and Pandas to fill missing values and remove duplicate rows from a dataset."
+    },
+    {
+      "id": "data-zh",
+      "text": "课程项目中，我使用 Python 和 Pandas 清洗数据，填补缺失值并删除重复记录。"
+    },
+    {
+      "id": "dashboard",
+      "text": "I wrote SQL aggregation queries and created a reporting dashboard for a student project."
+    },
+    {
+      "id": "testing",
+      "text": "I wrote 20 unit tests using pytest for a CSV importer and checked invalid inputs."
+    },
+    {
+      "id": "support-en",
+      "text": "I helped workshop participants use spreadsheets and explained each step clearly."
+    },
+    {
+      "id": "support-zh",
+      "text": "我帮助社区活动参与者使用电子表格，逐步解释操作方法。"
+    },
+    {
+      "id": "backend",
+      "text": "I implemented a REST API using FastAPI and documented endpoints for the team."
+    },
+    {
+      "id": "team",
+      "text": "I coordinated weekly tasks with teammates and documented project decisions in GitHub."
+    }
+  ],
+  "categories": {
+    "exact": {
+      "cases": 3,
+      "meanRecallAt5": 1,
+      "returnedUnlabelled": 0
+    },
+    "paraphrase": {
+      "cases": 3,
+      "meanRecallAt5": 0,
+      "returnedUnlabelled": 0
+    },
+    "cross-language": {
+      "cases": 3,
+      "meanRecallAt5": 0.3333333333333333,
+      "returnedUnlabelled": 1
+    },
+    "cross-story": {
+      "cases": 3,
+      "meanRecallAt5": 0.611111111111111,
+      "returnedUnlabelled": 0
+    },
+    "negative": {
+      "cases": 2,
+      "meanRecallAt5": null,
+      "returnedUnlabelled": 0
+    }
+  },
+  "results": [
+    {
+      "category": "exact",
+      "query": "Python Pandas missing values duplicate rows",
+      "relevant": [
+        "data-en",
+        "data-zh"
+      ],
+      "hits": [
+        "data-en",
+        "data-zh"
+      ],
+      "recall": 1,
+      "unlabelled": [],
+      "elapsedMs": 1.795833000000016
+    },
+    {
+      "category": "exact",
+      "query": "SQL reporting dashboard",
+      "relevant": [
+        "dashboard"
+      ],
+      "hits": [
+        "dashboard"
+      ],
+      "recall": 1,
+      "unlabelled": [],
+      "elapsedMs": 0.08187500000002501
+    },
+    {
+      "category": "exact",
+      "query": "pytest unit tests CSV importer",
+      "relevant": [
+        "testing"
+      ],
+      "hits": [
+        "testing"
+      ],
+      "recall": 1,
+      "unlabelled": [],
+      "elapsedMs": 0.05891699999995126
+    },
+    {
+      "category": "paraphrase",
+      "query": "How did I fix incomplete and repeated records?",
+      "relevant": [
+        "data-en",
+        "data-zh"
+      ],
+      "hits": [],
+      "recall": 0,
+      "unlabelled": [],
+      "elapsedMs": 0.049624999999991815
+    },
+    {
+      "category": "paraphrase",
+      "query": "When did I explain a tool to other people?",
+      "relevant": [
+        "support-en",
+        "support-zh"
+      ],
+      "hits": [],
+      "recall": 0,
+      "unlabelled": [],
+      "elapsedMs": 0.04824999999999591
+    },
+    {
+      "category": "paraphrase",
+      "query": "Give an example of checking software against bad input",
+      "relevant": [
+        "testing"
+      ],
+      "hits": [],
+      "recall": 0,
+      "unlabelled": [],
+      "elapsedMs": 0.047000000000025466
+    },
+    {
+      "category": "cross-language",
+      "query": "How did I clean a dataset and remove duplicates?",
+      "relevant": [
+        "data-en",
+        "data-zh"
+      ],
+      "hits": [
+        "data-en"
+      ],
+      "recall": 0.5,
+      "unlabelled": [],
+      "elapsedMs": 0.045000000000015916
+    },
+    {
+      "category": "cross-language",
+      "query": "Describe supporting users with spreadsheets",
+      "relevant": [
+        "support-en",
+        "support-zh"
+      ],
+      "hits": [
+        "support-en"
+      ],
+      "recall": 0.5,
+      "unlabelled": [],
+      "elapsedMs": 0.04424999999997681
+    },
+    {
+      "category": "cross-language",
+      "query": "我在哪个项目中开发了数据报表？",
+      "relevant": [
+        "dashboard"
+      ],
+      "hits": [
+        "data-zh"
+      ],
+      "recall": 0,
+      "unlabelled": [
+        "data-zh"
+      ],
+      "elapsedMs": 0.055542000000002645
+    },
+    {
+      "category": "cross-story",
+      "query": "Which examples show Python data cleaning and SQL reporting?",
+      "relevant": [
+        "data-en",
+        "data-zh",
+        "dashboard"
+      ],
+      "hits": [
+        "dashboard",
+        "data-en",
+        "data-zh"
+      ],
+      "recall": 1,
+      "unlabelled": [],
+      "elapsedMs": 10.955667000000005
+    },
+    {
+      "category": "cross-story",
+      "query": "Find examples of testing software and helping workshop participants",
+      "relevant": [
+        "testing",
+        "support-en",
+        "support-zh"
+      ],
+      "hits": [
+        "support-en"
+      ],
+      "recall": 0.3333333333333333,
+      "unlabelled": [],
+      "elapsedMs": 0.09904199999999719
+    },
+    {
+      "category": "cross-story",
+      "query": "Show API development and team coordination",
+      "relevant": [
+        "backend",
+        "team"
+      ],
+      "hits": [
+        "backend"
+      ],
+      "recall": 0.5,
+      "unlabelled": [],
+      "elapsedMs": 0.07025000000004411
+    },
+    {
+      "category": "negative",
+      "query": "Where did I administer Kubernetes clusters?",
+      "relevant": [],
+      "hits": [],
+      "recall": null,
+      "unlabelled": [],
+      "elapsedMs": 0.051625000000001364
+    },
+    {
+      "category": "negative",
+      "query": "Describe my Salesforce implementation",
+      "relevant": [],
+      "hits": [],
+      "recall": null,
+      "unlabelled": [],
+      "elapsedMs": 0.05408399999998892
+    }
+  ]
+}

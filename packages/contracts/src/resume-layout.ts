@@ -97,6 +97,39 @@ export function resumeLayout(c: ResumeView) {
   }
   return [...groups].map(([title, items]) => ({ title, items }));
 }
+
+/** Suggestions based on the same content used by preview and export; not an ATS verdict. */
+export function resumeReadiness(c: ResumeView) {
+  const issues: { key: string; text: string }[] = [];
+  if (!c.name?.trim()) issues.push({ key: 'name', text: 'Add your name to the profile.' });
+  if (!c.contact?.email?.trim())
+    issues.push({ key: 'email', text: 'Add an email address so an employer can contact you.' });
+  if (!c.contact?.phone?.trim())
+    issues.push({
+      key: 'phone',
+      text: 'Consider adding a phone number if the employer requests one.',
+    });
+  const sections = resumeLayout(c);
+  if (!sections.some((section) => section.title === 'Skills'))
+    issues.push({ key: 'skills', text: 'No skills are included in this resume.' });
+  for (const r of c.records || []) {
+    const selected = c.claims.filter(
+      (claim) => claim.recordId === r.id && claim.section === r.section,
+    );
+    if (!selected.length) continue;
+    if (r.section !== 'educations' && !selected.some((claim) => claim.recordHeaderId))
+      issues.push({
+        key: `empty:${r.section}:${r.id}`,
+        text: `${r.title}: select at least one contribution to include this experience.`,
+      });
+    else if (!r.startMonth || (!r.endMonth && !r.current))
+      issues.push({
+        key: `dates:${r.section}:${r.id}`,
+        text: `${r.title}: check the dates; one or more dates are missing.`,
+      });
+  }
+  return issues;
+}
 export function resumeRecordIndex(p: any): ResumeRecord[] {
   return ['workExperiences', 'projects', 'educations'].flatMap((section) =>
     (p[section] || []).map((r: any) => ({

@@ -41,6 +41,7 @@ import { missionContext } from './mission-context.js';
 import { generate, type Mode } from './provider.js';
 import { matchingProfileView } from '../../contracts/src/career-evidence.js';
 import { compare } from '../../matching/domain.js';
+import { filterResumeEvidence } from './resume-evidence.js';
 
 // Checkpoints store a mission reference; approved evidence and results remain in domain tables.
 const State = Annotation.Root({ missionId: Annotation<string>() });
@@ -272,31 +273,27 @@ export async function createWorkflow() {
           'EVIDENCE_REQUIRED',
           'Approve at least one skill, education or experience fact before tailoring a resume.',
         );
-      const groundedResumeSchema = z
-        .object({
-          claims: z
-            .array(
-              z.object({
-                factId: z.string().min(1).max(100),
-                reason: z.string().trim().min(1).max(1000),
-              }),
-            )
-            .min(1)
-            .max(20),
-        })
-        .superRefine((plan, ctx) => {
-          plan.claims.forEach((claim, index) => {
-            if (!eligibleFacts.has(claim.factId))
-              ctx.addIssue({
-                code: 'custom',
-                path: ['claims', index, 'factId'],
-                message: 'Select an eligible approved fact ID from the supplied context.',
-              });
-          });
-        });
+      const groundedResumeSchema = z.object({
+        claims: z
+          .array(
+            z.object({
+              factId: z.string().min(1).max(100),
+              reason: z.string().trim().min(1).max(1000),
+            }),
+          )
+          .min(1)
+          .max(20),
+      });
       const plan = await model(s.missionId, 'resume', 'resume', groundedResumeSchema);
+      const selection = filterResumeEvidence(plan.claims, new Set(eligibleFactIds));
+      if (!selection.accepted.length)
+        throw new AppError(
+          422,
+          'EVIDENCE_REQUIRED',
+          'No eligible approved facts were selected. Retry the step or review your profile.',
+        );
       const claims = validateResumeClaims(
-        composeSelection(plan.claims, c.facts, c.d.selectedJob.job.description),
+        composeSelection(selection.accepted, c.facts, c.d.selectedJob.job.description),
         c.facts,
       );
       const draft = {
@@ -308,6 +305,7 @@ export async function createWorkflow() {
         records: resumeRecordIndex(c.p),
         summary: resumeObjective(c.d.selectedJob.job.title, claims),
         claims,
+        ...(selection.rejectedCount ? { excludedSuggestions: selection.rejectedCount } : {}),
         omittedFacts: c.facts.filter(
           (f) =>
             ['skill', 'education', 'experience'].includes(f.kind) &&

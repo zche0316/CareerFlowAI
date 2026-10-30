@@ -12,6 +12,7 @@ import { registerProfileConversations } from './profile-conversations.js';
 import { registerCareerMemory } from './career-memory.js';
 import { registerResumeWording } from './resume-wording.js';
 import { registerApplicationReadiness } from './application-readiness.js';
+import { registerJobFit } from './job-fit.js';
 import { registerApplicationVersions } from './application-versions.js';
 import { routerSettings } from '../../../packages/agents/src/router.js';
 import { randomBytes, randomUUID } from 'node:crypto';
@@ -226,6 +227,7 @@ export function createApp() {
   registerExperienceOrganisation(app);
   registerCareerMemory(app);
   registerResumeWording(app);
+  registerJobFit(app);
   registerApplicationReadiness(app);
   registerApplicationVersions(app);
   app.post('/api/profiles/drafts', async (req, res) =>
