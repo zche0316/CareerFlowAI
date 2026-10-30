@@ -342,6 +342,7 @@ export function registerProfileConversations(app: Express) {
       };
     const updatedMessages =
       input.retryMessageId || input.recoverSavedAnswers ? messages : [...messages, message];
+    const answerId = input.retryMessageId || message.id;
     const acquired = await db.profileThread.updateMany({
       where: {
         id: t.id,
@@ -373,9 +374,12 @@ export function registerProfileConversations(app: Express) {
         .filter(
           (m) => m.role === 'user' && m.kind !== 'interview-control' && !interviewIntent(m.text),
         )
-        .slice(-30)) {
-        if (sourceSize + item.text.length > 18000) continue;
-        sourceMessages.push(item);
+        .slice(-30)
+        .reverse()) {
+        // Keep a contiguous recent window, including the current/retried answer.
+        // The full conversation remains saved in updatedMessages.
+        if (sourceSize + item.text.length > 18000) break;
+        sourceMessages.unshift(item);
         sourceSize += item.text.length;
       }
       const pages = sourceMessages.map((m, i) => ({
@@ -397,13 +401,11 @@ export function registerProfileConversations(app: Express) {
         userId,
         input.recoverSavedAnswers ? input.currentProfile.goals : input.text,
       );
+      const answerPage = sourceMessages.findIndex((m) => m.id === answerId) + 1;
       const labelled =
-        !input.recoverSavedAnswers &&
-        labelledExperience(
-          input.text,
-          sourceMessages.length -
-            [...sourceMessages].reverse().findIndex((m) => m.text === input.text),
-        );
+        !input.recoverSavedAnswers && answerPage > 0
+          ? labelledExperience(input.text, answerPage)
+          : null;
       const result = labelled
         ? {
             builder: profileBuilderDraftSchema.parse({
@@ -577,7 +579,7 @@ export function registerProfileConversations(app: Express) {
                       ),
                     ],
                     sourceMessages,
-                    focused ? message.id : undefined,
+                    focused ? answerId : undefined,
                     Boolean(
                       input.recoverSavedAnswers &&
                       previousState.closed.filter(
@@ -602,6 +604,9 @@ export function registerProfileConversations(app: Express) {
                   );
             return recordSchema.parse({
               ...r,
+              // Only the deterministic labelled-answer path supplies a type.
+              // Keep it after grounding; the model cannot invent a category.
+              ...(labelled ? { experienceType: labelled.experienceType } : {}),
               organisedStory: undefined,
               id: randomUUID(),
               details: originals.length ? originals.map((line) => line.text) : r.details,
@@ -654,6 +659,7 @@ export function registerProfileConversations(app: Express) {
               const old = merged[index];
               merged[index] = {
                 ...old,
+                experienceType: record.experienceType || old.experienceType,
                 organisation: record.organisation || old.organisation,
                 location: record.location || old.location,
                 startMonth: record.startMonth || old.startMonth,
