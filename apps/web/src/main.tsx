@@ -4,7 +4,7 @@ import { suggestJobSearch } from '../../../packages/contracts/src/job-search.js'
 import { ProfileRecords } from './profile-records.js';
 import { ProfileImport } from './profile-import.js';
 import { ResumeSelection } from './resume-selection.js';
-import { ProfileSummary } from './profile-summary.js';
+import { ProfileOverview, ProfileSummary } from './profile-summary.js';
 import { ProfileConversation } from './profile-conversation.js';
 import { WordingStudio } from './resume-wording.js';
 import { recordKeys } from '../../../packages/contracts/src/profile-records.js';
@@ -897,7 +897,19 @@ function Profile({
     [fields, setFields] = useState<Record<string, string[]>>({});
   const revision = useRef(0),
     activeRequest = useRef<number | null>(null),
-    mounted = useRef(true);
+    mounted = useRef(true),
+    reviewHeading = useRef<HTMLHeadingElement>(null),
+    manualEditor = useRef<HTMLDetailsElement>(null);
+
+  useEffect(() => {
+    if (draft?.id) {
+      reviewHeading.current?.focus();
+      reviewHeading.current?.scrollIntoView({ block: 'start' });
+    }
+  }, [draft?.id]);
+  useEffect(() => {
+    if (Object.keys(fields).length && manualEditor.current) manualEditor.current.open = true;
+  }, [fields]);
 
   // Inputs can still be edited while AI is running; its result belongs only to
   // the exact input/version which started it, never to a later working copy.
@@ -1054,26 +1066,31 @@ function Profile({
   return (
     <>
       <PageTitle
-        eyebrow="THE FOUNDATION OF EVERY RECOMMENDATION"
+        eyebrow=""
         title="Your career profile"
-        text="Your confirmed facts give your agents a reliable place to start."
+        text="Tell your story. Check the details. Save when you’re ready."
       />
       <fieldset
         disabled={busy || committing}
         style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}
       >
-        <div className="chat-profile-layout">
-          <section className="panel profile-chat-main">
-            <h2>Build your profile through conversation</h2>
-            <p className="muted">
-              Tell your story one answer at a time. No resume or formal work experience is required.
-              Suggestions stay in a working draft until you approve.
-            </p>
-            {error && (
-              <div role="alert" className="error-banner">
-                {error}
+        {error && (
+          <div role="alert" className="error-banner">
+            {error}
+          </div>
+        )}
+        <div className={`chat-profile-layout ${draft ? 'is-reviewing' : ''}`}>
+          <section className="panel profile-chat-main" hidden={Boolean(draft)}>
+            <div className="profile-panel-heading">
+              <div>
+                <span className="eyebrow">CONVERSATION</span>
+                <h2>Let’s talk about you</h2>
               </div>
-            )}
+              <span className="quiet-badge">Only you approve your profile</span>
+            </div>
+            <p className="muted profile-intro">
+              A project, a job, or something you’re proud of. Start anywhere.
+            </p>
             <ProfileConversation
               onReview={() => void prepare()}
               onPendingChange={setHasPendingSuggestions}
@@ -1090,7 +1107,12 @@ function Profile({
           <aside className="profile-draft-side">
             <section className="panel">
               <div className="section-heading">
-                <h2>Your profile draft</h2>
+                <div>
+                  <span className="eyebrow">{draft ? '02 · REVIEW' : 'YOUR WORKING DRAFT'}</span>
+                  <h2 ref={reviewHeading} tabIndex={-1}>
+                    {draft ? 'Check your profile' : 'Your profile at a glance'}
+                  </h2>
+                </div>
                 <span className="tag">
                   {profile
                     ? JSON.stringify(form) === JSON.stringify(profile.data)
@@ -1099,8 +1121,24 @@ function Profile({
                     : 'Not approved yet'}
                 </span>
               </div>
-              <ProfileSummary data={draft?.data || form} />
-              <details className="manual-profile-editor">
+              {draft ? (
+                <>
+                  <p className="muted review-intro">
+                    Read this snapshot before approving. Editing any detail will return you to your
+                    working draft.
+                  </p>
+                  <ProfileSummary data={draft.data} />
+                </>
+              ) : (
+                <>
+                  <ProfileOverview data={form} />
+                  <details className="profile-full-preview">
+                    <summary>View all draft details</summary>
+                    <ProfileSummary data={form} />
+                  </details>
+                </>
+              )}
+              <details className="manual-profile-editor" ref={manualEditor}>
                 <summary>Edit profile details manually</summary>
                 <details className="optional-import">
                   <summary>Already have career material? Optional resume import</summary>
@@ -1215,16 +1253,14 @@ function Profile({
                   </details>
                 </div>
               </details>
-              <div className="sharing">
-                <h3>Authorised context sharing</h3>
+              <details className="sharing" key={draft ? 'review' : 'working'} open={Boolean(draft)}>
+                <summary>Choose who can use your profile</summary>
                 <p className="muted">
-                  Missions use approved profile facts only. Conversation transcripts, source
-                  quotations and separate career memories are not sent. Review and add memory facts
-                  to your profile before using them in a mission.
+                  Only approved profile facts are shared. Your chat, source quotations and separate
+                  memories stay out of missions.
                 </p>
                 <p className="muted">
-                  Choose which specialists may use your approved career information. A complete
-                  mission needs all four.
+                  Allow the specialists you need. A full career mission uses all four.
                 </p>
                 {Object.entries(form.sharing).map(([key, value]) => (
                   <label className="checkbox" key={key}>
@@ -1247,27 +1283,34 @@ function Profile({
                     }
                   </label>
                 ))}
-              </div>
-              <div className="form-actions">
+              </details>
+              {!draft && (
+                <div className="form-actions profile-review-action">
+                  <button
+                    className="secondary full"
+                    disabled={busy || committing || preparing || hasPendingSuggestions}
+                    onClick={() => void prepare()}
+                  >
+                    {preparing ? 'Preparing…' : 'Review profile draft'}
+                    <ArrowRight size={16} />
+                  </button>
+                </div>
+              )}
+              {!draft && hasPendingSuggestions && (
+                <p className="small muted">
+                  Use or decline the suggested details in your conversation first.
+                </p>
+              )}
+              {profile && !draft && (
                 <button
-                  className="primary"
-                  disabled={busy || committing || preparing || hasPendingSuggestions}
-                  onClick={() => void prepare()}
-                >
-                  {preparing ? 'Preparing…' : 'Review profile draft'}
-                  <ArrowRight size={16} />
-                </button>
-              </div>
-              {profile && (
-                <button
-                  className="primary"
+                  className="primary full"
                   disabled={JSON.stringify(form) !== JSON.stringify(profile.data)}
                   onClick={onMission}
                 >
                   Find jobs using this approved profile
                 </button>
               )}
-              <details>
+              <details className="demo-profile-data">
                 <summary>Demo test data</summary>
                 <p>Replaces the current unsaved draft with fictional sample information.</p>
                 <button
@@ -1286,8 +1329,8 @@ function Profile({
             </section>
             {draft && (
               <section className="panel draft-preview">
-                <span className="eyebrow">REVIEW BEFORE SAVING</span>
-                <h3>Confirm this exact profile draft</h3>
+                <span className="eyebrow">03 · CONFIRM</span>
+                <h3>Ready to save?</h3>
                 <p>The grouped details above are the snapshot you are approving.</p>
                 <label className="checkbox">
                   <input

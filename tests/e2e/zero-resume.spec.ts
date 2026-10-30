@@ -13,9 +13,7 @@ test('a candidate with no resume or formal work builds a story, selects job cont
   await page.getByLabel('Email address').fill(`native-${Date.now()}@careerflow.test`);
   await page.getByLabel('Password', { exact: true }).fill('Native-QA-disposable-password');
   await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
-  await expect(
-    page.getByRole('heading', { name: 'Build your profile through conversation' }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Let’s talk about you' })).toBeVisible();
   await expect(page.getByLabel('Full name', { exact: true })).not.toBeVisible();
   await expect(page.getByLabel('Resume file', { exact: true })).not.toBeVisible();
   const situation = 'A fictional course dataset contained missing values.';
@@ -124,11 +122,13 @@ test('a candidate with no resume or formal work builds a story, selects job cont
   await page.getByRole('button', { name: 'Send profile message', exact: true }).click();
   await expect(page.getByRole('log')).not.toContainText('When did the project start?');
   await page.getByRole('button', { name: 'Use these details in my draft', exact: true }).click();
+  await page.getByText('View all draft details', { exact: true }).click();
   await expect(
     page
       .locator('.profile-draft-side')
       .getByRole('heading', { name: 'Fictional course data project', exact: true }),
   ).toHaveCount(1);
+  await page.getByText('Choose who can use your profile', { exact: true }).click();
   for (const name of ['Career Coach', 'Job Matcher', 'Resume Tailor', 'Interview Coach'])
     await page.getByRole('checkbox', { name, exact: true }).check();
   await page.screenshot({

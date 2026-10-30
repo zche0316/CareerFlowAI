@@ -118,3 +118,60 @@ export function ProfileSummary({ data }: { data: CareerProfile }) {
     </div>
   );
 }
+
+// A small overview while chatting; the complete snapshot is shown before approval.
+export function ProfileOverview({ data }: { data: CareerProfile }) {
+  const groups = [
+    ['educations', 'Education'],
+    ['workExperiences', 'Work experience'],
+    ['projects', 'Projects'],
+  ] as const;
+  const records = groups.flatMap(([key]) => data[key] || []);
+  const legacyEducation = hasCareerContent(data.education);
+  const legacyExperience = hasCareerContent(data.experience);
+  const hasBackground = records.length > 0 || legacyEducation || legacyExperience;
+  return (
+    <div className="profile-overview">
+      <div className="profile-identity">
+        <span className="profile-monogram" aria-hidden="true">
+          {data.name?.trim().charAt(0).toUpperCase() || '↗'}
+        </span>
+        <div>
+          <h3>{data.name || 'Your story starts here'}</h3>
+          <p className="muted">{data.location || 'Add a few details in the conversation.'}</p>
+        </div>
+      </div>
+      {data.goals && <p className="profile-goal">{data.goals}</p>}
+      {!!data.skills.length && (
+        <div className="profile-skill-list" aria-label="Skills">
+          {data.skills.slice(0, 4).map((skill, i) => (
+            <span key={i}>{skill}</span>
+          ))}
+          {data.skills.length > 4 && <span>+{data.skills.length - 4} more</span>}
+        </div>
+      )}
+      {hasBackground && (
+        <dl className="profile-record-counts">
+          {groups.map(([key, label]) => (
+            <div key={key}>
+              <dt>{label}</dt>
+              <dd>
+                {data[key]?.length ||
+                  (key === 'educations' && legacyEducation
+                    ? 'Added'
+                    : key === 'workExperiences' && !data.projects?.length && legacyExperience
+                      ? 'Added'
+                      : '—')}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {!hasBackground && (
+        <p className="profile-empty-note">
+          Your education and experiences will appear here as you add them.
+        </p>
+      )}
+    </div>
+  );
+}
