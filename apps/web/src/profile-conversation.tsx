@@ -197,7 +197,7 @@ export function ProfileConversation({
             .map((p: any) => ({ [p.field]: p.after })),
         );
         const candidate = experiences(effective).find((r: any) => r.key === t.interview?.active);
-        if (candidate?.details.length && Object.values(candidate.starStory || {}).some(Boolean))
+        if (candidate?.details.length)
           await organise(
             next,
             candidate.id,

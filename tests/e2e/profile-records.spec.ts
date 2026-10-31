@@ -56,6 +56,11 @@ test('structured records and locally imported text remain separate from approval
   await page.getByRole('button', { name: 'Review profile draft', exact: true }).click();
   await page.getByLabel('I reviewed this exact draft').check();
   await page.getByRole('button', { name: 'Approve & save profile', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Start career mission', exact: true }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Close mission form', exact: true }).click();
+  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
   await page.reload();
   await page.getByRole('button', { name: 'Build profile', exact: true }).click();

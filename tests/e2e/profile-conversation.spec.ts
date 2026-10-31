@@ -128,6 +128,11 @@ test('reviewed wording creates a downloadable edition and application answers st
   await page.getByRole('button', { name: 'Review profile draft', exact: true }).click();
   await page.getByLabel('I reviewed this exact draft').check();
   await page.getByRole('button', { name: 'Approve & save profile', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Start career mission', exact: true }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Close mission form', exact: true }).click();
+  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Overview', exact: true }).click();
   await page.getByRole('button', { name: 'New career mission', exact: true }).click();
@@ -167,6 +172,7 @@ test('reviewed wording creates a downloadable edition and application answers st
   await page.getByRole('button', { name: 'Use this wording', exact: true }).click();
   await page.getByLabel('I reviewed the accepted wording.').check();
   await page.getByRole('button', { name: 'Create revised resume version', exact: true }).click();
+  await page.locator('.download-formats summary').click();
   await expect(page.getByRole('link', { name: 'Download PDF', exact: true })).toBeVisible();
   const session = await (await page.request.get('/api/session')).json();
   await writeFile(

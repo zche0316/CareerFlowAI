@@ -19,6 +19,11 @@ async function openRankedJobs(page: Page) {
   await page.getByRole('button', { name: 'Review profile draft' }).click();
   await page.getByLabel('I reviewed this exact draft').check();
   await page.getByRole('button', { name: 'Approve & save profile' }).click();
+  await expect(
+    page.getByRole('button', { name: 'Start career mission', exact: true }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Close mission form', exact: true }).click();
+  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Overview', exact: true }).click();
   await page.getByRole('button', { name: 'New career mission' }).click();
@@ -33,7 +38,7 @@ async function openRankedJobs(page: Page) {
 async function openInterview(page: Page) {
   await openRankedJobs(page);
   await page.getByRole('button', { name: 'Select this opportunity' }).first().click();
-  await expect(page.getByRole('heading', { name: 'Your evidence-grounded resume' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Prepare your resume' })).toBeVisible({
     timeout: 30000,
   });
   await page.getByRole('button', { name: '04 · Resume tailoring', exact: true }).click();
@@ -60,6 +65,11 @@ test('a user must explicitly review a profile before v1 is persisted', async ({ 
   await page.getByLabel('I reviewed this exact draft').check();
   await expect(approve).toBeEnabled();
   await approve.click();
+  await expect(
+    page.getByRole('button', { name: 'Start career mission', exact: true }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Close mission form', exact: true }).click();
+  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
   await page.reload();
   await page.getByRole('button', { name: 'Build profile', exact: true }).click();
@@ -70,18 +80,25 @@ test('a user must explicitly review a profile before v1 is persisted', async ({ 
 test('a user compares ranked jobs and selects one for downstream context', async ({ page }) => {
   await openRankedJobs(page);
   const jobCards = page.locator('article.job-card');
-  const jobCount = await jobCards.count();
+  const choices = page
+    .getByRole('navigation', { name: 'Matched jobs', exact: true })
+    .getByRole('button');
+  const jobCount = await choices.count();
   expect(jobCount).toBeGreaterThan(1);
-  const scoreTexts = await jobCards.locator('.score').allTextContents();
-  const scores = scoreTexts.map((text) => Number(text.match(/\d+/)?.[0]));
+  const scoreTexts = await choices.locator('span').allTextContents();
+  const scores = scoreTexts.map((text) => Number(text.match(/(\d+)\/100/)?.[1]));
   expect(scores).toEqual([...scores].sort((left, right) => right - left));
-  await expect(page.getByText('Evidence, gaps & source', { exact: true })).toHaveCount(jobCount);
-  await expect(jobCards.locator('details')).toHaveCount(jobCount);
+  await expect(page.getByText('Evidence, gaps & source', { exact: true })).toHaveCount(1);
+  await choices.nth(1).click();
+  await expect(jobCards.locator('h3')).toHaveText(
+    await choices.nth(1).locator('strong').innerText(),
+  );
+  await choices.first().click();
   await page.screenshot({ path: 'output/acceptance/cfs-21-ranked-jobs.png', fullPage: true });
 
   const selectedTitle = await jobCards.locator('h3').first().innerText();
   await page.getByRole('button', { name: 'Select this opportunity' }).first().click();
-  await expect(page.getByRole('heading', { name: 'Your evidence-grounded resume' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Prepare your resume' })).toBeVisible({
     timeout: 30000,
   });
   await expect(page.locator('#resume-tailoring')).toContainText(selectedTitle);
@@ -92,8 +109,8 @@ test('a user compares ranked jobs and selects one for downstream context', async
   await expect(page.locator('article.job-card h3')).toHaveText(selectedTitle);
   // Verify persisted context rather than a transient selection notice.
   await page.reload();
-  await page.getByRole('button', { name: 'Review your resume', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Your evidence-grounded resume' })).toBeVisible({
+  await page.getByRole('button', { name: '04 · Resume tailoring', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Prepare your resume' })).toBeVisible({
     timeout: 30000,
   });
   await expect(page.locator('#resume-tailoring')).toContainText(selectedTitle);
@@ -134,6 +151,7 @@ test('a user finishes early and receives feedback from the saved response', asyn
     fullPage: true,
   });
   await page.getByRole('button', { name: 'My documents', exact: true }).click();
+  await page.locator('.download-formats summary').click();
   await expect(page.getByRole('link', { name: 'Download TXT', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Download DOCX', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Download PDF', exact: true })).toBeVisible();

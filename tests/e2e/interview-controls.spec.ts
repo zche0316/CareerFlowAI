@@ -99,7 +99,11 @@ test('finishing a pending new experience requests organisation before any draft 
     page.getByRole('button', { name: 'Use these details in my draft', exact: true }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Finish this experience', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('Test organiser unavailable');
+  await expect(
+    page
+      .getByRole('region', { name: 'Persistent Profile Builder', exact: true })
+      .getByRole('alert'),
+  ).toContainText('Test organiser unavailable');
   expect(requestBody.recordSection).toBe('projects');
   expect(requestBody.recordId).toBeTruthy();
   expect(requestBody.currentProfile.projects || []).toHaveLength(0);

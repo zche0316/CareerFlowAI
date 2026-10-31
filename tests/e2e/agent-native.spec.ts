@@ -295,7 +295,9 @@ test('output workspaces stay compact and usable across stages and mobile', async
   const { errors } = await app(page);
   await page.goto('/');
   await page.screenshot({ path: 'output/agent-native/home-desktop.png' });
-  await expect(page.locator('.prototype-progress-ring')).toHaveCount(0);
+  await expect(
+    page.getByRole('heading', { name: 'Application progress', exact: true }),
+  ).toBeVisible();
   await page.getByRole('button', { name: 'My documents', exact: true }).click();
   await expect(page.getByRole('article', { name: 'Resume preview' })).toHaveCount(1);
   await page.getByRole('button', { name: 'Reporting Analyst', exact: false }).click();

@@ -13,7 +13,7 @@ test('a candidate with no resume or formal work builds a story, selects job cont
   await page.getByLabel('Email address').fill(`native-${Date.now()}@careerflow.test`);
   await page.getByLabel('Password', { exact: true }).fill('Native-QA-disposable-password');
   await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Tell us your story' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Build your profile' })).toBeVisible();
   await expect(page.getByLabel('Full name', { exact: true })).not.toBeVisible();
   await expect(page.getByLabel('Resume file', { exact: true })).not.toBeVisible();
   const situation = 'A fictional course dataset contained missing values.';
@@ -123,11 +123,8 @@ test('a candidate with no resume or formal work builds a story, selects job cont
   await expect(page.getByRole('log')).not.toContainText('When did the project start?');
   await page.getByRole('button', { name: 'Use these details in my draft', exact: true }).click();
   await expect(
-    page
-      .locator('.profile-draft-side')
-      .locator('summary')
-      .filter({ hasText: 'Fictional course data project' }),
-  ).toHaveCount(1);
+    page.getByRole('region', { name: 'Projects & other experience block', exact: true }),
+  ).toContainText('Fictional course data project');
   await page.screenshot({
     path: 'output/chat-first-20261029/profile-conversation.png',
     fullPage: true,
@@ -135,10 +132,9 @@ test('a candidate with no resume or formal work builds a story, selects job cont
   await page.getByRole('button', { name: 'Review profile draft', exact: true }).click();
   await page.getByLabel('I reviewed this exact draft').check();
   await page.getByRole('button', { name: 'Approve & save profile', exact: true }).click();
-  await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
-  await page
-    .getByRole('button', { name: 'Find jobs using this approved profile', exact: true })
-    .click();
+  await expect(
+    page.getByRole('button', { name: 'Start career mission', exact: true }),
+  ).toBeVisible();
   await page.getByText('Advanced source options', { exact: true }).click();
   await page.getByLabel('Job source', { exact: true }).selectOption('fixtures');
   await page.getByRole('slider').fill('0');
@@ -147,9 +143,9 @@ test('a candidate with no resume or formal work builds a story, selects job cont
     timeout: 30000,
   });
   await page.getByRole('button', { name: 'Select this opportunity' }).first().click();
-  await expect(
-    page.getByRole('heading', { name: 'Your evidence-grounded resume', exact: true }),
-  ).toBeVisible({ timeout: 30000 });
+  await expect(page.getByRole('heading', { name: 'Prepare your resume', exact: true })).toBeVisible(
+    { timeout: 30000 },
+  );
   await page.getByRole('button', { name: 'Refine wording', exact: true }).click();
   await expect(page.getByRole('log')).toContainText('Review the preview before saving.');
   await expect(page.getByLabel('I reviewed this resume', { exact: false })).not.toBeChecked();
@@ -159,6 +155,7 @@ test('a candidate with no resume or formal work builds a story, selects job cont
   await page.getByLabel('Your response', { exact: true }).fill(action);
   await page.getByRole('button', { name: 'Save response', exact: true }).click();
   await page.getByRole('button', { name: 'Finish early & get feedback', exact: true }).click();
+  await page.getByText('Keep a learning note', { exact: true }).click();
   await expect(
     page.getByRole('button', {
       name: 'Save interview feedback as draft learning memory',
@@ -177,7 +174,8 @@ test('a candidate with no resume or formal work builds a story, selects job cont
   await page.getByRole('button', { name: 'Use this wording', exact: true }).click();
   await page.getByLabel('I reviewed the accepted wording.').check();
   await page.getByRole('button', { name: 'Create revised resume version', exact: true }).click();
-  const pdf = page.getByRole('link', { name: 'Download reviewed PDF', exact: true });
+  await page.locator('.download-formats summary').click();
+  const pdf = page.getByRole('link', { name: 'Download PDF', exact: true });
   await expect(pdf).toBeVisible();
   const response = await page.request.get((await pdf.getAttribute('href'))!);
   expect(response.status()).toBe(200);
