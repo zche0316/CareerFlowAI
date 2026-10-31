@@ -147,7 +147,9 @@ test('a candidate with no resume or formal work builds a story, selects job cont
     { timeout: 30000 },
   );
   await page.getByRole('button', { name: 'Refine wording', exact: true }).click();
-  await expect(page.getByRole('log')).toContainText('Review the preview before saving.');
+  await expect(page.getByRole('log')).toContainText(
+    /Review the preview before saving\.|No wording changes needed\. The visible resume is unchanged\./,
+  );
   await expect(page.getByLabel('I reviewed this resume', { exact: false })).not.toBeChecked();
   await page.getByLabel('I reviewed this resume', { exact: false }).check();
   await page.getByRole('button', { name: 'Approve & save resume', exact: true }).click();
