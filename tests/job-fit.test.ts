@@ -34,3 +34,23 @@ describe('job fit evidence', () => {
     expect(jobFitEvidence({ job, requirements: { required: ['docker'] } }, []).items).toEqual([]);
   });
 });
+
+it('retains source-backed finance requirements even in an older empty matching snapshot', () => {
+  const finance = {
+    ...job,
+    title: 'Business Analyst',
+    description:
+      'Support Workday Financials. Coordinate user acceptance testing and reconciliations.',
+  };
+  const result = jobFitEvidence({ job: finance, requirements: { required: [] } }, [
+    { id: 'course', kind: 'interest', text: 'I want to learn Workday.' },
+  ]);
+  expect(result.interpretation).toBe('mentioned');
+  expect(result.items.map((i) => i.term)).toEqual([
+    'workday',
+    'reconciliations',
+    'user acceptance testing',
+  ]);
+  expect(result.items.every((i) => finance.description.includes(i.excerpt))).toBe(true);
+  expect(result.items.every((i) => i.evidence.length === 0)).toBe(true);
+});

@@ -9,6 +9,7 @@ import * as provider from '../packages/agents/src/provider.js';
 import { conversationModelProfile } from '../apps/api/src/profile-conversations.js';
 let server: Server, base: string;
 const ids: string[] = [];
+const isolatedServers: Server[] = [];
 type Client = {
   id: string;
   request: (
@@ -17,8 +18,15 @@ type Client = {
     body?: unknown,
   ) => Promise<{ status: number; body: any }>;
 };
-async function client(): Promise<Client> {
-  const r = await fetch(base + '/api/auth/register', {
+async function client(isolateAuth = false): Promise<Client> {
+  let apiBase = base;
+  if (isolateAuth) {
+    const isolated = createApp().listen(0, '127.0.0.1');
+    isolatedServers.push(isolated);
+    await new Promise<void>((resolve) => isolated.once('listening', resolve));
+    apiBase = `http://127.0.0.1:${(isolated.address() as any).port}`;
+  }
+  const r = await fetch(apiBase + '/api/auth/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -33,7 +41,7 @@ async function client(): Promise<Client> {
   return {
     id: data.user.id,
     request: async (path, method = 'GET', body) => {
-      const response = await fetch(base + '/api' + path, {
+      const response = await fetch(apiBase + '/api' + path, {
         method,
         headers: { cookie, 'Content-Type': 'application/json', 'X-CSRF-Token': data.csrf },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
@@ -50,6 +58,7 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   vi.restoreAllMocks();
+  for (const isolated of isolatedServers) await new Promise<void>((r) => isolated.close(() => r()));
   await new Promise<void>((r) => server.close(() => r()));
   for (const userId of ids) {
     await db.approvedResume.deleteMany({ where: { userId } });
@@ -406,6 +415,140 @@ describe('Persistent profile conversations', () => {
   });
 });
 describe('Profile edit mode', () => {
+  it('grounds a fragmented follow-up against an existing record header without injecting full history', async () => {
+    const c = await client(true);
+    const form = {
+      ...sampleProfile,
+      projects: [
+        {
+          id: 'known-project',
+          title: 'Course discovery project',
+          organisation: '',
+          location: '',
+          startMonth: null,
+          endMonth: null,
+          current: false,
+          details: [],
+          technologies: [],
+          url: '',
+          evidence: [],
+        },
+      ],
+    };
+    const t = await c.request('/profile-threads', 'POST', { currentProfile: form });
+    const text = 'That project was at the University of Sydney. March to June 2025.';
+    const spy = vi
+      .spyOn(provider, 'generate')
+      .mockResolvedValueOnce({
+        builder: { draft: {}, proposedChanges: [], followUpQuestions: [] },
+        records: [
+          {
+            section: 'projects',
+            title: 'Course discovery project',
+            organisation: 'University of Sydney',
+            location: '',
+            startMonth: '2025-03',
+            endMonth: '2025-06',
+            current: false,
+            details: [],
+            technologies: [],
+            url: '',
+            evidence: [{ page: 1, quote: text }],
+          },
+        ],
+      } as any);
+    try {
+      const sent = await c.request(`/profile-threads/${t.body.id}/messages`, 'POST', {
+        currentProfile: form,
+        revision: t.body.revision,
+        consent: true,
+        text,
+      });
+      expect(sent.status).toBe(200);
+      const proposal = sent.body.proposals.find(
+        (p: any) => p.field === 'projects' && p.status === 'PENDING',
+      );
+      expect(proposal.after).toHaveLength(1);
+      expect(proposal.after[0]).toMatchObject({
+        id: 'known-project',
+        organisation: 'University of Sydney',
+        startMonth: '2025-03',
+        endMonth: '2025-06',
+      });
+      expect(proposal.after[0].conversationEvidence.every((e: any) => e.messageId)).toBe(true);
+      expect(sent.body.workingForm.projects[0].startMonth).toBe(null);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it.each(['build', 'edit'] as const)(
+    'answers a casual clarification in %s without advancing or creating edits',
+    async (mode) => {
+      const c = await client(true);
+      const form = {
+        ...sampleProfile,
+        workExperiences: [
+          {
+            id: 'lookup-role',
+            expectedEndMonth: null,
+            title: 'Reporting internship',
+            organisation: 'Example',
+            location: '',
+            startMonth: null,
+            endMonth: null,
+            current: false,
+            details: ['I supported SQL reporting; I did not lead the team.'],
+            technologies: ['SQL'],
+            url: '',
+            evidence: [],
+          },
+        ],
+      };
+      const t = await c.request('/profile-threads', 'POST', {
+        currentProfile: form,
+        mode,
+        title: 'Profile edits',
+      });
+      const spy = vi.spyOn(provider, 'generate').mockImplementationOnce(async (...args: any[]) => {
+        expect(args[1].requireSourceLookup).toBe(mode === 'edit');
+        const hooks = args[4];
+        const found = await hooks.onSearchHistory('SQL', 0);
+        expect(found.hits.length).toBeGreaterThan(0);
+        expect(found.hits.some((hit: any) => hit.messageId?.startsWith('profile:'))).toBe(true);
+        return {
+          reply:
+            'Yes. Your overview explicitly says you supported the analyst rather than managed the team.',
+          builder: {
+            draft: { location: 'Melbourne' },
+            proposedChanges: [
+              { field: 'location', proposedValue: 'Melbourne', evidence: 'I prefer Melbourne.' },
+            ],
+            followUpQuestions: [],
+          },
+          records: [],
+        } as any;
+      });
+      try {
+        const sent = await c.request(`/profile-threads/${t.body.id}/messages`, 'POST', {
+          currentProfile: form,
+          revision: t.body.revision,
+          consent: true,
+          mode,
+          text: "hmm I prefer Melbourne. quick question, is my support role clear? don't change anything yet",
+        });
+        expect(sent.status).toBe(200);
+        expect(sent.body.messages.at(-1).text).toContain('you supported the analyst');
+        expect(sent.body.messages.at(-1).questions).toEqual([]);
+        expect(sent.body.proposals.filter((p: any) => p.status === 'PENDING')).toEqual([]);
+        expect(sent.body.workingForm).toEqual(form);
+        expect(sent.body.interview.question).toEqual(t.body.interview.question);
+      } finally {
+        spy.mockRestore();
+      }
+    },
+  );
+
   it('uses edit intent without restarting interview or applying suggestions', async () => {
     const c = await client();
     const t = await c.request('/profile-threads', 'POST', {

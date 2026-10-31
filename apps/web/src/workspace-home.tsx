@@ -1,14 +1,23 @@
-import React, { useState } from 'react';
-import { ArrowRight, FileText, UserRound, BriefcaseBusiness } from 'lucide-react';
+import React from 'react';
+import {
+  ArrowRight,
+  BriefcaseBusiness,
+  Check,
+  FileCheck2,
+  Layers,
+  MessageSquare,
+} from 'lucide-react';
 
 export function nextMissionStep(m: any): number {
   if (m.status === 'COMPLETE') return 4;
   if (m.status === 'AWAITING_APPROVAL' || (m.data?.resumeDraft && !m.data?.approvedResumeId))
     return 3;
   if (m.status === 'AWAITING_INTERVIEW' || m.data?.approvedResumeId) return 4;
+  if (m.data?.selectedJob) return 3;
   if (m.status === 'AWAITING_JOB' || m.data?.matches?.length || m.status === 'NO_MATCHES') return 2;
   return 1;
 }
+
 const actionText: Record<string, string> = {
   AWAITING_JOB: 'Choose a job',
   AWAITING_APPROVAL: 'Review your resume',
@@ -19,10 +28,7 @@ const actionText: Record<string, string> = {
   NO_MATCHES: 'Review search results',
   CANCELLED: 'View previous search',
 };
-const missionAction = (m: any) =>
-  m.status === 'FAILED' && (m.data?.apiCalls || 0) >= 12
-    ? 'Review saved results'
-    : actionText[m.status] || 'View progress';
+
 export function WorkspaceHome({
   workspace,
   onProfile,
@@ -36,106 +42,251 @@ export function WorkspaceHome({
   onOpen: (m: any, phase?: number) => void;
   onLibrary: () => void;
 }) {
-  const [goal, setGoal] = useState(''),
-    [showAll, setShowAll] = useState(false);
   const missions = workspace?.missions || [];
-  const current =
-    missions.find((m: any) => m.status.startsWith('AWAITING')) ||
-    missions.find((m: any) => ['RUNNING', 'QUEUED', 'FAILED'].includes(m.status)) ||
-    missions[0];
+  const current = missions[0];
   const hasProfile = !!workspace?.profile;
+  const steps = [
+    {
+      title: 'Your profile',
+      text: 'Build and approve your experience.',
+      icon: Layers,
+      done: hasProfile,
+      go: current ? () => onOpen(current, 0) : onProfile,
+    },
+    {
+      title: 'Career analysis',
+      text: 'Explore your strengths and direction.',
+      icon: Layers,
+      done: !!current?.data?.analysis,
+      go: current ? () => onOpen(current, 1) : hasProfile ? () => onSearch() : onProfile,
+    },
+    {
+      title: 'Find a job',
+      text: 'Explore ranked jobs and choose a role.',
+      icon: BriefcaseBusiness,
+      done: !!current?.data?.selectedJob,
+      go: current ? () => onOpen(current, 2) : hasProfile ? () => onSearch() : onProfile,
+    },
+    {
+      title: 'Your resume',
+      text: 'Review, approve and export.',
+      icon: FileCheck2,
+      done: !!current?.data?.approvedResumeId,
+      go: current ? () => onOpen(current, 3) : onLibrary,
+    },
+    {
+      title: 'Interview practice',
+      text: 'Practise answers and get feedback.',
+      icon: MessageSquare,
+      done: !!current?.data?.feedback,
+      go: current ? () => onOpen(current, 4) : onProfile,
+    },
+  ];
+  const nextLabel = !hasProfile
+    ? 'Build your profile'
+    : current
+      ? current.status === 'FAILED' && (current.data?.apiCalls || 0) >= 12
+        ? 'Review saved results'
+        : actionText[current.status] || 'View progress'
+      : 'Find matching jobs';
+  const firstIncomplete = steps.findIndex((step) => !step.done);
   return (
-    <div className="workspace-home agent-home">
+    <div className="workspace-home">
       <div className="page-heading">
         <div>
-          <h1>What’s next for your career?</h1>
-          <p>
-            {hasProfile
-              ? 'Your agent starts with your approved profile.'
-              : 'Start with a conversation. No resume needed.'}
-          </p>
+          <span className="eyebrow">YOUR WORKSPACE</span>
+          <h1>Your next career step</h1>
+          <p>Build your profile, find a role and prepare your application.</p>
         </div>
+        <button className="secondary" onClick={hasProfile ? () => onSearch() : onProfile}>
+          New career mission <ArrowRight size={16} />
+        </button>
       </div>
-      <section className="agent-home-start" aria-label="Start career work">
-        {hasProfile ? (
-          <>
-            <label htmlFor="career-goal">What would you like to work towards?</label>
-            <textarea
-              id="career-goal"
-              value={goal}
-              onChange={(e) => setGoal(e.target.value)}
-              placeholder="Find a data analyst role in Sydney…"
-              rows={3}
-            />
-            <div className="agent-home-composer-actions">
-              <span>Profile v{workspace.profile.version} attached</span>
-              <button className="primary" onClick={() => onSearch(goal || undefined)}>
-                New career mission <ArrowRight size={16} />
+      <div className="prototype-overview-layout">
+        <div className="prototype-overview-main">
+          <section className="next-action" aria-labelledby="next-action-title">
+            <img className="workspace-hero-art" src="/careerflow-journey.svg" alt="" />
+            <div>
+              <span className="eyebrow">NEXT STEP</span>
+              <h2 id="next-action-title">
+                {!hasProfile
+                  ? 'Start with your experience'
+                  : current
+                    ? nextLabel
+                    : 'Find the right opportunity'}
+              </h2>
+              <p>
+                {!hasProfile
+                  ? 'No resume needed. Tell us about your work, study or projects, then review the profile before using it.'
+                  : current
+                    ? current.goal
+                    : 'Your approved profile is ready. Choose a location and search for matching jobs.'}
+              </p>
+              {hasProfile && (
+                <span className="small muted">
+                  Approved profile v{workspace.profile.version} · {workspace.resumes?.length || 0}{' '}
+                  saved documents
+                </span>
+              )}
+            </div>
+            <button
+              className="primary"
+              onClick={!hasProfile ? onProfile : current ? () => onOpen(current) : () => onSearch()}
+            >
+              {nextLabel}
+              <ArrowRight size={17} />
+            </button>
+          </section>
+          <div className="journey-title">
+            <h2>{current ? 'Latest application journey' : 'Your career journey'}</h2>
+            <span>
+              {steps.filter((step) => step.done).length} of {steps.length} steps complete
+            </span>
+          </div>
+          <section className="journey-overview" aria-label="Application steps">
+            {steps.map((s, i) => (
+              <button
+                key={s.title}
+                onClick={s.go}
+                className={s.done ? 'journey-done' : i === firstIncomplete ? 'journey-current' : ''}
+              >
+                <span className={s.done ? 'step-badge complete' : 'step-badge'}>
+                  {s.done ? <Check size={17} /> : i + 1}
+                </span>
+                <div>
+                  <strong>{s.title}</strong>
+                  <p>{s.text}</p>
+                </div>
+              </button>
+            ))}
+          </section>
+        </div>
+        <aside className="prototype-overview-side">
+          <section className="prototype-side-panel">
+            <div className="prototype-side-heading">
+              <h2>Application progress</h2>
+              <button className="text-button" onClick={onProfile}>
+                View profile <ArrowRight size={14} />
               </button>
             </div>
-          </>
-        ) : (
-          <button className="primary" onClick={onProfile}>
-            Build your profile <ArrowRight size={16} />
-          </button>
-        )}
-      </section>
-      <div className="agent-context-links">
-        <button onClick={onProfile}>
-          <UserRound size={16} />
-          {hasProfile ? `Profile v${workspace.profile.version}` : 'Your profile'}
-        </button>
-        <button onClick={onLibrary}>
-          <FileText size={16} />
-          {workspace?.resumes?.length || 0} saved documents
-        </button>
-      </div>
-      {current && (
-        <section className="agent-continue" aria-label="Continue career work">
-          <div>
-            <span>Continue</span>
-            <h2>{current.data?.selectedJob?.job.title || current.goal}</h2>
-            <p>{current.status.toLowerCase().replaceAll('_', ' ')}</p>
-          </div>
-          <button className="secondary" onClick={() => onOpen(current)}>
-            {missionAction(current)}
-            <ArrowRight size={16} />
-          </button>
-        </section>
-      )}
-      <section aria-labelledby="recent-searches-title" className="agent-history">
-        <div className="section-heading">
-          <h2 id="recent-searches-title">Recent missions</h2>
-          {missions.length > 8 && (
-            <button className="text-button" onClick={() => setShowAll(!showAll)}>
-              {showAll ? 'Show recent' : 'Show all'}
+            <p className="progress-scope">
+              {current
+                ? current.data?.selectedJob?.job.title || current.goal
+                : 'Build your profile to start your first application journey.'}
+            </p>
+            <div className="prototype-progress">
+              <div
+                className="prototype-progress-ring"
+                style={
+                  {
+                    '--progress': `${(steps.filter((step) => step.done).length / steps.length) * 100}%`,
+                  } as React.CSSProperties
+                }
+              >
+                <strong>
+                  {Math.round((steps.filter((step) => step.done).length / steps.length) * 100)}%
+                </strong>
+              </div>
+              <div>
+                <p>
+                  {steps.filter((step) => step.done).length} of {steps.length} steps completed
+                </p>
+              </div>
+            </div>
+            <div className="prototype-mini-steps">
+              {steps.map((step, i) => (
+                <button
+                  key={step.title}
+                  type="button"
+                  onClick={step.go}
+                  className={i === firstIncomplete ? 'current' : ''}
+                >
+                  <span>{step.done ? <Check size={13} /> : i + 1}</span>
+                  {step.title}
+                  <ArrowRight size={14} />
+                </button>
+              ))}
+            </div>
+          </section>
+          <section className="prototype-side-panel">
+            <h2>Career coach</h2>
+            <p>Continue the conversation about your career and experience.</p>
+            <button className="prototype-coach-link" onClick={onProfile}>
+              Open profile conversation <ArrowRight size={16} />
             </button>
-          )}
+          </section>
+          <section className="prototype-side-panel">
+            <div className="prototype-side-heading">
+              <h2>Your profile</h2>
+              <button className="text-button" onClick={onProfile}>
+                View <ArrowRight size={14} />
+              </button>
+            </div>
+            <div className="prototype-profile-row">
+              <span>
+                {String(workspace?.profile?.data?.name || 'You')
+                  .slice(0, 1)
+                  .toUpperCase()}
+              </span>
+              <div>
+                <strong>{workspace?.profile?.data?.name || 'Your profile'}</strong>
+                <p>{workspace?.profile?.data?.location || 'Add your location'}</p>
+              </div>
+            </div>
+            <div className="prototype-skill-list">
+              {(workspace?.profile?.data?.skills || []).slice(0, 4).map((skill: string) => (
+                <span key={skill}>{skill}</span>
+              ))}
+            </div>
+          </section>
+        </aside>
+      </div>
+      <section aria-labelledby="recent-searches-title">
+        <div className="section-heading">
+          <h2 id="recent-searches-title">
+            Application journeys <span>{missions.length}</span>
+          </h2>
+          <button className="text-button" onClick={onLibrary}>
+            Saved documents <ArrowRight size={15} />
+          </button>
         </div>
+        <p className="muted small">
+          Each journey keeps its own profile snapshot, target job, resume and interview practice.
+        </p>
         {missions.length ? (
           <div className="search-list">
-            {(showAll ? missions : missions.slice(0, 8)).map((m: any) => (
+            {missions.map((m: any) => (
               <button className="search-row" key={m.id} onClick={() => onOpen(m)}>
-                <BriefcaseBusiness size={18} />
+                <BriefcaseBusiness size={19} />
                 <div>
                   <strong>{m.goal}</strong>
                   <p>
                     {new Date(m.createdAt).toLocaleDateString('en-AU', {
                       day: 'numeric',
                       month: 'short',
-                    })}
+                    })}{' '}
+                    · {m.mode === 'fixture' ? 'Demo data' : 'Live AI'}
                     {m.data?.selectedJob ? ` · ${m.data.selectedJob.job.title}` : ''}
                   </p>
                 </div>
                 <span className="row-action">
-                  {missionAction(m)}
-                  <ArrowRight size={15} />
+                  {m.status === 'FAILED' && (m.data?.apiCalls || 0) >= 12
+                    ? 'Review saved results'
+                    : actionText[m.status] || 'View progress'}{' '}
+                  <ArrowRight size={16} />
                 </span>
               </button>
             ))}
           </div>
         ) : (
-          <p className="muted">Your conversations and saved work will appear here.</p>
+          <div className="empty-state">
+            <h3>Your searches will appear here</h3>
+            <p>
+              {hasProfile
+                ? 'Start a search to see jobs matched to your approved profile.'
+                : 'Approve your profile first, then search for jobs.'}
+            </p>
+          </div>
         )}
       </section>
     </div>

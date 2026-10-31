@@ -121,6 +121,14 @@ export function dateSupported(value: string | null, text: string) {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(value)) return false;
   const [year, month] = value.split('-');
   const m = Number(month);
+  const namedRange =
+    /\b(jan[a-z]*|feb[a-z]*|mar[a-z]*|apr[a-z]*|may|jun[a-z]*|jul[a-z]*|aug[a-z]*|sep[a-z]*|oct[a-z]*|nov[a-z]*|dec[a-z]*)\s*(?:to|through|[-–—])\s*(jan[a-z]*|feb[a-z]*|mar[a-z]*|apr[a-z]*|may|jun[a-z]*|jul[a-z]*|aug[a-z]*|sep[a-z]*|oct[a-z]*|nov[a-z]*|dec[a-z]*)[ ,]+(\d{4})\b/gi;
+  for (const range of text.matchAll(namedRange)) {
+    const first = months.indexOf(range[1].slice(0, 3).toLowerCase()) + 1;
+    const last = months.indexOf(range[2].slice(0, 3).toLowerCase()) + 1;
+    // An omitted start year is clear only for an ordered same-year range.
+    if (range[3] === year && first <= last && (m === first || m === last)) return true;
+  }
   return (
     new RegExp(`(?<!\\d)${year}\\s*(?:[./-]\\s*0?${m}(?!\\d)|年\\s*0?${m}\\s*月)`).test(text) ||
     new RegExp(

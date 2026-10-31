@@ -331,7 +331,16 @@ export function registerProfileConversations(app: Express) {
         'INTERVIEW_FINISHED',
         'Resume the interview before sending another answer.',
       );
-    if (!input.retryMessageId && !input.recoverSavedAnswers && previousState.question)
+    const discussionOnly =
+      /(?:don['’]?t|do not)\s+(?:change|edit|update|modify)\s+(?:anything|it|my profile)|just (?:asking|a question)|先别(?:改|修改)/i.test(
+        input.text,
+      );
+    if (
+      !discussionOnly &&
+      !input.retryMessageId &&
+      !input.recoverSavedAnswers &&
+      previousState.question
+    )
       previousState.addressed = [
         ...new Set([...previousState.addressed, previousState.question.key]),
       ];
@@ -407,9 +416,35 @@ export function registerProfileConversations(app: Express) {
         route: 'text' as const,
         method: 'plain-text' as const,
       }));
+      // Existing record headers identify the subject of short follow-ups such as
+      // "that project". New dates/details still need a literal source elsewhere.
+      for (const section of recordKeys) {
+        for (const record of input.currentProfile[section] || []) {
+          pages.push({
+            page: pages.length + 1,
+            text: [record.title, record.organisation, record.location].filter(Boolean).join(' · '),
+            route: 'text' as const,
+            method: 'plain-text' as const,
+          });
+        }
+      }
       // Complete sources stay server-side for retrieval and grounding only.
       const notes = sourceMessages.map((m, i) => `Message ${i + 1}: ${m.text}`).join('\n');
-      const compactNotes = profileModelNotes(sourceMessages, Boolean(input.recoverSavedAnswers));
+      const previousExchange = updatedMessages
+        .filter(
+          (message: any) => message.id !== answerId && ['user', 'assistant'].includes(message.role),
+        )
+        .slice(-2)
+        .map((message: any) => `${message.role}: ${String(message.text).slice(0, 900)}`)
+        .join('\n');
+      const compactNotes = [
+        previousExchange
+          ? `Recent conversational reference only (search for source facts):\n${previousExchange}`
+          : '',
+        profileModelNotes(sourceMessages, Boolean(input.recoverSavedAnswers)),
+      ]
+        .filter(Boolean)
+        .join('\n\n');
       processingStage = 'evidence-retrieval';
       const evidence = await retrieveEvidence(
         userId,
@@ -438,9 +473,12 @@ export function registerProfileConversations(app: Express) {
               goal: input.recoverSavedAnswers
                 ? 'Prepare complete structured profile/project records from the saved user answers. Include finished experiences that are missing from the current draft. Do not ask questions. Do not approve or apply changes.'
                 : input.mode === 'edit'
-                  ? 'Edit the existing career profile in response to the user request. Review clarity and completeness. Suggest only evidence-supported changes, preserve facts, and explain when no supported edit is needed. Do not restart a career interview. Never apply or approve changes.'
-                  : 'Build an editable career profile through a sustained interview.',
+                  ? 'Respond naturally to the latest user message, including short fragments, corrections, clarifications and questions. If the user asks a question or says not to change anything, answer it in reply using the working profile and return empty changes and records. Do not treat a question as a request to rewrite. Otherwise: Edit the existing career profile in response to the user request. Review clarity and completeness. Suggest only evidence-supported changes, preserve facts, and explain when no supported edit is needed. Do not restart a career interview. Never apply or approve changes.'
+                  : 'Build an editable career profile through a sustained interview. Answer clarification questions naturally in reply. If the user is just asking or says not to change anything, return empty changes and records; do not treat that message as an answer to the pending interview question.',
               prepareSavedAnswers: Boolean(input.recoverSavedAnswers),
+              requireSourceLookup:
+                input.mode === 'edit' &&
+                recordKeys.some((key) => input.currentProfile[key]?.length),
               facts: [],
               profileNotes: compactNotes,
               educationRules:
@@ -448,7 +486,7 @@ export function registerProfileConversations(app: Express) {
               experienceRules:
                 'Separate the everyday role overview from ONE specific personal STAR example. General responsibilities, tools and workload belong to the overview, not automatically to a STAR story. For a concrete incident, return optional starStory {situation,task,action,result} using short exact contiguous source excerpts, empty for unknown parts. Include several supplied STAR parts together; never ask again about parts already stated. For work/projects omit details when original answers are already available to the server; do not repeat the full narrative. Use a short title anchor as evidence. The server preserves the original statements and overview. Never invent results or force a story when the user wants to move on.',
               extractionRules:
-                'Return only new or changed fields and records supported by the recent answers. Do not re-emit unchanged profileBase records. Copy all profile values from original user wording; do not translate or paraphrase. Goals may use the original goal sentence. Omit unknown dates. For current study keep current=true, startMonth=stated enrolment month, endMonth=null, expectedEndMonth=explicit expected graduation month. Populate draft and records, not only a reply claiming they are organised.',
+                'The profile index omits responsibilities and STAR content. Before saying those details are unavailable, use search_profile_history with record title, organisation or topic; it includes current profile records. Return only new or changed fields and records supported by the recent answers. Do not re-emit unchanged profileBase records. Copy all profile values from original user wording; do not translate or paraphrase. Goals may use the original goal sentence. Omit unknown dates. For current study keep current=true, startMonth=stated enrolment month, endMonth=null, expectedEndMonth=explicit expected graduation month. Populate draft and records, not only a reply claiming they are organised.',
               profileBase: conversationModelProfile(input.currentProfile),
               interviewControl: previousState,
               retrievedEvidence: evidence.hits
@@ -462,7 +500,22 @@ export function registerProfileConversations(app: Express) {
               onTool: async () => {},
               onUsage: async () => {},
               onSearchHistory: async (query, offset) => {
-                const found = searchProfileHistory(sourceMessages, query, offset);
+                const profileSources = recordKeys.flatMap((section) =>
+                  (input.currentProfile[section] || []).map((record: any) => ({
+                    id: `profile:${section}:${record.id}`,
+                    text: JSON.stringify({
+                      section,
+                      ...record,
+                      conversationEvidence: undefined,
+                      organisedStory: undefined,
+                    }),
+                  })),
+                );
+                const found = searchProfileHistory(
+                  [...sourceMessages, ...profileSources],
+                  query,
+                  offset,
+                );
                 historySearches.push({ query, offset, hits: found.hits.length });
                 return found;
               },
@@ -613,7 +666,7 @@ export function registerProfileConversations(app: Express) {
           .filter(
             (r) =>
               r.section === section &&
-              r.evidence.every((e) => sourceMessages[e.page - 1]?.text.includes(e.quote)),
+              r.evidence.every((e) => pages[e.page - 1]?.text.includes(e.quote)),
           )
           .map(({ section: _, evidence, ...r }) => {
             const existingExperiences = [
@@ -690,11 +743,13 @@ export function registerProfileConversations(app: Express) {
               details: originals.length ? originals.map((line) => line.text) : r.details,
               evidence: [],
               conversationEvidence: [
-                ...evidence.map((e) => ({
-                  threadId: t.id,
-                  messageId: sourceMessages[e.page - 1].id,
-                  quote: e.quote,
-                })),
+                ...evidence
+                  .filter((e) => sourceMessages[e.page - 1])
+                  .map((e) => ({
+                    threadId: t.id,
+                    messageId: sourceMessages[e.page - 1].id,
+                    quote: e.quote,
+                  })),
                 ...originals.map((line) => ({
                   threadId: t.id,
                   messageId: line.messageId,
@@ -826,14 +881,22 @@ export function registerProfileConversations(app: Express) {
         ),
         planState,
       );
+      if (discussionOnly) changes.splice(0);
       const questions =
-        input.mode === 'edit' ? [] : plan.state.question ? [plan.state.question.text] : [];
+        input.mode === 'edit' || discussionOnly
+          ? []
+          : plan.state.question
+            ? [plan.state.question.text]
+            : [];
       const chinese = /\p{Script=Han}/u.test(input.text);
       response = {
         id: randomUUID(),
         role: 'assistant',
         at: new Date().toISOString(),
         text:
+          ((input.mode === 'edit' || discussionOnly) && !changes.length && result.reply?.trim()
+            ? `${result.reply.trim()}\n\nYour profile is unchanged.`
+            : null) ||
           (input.recoverSavedAnswers
             ? changes.length
               ? `Prepared ${changes.length} draft update(s). Review the suggested details and choose Use these details in my draft. Your draft has not changed yet.`
@@ -853,7 +916,7 @@ export function registerProfileConversations(app: Express) {
             ? '消息已保留。本轮没有新的 Profile 修改，当前草稿未变化。'
             : 'Your message is retained. There are no new profile changes in this turn; your working draft is unchanged.'),
         questions,
-        interviewState: plan.state,
+        interviewState: discussionOnly ? previousState : plan.state,
         retrieved: evidence.hits.map((h) => ({ id: h.id, text: h.text, score: h.score })),
         insufficientRecall: evidence.insufficientRecall,
         historySearches,

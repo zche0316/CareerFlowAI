@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { sampleProfile } from '../../packages/contracts/src/index.js';
 
 for (const calls of [11, 12]) {
   test(`failed mission recovery with ${calls} calls`, async ({ page }) => {
@@ -9,7 +10,7 @@ for (const calls of [11, 12]) {
           ? { user: { name: 'Recovery QA' }, mode: 'fixture' }
           : path === '/api/workspace'
             ? {
-                profile: { version: 1, data: { name: 'Recovery QA', skills: [] } },
+                profile: { version: 1, data: { ...sampleProfile, name: 'Recovery QA' } },
                 resumes: [],
                 missions: [
                   {
@@ -34,7 +35,7 @@ for (const calls of [11, 12]) {
         exact: true,
       })
       .click();
-    await expect(page.getByText('STEP 02 OF 08', { exact: true })).toBeVisible();
+    await expect(page.getByText('STEP 02 OF 05', { exact: true })).toBeVisible();
     await expect(page.getByText('Before you start', { exact: true })).toBeVisible();
     await expect(
       page.getByText('Your career team is preparing this step.', { exact: false }),

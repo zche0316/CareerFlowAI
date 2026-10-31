@@ -48,6 +48,7 @@ export function ProfileConversation({
     [message, setMessage] = useState(''),
     [consent, setConsent] = useState(false),
     [busy, setBusy] = useState(false),
+    [waitSeconds, setWaitSeconds] = useState(0),
     [error, setError] = useState(''),
     [preparingSaved, setPreparingSaved] = useState(false),
     [preparationNotice, setPreparationNotice] = useState(''),
@@ -94,6 +95,18 @@ export function ProfileConversation({
   useEffect(() => {
     if (log.current) log.current.scrollTop = log.current.scrollHeight;
   }, [thread?.revision]);
+  useEffect(() => {
+    if (!busy) {
+      setWaitSeconds(0);
+      return;
+    }
+    const started = Date.now();
+    const timer = setInterval(
+      () => setWaitSeconds(Math.floor((Date.now() - started) / 1000)),
+      1000,
+    );
+    return () => clearInterval(timer);
+  }, [busy]);
   const run = async (fn: () => Promise<void>) => {
     setError('');
     setBusy(true);
@@ -426,7 +439,11 @@ export function ProfileConversation({
         {busy && (
           <p role="status" className="conversation-working">
             <span className="pulse" />
-            Preparing your profile changes… This can take up to a minute. Your answer is saved.
+            {waitSeconds < 3
+              ? 'Sending your request to the profile agent…'
+              : waitSeconds < 30
+                ? `Waiting for your agent’s reply · ${waitSeconds}s. Suggested edits will appear for review.`
+                : `Still waiting for your agent · ${waitSeconds}s. Keep this page open; your message stays in the input until a reply arrives.`}
           </p>
         )}
         {error && (

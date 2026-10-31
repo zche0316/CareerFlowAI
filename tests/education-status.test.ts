@@ -1,5 +1,9 @@
 import { expect, it } from 'vitest';
-import { ongoingSupported, groundImportedRecords } from '../packages/agents/src/import-model.js';
+import {
+  ongoingSupported,
+  groundImportedRecords,
+  dateSupported,
+} from '../packages/agents/src/import-model.js';
 import { recordSchema } from '../packages/contracts/src/profile-records.js';
 
 it.each([
@@ -45,4 +49,12 @@ it('supports a start month and expected completion while studying and checks dat
     ).records,
   ).toHaveLength(0);
   expect(recordSchema.parse({ ...record, id: 'degree', evidence: [] }).startMonth).toBe('2024-02');
+});
+
+it('supports an explicit same-year named range without guessing an ambiguous cross-year start', () => {
+  expect(dateSupported('2025-03', 'March to June 2025')).toBe(true);
+  expect(dateSupported('2025-06', 'March to June 2025')).toBe(true);
+  expect(dateSupported('2025-02', 'March to June 2025')).toBe(false);
+  expect(dateSupported('2025-11', 'November to February 2026')).toBe(false);
+  expect(dateSupported('2026-11', 'November to February 2026')).toBe(false);
 });

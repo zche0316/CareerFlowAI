@@ -1,7 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import type { Request } from './profile-conversation.js';
 
-export function JobFit({ missionId, api }: { missionId: string; api: Request }) {
+export function JobFit({
+  missionId,
+  api,
+  compact = false,
+}: {
+  missionId: string;
+  api: Request;
+  compact?: boolean;
+}) {
   const [result, setResult] = useState<any>(null),
     [error, setError] = useState('');
   useEffect(() => {
@@ -21,6 +29,44 @@ export function JobFit({ missionId, api }: { missionId: string; api: Request }) 
   }, [missionId]);
   if (error) return <div role="alert">Could not load job evidence: {error}</div>;
   if (!result) return <p role="status">Preparing your fit review…</p>;
+  if (compact) {
+    const missing = result.items.filter((item: any) => !item.evidence.length);
+    return (
+      <section className="job-gap-notice" aria-label="Job requirements to review">
+        <strong>Role requirements to review</strong>
+        {missing.length ? (
+          <ul>
+            {missing.slice(0, 3).map((item: any) => (
+              <li key={item.term}>{item.term} — no exact wording match in this profile</li>
+            ))}
+          </ul>
+        ) : (
+          <p>
+            {result.items.length
+              ? 'Review the depth and scope of your evidence against the original listing.'
+              : 'Read the original listing; its requirements could not be extracted reliably.'}
+          </p>
+        )}
+        {missing.length > 3 && (
+          <details>
+            <summary>{missing.length - 3} more requirements to review</summary>
+            <ul>
+              {missing.slice(3).map((item: any) => (
+                <li key={item.term}>
+                  <strong>{item.term}</strong>
+                  <p>{item.excerpt}</p>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+        <p>
+          Missing evidence is not proof that you lack a skill. Confirm relevant experience before
+          adding a claim.
+        </p>
+      </section>
+    );
+  }
   return (
     <section className="panel job-fit" aria-label="Job fit review">
       <div className="section-heading">

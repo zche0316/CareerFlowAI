@@ -31,6 +31,7 @@ export type ProviderContext = {
   candidateMessage?: string;
   interviewControl?: unknown;
   prepareSavedAnswers?: boolean;
+  requireSourceLookup?: boolean;
   conversationHistory?: { role: string; text: string; questions: string[] }[];
   sourceText?: string;
   retrievedEvidence?: { id: string; text: string }[];
@@ -106,13 +107,11 @@ export async function generate<T>(
       role === 'resume-edit'
         ? {
             message: 'Updated the draft for your review.',
-            claims: context.facts
-              .slice(0, 12)
-              .map((f) => ({
-                factId: f.id,
-                text: f.text.replace(/^I\s+/i, ''),
-                reason: 'Relevant approved profile content.',
-              })),
+            claims: context.facts.slice(0, 12).map((f) => ({
+              factId: f.id,
+              text: f.text.replace(/^I\s+/i, ''),
+              reason: 'Relevant approved profile content.',
+            })),
           }
         : role === 'organiser'
           ? {
@@ -382,7 +381,7 @@ export async function generate<T>(
                       function: {
                         name: 'search_profile_history',
                         description:
-                          'Search only this owned conversation for exact user statements. At most two source messages per result. Use nextOffset for another page when necessary.',
+                          'Search the owned sources made available for this task, including conversation statements and profile records when provided. At most two source excerpts per result. Use nextOffset for another page when necessary.',
                         parameters: {
                           type: 'object',
                           properties: {
@@ -398,7 +397,7 @@ export async function generate<T>(
                   tool_choice:
                     turn === 3
                       ? ('none' as const)
-                      : context.prepareSavedAnswers && turn === 0
+                      : (context.prepareSavedAnswers || context.requireSourceLookup) && turn === 0
                         ? {
                             type: 'function' as const,
                             function: { name: 'search_profile_history' },

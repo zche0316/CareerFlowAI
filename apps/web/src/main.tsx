@@ -2,6 +2,7 @@ import { WorkspaceHome, nextMissionStep } from './workspace-home.js';
 import { FlowNavigation } from './flow-navigation.js';
 import { ResumePreview } from './resume-preview.js';
 import { pendingResumeChanges } from '../../../packages/contracts/src/resume-review.js';
+import { MissionProfile } from './mission-profile.js';
 import { JobFit } from './job-fit.js';
 import { suggestJobSearch } from '../../../packages/contracts/src/job-search.js';
 import { ProfileRecords } from './profile-records.js';
@@ -217,10 +218,30 @@ function App() {
 
   const interviewHandoff = useRef<string | null>(null);
   const mission = workspace?.missions.find((m: any) => m.id === selected);
+  useEffect(() => {
+    if (
+      tab === 'missions' &&
+      mission &&
+      phase !== null &&
+      phase > 0 &&
+      phase < 5 &&
+      phase > nextMissionStep(mission)
+    ) {
+      setPhase(nextMissionStep(mission));
+      setNotice('Continue from the next available step in this application journey.');
+    }
+  }, [tab, mission?.id, mission?.status, phase]);
   const selectJourneyStep = (i: number) => {
+    const active = mission || workspace?.missions[0];
+    if (i > 0 && active && i > nextMissionStep(active)) {
+      setNotice(
+        'Complete the current step before continuing. Earlier steps remain available to review.',
+      );
+      return;
+    }
     setPhase(i);
     setError('');
-    if (i === 0) setTab('profile');
+    if (i === 0 && !mission) setTab('profile');
     else {
       setTab('missions');
       const latest = mission || workspace?.missions[0];
@@ -235,6 +256,52 @@ function App() {
     setNotice('Your resume is saved. Your interview questions are ready.');
     document.getElementById('interview-practice')?.scrollIntoView({ block: 'start' });
   }, [mission?.id, mission?.status]);
+
+  const observedMission = useRef<{ id: string; status: string } | null>(null);
+  const automaticHandoff = useRef<{ id: string; phase: number | null } | null>(null);
+  useEffect(() => {
+    if (!mission) return;
+    const previous = observedMission.current;
+    const working = ['RUNNING', 'QUEUED'].includes(mission.status);
+    if (
+      working &&
+      (!previous || previous.id !== mission.id || !['RUNNING', 'QUEUED'].includes(previous.status))
+    )
+      automaticHandoff.current = { id: mission.id, phase };
+    else if (working && automaticHandoff.current?.phase !== phase) automaticHandoff.current = null;
+    observedMission.current = { id: mission.id, status: mission.status };
+    if (
+      tab !== 'missions' ||
+      !previous ||
+      previous.id !== mission.id ||
+      !['RUNNING', 'QUEUED'].includes(previous.status) ||
+      ['RUNNING', 'QUEUED'].includes(mission.status)
+    )
+      return;
+    const next = nextMissionStep(mission);
+    const handoff = automaticHandoff.current;
+    automaticHandoff.current = null;
+    if (
+      handoff &&
+      handoff.id === mission.id &&
+      handoff.phase === phase &&
+      phase !== null &&
+      phase < next &&
+      phase >= next - 1
+    ) {
+      setPhase(next);
+      setNotice(
+        mission.status === 'AWAITING_JOB'
+          ? 'Your matches are ready. Review the gaps and choose a job.'
+          : mission.status === 'AWAITING_APPROVAL'
+            ? 'Your resume is ready. Review the changes before saving.'
+            : mission.status === 'AWAITING_INTERVIEW'
+              ? 'Your interview is ready. Practise your first answer.'
+              : 'Your results are ready.',
+      );
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    }
+  }, [mission?.id, mission?.status, phase, tab]);
 
   const approvals =
     workspace?.missions.filter((m: any) =>
@@ -287,6 +354,12 @@ function App() {
         act(async () => {
           await api(`/profiles/drafts/${id}/approve`, 'POST', { reviewed: true });
           setNotice('Your reviewed profile is now approved. Previous documents remain available.');
+          if (mode === 'build') {
+            setSelected(null);
+            setPhase(null);
+            setTab('missions');
+            setCreating(true);
+          }
         })
       }
       onDiscard={async (id) => {
@@ -539,10 +612,20 @@ function App() {
             <>
               {mission ? (
                 <MissionDetail
+                  key={mission.id}
                   mission={mission}
                   phase={phase}
                   onNavigate={setPhase}
-                  onNewSearch={() => setCreating(true)}
+                  onNewSearch={() => {
+                    setGoal(mission.goal);
+                    setMinScore(mission.data.minScore ?? 40);
+                    setJobSearch({
+                      ...defaultJobSearch,
+                      ...mission.data.jobSearch,
+                      listing: { ...defaultJobSearch.listing, ...mission.data.jobSearch?.listing },
+                    });
+                    setCreating(true);
+                  }}
                   busy={busy}
                   onBack={() => {
                     setSelected(null);
@@ -844,7 +927,7 @@ function App() {
                     });
                     setCreating(false);
                     setSelected(m.id);
-                    setPhase(2);
+                    setPhase(1);
                   })
                 }
               >
@@ -1604,14 +1687,24 @@ function MissionDetail({
         <div>
           <span className="eyebrow">
             {phase !== null
-              ? `STEP ${String(phase + 1).padStart(2, '0')} OF 08`
+              ? phase < 5
+                ? `STEP ${String(phase + 1).padStart(2, '0')} OF 05`
+                : 'OPTIONAL CAREER TOOL'
               : `CAREER MISSION · ${m.mode === 'fixture' ? 'DEMO' : 'LIVE'}`}
           </span>
-          <h1>{phase === null ? m.goal : stagePresentation[phase]?.title || phaseNames[phase]}</h1>
+          <h1>
+            {phase === 0
+              ? 'Your profile for this journey'
+              : phase === null
+                ? m.goal
+                : stagePresentation[phase]?.title || phaseNames[phase]}
+          </h1>
           <p>
-            {phase === null
-              ? `Started ${date(m.createdAt)} · Your approved context, saved with this mission.`
-              : stagePresentation[phase]?.description || m.goal}
+            {phase === 0
+              ? 'Review the approved profile snapshot attached to this application.'
+              : phase === null
+                ? `Started ${date(m.createdAt)} · Your approved context, saved with this mission.`
+                : stagePresentation[phase]?.description || m.goal}
           </p>
         </div>
         <Status value={m.status} />
@@ -1619,7 +1712,7 @@ function MissionDetail({
       <div className="mission-context-strip" aria-label="Agent context">
         <span>
           <UserRound size={14} />
-          Approved profile
+          Profile snapshot for this journey
         </span>
         {d.selectedJob && (
           <span>
@@ -1645,6 +1738,13 @@ function MissionDetail({
                   : nice(m.status)}
         </strong>
       </div>
+      {phase === 0 && (
+        <MissionProfile
+          missionId={m.id}
+          api={api}
+          onContinue={() => onNavigate(nextMissionStep(m))}
+        />
+      )}
       {phase === 2 && (
         <button className="primary" onClick={onNewSearch}>
           Search Australian jobs
@@ -1700,8 +1800,44 @@ function MissionDetail({
                     ? 'Preparing your interview…'
                     : 'Preparing your next step…'}
             </strong>
+            <ol className="agent-stage-progress" aria-label="Agent progress">
+              {(d.selectedJob
+                ? [
+                    { label: 'Target job selected', done: true },
+                    {
+                      label: d.approvedResumeId ? 'Resume approved' : 'Preparing your resume',
+                      done: !!d.approvedResumeId,
+                    },
+                    {
+                      label: d.approvedResumeId
+                        ? 'Preparing interview questions'
+                        : 'Your review and approval',
+                      done: false,
+                    },
+                  ]
+                : [
+                    { label: 'Reviewing your profile', done: !!d.analysis },
+                    { label: 'Finding matching jobs', done: !!d.matches?.length },
+                    { label: 'Your choice of target job', done: false },
+                  ]
+              ).map((stage, index, stages) => (
+                <li
+                  key={stage.label}
+                  className={
+                    stage.done
+                      ? 'done'
+                      : index === stages.findIndex((item) => !item.done)
+                        ? 'current'
+                        : ''
+                  }
+                >
+                  <span aria-hidden="true">{stage.done ? '✓' : index + 1}</span>
+                  {stage.label}
+                </li>
+              ))}
+            </ol>
             <p>
-              You can leave this page. Your mission will keep running while the server is available.
+              Your agent continues in the background. We’ll open the next step when it is ready.
             </p>
           </div>
         </div>
@@ -1977,6 +2113,20 @@ function MissionDetail({
                     ))}
                   </div>
                   <p>{r.explanation}</p>
+                  {r.gaps?.length > 0 && (
+                    <div className="job-gap-notice" role="note">
+                      <strong>Before you choose: evidence gaps</strong>
+                      <ul>
+                        {r.gaps.slice(0, 4).map((gap: string) => (
+                          <li key={gap}>{gap}</li>
+                        ))}
+                      </ul>
+                      <p>
+                        You can pursue this role, but your resume will only use experience you have
+                        confirmed.
+                      </p>
+                    </div>
+                  )}
                   <JobSourceActions job={r.job} missionId={m.id} request={api} />
                   <details>
                     <summary>Evidence, gaps & source</summary>
@@ -2123,6 +2273,18 @@ function MissionDetail({
             </div>
             <aside className="prototype-resume-controls">
               <p className="agent-context-caption">Target · {d.resumeDraft.jobTitle}</p>
+              <JobFit missionId={m.id} api={api} compact />
+              {d.selectedJob?.gaps?.length > 0 && (
+                <div className="job-gap-notice" role="note">
+                  <strong>Gaps to keep in mind</strong>
+                  <ul>
+                    {d.selectedJob.gaps.slice(0, 4).map((gap: string) => (
+                      <li key={gap}>{gap}</li>
+                    ))}
+                  </ul>
+                  <p>Tailoring improves relevance; it does not add missing qualifications.</p>
+                </div>
+              )}
               <div className="section-heading">
                 <h2>Edit with your agent</h2>
                 <span className="tag">
