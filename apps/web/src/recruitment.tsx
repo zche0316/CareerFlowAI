@@ -32,7 +32,7 @@ export function JobSearchFields({
           ? 'Offline demo listings are selected explicitly.'
           : value.provider === 'manual'
             ? 'Use the listing you provide below.'
-            : 'All configured live sources are searched automatically.'}
+            : 'Searches connected job sources, not the entire job market.'}
       </p>
       <details>
         <summary>Advanced source options</summary>

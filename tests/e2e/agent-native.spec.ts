@@ -377,3 +377,44 @@ test('global Find jobs starts fresh after the latest completed journey instead o
   ).toBeVisible();
   await expect(page).not.toHaveURL(/older-search/);
 });
+
+test('overview shows three concise recent journeys and keeps unsuccessful attempts in history', async ({
+  page,
+}) => {
+  await app(page);
+  const missions = Array.from({ length: 6 }, (_, i) => ({
+    id: `recent-${i}`,
+    status: i < 4 ? 'COMPLETE' : i === 4 ? 'FAILED' : 'NO_MATCHES',
+    mode: 'openai',
+    goal: 'A long repeated career goal that should not become every journey title',
+    createdAt: '2026-11-01T00:00:00Z',
+    data: {
+      selectedJob: i < 4 ? { job: { title: `Analyst ${i}`, company: `Example ${i}` } } : undefined,
+    },
+    events: [],
+  }));
+  await page.route('**/api/workspace', (route) =>
+    route.fulfill({
+      json: {
+        profile: { id: 'p1', version: 1, data: sampleProfile },
+        missions,
+        resumes: [],
+        drafts: [],
+      },
+    }),
+  );
+  await page.goto('/');
+  await expect(page.locator('.search-row')).toHaveCount(3);
+  await expect(page.locator('.search-row').first()).toContainText('Analyst 0 · Example 0');
+  await expect(page.locator('.search-row').first()).toContainText('Completed');
+  await expect(page.locator('.search-list')).not.toContainText('Failed');
+  await page.getByRole('button', { name: 'View all journeys (6)', exact: true }).click();
+  await expect(page.locator('.search-row')).toHaveCount(6);
+  await expect(page.locator('.search-list')).toContainText('Failed');
+  await expect(page.locator('.search-list')).toContainText('No matches');
+  await page.getByRole('button', { name: 'Show recent journeys', exact: true }).click();
+  await expect(page.locator('.search-row')).toHaveCount(3);
+  await page
+    .locator('section[aria-labelledby="recent-searches-title"]')
+    .screenshot({ path: 'output/agent-native/recent-journeys.png' });
+});
