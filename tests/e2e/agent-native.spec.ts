@@ -180,18 +180,13 @@ async function app(page: Page) {
   return { errors, bodies, mission };
 }
 
-test('build leads with conversation; edit leads with profile and polish sends a real edit request', async ({
+test('approved profile links route to editing and polish sends a real edit request', async ({
   page,
 }) => {
   const { errors, bodies } = await app(page);
   await page.goto('/?view=profile');
-  const chat = await page
-    .getByRole('region', { name: 'Profile building conversation' })
-    .boundingBox();
-  const profile = await page.getByLabel('Profile document', { exact: true }).boundingBox();
-  expect(chat!.x).toBeLessThan(profile!.x);
-  expect(chat!.width).toBeGreaterThan(profile!.width);
-  await page.screenshot({ path: 'output/agent-native/build-desktop.png' });
+  await expect(page).toHaveURL(/view=approved-profile/);
+  await expect(page.getByRole('button', { name: 'Build profile', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'My profile', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'My profile', exact: true })).toBeVisible();
   const doc = await page.getByLabel('Profile document', { exact: true }).boundingBox();
@@ -327,9 +322,7 @@ test('output workspaces stay compact and usable across stages and mobile', async
   for (const width of [1024, 390]) {
     await page.setViewportSize({ width, height: 844 });
     await page.goto('/?view=profile');
-    await expect(
-      page.getByRole('heading', { name: 'Build your profile', exact: true }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'My profile', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
@@ -339,4 +332,48 @@ test('output workspaces stay compact and usable across stages and mobile', async
     });
   }
   expect(errors).toEqual([]);
+});
+
+test('global Find jobs starts fresh after the latest completed journey instead of reopening an older search', async ({
+  page,
+}) => {
+  await app(page);
+  const older = {
+    id: 'older-search',
+    status: 'AWAITING_JOB',
+    mode: 'fixture',
+    goal: 'Older search',
+    createdAt: '2026-10-30T00:00:00Z',
+    data: { matches: [] },
+    events: [],
+  };
+  const latest = {
+    ...older,
+    id: 'latest-complete',
+    status: 'COMPLETE',
+    goal: 'Completed application',
+    createdAt: '2026-10-31T00:00:00Z',
+    data: {
+      approvedResumeId: 'saved',
+      feedback: { strengths: [], improvements: [], nextSteps: [] },
+    },
+  };
+  await page.route('**/api/workspace', (route) =>
+    route.fulfill({
+      json: {
+        profile: { id: 'p1', version: 1, data: sampleProfile },
+        missions: [latest, older],
+        resumes: [],
+        drafts: [],
+      },
+    }),
+  );
+  await page.goto('/?view=approved-profile');
+  await expect(page.getByRole('heading', { name: 'My profile', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Build profile', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Find jobs', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Start career mission', exact: true }),
+  ).toBeVisible();
+  await expect(page).not.toHaveURL(/older-search/);
 });

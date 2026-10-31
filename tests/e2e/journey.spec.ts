@@ -12,7 +12,11 @@ async function createAccount(page: Page) {
 
 async function openRankedJobs(page: Page) {
   await createAccount(page);
-  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Build profile', exact: true })
+    .or(page.getByRole('button', { name: 'My profile', exact: true }))
+    .first()
+    .click();
   await page.getByText('Demo test data', { exact: true }).click();
   await page.getByRole('button', { name: 'Use fictional example' }).click();
   await page.getByText('Edit profile details manually', { exact: true }).click();
@@ -23,7 +27,11 @@ async function openRankedJobs(page: Page) {
     page.getByRole('button', { name: 'Start career mission', exact: true }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Close mission form', exact: true }).click();
-  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Build profile', exact: true })
+    .or(page.getByRole('button', { name: 'My profile', exact: true }))
+    .first()
+    .click();
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Overview', exact: true }).click();
   await page.getByRole('button', { name: 'New career mission' }).click();
@@ -53,7 +61,11 @@ async function openInterview(page: Page) {
 
 test('a user must explicitly review a profile before v1 is persisted', async ({ page }) => {
   await createAccount(page);
-  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Build profile', exact: true })
+    .or(page.getByRole('button', { name: 'My profile', exact: true }))
+    .first()
+    .click();
   await page.getByText('Demo test data', { exact: true }).click();
   await page.getByRole('button', { name: 'Use fictional example' }).click();
   await page.getByText('Edit profile details manually', { exact: true }).click();
@@ -69,10 +81,18 @@ test('a user must explicitly review a profile before v1 is persisted', async ({ 
     page.getByRole('button', { name: 'Start career mission', exact: true }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Close mission form', exact: true }).click();
-  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Build profile', exact: true })
+    .or(page.getByRole('button', { name: 'My profile', exact: true }))
+    .first()
+    .click();
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
   await page.reload();
-  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Build profile', exact: true })
+    .or(page.getByRole('button', { name: 'My profile', exact: true }))
+    .first()
+    .click();
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
   await page.screenshot({ path: 'output/acceptance/cfs-13-approved-v1.png', fullPage: true });
 });
@@ -234,7 +254,9 @@ test('a user answers every interview question and receives complete feedback', a
     'In example 1',
   );
   await page.getByRole('button', { name: 'Back to results', exact: true }).click();
-  await page.getByRole('button', { name: 'Start a new journey', exact: true }).click();
+  await page.getByRole('button', { name: 'My profile', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Build profile', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Find jobs', exact: true }).click();
   await page.getByRole('button', { name: 'Start career mission', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Select this opportunity' }).first()).toBeVisible({
     timeout: 30000,

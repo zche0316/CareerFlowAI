@@ -34,7 +34,11 @@ test('interview controls stop and skip without model calls, survive reload and l
   );
   await expect(page.getByRole('log').locator('article').last()).not.toContainText('When did Alpha');
   await page.reload();
-  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Build profile', exact: true })
+    .or(page.getByRole('button', { name: 'My profile', exact: true }))
+    .first()
+    .click();
   await expect(page.getByText('Finished experiences', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Add another experience', exact: true }).click();
   await expect(page.getByRole('log').locator('article').last()).toContainText(
@@ -43,7 +47,11 @@ test('interview controls stop and skip without model calls, survive reload and l
   await page.getByRole('button', { name: 'Finish interview & review', exact: true }).click();
   await expect(page.getByLabel('Your next profile message')).not.toBeVisible();
   await page.reload();
-  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Build profile', exact: true })
+    .or(page.getByRole('button', { name: 'My profile', exact: true }))
+    .first()
+    .click();
   await expect(
     page.getByText('Interview finished — review your draft.', { exact: true }),
   ).toBeVisible();

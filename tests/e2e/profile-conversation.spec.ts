@@ -7,7 +7,11 @@ async function signup(page: Page) {
   await page.getByLabel('Email address').fill(`memory-browser-${Date.now()}@careerflow.test`);
   await page.getByLabel('Password', { exact: true }).fill('Memory-QA-disposable-password');
   await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
-  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Build profile', exact: true })
+    .or(page.getByRole('button', { name: 'My profile', exact: true }))
+    .first()
+    .click();
 }
 test('saved profile conversation survives reload while memory management stays in My profile', async ({
   page,
@@ -39,7 +43,11 @@ test('saved profile conversation survives reload while memory management stays i
   ).toHaveCount(2);
   await expect(page.getByLabel('Full name', { exact: true })).toHaveValue('Manual edit stays');
   await page.reload();
-  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Build profile', exact: true })
+    .or(page.getByRole('button', { name: 'My profile', exact: true }))
+    .first()
+    .click();
   await expect(page.getByRole('log', { name: 'Saved profile messages' })).toContainText(
     'Atlas student project',
   );
@@ -132,7 +140,11 @@ test('reviewed wording creates a downloadable edition and application answers st
     page.getByRole('button', { name: 'Start career mission', exact: true }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Close mission form', exact: true }).click();
-  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Build profile', exact: true })
+    .or(page.getByRole('button', { name: 'My profile', exact: true }))
+    .first()
+    .click();
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Overview', exact: true }).click();
   await page.getByRole('button', { name: 'New career mission', exact: true }).click();

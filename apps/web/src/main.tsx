@@ -231,6 +231,13 @@ function App() {
       setNotice('Continue from the next available step in this application journey.');
     }
   }, [tab, mission?.id, mission?.status, phase]);
+  useEffect(() => {
+    if (tab === 'profile' && workspace?.profile) {
+      setTab('approved-profile');
+      setSelected(null);
+      setPhase(null);
+    }
+  }, [tab, workspace?.profile?.id]);
   const selectJourneyStep = (i: number) => {
     const active = mission || workspace?.missions[0];
     if (i > 0 && active && i > nextMissionStep(active)) {
@@ -398,7 +405,11 @@ function App() {
         <div className="workspace-label">Workspace</div>
         <nav aria-label="Main navigation">
           {nav
-            .filter((n) => !['approvals', 'applications', 'activity', 'tools'].includes(n.id))
+            .filter(
+              (n) =>
+                !['approvals', 'applications', 'activity', 'tools'].includes(n.id) &&
+                !(n.id === 'profile' && workspace?.profile),
+            )
             .map((n) => (
               <button
                 key={n.id}
@@ -414,7 +425,32 @@ function App() {
                 }
                 onClick={() => {
                   if (n.id === 'jobs') {
-                    selectJourneyStep(2);
+                    if (!workspace?.profile) {
+                      setTab('profile');
+                      setSelected(null);
+                      setPhase(0);
+                      return;
+                    }
+                    const candidate = mission || workspace?.missions[0];
+                    const active =
+                      candidate &&
+                      [
+                        'QUEUED',
+                        'RUNNING',
+                        'AWAITING_JOB',
+                        'AWAITING_APPROVAL',
+                        'AWAITING_INTERVIEW',
+                      ].includes(candidate.status)
+                        ? candidate
+                        : null;
+                    if (active) {
+                      setSelected(active.id);
+                      setTab('missions');
+                      setPhase(active.data?.matches?.length ? 2 : nextMissionStep(active));
+                    } else {
+                      setCreating(true);
+                    }
+                    setError('');
                     return;
                   }
                   if (n.id === 'applications') {
@@ -936,6 +972,7 @@ function App() {
                       },
                     });
                     setCreating(false);
+                    setTab('missions');
                     setSelected(m.id);
                     setPhase(1);
                   })
