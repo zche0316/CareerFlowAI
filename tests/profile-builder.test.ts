@@ -5,7 +5,10 @@ import {
   sampleProfile,
 } from '../packages/contracts/src/index.js';
 import { generate } from '../packages/agents/src/provider.js';
-import { prepareProfileBuilderDraft } from '../apps/api/src/profile-builder.js';
+import {
+  prepareProfileBuilderDraft,
+  citeExactUserValues,
+} from '../apps/api/src/profile-builder.js';
 
 vi.mock('../packages/agents/src/provider.js', () => ({ generate: vi.fn() }));
 
@@ -25,6 +28,25 @@ beforeEach(() => {
 });
 
 describe('UC1 evidence-grounded Profile Builder', () => {
+  it('grounds mixed Chinese and English goals and retains supported skills independently', async () => {
+    const notes =
+      '我正在寻找悉尼的 Graduate Business Analyst 岗位。\n我的优势是结构化思考、Excel 和 SQL、沟通协调。';
+    const result = await prepareProfileBuilderDraft({
+      notes,
+      mode: 'fixture',
+      preparedResult: citeExactUserValues(
+        output({
+          goals: 'Graduate Business Analyst in Sydney',
+          skills: ['Excel', 'SQL', 'Stakeholder management'],
+          location: '悉尼',
+        }),
+        [notes],
+      ),
+    });
+    expect(result.data.goals).toBe('我正在寻找悉尼的 Graduate Business Analyst 岗位。');
+    expect(result.data.skills).toEqual(['Excel', 'SQL']);
+    expect(result.data.location).toBe('悉尼');
+  });
   it('starts notes-only users without fictional facts or implicit data sharing', async () => {
     vi.mocked(generate).mockResolvedValue(output());
     const result = await prepareProfileBuilderDraft({
@@ -34,7 +56,7 @@ describe('UC1 evidence-grounded Profile Builder', () => {
     expect(result.data).toEqual(blankProfile);
     expect(result.data.name).not.toBe(sampleProfile.name);
     expect(result.followUpQuestions).toEqual(['What is your career goal?']);
-    expect(Object.values(result.data.sharing as object)).toEqual([false, false, false, false]);
+    expect(Object.values(result.data.sharing as object)).toEqual([true, true, true, true]);
     expect(vi.mocked(generate).mock.calls[0][1].profileBase).not.toHaveProperty('sharing');
   });
 

@@ -67,15 +67,26 @@ async function profile(c: Client, input = sampleProfile) {
 }
 
 it('exposes selected job evidence only to the mission owner', async () => {
-  const owner = await client(true), stranger = await client(true);
+  const owner = await client(true),
+    stranger = await client(true);
   const approved = await profile(owner);
   const mission = await db.mission.create({
     data: {
-      userId: owner.id, profileId: approved.id, goal: 'Find a role', mode: 'fixture',
-      data: json({ selectedJob: {
-        job: { title: 'Data Analyst', company: 'Example', description: 'Required skills: Python and SQL.' },
-        requirements: { required: ['python', 'sql'], inferred: false },
-      } }), events: json([]),
+      userId: owner.id,
+      profileId: approved.id,
+      goal: 'Find a role',
+      mode: 'fixture',
+      data: json({
+        selectedJob: {
+          job: {
+            title: 'Data Analyst',
+            company: 'Example',
+            description: 'Required skills: Python and SQL.',
+          },
+          requirements: { required: ['python', 'sql'], inferred: false },
+        },
+      }),
+      events: json([]),
     },
   });
   const result = await owner.request(`/missions/${mission.id}/job-fit`);
@@ -170,7 +181,7 @@ describe('UC1 Profile Builder acceptance', () => {
     expect(result.body.data.skills).toEqual([]);
     expect(result.body.data.education).toBe('');
     expect(result.body.data.experience).toBe('');
-    expect(Object.values(result.body.data.sharing)).toEqual([false, false, false, false]);
+    expect(Object.values(result.body.data.sharing)).toEqual([true, true, true, true]);
     expect(result.body.followUpQuestions.length).toBeGreaterThan(0);
     expect(await db.profileDraft.count({ where: { userId: c.id } })).toBe(0);
     expect((await c.request('/workspace')).body.profile).toBeNull();
@@ -812,7 +823,7 @@ describe('Owned, durable five-agent journey', () => {
     ).toBe(404);
     await a.request(`/missions/${m.body.id}/cancel`, 'POST', {});
   });
-  it('requests an approved, shareable profile before an interview mission can begin', async () => {
+  it('requires approval and enables the career team for new missions using a legacy profile', async () => {
     const c = await client();
     const missing = await c.request('/missions', 'POST', {
       goal: 'Prepare a role-specific interview.',
@@ -827,8 +838,11 @@ describe('Owned, durable five-agent journey', () => {
     const denied = await c.request('/missions', 'POST', {
       goal: 'Prepare a role-specific interview.',
     });
-    expect(denied.status).toBe(403);
-    expect(denied.body.code).toBe('SHARING_REQUIRED');
+    expect(denied.status).toBe(202);
+    expect(denied.body.data.agentAccess).toBe('all-approved-profile');
+    expect(denied.body.data.jobSearch.keyword).toBeTruthy();
+    expect((await c.request('/workspace')).body.profile.data.sharing.interview).toBe(false);
+    await c.request(`/missions/${denied.body.id}/cancel`, 'POST', {});
   });
   it('requires server-side review, rejects stale profile drafts and invalid changes', async () => {
     const c = await client();
@@ -911,7 +925,7 @@ describe('Owned, durable five-agent journey', () => {
     expect((profiles[0].data as any).goals).toBe(sampleProfile.goals);
     expect(
       (await owner.request('/missions', 'POST', { goal: 'Use the new profile.' })).status,
-    ).toBe(403);
+    ).toBe(202);
   });
   it('hands only the approved, permitted profile to downstream agents', async () => {
     const owner = await client();
@@ -974,10 +988,10 @@ describe('Owned, durable five-agent journey', () => {
     expect(
       (
         await partial.request('/missions', 'POST', {
-          goal: 'Attempt a mission with missing sharing permission.',
+          goal: 'Start a career-team mission using a legacy profile.',
         })
       ).status,
-    ).toBe(403);
+    ).toBe(202);
   });
   it('rolls back a failed profile approval and preserves the previous approved version', async () => {
     const owner = await client();
@@ -1062,11 +1076,11 @@ describe('Owned, durable five-agent journey', () => {
     ).rejects.toThrow(/cancelled/);
     expect((await c.request('/missions/' + m.id)).body.status).toBe('CANCELLED');
   });
-  it('requires task sharing and protects cookie-authenticated writes from CSRF', async () => {
+  it('enables automatic task context while protecting cookie-authenticated writes from CSRF', async () => {
     const c = await client();
     await profile(c, { ...sampleProfile, sharing: { ...sampleProfile.sharing, resume: false } });
     expect((await c.request('/missions', 'POST', { goal: 'Prepare my application.' })).status).toBe(
-      403,
+      202,
     );
     const r = await fetch(base + '/api/profiles/drafts', {
       method: 'POST',
@@ -1083,10 +1097,10 @@ describe('Owned, durable five-agent journey', () => {
     expect(
       (
         await noInterview.request('/missions', 'POST', {
-          goal: 'Prepare an interview without sharing permission.',
+          goal: 'Prepare an interview with automatic career-team access.',
         })
       ).status,
-    ).toBe(403);
+    ).toBe(202);
   });
 });
 

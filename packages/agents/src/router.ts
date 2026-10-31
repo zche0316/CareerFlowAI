@@ -1,5 +1,19 @@
 // Routing is deterministic. Model output never controls tools, approvals or access.
 export function modelRoute(task: 'text' | 'light' | 'vision') {
+  const nativeKey = process.env.OPENAI_NATIVE_API_KEY?.trim() || '';
+  if (nativeKey) {
+    const textModel = process.env.OPENAI_NATIVE_TEXT_MODEL?.trim() || '';
+    return {
+      task,
+      model:
+        (task === 'light' ? process.env.OPENAI_NATIVE_LIGHT_MODEL?.trim() : '') ||
+        (task === 'vision' ? process.env.OPENAI_NATIVE_VISION_MODEL?.trim() : '') ||
+        textModel,
+      baseURL: process.env.OPENAI_NATIVE_BASE_URL?.trim() || 'https://api.openai.com/v1',
+      apiKey: nativeKey,
+    };
+  }
+
   const baseURL = process.env.OPENAI_BASE_URL?.trim() || 'https://api.openai.com/v1';
   const sharedKey = process.env.OPENAI_API_KEY || process.env.DEEPSEEK_API_KEY || '';
   if (task === 'vision') {

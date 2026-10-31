@@ -6,8 +6,32 @@ export function composeSelection(
   facts: Fact[],
   jobText = '',
 ) {
+  const coursework = (f: Fact | undefined) =>
+    Boolean(f?.recordHeaderId && /-coursework-\d+$/.test(f.id));
+  const terms = new Set(
+    (jobText.toLowerCase().match(/[a-z]{3,}/g) || []).filter(
+      (w) =>
+        !['the', 'and', 'for', 'with', 'course', 'coursework', 'relevant', 'study'].includes(w),
+    ),
+  );
+  const scoreCourse = (f: Fact) =>
+    (
+      f.text
+        .replace(/^Relevant coursework:\s*/i, '')
+        .toLowerCase()
+        .match(/[a-z]{3,}/g) || []
+    ).filter((w) => terms.has(w)).length;
+  const allowedCourses = new Set(
+    selected
+      .map((c) => facts.find((f) => f.id === c.factId))
+      .filter((f): f is Fact => Boolean(f && coursework(f) && scoreCourse(f) > 0))
+      .sort((a, b) => scoreCourse(b) - scoreCourse(a))
+      .slice(0, 3)
+      .map((f) => f.id),
+  );
   const result = selected.filter((c) => {
     const f = facts.find((f) => f.id === c.factId);
+    if (coursework(f)) return allowedCourses.has(c.factId);
     return !f || f.kind !== 'experience' || !f.recordHeaderId || isResumeContribution(f);
   });
   // A selected experience header represents the record, not a standalone accomplishment.
@@ -23,7 +47,13 @@ export function composeSelection(
     );
     const score = (f: Fact) =>
       (f.text.toLowerCase().match(/[a-z]{3,}/g) || []).filter((w) => terms.has(w)).length +
-      (/\bI\b|Personal actions|responsib/i.test(f.text) ? 5 : 0) + (/Personal actions:|\bI (?:built|wrote|set|standardised|enhanced|implemented|designed|created)/i.test(f.text) ? 8 : 0) + (/\d|outcome|result|correctness|achiev/i.test(f.text) ? 6 : 0);
+      (/\bI\b|Personal actions|responsib/i.test(f.text) ? 5 : 0) +
+      (/Personal actions:|\bI (?:built|wrote|set|standardised|enhanced|implemented|designed|created)/i.test(
+        f.text,
+      )
+        ? 8
+        : 0) +
+      (/\d|outcome|result|correctness|achiev/i.test(f.text) ? 6 : 0);
     candidates.sort((a, b) => score(b) - score(a));
     for (const f of candidates.slice(0, 2))
       result.push({

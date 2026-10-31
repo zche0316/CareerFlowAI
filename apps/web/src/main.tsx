@@ -1,16 +1,16 @@
 import { WorkspaceHome, nextMissionStep } from './workspace-home.js';
 import { FlowNavigation } from './flow-navigation.js';
 import { ResumePreview } from './resume-preview.js';
-import { resumeReadiness } from '../../../packages/contracts/src/resume-layout.js';
+import { pendingResumeChanges } from '../../../packages/contracts/src/resume-review.js';
+import { MissionProfile } from './mission-profile.js';
 import { JobFit } from './job-fit.js';
 import { suggestJobSearch } from '../../../packages/contracts/src/job-search.js';
 import { ProfileRecords } from './profile-records.js';
 import { ProfileImport } from './profile-import.js';
-import { ResumeSelection } from './resume-selection.js';
-import { ProfileSummary } from './profile-summary.js';
+import { ResumeAgent } from './resume-agent.js';
 import { ProfileConversation } from './profile-conversation.js';
 import { CareerMemoryPanel } from './career-memory.js';
-import { WordingStudio } from './resume-wording.js';
+import { DocumentWorkspace } from './document-workspace.js';
 import { recordKeys } from '../../../packages/contracts/src/profile-records.js';
 import { OptionalTools } from './tools.js';
 import {
@@ -39,7 +39,6 @@ import {
   BriefcaseBusiness,
   MessageSquare,
   Clock3,
-  BookOpen,
   Download,
   CheckCircle2,
   AlertCircle,
@@ -48,7 +47,6 @@ import {
   Search,
   FileText,
   UserRound,
-  Database,
 } from 'lucide-react';
 import { blankProfile, type CareerProfile } from '../../../packages/contracts/src/index.js';
 import './style.css';
@@ -110,33 +108,69 @@ const stagePresentation = [
   },
 ];
 type Tab =
-  | 'missions'
-  | 'profile'
-  | 'approved-profile'
-  | 'memory'
-  | 'approvals'
-  | 'library'
-  | 'activity'
-  | 'tools';
+  'missions' | 'profile' | 'approved-profile' | 'approvals' | 'library' | 'activity' | 'tools';
 
+const readWorkspaceRoute = () => {
+  const query = new URLSearchParams(window.location.search);
+  const validTabs = [
+    'missions',
+    'profile',
+    'approved-profile',
+    'approvals',
+    'library',
+    'activity',
+    'tools',
+  ];
+  const value = query.get('view') || 'missions';
+  const step = query.has('step') ? Number(query.get('step')) : null;
+  return {
+    tab: (validTabs.includes(value) ? value : 'missions') as Tab,
+    selected: query.get('mission'),
+    phase: step !== null && Number.isInteger(step) && step >= 0 && step <= 7 ? step : null,
+  };
+};
 // Own workspace navigation and refreshes here; the server remains the source of mission status.
 function App() {
   const [session, setSession] = useState<any>(null),
     [ready, setReady] = useState(false),
     [workspace, setWorkspace] = useState<any>(null),
-    [tab, setTab] = useState<Tab>('missions'),
-    [phase, setPhase] = useState<number | null>(null),
-    [selected, setSelected] = useState<string | null>(null),
+    [tab, setTab] = useState<Tab>(() => readWorkspaceRoute().tab),
+    [phase, setPhase] = useState<number | null>(() => readWorkspaceRoute().phase),
+    [selected, setSelected] = useState<string | null>(() => readWorkspaceRoute().selected),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
     [creating, setCreating] = useState(false),
     [minScore, setMinScore] = useState(40),
     [jobSearch, setJobSearch] = useState(defaultJobSearch),
-    [goal, setGoal] = useState(
-      'Find suitable technology roles across Australia and prepare a factual application.',
-    ),
-    [notice, setNotice] = useState('');
+    [goal, setGoal] = useState(''),
+    [notice, setNotice] = useState(''),
+    [profileSection, setProfileSection] = useState<'profile' | 'memory'>('profile'),
+    [showAllActivity, setShowAllActivity] = useState(false),
+    [memoryVisited, setMemoryVisited] = useState(false),
+    [agentPrompt, setAgentPrompt] = useState<{ id: string; text: string; label: string } | null>(
+      null,
+    );
 
+  useEffect(() => {
+    const restore = () => {
+      const route = readWorkspaceRoute();
+      setTab(route.tab);
+      setPhase(route.phase);
+      setSelected(route.selected);
+    };
+    window.addEventListener('popstate', restore);
+    return () => window.removeEventListener('popstate', restore);
+  }, []);
+  useEffect(() => {
+    if (!ready || !session?.user) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('view', tab);
+    if (selected) url.searchParams.set('mission', selected);
+    else url.searchParams.delete('mission');
+    if (phase !== null) url.searchParams.set('step', String(phase));
+    else url.searchParams.delete('step');
+    if (url.search !== window.location.search) window.history.pushState(null, '', url);
+  }, [ready, session?.user?.id, tab, phase, selected]);
   const refresh = async () => {
     const w = await api('/workspace');
     setWorkspace(w);
@@ -184,10 +218,30 @@ function App() {
 
   const interviewHandoff = useRef<string | null>(null);
   const mission = workspace?.missions.find((m: any) => m.id === selected);
+  useEffect(() => {
+    if (
+      tab === 'missions' &&
+      mission &&
+      phase !== null &&
+      phase > 0 &&
+      phase < 5 &&
+      phase > nextMissionStep(mission)
+    ) {
+      setPhase(nextMissionStep(mission));
+      setNotice('Continue from the next available step in this application journey.');
+    }
+  }, [tab, mission?.id, mission?.status, phase]);
   const selectJourneyStep = (i: number) => {
+    const active = mission || workspace?.missions[0];
+    if (i > 0 && active && i > nextMissionStep(active)) {
+      setNotice(
+        'Complete the current step before continuing. Earlier steps remain available to review.',
+      );
+      return;
+    }
     setPhase(i);
     setError('');
-    if (i === 0) setTab('profile');
+    if (i === 0 && !mission) setTab('profile');
     else {
       setTab('missions');
       const latest = mission || workspace?.missions[0];
@@ -203,10 +257,67 @@ function App() {
     document.getElementById('interview-practice')?.scrollIntoView({ block: 'start' });
   }, [mission?.id, mission?.status]);
 
+  const observedMission = useRef<{ id: string; status: string } | null>(null);
+  const automaticHandoff = useRef<{ id: string; phase: number | null } | null>(null);
+  useEffect(() => {
+    if (!mission) return;
+    const previous = observedMission.current;
+    const working = ['RUNNING', 'QUEUED'].includes(mission.status);
+    if (
+      working &&
+      (!previous || previous.id !== mission.id || !['RUNNING', 'QUEUED'].includes(previous.status))
+    )
+      automaticHandoff.current = { id: mission.id, phase };
+    else if (working && automaticHandoff.current?.phase !== phase) automaticHandoff.current = null;
+    observedMission.current = { id: mission.id, status: mission.status };
+    if (
+      tab !== 'missions' ||
+      !previous ||
+      previous.id !== mission.id ||
+      !['RUNNING', 'QUEUED'].includes(previous.status) ||
+      ['RUNNING', 'QUEUED'].includes(mission.status)
+    )
+      return;
+    const next = nextMissionStep(mission);
+    const handoff = automaticHandoff.current;
+    automaticHandoff.current = null;
+    if (
+      handoff &&
+      handoff.id === mission.id &&
+      handoff.phase === phase &&
+      phase !== null &&
+      phase < next &&
+      phase >= next - 1
+    ) {
+      setPhase(next);
+      setNotice(
+        mission.status === 'AWAITING_JOB'
+          ? 'Your matches are ready. Review the gaps and choose a job.'
+          : mission.status === 'AWAITING_APPROVAL'
+            ? 'Your resume is ready. Review the changes before saving.'
+            : mission.status === 'AWAITING_INTERVIEW'
+              ? 'Your interview is ready. Practise your first answer.'
+              : 'Your results are ready.',
+      );
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    }
+  }, [mission?.id, mission?.status, phase, tab]);
+
   const approvals =
     workspace?.missions.filter((m: any) =>
       ['AWAITING_JOB', 'AWAITING_APPROVAL'].includes(m.status),
     ) || [];
+  useEffect(() => {
+    if (!creating || !workspace?.profile?.data) return;
+    const profile = workspace.profile.data;
+    const suggestions = suggestJobSearch(profile);
+    setGoal((value) => (value.trim() ? value : profile.goals));
+    setJobSearch((value) => ({
+      ...value,
+      keyword: value.keyword || suggestions.keyword,
+      location: value.location || suggestions.location,
+    }));
+  }, [creating, workspace?.profile?.id]);
   if (!ready) return <div className="loading">Opening your workspace…</div>;
   if (!session?.user)
     return (
@@ -223,20 +334,60 @@ function App() {
         }}
       />
     );
+  const renderProfile = (mode: 'build' | 'edit') => (
+    <Profile
+      mode={mode}
+      initialPrompt={mode === 'edit' ? agentPrompt : null}
+      key={mode}
+      profile={workspace?.profile}
+      userName={session.user.name}
+      sample={workspace?.sampleProfile}
+      onMission={() => {
+        setPhase(null);
+        setTab('missions');
+        setCreating(true);
+      }}
+      onLibrary={() => setTab('library')}
+      busy={busy}
+      onDraft={async (input) => api('/profiles/drafts', 'POST', input)}
+      onApprove={async (id) =>
+        act(async () => {
+          await api(`/profiles/drafts/${id}/approve`, 'POST', { reviewed: true });
+          setNotice('Your reviewed profile is now approved. Previous documents remain available.');
+          if (mode === 'build') {
+            setSelected(null);
+            setPhase(null);
+            setTab('missions');
+            setCreating(true);
+          }
+        })
+      }
+      onDiscard={async (id) => {
+        let discarded = false;
+        await act(async () => {
+          await api(`/profiles/drafts/${id}`, 'DELETE');
+          discarded = true;
+        });
+        return discarded;
+      }}
+    />
+  );
   const nav = [
     { id: 'missions', label: 'Overview', icon: House },
-    { id: 'profile', label: 'Career chat', icon: MessageSquare },
+    { id: 'profile', label: 'Build profile', icon: MessageSquare },
     { id: 'jobs', label: 'Find jobs', icon: Search },
     { id: 'library', label: 'My documents', icon: FileText },
     { id: 'approved-profile', label: 'My profile', icon: UserRound },
-    { id: 'memory', label: 'Career memory', icon: Database },
     { id: 'approvals', label: 'Approval inbox', icon: FileCheck2 },
     { id: 'applications', label: 'Applications', icon: BriefcaseBusiness },
     { id: 'activity', label: 'Activity timeline', icon: Activity },
     { id: 'tools', label: 'Optional tools', icon: Target },
   ];
   return (
-    <div className="shell">
+    <div className="shell agent-app">
+      <a className="skip-link" href="#main-content">
+        Skip to workspace
+      </a>
       <aside className="sidebar">
         <a className="brand" href="/" aria-label="CareerFlow home">
           <span className="brandmark" aria-hidden="true">
@@ -251,6 +402,7 @@ function App() {
             .map((n) => (
               <button
                 key={n.id}
+                aria-current={tab === n.id || (n.id === 'jobs' && phase === 2) ? 'page' : undefined}
                 className={
                   n.id === 'jobs'
                     ? tab === 'missions' && phase === 2
@@ -323,27 +475,6 @@ function App() {
               ))}
           </details>
         </nav>
-        <div className="sidebar-journey-label">Your journey</div>
-        <FlowNavigation
-          vertical
-          current={tab === 'profile' ? 0 : phase !== null && phase <= 4 ? phase : -1}
-          onSelect={selectJourneyStep}
-        />
-        <div className="sidebar-note">
-          <div className="tiny-label">ONE GOAL. A TEAM BEHIND YOU.</div>
-          <p>
-            Five specialist agents.
-            <br />
-            Your decisions, always.
-          </p>
-          <div className="agent-dots">
-            <i>PB</i>
-            <i>CC</i>
-            <i>JM</i>
-            <i>RT</i>
-            <i>IC</i>
-          </div>
-        </div>
         <div className="account">
           <details className="account-menu">
             <summary aria-label="Account menu">
@@ -361,7 +492,7 @@ function App() {
             </summary>
             <div className="account-menu-items">
               <button
-                aria-label="Approved profile"
+                aria-label="My profile"
                 onClick={(event) => {
                   event.currentTarget.closest('details')?.removeAttribute('open');
                   setTab('approved-profile');
@@ -369,18 +500,7 @@ function App() {
                   setSelected(null);
                 }}
               >
-                Approved profile
-              </button>
-              <button
-                aria-label="Career memory"
-                onClick={(event) => {
-                  event.currentTarget.closest('details')?.removeAttribute('open');
-                  setTab('memory');
-                  setPhase(null);
-                  setSelected(null);
-                }}
-              >
-                Career memory
+                My profile
               </button>
             </div>
           </details>
@@ -408,10 +528,8 @@ function App() {
               {phase !== null
                 ? phaseNames[phase]
                 : tab === 'approved-profile'
-                  ? 'Approved profile'
-                  : tab === 'memory'
-                    ? 'Career memory'
-                    : nav.find((n) => n.id === tab)?.label}
+                  ? 'My profile'
+                  : nav.find((n) => n.id === tab)?.label}
             </span>
           </div>
           <details className="provider-details">
@@ -422,7 +540,7 @@ function App() {
             </span>
           </details>
         </header>
-        <main>
+        <main id="main-content" tabIndex={-1}>
           {error && (
             <div role="alert" className="error-banner global-error-toast">
               <AlertCircle size={18} />
@@ -448,117 +566,66 @@ function App() {
           )}
           {tab === 'approved-profile' ? (
             <div className="approved-profile-page" aria-label="Approved profile">
-              <PageTitle
-                eyebrow="YOUR CAREER PROFILE"
-                title="My profile"
-                text="Your experience, skills and education in one place."
-              />
-              {workspace?.profile ? (
-                <div className="approved-profile-layout">
-                  <div className="approved-profile-main">
-                    <section className="panel approved-profile-header">
-                      <div className="approved-profile-avatar">
-                        {String(workspace.profile.data.name || 'Y')
-                          .charAt(0)
-                          .toUpperCase()}
-                      </div>
-                      <div>
-                        <h2>{workspace.profile.data.name || 'Your profile'}</h2>
-                        <p>{workspace.profile.data.location || 'Add your location'}</p>
-                      </div>
-                      <button
-                        className="secondary"
-                        onClick={() => {
-                          setTab('profile');
-                          setPhase(null);
-                        }}
-                      >
-                        Edit profile
-                      </button>
-                    </section>
-                    <section className="panel">
-                      <ProfileSummary
-                        data={workspace.profile.data}
-                        showName={false}
-                        showSkills={false}
-                      />
-                    </section>
-                  </div>
-                  <aside className="approved-profile-aside">
-                    <section className="panel">
-                      <h2>Skills</h2>
-                      <div className="prototype-skill-list">
-                        {(workspace.profile.data.skills || []).map((skill: string) => (
-                          <span key={skill}>{skill}</span>
-                        ))}
-                      </div>
-                    </section>
-                    <section className="panel">
-                      <h2>Career memory</h2>
-                      <p>Your stories and supporting details.</p>
-                      <button className="secondary" onClick={() => setTab('memory')}>
-                        View memories <ArrowRight size={15} />
-                      </button>
-                    </section>
-                  </aside>
-                </div>
-              ) : (
-                <section className="panel">
-                  <p>No approved profile yet.</p>
-                  <button className="primary" onClick={() => setTab('profile')}>
-                    Build your profile
-                  </button>
-                </section>
-              )}
+              <nav className="workspace-tabs" aria-label="Profile sections">
+                <button
+                  aria-pressed={profileSection === 'profile'}
+                  onClick={() => setProfileSection('profile')}
+                >
+                  Profile
+                </button>
+                <button
+                  aria-pressed={profileSection === 'memory'}
+                  onClick={() => {
+                    setMemoryVisited(true);
+                    setProfileSection('memory');
+                  }}
+                >
+                  Stories &amp; notes
+                </button>
+              </nav>
+              <div hidden={profileSection !== 'profile'}>{renderProfile('edit')}</div>
+              <div hidden={profileSection !== 'memory'}>
+                {memoryVisited && (
+                  <section id="career-memory-library" aria-label="Career memory">
+                    <CareerMemoryPanel
+                      api={api}
+                      incoming={null}
+                      profileVersion={workspace?.profile?.version || 0}
+                      onDiscuss={(memory) => {
+                        setAgentPrompt({
+                          id: crypto.randomUUID(),
+                          label: memory.title,
+                          text: `Help me use this confirmed story in my profile. Suggest changes for review.\n${memory.title}\n${memory.text.slice(0, 3300)}`,
+                        });
+                        setProfileSection('profile');
+                      }}
+                    />
+                  </section>
+                )}
+              </div>
             </div>
-          ) : tab === 'memory' ? (
-            <section className="panel" aria-label="Career memory">
-              <CareerMemoryPanel
-                api={api}
-                incoming={null}
-                profileVersion={workspace?.profile?.version || 0}
-              />
-            </section>
           ) : tab === 'tools' ? (
             <OptionalTools missions={workspace?.missions || []} request={api} onRefresh={refresh} />
           ) : tab === 'profile' ? (
-            <Profile
-              profile={workspace?.profile}
-              userName={session.user.name}
-              sample={workspace?.sampleProfile}
-              onMission={() => {
-                setPhase(null);
-                setTab('missions');
-                setCreating(true);
-              }}
-              onLibrary={() => setTab('library')}
-              busy={busy}
-              onDraft={async (input) => api('/profiles/drafts', 'POST', input)}
-              onApprove={async (id) =>
-                act(async () => {
-                  await api(`/profiles/drafts/${id}/approve`, 'POST', { reviewed: true });
-                  setNotice(
-                    'Your reviewed profile is now approved. Previous documents remain available.',
-                  );
-                })
-              }
-              onDiscard={async (id) => {
-                let discarded = false;
-                await act(async () => {
-                  await api(`/profiles/drafts/${id}`, 'DELETE');
-                  discarded = true;
-                });
-                return discarded;
-              }}
-            />
+            renderProfile('build')
           ) : tab === 'missions' ? (
             <>
               {mission ? (
                 <MissionDetail
+                  key={mission.id}
                   mission={mission}
                   phase={phase}
                   onNavigate={setPhase}
-                  onNewSearch={() => setCreating(true)}
+                  onNewSearch={() => {
+                    setGoal(mission.goal);
+                    setMinScore(mission.data.minScore ?? 40);
+                    setJobSearch({
+                      ...defaultJobSearch,
+                      ...mission.data.jobSearch,
+                      listing: { ...defaultJobSearch.listing, ...mission.data.jobSearch?.listing },
+                    });
+                    setCreating(true);
+                  }}
                   busy={busy}
                   onBack={() => {
                     setSelected(null);
@@ -640,7 +707,10 @@ function App() {
                       setTab('profile');
                       setPhase(0);
                     }}
-                    onSearch={() => setCreating(true)}
+                    onSearch={(nextGoal) => {
+                      if (nextGoal) setGoal(nextGoal);
+                      setCreating(true);
+                    }}
                     onLibrary={() => {
                       setTab('library');
                       setPhase(null);
@@ -698,32 +768,7 @@ function App() {
                 title="Document library"
                 text="Approved versions stay available, even when you update your profile."
               />
-              <WordingStudio api={api} resumes={workspace?.resumes || []} onSaved={refresh} />
-              {workspace?.resumes.length ? (
-                workspace.resumes.map((r: any) => (
-                  <div className="document-card" key={r.id}>
-                    <FileCheck2 size={28} />
-                    <div>
-                      <h3>{r.content.jobTitle}</h3>
-                      <p>
-                        Approved {date(r.approvedAt)} · Profile v{r.content.profileVersion} ·{' '}
-                        {r.content.claims.length} evidence-linked claims
-                      </p>
-                    </div>
-                    <a className="secondary" href={`/api/resumes/${r.id}/download`}>
-                      <Download size={16} />
-                      Download TXT
-                    </a>
-                    <ResumeDownloads id={r.id} />
-                  </div>
-                ))
-              ) : (
-                <div className="empty-state">
-                  <BookOpen size={30} />
-                  <h3>A home for your approved documents.</h3>
-                  <p>Once you review and approve a resume, it will be kept here.</p>
-                </div>
-              )}
+              <DocumentWorkspace resumes={workspace?.resumes || []} api={api} onSaved={refresh} />
             </>
           ) : (
             <>
@@ -732,18 +777,31 @@ function App() {
                 title="Activity timeline"
                 text="See completed actions, tool use and the decisions that moved your missions forward."
               />
-              {workspace?.missions.flatMap((m: any) =>
-                m.events.map((e: any, i: number) => (
-                  <div key={m.id + i} className="timeline-event">
-                    <span className="timeline-dot" />
-                    <div>
-                      <strong>{e.agent}</strong>
-                      <span className="event-action">{nice(e.action)}</span>
-                      <p>{e.detail}</p>
-                      <small>{new Date(e.at).toLocaleString('en-AU')}</small>
-                    </div>
-                  </div>
-                )),
+              {workspace?.missions
+                .flatMap((m: any) =>
+                  m.events
+                    .slice(-12)
+                    .reverse()
+                    .map((e: any, i: number) => (
+                      <div key={m.id + i} className="timeline-event">
+                        <span className="timeline-dot" />
+                        <div>
+                          <strong>{e.agent}</strong>
+                          <span className="event-action">{nice(e.action)}</span>
+                          <p>{e.detail}</p>
+                          <small>{new Date(e.at).toLocaleString('en-AU')}</small>
+                        </div>
+                      </div>
+                    )),
+                )
+                .slice(0, showAllActivity ? undefined : 24)}
+              {!!workspace?.missions.length && (
+                <button
+                  className="text-button"
+                  onClick={() => setShowAllActivity(!showAllActivity)}
+                >
+                  {showAllActivity ? 'Show recent activity' : 'Show more activity'}
+                </button>
               )}
               {!workspace?.missions.length && (
                 <div className="empty-state">
@@ -768,6 +826,23 @@ function App() {
             aria-labelledby="mission-title"
             onKeyDown={(event) => {
               if (event.key === 'Escape' && !busy) setCreating(false);
+              if (event.key === 'Tab') {
+                const controls = Array.from(
+                  event.currentTarget.querySelectorAll<HTMLElement>(
+                    'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], summary',
+                  ),
+                ).filter((e) => e.getClientRects().length);
+                const first = controls[0],
+                  last = controls.at(-1);
+                if (event.shiftKey && document.activeElement === first) {
+                  event.preventDefault();
+                  last?.focus();
+                }
+                if (!event.shiftKey && document.activeElement === last) {
+                  event.preventDefault();
+                  first?.focus();
+                }
+              }
             }}
           >
             <button
@@ -781,11 +856,16 @@ function App() {
             <h2 id="mission-title">What’s your next career goal?</h2>
             <p>
               Your team will analyse your approved profile, find relevant opportunities and prepare
-              your next steps.
+              your next steps. All four specialists use this approved profile automatically.
             </p>
             <label>
               Career goal
-              <textarea autoFocus value={goal} onChange={(e) => setGoal(e.target.value)} />
+              <textarea
+                aria-label="Career goal"
+                autoFocus
+                value={goal}
+                onChange={(e) => setGoal(e.target.value)}
+              />
             </label>
             <JobSearchFields
               value={jobSearch}
@@ -794,20 +874,6 @@ function App() {
               tavilyConfigured={session?.recruitment?.tavilyConfigured}
               tavilyAccessMode={session?.recruitment?.tavilyAccessMode}
             />
-            {workspace?.profile?.data && (
-              <button
-                className="secondary"
-                onClick={() =>
-                  setJobSearch({
-                    ...jobSearch,
-                    ...suggestJobSearch(workspace.profile.data),
-                    region: '',
-                  })
-                }
-              >
-                Use approved profile search suggestions
-              </button>
-            )}
             <p className="small muted">
               Search sends only keywords and selected location to the recruitment API, not your
               name, contact details or full resume. You can edit the suggested terms before
@@ -861,7 +927,7 @@ function App() {
                     });
                     setCreating(false);
                     setSelected(m.id);
-                    setPhase(2);
+                    setPhase(1);
                   })
                 }
               >
@@ -1013,7 +1079,6 @@ function PageTitle({ eyebrow, title, text }: { eyebrow: string; title: string; t
   return (
     <div className="page-heading">
       <div>
-        <div className="eyebrow">{eyebrow}</div>
         <h1>{title}</h1>
         <p>{text}</p>
       </div>
@@ -1046,15 +1111,20 @@ const coachText = (item: any) =>
 function CoachEvidence({ item }: { item: any }) {
   if (!item || typeof item === 'string') return null;
   return (
-    <small>
-      Evidence: {item.evidenceIds?.join(', ') || 'Unavailable'}
-      {item.reason ? ` · ${item.reason}` : ''}
-    </small>
+    <details className="coach-evidence">
+      <summary>Why this fits</summary>
+      <small>
+        {item.reason || 'Based on your approved profile.'} · Evidence:{' '}
+        {item.evidenceIds?.join(', ') || 'Unavailable'}
+      </small>
+    </details>
   );
 }
 
 // Keep editable input, prepared draft and explicit review confirmation as separate UI states.
 function Profile({
+  mode = 'build',
+  initialPrompt,
   profile,
   userName,
   sample,
@@ -1065,6 +1135,8 @@ function Profile({
   onMission,
   onLibrary,
 }: {
+  mode?: 'build' | 'edit';
+  initialPrompt?: { id: string; text: string; label: string } | null;
   profile: any;
   onMission: () => void;
   onLibrary: () => void;
@@ -1077,6 +1149,26 @@ function Profile({
 }) {
   // Preserve raw comma-separated text while typing; parse it when preparing the draft.
   const [hasPendingSuggestions, setHasPendingSuggestions] = useState(false);
+  const [previewTarget, setPreviewTarget] = useState<HTMLDivElement | null>(null);
+  const [approvalMotion, setApprovalMotion] = useState(false);
+  const profileSurface = useRef<HTMLElement | null>(null);
+  const approvedVersion = useRef<number | null>(profile?.version ?? null);
+  useEffect(() => {
+    if (!sample) return;
+    const nextVersion = profile?.version || 0;
+    if (approvedVersion.current === null) {
+      approvedVersion.current = nextVersion;
+      return;
+    }
+    if (nextVersion > approvedVersion.current) {
+      setApprovalMotion(true);
+      profileSurface.current?.scrollIntoView({ block: 'start', behavior: 'auto' });
+      const timer = setTimeout(() => setApprovalMotion(false), 1800);
+      approvedVersion.current = nextVersion;
+      return () => clearTimeout(timer);
+    }
+    approvedVersion.current = nextVersion;
+  }, [profile?.version, Boolean(sample)]);
   const [skillInput, setSkillInput] = useState(''),
     [interestInput, setInterestInput] = useState('');
   const [form, setForm] = useState<CareerProfile | null>(null),
@@ -1242,46 +1334,59 @@ function Profile({
       if (mounted.current) setCommitting(false);
     }
   }
+  const conversationPane = (
+    <section
+      id="profile-conversation"
+      className="panel profile-chat-main"
+      role={mode === 'edit' ? 'complementary' : 'region'}
+      aria-label={
+        mode === 'build' ? 'Profile building conversation' : 'Profile conversation sidebar'
+      }
+    >
+      <ProfileConversation
+        mode={mode}
+        initialPrompt={initialPrompt}
+        previewTarget={previewTarget}
+        previewData={draft?.data || form}
+        approved={!!profile && JSON.stringify(form) === JSON.stringify(profile.data)}
+        onReview={() => void prepare()}
+        onPendingChange={setHasPendingSuggestions}
+        profileVersion={profile?.version || 0}
+        form={form}
+        api={api}
+        onChange={(key, value) => {
+          change(key, value);
+          if (key === 'skills') setSkillInput(value.join(', '));
+          if (key === 'interests') setInterestInput(value.join(', '));
+        }}
+      />
+    </section>
+  );
   return (
     <>
-      <PageTitle
-        eyebrow="STEP 01 · PROFILE BUILDING"
-        title="Build your profile"
-        text="Start with a conversation. No resume required."
-      />
+      <div className="page-heading profile-workbench-title">
+        <div>
+          <h1>{mode === 'build' ? 'Build your profile' : 'My profile'}</h1>
+          <p>
+            {mode === 'build'
+              ? 'Tell your story. Your agent will build the profile with you.'
+              : 'Ask your agent to refine your profile. You decide what to keep.'}
+          </p>
+        </div>
+        <a className="secondary profile-conversation-jump" href="#profile-conversation">
+          Open conversation <MessageSquare size={16} />
+        </a>
+      </div>
       <fieldset
         disabled={busy || committing}
         style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}
       >
-        <div className="chat-profile-layout">
-          <section className="panel profile-chat-main">
-            <h2>Tell us your story</h2>
-            <p className="muted">
-              Let’s start with what you’ve done and what you enjoy. You can review your details
-              before saving.
-            </p>
-            {error && (
-              <div role="alert" className="error-banner">
-                {error}
-              </div>
-            )}
-            <ProfileConversation
-              onReview={() => void prepare()}
-              onPendingChange={setHasPendingSuggestions}
-              profileVersion={profile?.version || 0}
-              form={form}
-              api={api}
-              onChange={(key, value) => {
-                change(key, value);
-                if (key === 'skills') setSkillInput(value.join(', '));
-                if (key === 'interests') setInterestInput(value.join(', '));
-              }}
-            />
-          </section>
-          <aside className="profile-draft-side">
-            <section className="panel">
+        <div className={`chat-profile-layout profile-workbench profile-mode-${mode}`}>
+          {mode === 'build' && conversationPane}
+          <div className={`profile-draft-side ${approvalMotion ? 'profile-just-approved' : ''}`}>
+            <section ref={profileSurface} className="panel profile-editor-surface">
               <div className="section-heading">
-                <h2>Your profile so far</h2>
+                <h2>Your profile</h2>
                 <span className="tag">
                   {profile
                     ? JSON.stringify(form) === JSON.stringify(profile.data)
@@ -1290,7 +1395,23 @@ function Profile({
                     : 'Not approved yet'}
                 </span>
               </div>
-              <ProfileSummary data={draft?.data || form} />
+              <p className="profile-editor-caption">
+                {mode === 'build'
+                  ? 'Your conversation, organised into a profile.'
+                  : 'Review changes before saving a new version.'}
+              </p>
+              {approvalMotion && (
+                <div className="profile-approved-notice" role="status">
+                  <CheckCircle2 size={20} />
+                  Profile approved and saved
+                </div>
+              )}
+              {error && (
+                <p role="alert" className="error-banner">
+                  {error}
+                </p>
+              )}
+              <div ref={setPreviewTarget} />
               <details className="manual-profile-editor">
                 <summary>Edit profile details manually</summary>
                 <details className="optional-import">
@@ -1390,55 +1511,36 @@ function Profile({
                   )}
                   <ProfileRecords form={form} onChange={change} errors={fields} />
                   {input('experienceYears', 'Years of experience', { type: 'number' })}
-                  {input('employmentType', 'Employment preference', { placeholder: 'Optional' })}
-                  {input('workArrangement', 'Work arrangement', { placeholder: 'e.g. Hybrid' })}
-                  {input('companySize', 'Company size preference', { placeholder: 'Optional' })}
-                  {input('industry', 'Industry preference', { placeholder: 'e.g. Technology' })}
                   {input('startDate', 'Experience start date (optional)', { type: 'date' })}
                   {input('endDate', 'Experience end date (optional)', { type: 'date' })}
                   <details className="wide">
-                    <summary>Optional salary preferences</summary>
+                    <summary>Job preferences</summary>
+                    <p className="small muted">
+                      Used for coaching and job matching. Not included as resume claims.
+                    </p>
                     <div className="form-grid">
-                      {input('salaryMin', 'Minimum', { type: 'number' })}
-                      {input('salaryMax', 'Maximum', { type: 'number' })}
-                      {input('currency', 'Currency', { placeholder: 'e.g. AUD' })}
+                      {input('employmentType', 'Employment preference', {
+                        placeholder: 'Optional',
+                      })}
+                      {input('workArrangement', 'Work arrangement', { placeholder: 'e.g. Hybrid' })}
+                      {input('companySize', 'Company size preference', { placeholder: 'Optional' })}
+                      {input('industry', 'Industry preference', { placeholder: 'e.g. Technology' })}
+                      <details className="wide">
+                        <summary>Optional salary preferences</summary>
+                        <div className="form-grid">
+                          {input('salaryMin', 'Minimum', { type: 'number' })}
+                          {input('salaryMax', 'Maximum', { type: 'number' })}
+                          {input('currency', 'Currency', { placeholder: 'e.g. AUD' })}
+                        </div>
+                      </details>
                     </div>
                   </details>
                 </div>
               </details>
-              <div className="sharing">
-                <h3>Authorised context sharing</h3>
-                <p className="muted">
-                  Missions use approved profile facts only. Conversation transcripts, source
-                  quotations and separate career memories are not sent. Review and add memory facts
-                  to your profile before using them in a mission.
-                </p>
-                <p className="muted">
-                  Choose which specialists may use your approved career information. A complete
-                  mission needs all four.
-                </p>
-                {Object.entries(form.sharing).map(([key, value]) => (
-                  <label className="checkbox" key={key}>
-                    <input
-                      type="checkbox"
-                      checked={value}
-                      onChange={(e) =>
-                        change('sharing', { ...form.sharing, [key]: e.target.checked })
-                      }
-                    />
-                    {
-                      (
-                        {
-                          coach: 'Career Coach',
-                          matching: 'Job Matcher',
-                          resume: 'Resume Tailor',
-                          interview: 'Interview Coach',
-                        } as any
-                      )[key]
-                    }
-                  </label>
-                ))}
-              </div>
+              <p className="small muted">
+                Your career team uses approved profile facts when you start a mission. Profile
+                changes and resume versions still require your approval.
+              </p>
               <div className="form-actions">
                 <button
                   className="primary"
@@ -1477,7 +1579,6 @@ function Profile({
             </section>
             {draft && (
               <section className="panel draft-preview">
-                <span className="eyebrow">REVIEW BEFORE SAVING</span>
                 <h3>Confirm this exact profile draft</h3>
                 <p>The grouped details above are the snapshot you are approving.</p>
                 <label className="checkbox">
@@ -1505,7 +1606,8 @@ function Profile({
                 </button>
               </section>
             )}
-          </aside>
+          </div>
+          {mode === 'edit' && conversationPane}
         </div>
       </fieldset>
     </>
@@ -1539,20 +1641,21 @@ function MissionDetail({
   onRefineAnalysis: (feedback: string) => Promise<void>;
 }) {
   const d = m.data,
-    [revision, setRevision] = useState(''),
     [answer, setAnswer] = useState(''),
     [question, setQuestion] = useState(0),
     [analysisFeedback, setAnalysisFeedback] = useState(''),
     [confirm, setConfirm] = useState(false),
-    [selectionDirty, setSelectionDirty] = useState(false),
     [compareIds, setCompareIds] = useState<string[]>([]),
     [offerSalary, setOfferSalary] = useState(''),
     [targetSalary, setTargetSalary] = useState(''),
     [currency, setCurrency] = useState('AUD'),
-    [negotiationMessage, setNegotiationMessage] = useState('');
+    [negotiationMessage, setNegotiationMessage] = useState(''),
+    [viewJobId, setViewJobId] = useState('');
   const questions = d.questions || [],
     q = questions[question],
-    responseCount = d.answers?.length || 0;
+    responseCount = d.answers?.length || 0,
+    budgetExhausted = (d.apiCalls || 0) >= 12,
+    isWorking = ['RUNNING', 'QUEUED'].includes(m.status);
 
   useEffect(() => {
     setAnswer((d.answers || []).find((a: any) => a.questionId === q?.id)?.answer || '');
@@ -1583,52 +1686,108 @@ function MissionDetail({
       <div className="mission-heading">
         <div>
           <span className="eyebrow">
-            {phase !== null && phase < 5
-              ? `STEP ${phase + 1} OF 5`
+            {phase !== null
+              ? phase < 5
+                ? `STEP ${String(phase + 1).padStart(2, '0')} OF 05`
+                : 'OPTIONAL CAREER TOOL'
               : `CAREER MISSION · ${m.mode === 'fixture' ? 'DEMO' : 'LIVE'}`}
           </span>
-          <h1>{phase === null ? m.goal : stagePresentation[phase]?.title || phaseNames[phase]}</h1>
+          <h1>
+            {phase === 0
+              ? 'Your profile for this journey'
+              : phase === null
+                ? m.goal
+                : stagePresentation[phase]?.title || phaseNames[phase]}
+          </h1>
           <p>
-            {phase === null
-              ? `Started ${date(m.createdAt)} · Your approved context, connected across five specialists.`
-              : stagePresentation[phase]?.description || m.goal}
+            {phase === 0
+              ? 'Review the approved profile snapshot attached to this application.'
+              : phase === null
+                ? `Started ${date(m.createdAt)} · Your approved context, saved with this mission.`
+                : stagePresentation[phase]?.description || m.goal}
           </p>
         </div>
         <Status value={m.status} />
       </div>
+      <div className="mission-context-strip" aria-label="Agent context">
+        <span>
+          <UserRound size={14} />
+          Profile snapshot for this journey
+        </span>
+        {d.selectedJob && (
+          <span>
+            <BriefcaseBusiness size={14} />
+            {d.selectedJob.job.title}
+          </span>
+        )}
+        {d.approvedResumeId && (
+          <span>
+            <FileCheck2 size={14} />
+            Approved resume
+          </span>
+        )}
+        <strong>
+          {m.status === 'AWAITING_JOB'
+            ? 'Your decision · Choose a target'
+            : m.status === 'AWAITING_APPROVAL'
+              ? 'Your decision · Approve the resume'
+              : m.status === 'AWAITING_INTERVIEW'
+                ? 'Your turn · Practise an answer'
+                : ['RUNNING', 'QUEUED'].includes(m.status)
+                  ? 'Agent working'
+                  : nice(m.status)}
+        </strong>
+      </div>
+      {phase === 0 && (
+        <MissionProfile
+          missionId={m.id}
+          api={api}
+          onContinue={() => onNavigate(nextMissionStep(m))}
+        />
+      )}
       {phase === 2 && (
         <button className="primary" onClick={onNewSearch}>
           Search Australian jobs
         </button>
       )}
       {m.error && (
-        <div className="error-banner">
+        <div className="error-banner" role="alert">
           <AlertCircle size={18} />
-          <span>{m.error}</span>
+          <span>
+            {budgetExhausted && m.status === 'FAILED'
+              ? 'This mission has reached its AI usage limit. Start a new mission to continue. Your saved results are still available.'
+              : m.error}
+          </span>
         </div>
       )}
       <div className="mission-actions">
-        {m.status === 'FAILED' && (
+        {m.status === 'FAILED' && budgetExhausted && (
+          <button className="primary" disabled={busy} onClick={onNewSearch}>
+            Start a new mission
+            <ArrowRight size={15} />
+          </button>
+        )}
+        {m.status === 'FAILED' && !budgetExhausted && (
           <button className="secondary" disabled={busy} onClick={() => void onAction('retry')}>
             <RefreshCw size={15} />
             Retry failed step
           </button>
         )}
-        {!['COMPLETE', 'CANCELLED', 'STALE', 'NO_MATCHES'].includes(m.status) && (
+        {!['COMPLETE', 'CANCELLED', 'STALE', 'NO_MATCHES', 'FAILED'].includes(m.status) && (
           <button className="text-button" disabled={busy} onClick={() => void onAction('cancel')}>
             <Pause size={15} />
             Cancel further work
           </button>
         )}
         <details className="run-details">
-          <summary>Run details</summary>
+          <summary>AI usage</summary>
           <span className="muted small">
             {d.apiCalls || 0} / 12 model calls ·{' '}
             {((d.inputTokens || 0) + (d.outputTokens || 0)).toLocaleString()} tokens recorded
           </span>
         </details>
       </div>
-      {['RUNNING', 'QUEUED'].includes(m.status) && (
+      {isWorking && (
         <div role="status" className="working">
           <span className="pulse" />
           <div>
@@ -1641,8 +1800,44 @@ function MissionDetail({
                     ? 'Preparing your interview…'
                     : 'Preparing your next step…'}
             </strong>
+            <ol className="agent-stage-progress" aria-label="Agent progress">
+              {(d.selectedJob
+                ? [
+                    { label: 'Target job selected', done: true },
+                    {
+                      label: d.approvedResumeId ? 'Resume approved' : 'Preparing your resume',
+                      done: !!d.approvedResumeId,
+                    },
+                    {
+                      label: d.approvedResumeId
+                        ? 'Preparing interview questions'
+                        : 'Your review and approval',
+                      done: false,
+                    },
+                  ]
+                : [
+                    { label: 'Reviewing your profile', done: !!d.analysis },
+                    { label: 'Finding matching jobs', done: !!d.matches?.length },
+                    { label: 'Your choice of target job', done: false },
+                  ]
+              ).map((stage, index, stages) => (
+                <li
+                  key={stage.label}
+                  className={
+                    stage.done
+                      ? 'done'
+                      : index === stages.findIndex((item) => !item.done)
+                        ? 'current'
+                        : ''
+                  }
+                >
+                  <span aria-hidden="true">{stage.done ? '✓' : index + 1}</span>
+                  {stage.label}
+                </li>
+              ))}
+            </ol>
             <p>
-              You can leave this page. Your mission will keep running while the server is available.
+              Your agent continues in the background. We’ll open the next step when it is ready.
             </p>
           </div>
         </div>
@@ -1654,37 +1849,36 @@ function MissionDetail({
           (phase === 4 && !questions.length) ||
           (phase === 7 && (!d.selectedJob?.job?.applicationUrl || !d.approvedResumeId))) && (
           <section className="panel stage-prerequisite">
-            <h2>
-              {phaseNames[phase]}
-              {phase === 7 ? '' : ' Agent'}
-            </h2>
+            <h2>{isWorking ? 'Preparing this step' : 'Before you start'}</h2>
             <p>
               {phase === 3
                 ? d.selectedJob
-                  ? `Target: ${d.selectedJob.job.title}. Your evidence-based draft is being prepared.`
+                  ? `Target: ${d.selectedJob.job.title}. ${isWorking ? 'Your resume is being prepared.' : 'Your resume is not ready yet. Continue after resolving the mission status above.'}`
                   : 'Target: Select a target in Job matching first.'
                 : phase === 4
                   ? d.approvedResumeId
-                    ? 'Your approved resume is saved. Interview questions are being prepared.'
+                    ? isWorking
+                      ? 'Your approved resume is saved. Interview questions are being prepared.'
+                      : 'Your approved resume is saved. Continue after resolving the mission status above.'
                     : 'Approve your evidence-based resume before starting interview practice.'
                   : phase === 7
                     ? 'Select a real target job and approve your resume before preparing an application.'
-                    : 'Your career team is preparing this step. Results are saved with this mission.'}
+                    : isWorking
+                      ? 'Your career team is preparing this step. Results are saved with this mission.'
+                      : 'This step has no results yet. Check the mission status above to continue.'}
             </p>
             {(phase === 3 || phase === 7) && (
               <>
                 <button className="secondary" onClick={() => onNavigate(2)}>
                   Go to 03 Job matching
                 </button>
-                <button className="primary" disabled>
-                  {d.selectedJob
-                    ? 'Preparing evidence-based draft…'
-                    : 'Generate evidence-based draft'}
-                </button>
-                <p className="muted">
-                  Only approved evidence can be selected, reordered or removed. Update and approve
-                  your profile before changing factual claims.
-                </p>
+                <details className="stage-evidence-help">
+                  <summary>How profile evidence is used</summary>
+                  <p className="muted">
+                    Your resume uses approved profile facts. To add or correct a fact, update and
+                    approve your profile first.
+                  </p>
+                </details>
               </>
             )}
             {phase === 4 && (
@@ -1696,51 +1890,65 @@ function MissionDetail({
         )}
       <div id="career-analysis" />
       {(phase === null || phase === 1) && d.analysis && (
-        <section className="panel analysis">
-          <div className="section-heading">
-            <h2>
-              <Compass size={20} />
-              Your career direction
-            </h2>
-            <span className="tag">Career Coach</span>
-          </div>
-          <div className="analysis-grid">
-            <div>
-              <h3>Strengths to build on</h3>
-              {d.analysis.strengths.map((s: any, i: number) => (
-                <div className="strength" key={i}>
-                  <CheckCircle2 size={16} />
-                  <div>
-                    {coachText(s)}
-                    <CoachEvidence item={s} />
+        <section className="panel analysis agent-output-layout">
+          <div className="analysis-output">
+            <div className="section-heading">
+              <h2>
+                <Compass size={20} />
+                Your career direction
+              </h2>
+              <span className="tag">Career Coach</span>
+            </div>
+            <div className="analysis-grid">
+              <div>
+                <h3>Strengths to build on</h3>
+                {d.analysis.strengths.map((s: any, i: number) => (
+                  <div className="strength" key={i}>
+                    <CheckCircle2 size={16} />
+                    <div>
+                      {coachText(s)}
+                      <CoachEvidence item={s} />
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-            <div>
-              <h3>Development opportunities</h3>
-              <ul>
-                {d.analysis.gaps.map((s: any) => (
-                  <li key={coachText(s)}>
-                    {coachText(s)}
-                    <CoachEvidence item={s} />
-                  </li>
                 ))}
-              </ul>
+              </div>
+              <div>
+                <h3>Development opportunities</h3>
+                <ul>
+                  {d.analysis.gaps.map((s: any) => (
+                    <li key={coachText(s)}>
+                      {coachText(s)}
+                      <CoachEvidence item={s} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
-          </div>
-          {d.analysisFeedback && (
-            <div className="info">
-              <RefreshCw size={17} />
-              <span>
-                <strong>Refinement request:</strong> {d.analysisFeedback}
-              </span>
-            </div>
-          )}
-          {d.analysis.directions?.length > 0 && (
+            {d.analysisFeedback && (
+              <div className="info">
+                <RefreshCw size={17} />
+                <span>
+                  <strong>Refinement request:</strong> {d.analysisFeedback}
+                </span>
+              </div>
+            )}
+            {d.analysis.directions?.length > 0 && (
+              <div className="next-steps">
+                <h3>Suitable career directions</h3>
+                {d.analysis.directions.map((s: any, i: number) => (
+                  <div className="coach-next-step" key={coachText(s)}>
+                    <span>{i + 1}</span>
+                    <div>
+                      {coachText(s)}
+                      <CoachEvidence item={s} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="next-steps">
-              <h3>Suitable career directions</h3>
-              {d.analysis.directions.map((s: any, i: number) => (
+              <h3>Suggested next steps</h3>
+              {d.analysis.actions.map((s: any, i: number) => (
                 <p key={coachText(s)}>
                   <span>{i + 1}</span>
                   <div>
@@ -1750,21 +1958,10 @@ function MissionDetail({
                 </p>
               ))}
             </div>
-          )}
-          <div className="next-steps">
-            <h3>Suggested next steps</h3>
-            {d.analysis.actions.map((s: any, i: number) => (
-              <p key={coachText(s)}>
-                <span>{i + 1}</span>
-                <div>
-                  {coachText(s)}
-                  <CoachEvidence item={s} />
-                </div>
-              </p>
-            ))}
           </div>
-          <details className="approval-controls">
-            <summary>Refine this career analysis</summary>
+          <aside className="agent-decision-pane">
+            <h3>Career Coach</h3>
+            <p className="agent-context-caption">Using your approved profile</p>
             <label>
               What should the Career Coach revisit?
               <textarea
@@ -1779,9 +1976,13 @@ function MissionDetail({
               onClick={() => void onRefineAnalysis(analysisFeedback.trim())}
             >
               <RefreshCw size={15} />
-              Start refined mission
+              Run revised analysis
             </button>
-          </details>
+            <p className="small muted">Starts a new analysis; this result stays saved.</p>
+            <button className="text-button" onClick={() => onNavigate(2)}>
+              Explore matched jobs <ArrowRight size={14} />
+            </button>
+          </aside>
         </section>
       )}
       <div className={phase === 2 ? 'prototype-job-layout' : undefined}>
@@ -1857,8 +2058,27 @@ function MissionDetail({
                 · heuristic scores
               </span>
             </div>
+            {!d.selectedJob && (
+              <nav className="job-choice-list" aria-label="Matched jobs">
+                {d.matches.map((r: any) => (
+                  <button
+                    key={r.job.id}
+                    aria-pressed={(viewJobId || d.matches[0]?.job.id) === r.job.id}
+                    onClick={() => setViewJobId(r.job.id)}
+                  >
+                    <strong>{r.job.title}</strong>
+                    <span>
+                      {r.job.company} · {r.score}/100
+                    </span>
+                  </button>
+                ))}
+              </nav>
+            )}
             <div className="jobs-grid">
-              {(d.selectedJob ? [d.selectedJob] : d.matches).map((r: any) => (
+              {(d.selectedJob
+                ? [d.selectedJob]
+                : [d.matches.find((r: any) => r.job.id === viewJobId) || d.matches[0]]
+              ).map((r: any) => (
                 <article className="job-card" key={r.job.id}>
                   <div className="job-card-top">
                     <div className="company-letter">{r.job.company[0]}</div>
@@ -1893,6 +2113,20 @@ function MissionDetail({
                     ))}
                   </div>
                   <p>{r.explanation}</p>
+                  {r.gaps?.length > 0 && (
+                    <div className="job-gap-notice" role="note">
+                      <strong>Before you choose: evidence gaps</strong>
+                      <ul>
+                        {r.gaps.slice(0, 4).map((gap: string) => (
+                          <li key={gap}>{gap}</li>
+                        ))}
+                      </ul>
+                      <p>
+                        You can pursue this role, but your resume will only use experience you have
+                        confirmed.
+                      </p>
+                    </div>
+                  )}
                   <JobSourceActions job={r.job} missionId={m.id} request={api} />
                   <details>
                     <summary>Evidence, gaps & source</summary>
@@ -2018,98 +2252,52 @@ function MissionDetail({
       {(phase === null || phase === 3) && d.resumeDraft && (
         <section id="resume-tailoring" className="panel resume">
           <div className="prototype-resume-layout">
-            <div className="prototype-resume-paper">
-              <ResumePreview content={d.resumeDraft} />
+            <div
+              className="prototype-resume-paper resume-draft-preview"
+              key={d.resumeDraft.hash}
+              aria-busy={busy}
+            >
+              <ResumePreview
+                content={d.resumeDraft}
+                changes={
+                  d.approvedResumeId ? [] : pendingResumeChanges(d.resumeDraft, d.resumeChanges)
+                }
+                busy={busy}
+                onRestore={
+                  m.status === 'AWAITING_APPROVAL'
+                    ? (factId) =>
+                        onAction('resume-agent/restore', { draftHash: d.resumeDraft.hash, factId })
+                    : undefined
+                }
+              />
             </div>
             <aside className="prototype-resume-controls">
-              <span className="eyebrow">{d.resumeDraft.jobTitle}</span>
+              <p className="agent-context-caption">Target · {d.resumeDraft.jobTitle}</p>
+              <JobFit missionId={m.id} api={api} compact />
+              {d.selectedJob?.gaps?.length > 0 && (
+                <div className="job-gap-notice" role="note">
+                  <strong>Gaps to keep in mind</strong>
+                  <ul>
+                    {d.selectedJob.gaps.slice(0, 4).map((gap: string) => (
+                      <li key={gap}>{gap}</li>
+                    ))}
+                  </ul>
+                  <p>Tailoring improves relevance; it does not add missing qualifications.</p>
+                </div>
+              )}
               <div className="section-heading">
-                <h2>Your evidence-grounded resume</h2>
+                <h2>Edit with your agent</h2>
                 <span className="tag">
                   {d.approvedResumeId ? 'Approved & saved' : 'Review required'}
                 </span>
               </div>
-              <p className="muted">
-                Review your selected experience and make the wording your own.
-              </p>
-              {d.resumeDraft.excludedSuggestions > 0 && (
-                <p role="status" className="small">
-                  Some suggested items could not be linked to approved profile facts and were left
-                  out. Review the selection before approving.
-                </p>
-              )}
-              <details className="resume-checks">
-                <summary>
-                  Check your resume · {resumeReadiness(d.resumeDraft).length} suggestions
-                </summary>
-                <p>
-                  These checks use the saved draft. Confirm the employer's application fields and
-                  review the exported file before applying.
-                </p>
-                {resumeReadiness(d.resumeDraft).length ? (
-                  <ul>
-                    {resumeReadiness(d.resumeDraft).map((issue) => (
-                      <li key={issue.key}>{issue.text}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p>No missing details identified by these checks.</p>
-                )}
-                {selectionDirty && <p>Save your content selection to update these checks.</p>}
-              </details>
-              <details>
-                <summary>Sources and selection reasons</summary>
-                {d.resumeDraft.claims.map((c: any) => (
-                  <div key={c.factId}>
-                    <p>{c.text}</p>
-                    <p className="small muted">
-                      {c.factId} · {c.reason} · Profile v{d.resumeDraft.profileVersion}
-                    </p>
-                  </div>
-                ))}
-              </details>
-              <div className="approval-controls">
-                <details>
-                  <summary>Review proposed changes</summary>
-                  <div className="info">
-                    <ShieldCheck size={17} />
-                    <span>
-                      Candidate facts are not rewritten. This resume proposes selecting and ordering
-                      only the evidence supported by your approved profile.
-                    </span>
-                  </div>
-                  <h4>Included, in proposed order</h4>
-                  <ol>
-                    {d.resumeDraft.claims.map((c: any) => (
-                      <li key={c.factId}>
-                        {c.kind}: {c.text}
-                      </li>
-                    ))}
-                  </ol>
-                  <h4>Omitted for this target role</h4>
-                  {d.resumeDraft.omittedFacts?.length ? (
-                    <ul>
-                      {d.resumeDraft.omittedFacts.map((f: any) => (
-                        <li key={f.id}>
-                          {f.kind}: {f.text}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="small muted">No eligible approved facts were omitted.</p>
-                  )}
-                </details>
-              </div>
               {m.status === 'AWAITING_APPROVAL' && (
-                <ResumeSelection
+                <ResumeAgent
                   draft={d.resumeDraft}
+                  messages={d.resumeChat || []}
                   busy={busy}
-                  onDirty={setSelectionDirty}
-                  onSave={(ids) =>
-                    onAction('resume-selection', {
-                      draftHash: d.resumeDraft.hash,
-                      orderedFactIds: ids,
-                    })
+                  onEdit={(message) =>
+                    onAction('resume-agent', { draftHash: d.resumeDraft.hash, message })
                   }
                 />
               )}
@@ -2121,11 +2309,11 @@ function MissionDetail({
                       checked={confirm}
                       onChange={(e) => setConfirm(e.target.checked)}
                     />
-                    I reviewed the selected claims and approve this exact resume draft.
+                    I reviewed this resume and am ready to save it.
                   </label>
                   <button
                     className="primary"
-                    disabled={!confirm || busy || selectionDirty}
+                    disabled={!confirm || busy}
                     onClick={() =>
                       void onAction('decisions', {
                         kind: 'resume',
@@ -2137,31 +2325,6 @@ function MissionDetail({
                     <Check size={16} />
                     Approve & save resume
                   </button>
-                  <details>
-                    <summary>Request a revision instead</summary>
-                    <label>
-                      Emphasis or ordering feedback
-                      <textarea
-                        value={revision}
-                        onChange={(e) => setRevision(e.target.value)}
-                        placeholder="Which supported experience should receive more emphasis?"
-                      />
-                    </label>
-                    <button
-                      className="secondary"
-                      disabled={busy || !revision.trim()}
-                      onClick={() =>
-                        void onAction('decisions', {
-                          kind: 'resume',
-                          decision: 'revise',
-                          draftHash: d.resumeDraft.hash,
-                          feedback: revision,
-                        })
-                      }
-                    >
-                      Request revision · {d.revisions || 0}/2 used
-                    </button>
-                  </details>
                 </div>
               )}
               {d.approvedResumeId && <ResumeDownloads id={d.approvedResumeId} />}
@@ -2304,12 +2467,9 @@ function MissionDetail({
         </div>
       )}
       {(phase === null || phase === 4) && d.feedback && (
-        <section className="panel">
-          <h3>Use feedback to strengthen your career evidence</h3>
-          <p>
-            Save feedback as a draft learning note. Add or correct real experience in My career
-            profile; practice answers never become qualifications automatically.
-          </p>
+        <details className="panel feedback-memory-action">
+          <summary>Keep a learning note</summary>
+          <p>Save this feedback for later. It stays separate from your approved profile.</p>
           <button
             className="secondary"
             disabled={busy}
@@ -2317,7 +2477,7 @@ function MissionDetail({
           >
             Save interview feedback as draft learning memory
           </button>
-        </section>
+        </details>
       )}
       {d.evidenceRetrieval && (phase === null || phase === 2) && (
         <details className="panel">

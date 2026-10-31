@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { sameProfileField } from '../../../packages/contracts/src/profile-comparison.js';
 import {
   closedExperience,
   experiences,
 } from '../../../packages/contracts/src/profile-interview.js';
 import type { CareerProfile } from '../../../packages/contracts/src/index.js';
-import { CareerMemoryPanel } from './career-memory.js';
-import { ProfileSummary } from './profile-summary.js';
+import { createPortal } from 'react-dom';
+import { ProfileCanvas, profileFieldLabels, type ProfileProposal } from './profile-canvas.js';
 export type Request = (path: string, method?: string, body?: unknown) => Promise<any>;
 // The model's reply may repeat/paraphrase its structured question. Show that
 // question once, rather than turning one turn into two competing prompts.
@@ -18,13 +19,23 @@ const narrative = (m: any) =>
         .trim()
     : m.text;
 export function ProfileConversation({
+  mode = 'build',
+  initialPrompt,
   form,
   api,
   onChange,
   profileVersion,
   onReview,
   onPendingChange,
+  previewTarget,
+  previewData,
+  approved,
 }: {
+  mode?: 'build' | 'edit';
+  initialPrompt?: { id: string; text: string; label: string } | null;
+  previewTarget?: HTMLElement | null;
+  previewData?: CareerProfile;
+  approved?: boolean;
   form: CareerProfile;
   profileVersion: number;
   onReview?: () => void;
@@ -37,11 +48,18 @@ export function ProfileConversation({
     [message, setMessage] = useState(''),
     [consent, setConsent] = useState(false),
     [busy, setBusy] = useState(false),
+    [waitSeconds, setWaitSeconds] = useState(0),
     [error, setError] = useState(''),
     [preparingSaved, setPreparingSaved] = useState(false),
     [preparationNotice, setPreparationNotice] = useState(''),
-    [remember, setRemember] = useState<any>(null),
-    [memoryOpen, setMemoryOpen] = useState(false);
+    [applied, setApplied] = useState<Record<string, { value: any; stamp: number }>>({});
+  useEffect(() => {
+    if (!initialPrompt) return;
+    setMessage(initialPrompt.text);
+    const input = document.querySelector<HTMLTextAreaElement>('#profile-conversation textarea');
+    input?.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+    input?.focus({ preventScroll: true });
+  }, [initialPrompt?.id]);
   const version = useRef(profileVersion);
   version.current = profileVersion;
   const latest = useRef(form),
@@ -55,8 +73,11 @@ export function ProfileConversation({
       .then(async (rows) => {
         if (!mounted.current) return;
         setThreads(rows);
-        if (!rows[0]) return;
-        const t = await api(`/profile-threads/${rows[0].id}`);
+        const saved = rows.find((row: any) =>
+          mode === 'edit' ? row.title === 'Profile edits' : row.title !== 'Profile edits',
+        );
+        if (!saved) return;
+        const t = await api(`/profile-threads/${saved.id}`);
         if (!mounted.current) return;
         setThread(t);
         // Resume the same owned draft only when no edit/version change raced the load.
@@ -74,6 +95,18 @@ export function ProfileConversation({
   useEffect(() => {
     if (log.current) log.current.scrollTop = log.current.scrollHeight;
   }, [thread?.revision]);
+  useEffect(() => {
+    if (!busy) {
+      setWaitSeconds(0);
+      return;
+    }
+    const started = Date.now();
+    const timer = setInterval(
+      () => setWaitSeconds(Math.floor((Date.now() - started) / 1000)),
+      1000,
+    );
+    return () => clearInterval(timer);
+  }, [busy]);
   const run = async (fn: () => Promise<void>) => {
     setError('');
     setBusy(true);
@@ -86,19 +119,23 @@ export function ProfileConversation({
     }
   };
   const start = async () => {
-    const t = await api('/profile-threads', 'POST', { currentProfile: latest.current });
+    const t = await api('/profile-threads', 'POST', {
+      currentProfile: latest.current,
+      title: mode === 'edit' ? 'Profile edits' : 'Profile building',
+      mode,
+    });
     if (mounted.current) {
       setThread(t);
       setThreads(await api('/profile-threads'));
     }
     return t;
   };
-  const send = () =>
+  const send = (text = message) =>
     run(async () => {
       const t = thread || (await start());
-      const text = message;
       const next = await api(`/profile-threads/${t.id}/messages`, 'POST', {
         text,
+        mode,
         currentProfile: latest.current,
         revision: t.revision,
         consent,
@@ -112,13 +149,13 @@ export function ProfileConversation({
   useEffect(() => {
     onPendingChange?.(pending.length > 0);
   }, [pending.length]);
-  const reviewStage = thread?.interview?.phase === 'review';
+  const reviewStage = mode === 'build' && thread?.interview?.phase === 'review';
   const organise = async (
     t: any,
     recordId: string,
     recordSection: 'workExperiences' | 'projects',
   ) => {
-    setPreparationNotice('Organising answers and saving a draft memory…');
+    setPreparationNotice('Preparing your experience summary…');
     try {
       await api(`/profile-threads/${t.id}/organise`, 'POST', {
         currentProfile: latest.current,
@@ -137,7 +174,7 @@ export function ProfileConversation({
     if (mounted.current) {
       setThread(next);
       setPreparationNotice(
-        'Organised details and a draft memory are ready. Review the suggestions, then use them in your draft.',
+        'Your experience summary is ready. Review the suggestions, then use them in your draft.',
       );
     }
   };
@@ -176,6 +213,7 @@ export function ProfileConversation({
       const next = await api(`/profile-threads/${thread.id}/messages`, 'POST', {
         text: answer.text,
         retryMessageId: answer.id,
+        mode,
         currentProfile: latest.current,
         revision: thread.revision,
         consent,
@@ -196,13 +234,45 @@ export function ProfileConversation({
       if (
         r.fields.some(
           (field: keyof CareerProfile) =>
-            JSON.stringify(latest.current[field]) !== JSON.stringify(submitted[field]),
+            !sameProfileField(latest.current[field], submitted[field]),
         )
       )
         throw Error(
           'You edited these details while the request ran. Your edit was kept. Continue the conversation for a fresh suggestion.',
         );
       for (const field of r.fields) onChange(field, r.data[field]);
+      setApplied((current) => ({
+        ...current,
+        ...Object.fromEntries(
+          r.fields.map((field: string) => [field, { value: r.data[field], stamp: Date.now() }]),
+        ),
+      }));
+    });
+  const decide = (proposal: ProfileProposal, decision: 'apply' | 'reject') =>
+    run(async () => {
+      const submitted = structuredClone(latest.current);
+      const result = await api(`/profile-threads/${thread.id}/proposals/${proposal.id}`, 'POST', {
+        decision,
+        revision: thread.revision,
+        currentProfile: submitted,
+      });
+      if (!mounted.current) return;
+      setThread(result.thread);
+      if (!result.applied) return;
+      if (
+        !sameProfileField(
+          latest.current[result.field as keyof CareerProfile],
+          submitted[result.field as keyof CareerProfile],
+        )
+      )
+        throw Error(
+          'You edited this block while the request ran. Your edit was kept. Ask for a fresh suggestion.',
+        );
+      onChange(result.field, result.value);
+      setApplied((current) => ({
+        ...current,
+        [result.field]: { value: result.value, stamp: Date.now() },
+      }));
     });
   const recoverAnswers = () =>
     run(async () => {
@@ -239,22 +309,64 @@ export function ProfileConversation({
         if (mounted.current) setPreparingSaved(false);
       }
     });
-  const proposalData = Object.assign(
-    {},
-    form,
-    ...pending.map((p: any) => ({ [p.field]: p.after })),
-  );
   return (
     <>
+      {previewTarget &&
+        createPortal(
+          <ProfileCanvas
+            data={previewData || form}
+            proposals={pending}
+            busy={busy}
+            error={error}
+            applied={applied}
+            approved={!!approved}
+            onDecision={(p, decision) => void decide(p, decision)}
+            onApplyAll={() => void apply()}
+          />,
+          previewTarget,
+        )}
       <section className="profile-assistant chat-first" aria-label="Persistent Profile Builder">
-        <h3>Your career conversation</h3>
+        <h3>{mode === 'build' ? 'Build with your agent' : 'Edit with your agent'}</h3>
+        <p className="conversation-intro">
+          {profileVersion
+            ? `Context · Profile v${profileVersion}`
+            : 'Start from your goals, a project or an experience.'}
+        </p>
+        {initialPrompt && message.includes(initialPrompt.label) && (
+          <p className="agent-context-caption">Story attached · {initialPrompt.label}</p>
+        )}
+        {mode === 'edit' && (
+          <div className="agent-quick-actions">
+            <button
+              className="secondary"
+              disabled={busy || !consent || pending.length > 0}
+              onClick={() =>
+                void run(async () => {
+                  const t = thread || (await start());
+                  const result = await api(`/profile-threads/${t.id}/polish`, 'POST', {
+                    currentProfile: latest.current,
+                    revision: t.revision,
+                    consent,
+                  });
+                  if (mounted.current) setThread(result);
+                })
+              }
+            >
+              Polish profile
+            </button>
+            <small>
+              {consent ? 'Review suggestions before saving.' : 'Allow AI below to enable polish.'}
+            </small>
+          </div>
+        )}
         <div ref={log} className="conversation-log" role="log" aria-label="Saved profile messages">
           {!thread && (
             <article className="conversation-message assistant">
               <strong>Profile Builder</strong>
               <p>
-                What kind of role would you like to explore, and where are you in your career? It is
-                fine if you are still deciding.
+                {mode === 'build'
+                  ? 'What would you like to do next in your career? Tell me a little about yourself.'
+                  : 'What would you like to change? I can help refine your goals, skills or experience.'}
               </p>
             </article>
           )}
@@ -265,23 +377,6 @@ export function ProfileConversation({
               {m.questions?.slice(0, 1).map((q: string) => (
                 <p key={q}>{q}</p>
               ))}
-              {m.role === 'user' && m.kind !== 'interview-control' && (
-                <details>
-                  <summary>Keep this answer as a memory</summary>
-                  <button
-                    className="text-button"
-                    onClick={() => {
-                      setRemember({
-                        text: m.text,
-                        source: { kind: 'conversation', id: `${thread.id}/${m.id}`, quote: m.text },
-                      });
-                      setMemoryOpen(true);
-                    }}
-                  >
-                    Save message as draft memory
-                  </button>
-                </details>
-              )}
               {m.preparation && (
                 <details open={m.preparation.status === 'no_changes'}>
                   <summary>Preparation details</summary>
@@ -314,8 +409,15 @@ export function ProfileConversation({
                     model call.
                   </p>
                   <small>
+                    {m.diagnostic?.category ? `${m.diagnostic.category} · ` : ''}
                     {m.diagnostic?.stage} · {m.diagnostic?.kind} {m.diagnostic?.status || ''}
                   </small>
+                  {m.diagnostic?.elapsedMs != null && (
+                    <p>
+                      Elapsed: {(m.diagnostic.elapsedMs / 1000).toFixed(1)}s · Limit:{' '}
+                      {m.diagnostic.timeoutMs / 1000}s
+                    </p>
+                  )}
                   {m.diagnostic?.issues?.map((issue: any, i: number) => (
                     <p key={i}>
                       {issue.path}: {issue.message}
@@ -334,51 +436,38 @@ export function ProfileConversation({
             </article>
           ))}
         </div>
+        {busy && (
+          <p role="status" className="conversation-working">
+            <span className="pulse" />
+            {waitSeconds < 3
+              ? 'Sending your request to the profile agent…'
+              : waitSeconds < 30
+                ? `Waiting for your agent’s reply · ${waitSeconds}s. Suggested edits will appear for review.`
+                : `Still waiting for your agent · ${waitSeconds}s. Keep this page open; your message stays in the input until a reply arrives.`}
+          </p>
+        )}
         {error && (
           <p role="alert" className="error-banner">
             {error}
           </p>
         )}
         {!!pending.length && (
-          <section className="conversation-proposal" aria-label="Suggested profile update">
-            <h4>Details ready for your draft</h4>
-            <p>
-              Review these suggestions before adding them. Your approved profile stays unchanged.
-            </p>
-            <details>
-              <summary>Review suggested details</summary>
-              <ProfileSummary data={proposalData} />
-              <details>
-                <summary>Supporting source quotations</summary>
-                {pending
-                  .flatMap((p: any) => p.evidence)
-                  .map((e: any, i: number) => (
-                    <blockquote key={i}>{e.quote}</blockquote>
-                  ))}
-              </details>
-            </details>
-            <button className="secondary" disabled={busy} onClick={() => void apply()}>
-              Use these details in my draft
-            </button>
-            <button
-              className="text-button"
-              disabled={busy}
-              onClick={() => void control('keep_current_draft')}
-            >
-              Keep my current draft instead
-            </button>
-          </section>
+          <p className="conversation-change-hint" role="status">
+            {pending.length} suggested change{pending.length === 1 ? '' : 's'} ready in your
+            profile.{' '}
+            <a href={`#profile-change-${pending[0].field}`}>
+              Review {profileFieldLabels[pending[0].field] || 'changes'}
+            </a>
+          </p>
         )}
-        {thread &&
+        {mode === 'build' &&
+          thread &&
           [...(form.workExperiences || []), ...(form.projects || [])].some(
             (r) => r.details.length,
           ) && (
             <details>
-              <summary>Organise experience answers & draft memories</summary>
-              <p>
-                Group each experience into background, personal actions, outcomes and reflection.
-                Original answers stay available. Memories remain drafts until confirmed.
-              </p>
+              <summary>Experience summaries</summary>
+              <p>Turn your answers into a structured summary for review.</p>
               {[...(form.workExperiences || []), ...(form.projects || [])]
                 .filter((r) => r.details.length)
                 .map((r) => (
@@ -409,7 +498,64 @@ export function ProfileConversation({
             {preparationNotice}
           </p>
         )}
-        {thread && (
+        {!reviewStage && (
+          <label>
+            Your next profile message
+            <textarea
+              aria-label="Your next profile message"
+              placeholder={
+                mode === 'build'
+                  ? 'Tell me about yourself or a project…'
+                  : 'What should we change in your profile?'
+              }
+              onKeyDown={(e) => {
+                if (
+                  (e.metaKey || e.ctrlKey) &&
+                  e.key === 'Enter' &&
+                  !e.nativeEvent.isComposing &&
+                  consent &&
+                  message.trim() &&
+                  !busy
+                ) {
+                  e.preventDefault();
+                  void send();
+                }
+              }}
+              value={message}
+              maxLength={4000}
+              disabled={busy}
+              onChange={(e) => setMessage(e.target.value)}
+            />
+          </label>
+        )}
+        {(thread || !reviewStage) && (
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={consent}
+              aria-label="I allow the configured model to process this conversation, working form and retrieved confirmed evidence."
+              onChange={(e) => setConsent(e.target.checked)}
+            />
+            <span aria-hidden="true">
+              Allow AI to use this conversation, profile and confirmed evidence.
+            </span>
+          </label>
+        )}
+        {!reviewStage && (
+          <button
+            className="primary"
+            disabled={busy || !message.trim() || !consent}
+            onClick={() => void send()}
+          >
+            {busy ? 'Preparing a reply…' : 'Send profile message'}
+          </button>
+        )}
+        {thread?.messages.at(-1)?.failed && (
+          <button className="secondary" disabled={busy || !consent} onClick={() => void retry()}>
+            Retry saved answer
+          </button>
+        )}
+        {mode === 'build' && thread && (
           <section className="interview-controls" aria-label="Interview progress">
             <p role="status">
               {reviewStage
@@ -513,105 +659,77 @@ export function ProfileConversation({
             )}
           </section>
         )}
-        {!reviewStage && (
-          <label>
-            Your next profile message
-            <textarea
-              aria-label="Your next profile message"
-              placeholder="Tell me about your goals or an experience…"
-              value={message}
-              maxLength={4000}
-              disabled={busy}
-              onChange={(e) => setMessage(e.target.value)}
-            />
-          </label>
-        )}
-        {(thread || !reviewStage) && (
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={consent}
-              onChange={(e) => setConsent(e.target.checked)}
-            />
-            I allow the configured model to process this conversation, working form and retrieved
-            confirmed evidence.
-          </label>
-        )}
-        {!reviewStage && (
+        {mode === 'edit' && (
           <button
-            className="primary"
-            disabled={busy || !message.trim() || !consent}
-            onClick={() => void send()}
+            className="text-button"
+            disabled={busy || pending.length > 0}
+            onClick={() => void run(start)}
           >
-            {busy ? 'Preparing a reply…' : 'Send profile message'}
+            New edit conversation
           </button>
         )}
-        {thread?.messages.at(-1)?.failed && (
-          <button className="secondary" disabled={busy || !consent} onClick={() => void retry()}>
-            Retry saved answer
-          </button>
+        {mode === 'build' && (
+          <details className="conversation-settings">
+            <summary>Need an earlier conversation?</summary>
+            <p className="muted">
+              Your latest conversation resumes automatically. Open recovery only if you need an
+              older session or an earlier unsaved draft.
+            </p>
+            <details className="recovery-options">
+              <summary>Recovery options</summary>
+              <label>
+                Earlier conversation
+                <select
+                  value={thread?.id || ''}
+                  disabled={busy}
+                  onChange={(e) =>
+                    void run(async () => {
+                      const t = await api(`/profile-threads/${e.target.value}`);
+                      if (mounted.current) setThread(t);
+                    })
+                  }
+                >
+                  <option value="">Choose a conversation</option>
+                  {threads.map((t) => (
+                    <option value={t.id} key={t.id}>
+                      {t.title} · {new Date(t.updatedAt).toLocaleString()}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button className="text-button" disabled={busy} onClick={() => void run(start)}>
+                Start a separate conversation
+              </button>
+              {thread && (
+                <>
+                  <button
+                    className="text-button"
+                    disabled={busy}
+                    onClick={() =>
+                      void run(async () => setThread(await api(`/profile-threads/${thread.id}`)))
+                    }
+                  >
+                    Reload this conversation
+                  </button>
+                  <p className="muted">
+                    Restoring replaces the unsaved editor only. Your approved profile is unchanged.
+                  </p>
+                  <button
+                    className="text-button"
+                    disabled={busy}
+                    onClick={() => {
+                      for (const [key, value] of Object.entries(thread.workingForm))
+                        onChange(key as keyof CareerProfile, value);
+                    }}
+                  >
+                    Restore its unsaved draft
+                  </button>
+                </>
+              )}
+            </details>
+          </details>
         )}
-        <details className="conversation-settings">
-          <summary>Conversation history & recovery</summary>
-          <label>
-            Saved profile conversation
-            <select
-              value={thread?.id || ''}
-              disabled={busy}
-              onChange={(e) =>
-                void run(async () => {
-                  const t = await api(`/profile-threads/${e.target.value}`);
-                  if (mounted.current) setThread(t);
-                })
-              }
-            >
-              <option value="">Choose a conversation</option>
-              {threads.map((t) => (
-                <option value={t.id} key={t.id}>
-                  {t.title} · {new Date(t.updatedAt).toLocaleString()}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button className="text-button" disabled={busy} onClick={() => void run(start)}>
-            Start profile conversation
-          </button>
-          {thread && (
-            <>
-              <button
-                className="text-button"
-                disabled={busy}
-                onClick={() =>
-                  void run(async () => setThread(await api(`/profile-threads/${thread.id}`)))
-                }
-              >
-                Reload saved conversation
-              </button>
-              <p>
-                Restore replaces this unsaved draft only. It does not change an approved profile.
-              </p>
-              <button
-                className="text-button"
-                disabled={busy}
-                onClick={() => {
-                  for (const [key, value] of Object.entries(thread.workingForm))
-                    onChange(key as keyof CareerProfile, value);
-                }}
-              >
-                Restore saved working form
-              </button>
-            </>
-          )}
-        </details>
       </section>
-      <details
-        open={memoryOpen}
-        onToggle={(e) => setMemoryOpen(e.currentTarget.open)}
-        className="optional-memory"
-      >
-        <summary>Career memory & STAR library</summary>
-        <CareerMemoryPanel profileVersion={profileVersion} api={api} incoming={remember} />
-      </details>
     </>
   );
 }

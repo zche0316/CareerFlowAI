@@ -9,6 +9,7 @@ import * as provider from '../packages/agents/src/provider.js';
 import { conversationModelProfile } from '../apps/api/src/profile-conversations.js';
 let server: Server, base: string;
 const ids: string[] = [];
+const isolatedServers: Server[] = [];
 type Client = {
   id: string;
   request: (
@@ -17,8 +18,15 @@ type Client = {
     body?: unknown,
   ) => Promise<{ status: number; body: any }>;
 };
-async function client(): Promise<Client> {
-  const r = await fetch(base + '/api/auth/register', {
+async function client(isolateAuth = false): Promise<Client> {
+  let apiBase = base;
+  if (isolateAuth) {
+    const isolated = createApp().listen(0, '127.0.0.1');
+    isolatedServers.push(isolated);
+    await new Promise<void>((resolve) => isolated.once('listening', resolve));
+    apiBase = `http://127.0.0.1:${(isolated.address() as any).port}`;
+  }
+  const r = await fetch(apiBase + '/api/auth/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -33,7 +41,7 @@ async function client(): Promise<Client> {
   return {
     id: data.user.id,
     request: async (path, method = 'GET', body) => {
-      const response = await fetch(base + '/api' + path, {
+      const response = await fetch(apiBase + '/api' + path, {
         method,
         headers: { cookie, 'Content-Type': 'application/json', 'X-CSRF-Token': data.csrf },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
@@ -50,6 +58,7 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   vi.restoreAllMocks();
+  for (const isolated of isolatedServers) await new Promise<void>((r) => isolated.close(() => r()));
   await new Promise<void>((r) => server.close(() => r()));
   for (const userId of ids) {
     await db.approvedResume.deleteMany({ where: { userId } });
@@ -113,7 +122,11 @@ describe('Persistent profile conversations', () => {
     expect(t.status).toBe(201);
     expect(t.body.messages[0].questions.length).toBeGreaterThan(0);
     expect((await other.request(`/profile-threads/${t.body.id}`)).status).toBe(404);
-    const spy = vi.spyOn(provider, 'generate').mockRejectedValueOnce(Error('Provider offline'));
+    const spy = vi
+      .spyOn(provider, 'generate')
+      .mockRejectedValueOnce(
+        Object.assign(Error('Deadline reached'), { name: 'ProviderTimeoutError' }),
+      );
     try {
       const sent = await c.request(`/profile-threads/${t.body.id}/messages`, 'POST', {
         currentProfile: blankProfile,
@@ -123,6 +136,12 @@ describe('Persistent profile conversations', () => {
       });
       expect(sent.status).toBe(200);
       expect(sent.body.messages.at(-1).failed).toBe(true);
+      expect(sent.body.messages.at(-1).diagnostic).toMatchObject({
+        category: 'timeout',
+        stage: 'model-response',
+        timeoutMs: 60000,
+      });
+      expect(sent.body.messages.at(-1).diagnostic.elapsedMs).toBeGreaterThanOrEqual(0);
       const saved = await c.request(`/profile-threads/${t.body.id}`);
       expect(
         saved.body.messages.some((m: any) => m.text === 'My goal is a graduate data role.'),
@@ -238,6 +257,120 @@ describe('Persistent profile conversations', () => {
     );
     expect(result.map((r) => r.status).sort()).toEqual([200, 409]);
   });
+  it('keeps a Chinese education record when the model invents an optional start month', async () => {
+    const c = await client();
+    const form = structuredClone(blankProfile);
+    const t = await c.request('/profile-threads', 'POST', { currentProfile: form });
+    const text =
+      '我正在悉尼大学攻读 Bachelor of Commerce，主修 Business Analytics，预计 2026 年 11 月毕业。';
+    const spy = vi.spyOn(provider, 'generate').mockResolvedValueOnce({
+      reply: '已经更新了你的教育背景。',
+      builder: { draft: {}, proposedChanges: [], followUpQuestions: [] },
+      records: [
+        {
+          section: 'educations',
+          title: 'Bachelor of Commerce',
+          organisation: '悉尼大学',
+          location: '',
+          startMonth: '2023-02',
+          endMonth: null,
+          current: true,
+          details: [],
+          technologies: [],
+          url: '',
+          evidence: [{ page: 1, quote: text }],
+        },
+      ],
+    } as any);
+    try {
+      const sent = await c.request(`/profile-threads/${t.body.id}/messages`, 'POST', {
+        currentProfile: form,
+        text,
+        revision: t.body.revision,
+        consent: true,
+      });
+      const proposal = sent.body.proposals.find((p: any) => p.field === 'educations');
+      expect(proposal.after[0]).toMatchObject({
+        title: 'Bachelor of Commerce',
+        organisation: '悉尼大学',
+        current: true,
+        startMonth: null,
+      });
+      expect(sent.body.messages.at(-1).text).toContain('请在 Profile 中逐项查看并接受');
+      expect(sent.body.workingForm.educations || []).toEqual([]);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+  it('retains enrolment, ongoing study and expected graduation without repeated education questions', async () => {
+    const c = await client();
+    const form = {
+      ...structuredClone(blankProfile),
+      name: 'Alex Chen',
+      goals: 'Graduate Business Analyst',
+    };
+    const t = await c.request('/profile-threads', 'POST', { currentProfile: form });
+    const text =
+      "I'm studying a Bachelor of Commerce at the University of Sydney. I started in February 2024 and expect to graduate in November 2026. I'm still studying. My major is Business Analytics. My relevant coursework includes Database Systems and Business Statistics.";
+    const spy = vi.spyOn(provider, 'generate').mockResolvedValueOnce({
+      builder: { draft: {}, proposedChanges: [], followUpQuestions: [] },
+      records: [
+        {
+          section: 'educations',
+          title: 'Bachelor of Commerce',
+          organisation: 'University of Sydney',
+          location: '',
+          startMonth: '2024-02',
+          endMonth: '2026-11',
+          major: 'Business Analytics',
+          relevantCoursework: ['Database Systems', 'Business Statistics'],
+          current: false,
+          details: [],
+          technologies: [],
+          url: '',
+          evidence: [{ page: 1, quote: text }],
+        },
+      ],
+    } as any);
+    try {
+      const sent = await c.request(`/profile-threads/${t.body.id}/messages`, 'POST', {
+        currentProfile: form,
+        text,
+        revision: t.body.revision,
+        consent: true,
+      });
+      const proposal = sent.body.proposals.find((p: any) => p.field === 'educations');
+      expect(proposal.after[0]).toMatchObject({
+        startMonth: '2024-02',
+        endMonth: null,
+        expectedEndMonth: '2026-11',
+        current: true,
+      });
+      expect(sent.body.messages.at(-1).questions.join(' ')).not.toMatch(
+        /ongoing or completed|When did.*start/,
+      );
+      const accepted = await c.request(
+        `/profile-threads/${t.body.id}/proposals/${proposal.id}`,
+        'POST',
+        {
+          currentProfile: form,
+          revision: sent.body.revision,
+          decision: 'apply',
+        },
+      );
+      expect(accepted.status).toBe(200);
+      expect(accepted.body.value[0]).toMatchObject({
+        major: 'Business Analytics',
+        relevantCoursework: ['Database Systems', 'Business Statistics'],
+        startMonth: '2024-02',
+        endMonth: null,
+        expectedEndMonth: '2026-11',
+        current: true,
+      });
+    } finally {
+      spy.mockRestore();
+    }
+  });
   it('invalidates field proposals when their confirmed memory source is deleted', async () => {
     const c = await client(),
       form = structuredClone(sampleProfile);
@@ -279,6 +412,218 @@ describe('Persistent profile conversations', () => {
     } finally {
       spy.mockRestore();
     }
+  });
+});
+describe('Profile edit mode', () => {
+  it('grounds a fragmented follow-up against an existing record header without injecting full history', async () => {
+    const c = await client(true);
+    const form = {
+      ...sampleProfile,
+      projects: [
+        {
+          id: 'known-project',
+          title: 'Course discovery project',
+          organisation: '',
+          location: '',
+          startMonth: null,
+          endMonth: null,
+          current: false,
+          details: [],
+          technologies: [],
+          url: '',
+          evidence: [],
+        },
+      ],
+    };
+    const t = await c.request('/profile-threads', 'POST', { currentProfile: form });
+    const text = 'That project was at the University of Sydney. March to June 2025.';
+    const spy = vi
+      .spyOn(provider, 'generate')
+      .mockResolvedValueOnce({
+        builder: { draft: {}, proposedChanges: [], followUpQuestions: [] },
+        records: [
+          {
+            section: 'projects',
+            title: 'Course discovery project',
+            organisation: 'University of Sydney',
+            location: '',
+            startMonth: '2025-03',
+            endMonth: '2025-06',
+            current: false,
+            details: [],
+            technologies: [],
+            url: '',
+            evidence: [{ page: 1, quote: text }],
+          },
+        ],
+      } as any);
+    try {
+      const sent = await c.request(`/profile-threads/${t.body.id}/messages`, 'POST', {
+        currentProfile: form,
+        revision: t.body.revision,
+        consent: true,
+        text,
+      });
+      expect(sent.status).toBe(200);
+      const proposal = sent.body.proposals.find(
+        (p: any) => p.field === 'projects' && p.status === 'PENDING',
+      );
+      expect(proposal.after).toHaveLength(1);
+      expect(proposal.after[0]).toMatchObject({
+        id: 'known-project',
+        organisation: 'University of Sydney',
+        startMonth: '2025-03',
+        endMonth: '2025-06',
+      });
+      expect(proposal.after[0].conversationEvidence.every((e: any) => e.messageId)).toBe(true);
+      expect(sent.body.workingForm.projects[0].startMonth).toBe(null);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it.each(['build', 'edit'] as const)(
+    'answers a casual clarification in %s without advancing or creating edits',
+    async (mode) => {
+      const c = await client(true);
+      const form = {
+        ...sampleProfile,
+        workExperiences: [
+          {
+            id: 'lookup-role',
+            expectedEndMonth: null,
+            title: 'Reporting internship',
+            organisation: 'Example',
+            location: '',
+            startMonth: null,
+            endMonth: null,
+            current: false,
+            details: ['I supported SQL reporting; I did not lead the team.'],
+            technologies: ['SQL'],
+            url: '',
+            evidence: [],
+          },
+        ],
+      };
+      const t = await c.request('/profile-threads', 'POST', {
+        currentProfile: form,
+        mode,
+        title: 'Profile edits',
+      });
+      const spy = vi.spyOn(provider, 'generate').mockImplementationOnce(async (...args: any[]) => {
+        expect(args[1].requireSourceLookup).toBe(mode === 'edit');
+        const hooks = args[4];
+        const found = await hooks.onSearchHistory('SQL', 0);
+        expect(found.hits.length).toBeGreaterThan(0);
+        expect(found.hits.some((hit: any) => hit.messageId?.startsWith('profile:'))).toBe(true);
+        return {
+          reply:
+            'Yes. Your overview explicitly says you supported the analyst rather than managed the team.',
+          builder: {
+            draft: { location: 'Melbourne' },
+            proposedChanges: [
+              { field: 'location', proposedValue: 'Melbourne', evidence: 'I prefer Melbourne.' },
+            ],
+            followUpQuestions: [],
+          },
+          records: [],
+        } as any;
+      });
+      try {
+        const sent = await c.request(`/profile-threads/${t.body.id}/messages`, 'POST', {
+          currentProfile: form,
+          revision: t.body.revision,
+          consent: true,
+          mode,
+          text: "hmm I prefer Melbourne. quick question, is my support role clear? don't change anything yet",
+        });
+        expect(sent.status).toBe(200);
+        expect(sent.body.messages.at(-1).text).toContain('you supported the analyst');
+        expect(sent.body.messages.at(-1).questions).toEqual([]);
+        expect(sent.body.proposals.filter((p: any) => p.status === 'PENDING')).toEqual([]);
+        expect(sent.body.workingForm).toEqual(form);
+        expect(sent.body.interview.question).toEqual(t.body.interview.question);
+      } finally {
+        spy.mockRestore();
+      }
+    },
+  );
+
+  it('uses edit intent without restarting interview or applying suggestions', async () => {
+    const c = await client();
+    const t = await c.request('/profile-threads', 'POST', {
+      currentProfile: sampleProfile,
+      mode: 'edit',
+      title: 'Profile edits',
+    });
+    expect(t.body.messages[0].questions).toEqual([]);
+    const spy = vi.spyOn(provider, 'generate').mockResolvedValueOnce({
+      reply: 'I have prepared a location suggestion for your review.',
+      builder: {
+        draft: { location: 'Melbourne' },
+        proposedChanges: [
+          { field: 'location', proposedValue: 'Melbourne', evidence: 'I prefer Melbourne.' },
+        ],
+        followUpQuestions: [],
+      },
+      records: [],
+    } as any);
+    try {
+      const sent = await c.request(`/profile-threads/${t.body.id}/messages`, 'POST', {
+        currentProfile: sampleProfile,
+        revision: t.body.revision,
+        consent: true,
+        mode: 'edit',
+        text: 'I prefer Melbourne.',
+      });
+      expect(sent.status).toBe(200);
+      expect(sent.body.messages.at(-1).questions).toEqual([]);
+      expect(
+        sent.body.proposals.some((p: any) => p.field === 'location' && p.status === 'PENDING'),
+      ).toBe(true);
+      expect(sent.body.workingForm.location).toBe(sampleProfile.location);
+      expect((spy.mock.calls[0][1] as any).goal).toContain('Edit the existing career profile');
+      expect(await db.profile.count({ where: { userId: c.id } })).toBe(0);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});
+describe('Profile wording polish', () => {
+  it('proposes conservative edits with source snapshots and leaves factual approval explicit', async () => {
+    const c = await client(),
+      other = await client();
+    const form = { ...sampleProfile, experience: 'I used SQL to clean 120 records.' };
+    const t = await c.request('/profile-threads', 'POST', {
+      currentProfile: form,
+      mode: 'edit',
+      title: 'Profile edits',
+    });
+    const forbidden = await other.request(`/profile-threads/${t.body.id}/polish`, 'POST', {
+      currentProfile: form,
+      revision: t.body.revision,
+      consent: true,
+    });
+    expect(forbidden.status).toBe(404);
+    const result = await c.request(`/profile-threads/${t.body.id}/polish`, 'POST', {
+      currentProfile: form,
+      revision: t.body.revision,
+      consent: true,
+    });
+    expect(result.status).toBe(200);
+    const p = result.body.proposals.find((p: any) => p.field === 'experience');
+    expect(p.after).toBe('used SQL to clean 120 records.');
+    expect(result.body.workingForm.experience).toBe(form.experience);
+    expect(
+      result.body.messages.find((m: any) => m.kind === 'profile-polish').profileSnapshot,
+    ).toEqual(form);
+    expect(await db.profile.count({ where: { userId: c.id } })).toBe(0);
+    const stale = await c.request(`/profile-threads/${t.body.id}/proposals/${p.id}`, 'POST', {
+      currentProfile: { ...form, experience: 'My manual edit' },
+      revision: result.body.revision,
+      decision: 'apply',
+    });
+    expect(stale.status).toBe(409);
   });
 });
 describe('Career memory lifecycle and scoped retrieval', () => {
@@ -693,7 +1038,7 @@ it('recovers omitted citations only from exact user clauses while preserving neg
       'Graduate Data Analyst role',
     );
     expect(sent.body.proposals.some((p: any) => p.field === 'careerStage')).toBe(false);
-    expect(sent.body.proposals.some((p: any) => p.field === 'skills')).toBe(false); // no partial claim of a negated skill
+    expect(sent.body.proposals.find((p: any) => p.field === 'skills').after).toEqual(['SQL']); // retain explicit SQL, exclude negated Python
     expect(sent.body.proposals.find((p: any) => p.field === 'educations').after[0].details).toEqual(
       [],
     );
@@ -1111,7 +1456,7 @@ it('projects a compact model context without duplicating raw evidence and organi
   expect(context.projects[0].title).toBe('Fictional project');
   expect(context.projects[0].conversationEvidence).toBeUndefined();
   expect(context.projects[0].organisedStory).toBeUndefined();
-  expect(context.projects[0].details[0]).toHaveLength(160);
+  expect(context.projects[0].details).toEqual([]);
   expect(source.projects[0].details[0].length).toBeGreaterThan(160);
 });
 

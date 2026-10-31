@@ -1,4 +1,5 @@
 import { careerTitle } from './conversation-source.js';
+import { experienceOverview } from './experience-view.js';
 export type InterviewAction =
   | 'finish_experience'
   | 'next_experience'
@@ -197,43 +198,39 @@ export function planInterview(p: any, current: InterviewState) {
         `${active.key}:end`,
         `When did ${active.title} end, or is it ongoing? You can skip this.`,
       );
-    const details = (active.details || []).join(' ');
     if (!active.organisation)
       add(
         `${active.key}:organisation`,
         `Which organisation, university, course or personal context was ${active.title} part of?`,
       );
-    if (!details)
+    if (!experienceOverview(active))
       add(
-        `${active.key}:background`,
-        `What was the purpose or problem in ${active.title}? Describe the context first.`,
+        `${active.key}:overview`,
+        `Briefly describe your role in ${active.title}: your usual responsibilities, tools and scope of work.`,
       );
-    if (
-      !/responsib|my role|I (?:was|handled|built|setup|set up|wrote|implemented)|职责|负责/i.test(
-        details,
-      )
-    )
+    else if (!active.starStory?.situation)
       add(
-        `${active.key}:responsibility`,
-        `What were you personally responsible for in ${active.title}, separate from the team?`,
+        `${active.key}:story:situation`,
+        `Can you share one specific problem or improvement from ${active.title}? This example is optional; you can skip it or finish this experience.`,
       );
-    if (!details || !/\bI\b|\bmy\b|我/.test(details))
-      add(
-        `${active.key}:action`,
-        `What did you personally do in ${active.title}? Describe your part separately from the team's work.`,
-      );
-    if (!/outcome|result|unknown|not known|成果|结果|未知/i.test(details))
-      add(
-        `${active.key}:outcome`,
-        `What happened after your work on ${active.title}? An unknown outcome is fine; you can finish this experience now.`,
-      );
-    if (!active.technologies?.length)
-      add(`${active.key}:tools`, `Which tools or technologies did you use in ${active.title}?`);
-    if (!/learn|realiz|realis|reflect|importance|学到|反思/i.test(details))
-      add(
-        `${active.key}:reflection`,
-        `What did you learn from ${active.title}, or what would you do differently? You can skip this optional question.`,
-      );
+    else {
+      const story = active.starStory;
+      if (!story.task)
+        add(
+          `${active.key}:story:task`,
+          `In that example from ${active.title}, what was your own responsibility or goal?`,
+        );
+      if (!story.action)
+        add(
+          `${active.key}:story:action`,
+          `What did you personally do in that example from ${active.title}?`,
+        );
+      if (!story.result)
+        add(
+          `${active.key}:story:result`,
+          `What happened after your actions in that example from ${active.title}? An unknown or unmeasured result is fine.`,
+        );
+    }
   } else {
     state.phase = state.phase === 'inventory' ? 'inventory' : 'collecting';
     add(

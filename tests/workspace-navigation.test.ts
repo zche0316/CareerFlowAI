@@ -24,6 +24,14 @@ describe('opening a saved mission at the next user action', () => {
   it('shows job results for an empty search so users can adjust criteria', () => {
     expect(nextMissionStep({ status: 'NO_MATCHES', data: {} })).toBe(2);
   });
+  it('keeps a selected job at resume preparation while the agent is still working', () => {
+    expect(
+      nextMissionStep({
+        status: 'RUNNING',
+        data: { selectedJob: { job: { id: 'target' } }, matches: [{}] },
+      }),
+    ).toBe(3);
+  });
   it('keeps a new queued search at career analysis until results exist', () => {
     expect(nextMissionStep({ status: 'QUEUED', data: {} })).toBe(1);
   });

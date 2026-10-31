@@ -14,7 +14,9 @@ export function CareerMemoryPanel({
   api,
   incoming,
   profileVersion,
+  onDiscuss,
 }: {
+  onDiscuss?: (memory: any) => void;
   api: Request;
   incoming: any;
   profileVersion: number;
@@ -29,7 +31,8 @@ export function CareerMemoryPanel({
     [application, setApplication] = useState(''),
     [hits, setHits] = useState<any>(null),
     [editorOpen, setEditorOpen] = useState(false),
-    [libraryQuery, setLibraryQuery] = useState('');
+    [libraryQuery, setLibraryQuery] = useState(''),
+    [deleteId, setDeleteId] = useState<string | null>(null);
   const latestForm = useRef(form);
   latestForm.current = form;
   const refresh = async () => setData(await api('/career-memories'));
@@ -85,14 +88,20 @@ export function CareerMemoryPanel({
       setNotice('Draft memory saved. Review it below before confirmation and retrieval.');
     });
   return (
-    <section className="profile-assistant" aria-label="Career memory and STAR library">
+    <section
+      className="profile-assistant memory-workspace"
+      aria-label="Career memory and STAR library"
+    >
       <h3>Career memory &amp; STAR stories</h3>
-      <p className="muted">
-        Keep broader career evidence here. Only confirmed, current memories can be retrieved. STAR
-        drafts can be incomplete; confirmation requires the situation, task and your action. Unknown
-        outcomes may remain blank. They do not silently change profile facts. Corrections create a
-        new version; the old memory is retired when the correction is confirmed.
-      </p>
+      <p className="muted">Keep useful stories, achievements and notes for future applications.</p>
+      <details className="memory-help">
+        <summary>How memory works</summary>
+        <p className="muted">
+          Drafts are private review copies. Only memories you confirm can support future
+          suggestions, and they never change your approved profile automatically. Editing a
+          confirmed memory keeps its earlier version for traceability.
+        </p>
+      </details>
       {error && (
         <p role="alert" className="error-banner">
           {error}
@@ -236,7 +245,7 @@ export function CareerMemoryPanel({
             </summary>
             <small>
               Version {m.revision} · {m.kind}
-              {m.supersedesId ? ` · corrects ${m.supersedesId}` : ''}
+              {m.supersedesId ? ' · revised note' : ''}
             </small>
             <p>{m.text}</p>
             {m.kind === 'STAR' &&
@@ -255,6 +264,11 @@ export function CareerMemoryPanel({
                 Record: {m.recordId || 'General'} · Application: {m.missionId || 'All'}
               </p>
             </details>
+            {m.status === 'CONFIRMED' && onDiscuss && (
+              <button className="secondary" onClick={() => onDiscuss(m)}>
+                Discuss with my agent
+              </button>
+            )}
             {m.status === 'DRAFT' && (
               <button
                 className="secondary"
@@ -289,7 +303,9 @@ export function CareerMemoryPanel({
                     source: m.source,
                     supersedesId: m.id,
                   });
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                  document
+                    .querySelector('.memory-editor')
+                    ?.scrollIntoView({ block: 'start', behavior: 'auto' });
                 }}
               >
                 Edit / correct memory
@@ -298,7 +314,11 @@ export function CareerMemoryPanel({
             <button
               className="secondary"
               disabled={busy}
-              onClick={() =>
+              onClick={() => {
+                if (deleteId !== m.id) {
+                  setDeleteId(m.id);
+                  return;
+                }
                 void run(async () => {
                   const r = await api(`/career-memories/${m.id}`, 'DELETE', {
                     revision: m.revision,
@@ -306,10 +326,11 @@ export function CareerMemoryPanel({
                   setNotice(r.notice);
                   setHits(null);
                   await refresh();
-                })
-              }
+                  setDeleteId(null);
+                });
+              }}
             >
-              Delete memory
+              {deleteId === m.id ? 'Confirm delete memory' : 'Delete memory'}
             </button>
           </details>
         ))}

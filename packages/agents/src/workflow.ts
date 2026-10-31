@@ -63,7 +63,7 @@ export async function createWorkflow() {
   const context = async (id: string, permission: keyof CareerProfile['sharing']) => {
     const m = await freshMission(id);
     const p = m.profile.data as unknown as CareerProfile;
-    if (!p.sharing[permission])
+    if ((m.data as MissionData).agentAccess !== 'all-approved-profile' && !p.sharing[permission])
       throw new AppError(
         403,
         'SHARING_DENIED',

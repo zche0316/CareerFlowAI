@@ -13,6 +13,7 @@ export function nextMissionStep(m: any): number {
   if (m.status === 'AWAITING_APPROVAL' || (m.data?.resumeDraft && !m.data?.approvedResumeId))
     return 3;
   if (m.status === 'AWAITING_INTERVIEW' || m.data?.approvedResumeId) return 4;
+  if (m.data?.selectedJob) return 3;
   if (m.status === 'AWAITING_JOB' || m.data?.matches?.length || m.status === 'NO_MATCHES') return 2;
   return 1;
 }
@@ -37,15 +38,12 @@ export function WorkspaceHome({
 }: {
   workspace: any;
   onProfile: () => void;
-  onSearch: () => void;
+  onSearch: (goal?: string) => void;
   onOpen: (m: any, phase?: number) => void;
   onLibrary: () => void;
 }) {
   const missions = workspace?.missions || [];
-  const current =
-    missions.find((m: any) => m.status.startsWith('AWAITING')) ||
-    missions.find((m: any) => ['RUNNING', 'QUEUED', 'FAILED'].includes(m.status)) ||
-    missions[0];
+  const current = missions[0];
   const hasProfile = !!workspace?.profile;
   const steps = [
     {
@@ -53,21 +51,21 @@ export function WorkspaceHome({
       text: 'Build and approve your experience.',
       icon: Layers,
       done: hasProfile,
-      go: onProfile,
+      go: current ? () => onOpen(current, 0) : onProfile,
     },
     {
       title: 'Career analysis',
       text: 'Explore your strengths and direction.',
       icon: Layers,
       done: !!current?.data?.analysis,
-      go: current ? () => onOpen(current, 1) : hasProfile ? onSearch : onProfile,
+      go: current ? () => onOpen(current, 1) : hasProfile ? () => onSearch() : onProfile,
     },
     {
       title: 'Find a job',
       text: 'Explore ranked jobs and choose a role.',
       icon: BriefcaseBusiness,
       done: !!current?.data?.selectedJob,
-      go: current ? () => onOpen(current, 2) : hasProfile ? onSearch : onProfile,
+      go: current ? () => onOpen(current, 2) : hasProfile ? () => onSearch() : onProfile,
     },
     {
       title: 'Your resume',
@@ -87,7 +85,9 @@ export function WorkspaceHome({
   const nextLabel = !hasProfile
     ? 'Build your profile'
     : current
-      ? actionText[current.status] || 'View progress'
+      ? current.status === 'FAILED' && (current.data?.apiCalls || 0) >= 12
+        ? 'Review saved results'
+        : actionText[current.status] || 'View progress'
       : 'Find matching jobs';
   const firstIncomplete = steps.findIndex((step) => !step.done);
   return (
@@ -98,7 +98,7 @@ export function WorkspaceHome({
           <h1>Your next career step</h1>
           <p>Build your profile, find a role and prepare your application.</p>
         </div>
-        <button className="secondary" onClick={hasProfile ? onSearch : onProfile}>
+        <button className="secondary" onClick={hasProfile ? () => onSearch() : onProfile}>
           New career mission <ArrowRight size={16} />
         </button>
       </div>
@@ -131,14 +131,14 @@ export function WorkspaceHome({
             </div>
             <button
               className="primary"
-              onClick={!hasProfile ? onProfile : current ? () => onOpen(current) : onSearch}
+              onClick={!hasProfile ? onProfile : current ? () => onOpen(current) : () => onSearch()}
             >
               {nextLabel}
               <ArrowRight size={17} />
             </button>
           </section>
           <div className="journey-title">
-            <h2>Your career journey</h2>
+            <h2>{current ? 'Latest application journey' : 'Your career journey'}</h2>
             <span>
               {steps.filter((step) => step.done).length} of {steps.length} steps complete
             </span>
@@ -164,11 +164,16 @@ export function WorkspaceHome({
         <aside className="prototype-overview-side">
           <section className="prototype-side-panel">
             <div className="prototype-side-heading">
-              <h2>Your progress</h2>
+              <h2>Application progress</h2>
               <button className="text-button" onClick={onProfile}>
                 View profile <ArrowRight size={14} />
               </button>
             </div>
+            <p className="progress-scope">
+              {current
+                ? current.data?.selectedJob?.job.title || current.goal
+                : 'Build your profile to start your first application journey.'}
+            </p>
             <div className="prototype-progress">
               <div
                 className="prototype-progress-ring"
@@ -239,12 +244,15 @@ export function WorkspaceHome({
       <section aria-labelledby="recent-searches-title">
         <div className="section-heading">
           <h2 id="recent-searches-title">
-            Your missions <span>{missions.length}</span>
+            Application journeys <span>{missions.length}</span>
           </h2>
           <button className="text-button" onClick={onLibrary}>
             Saved documents <ArrowRight size={15} />
           </button>
         </div>
+        <p className="muted small">
+          Each journey keeps its own profile snapshot, target job, resume and interview practice.
+        </p>
         {missions.length ? (
           <div className="search-list">
             {missions.map((m: any) => (
@@ -262,7 +270,10 @@ export function WorkspaceHome({
                   </p>
                 </div>
                 <span className="row-action">
-                  {actionText[m.status] || 'View progress'} <ArrowRight size={16} />
+                  {m.status === 'FAILED' && (m.data?.apiCalls || 0) >= 12
+                    ? 'Review saved results'
+                    : actionText[m.status] || 'View progress'}{' '}
+                  <ArrowRight size={16} />
                 </span>
               </button>
             ))}

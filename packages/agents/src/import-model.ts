@@ -10,11 +10,22 @@ const evidence = z.object({
 export const importedRecordSchema = z.object({
   section: z.enum(['workExperiences', 'projects', 'educations']),
   title: z.string().max(200),
+  major: z.string().max(200).optional(),
+  relevantCoursework: z.array(z.string().min(1).max(200)).max(20).optional(),
   organisation: z.string().max(200),
   location: z.string().max(120),
   startMonth: z.string().nullable(),
   endMonth: z.string().nullable(),
+  expectedEndMonth: z.string().nullable().optional(),
   current: z.boolean(),
+  starStory: z
+    .object({
+      situation: z.string().max(2000).default(''),
+      task: z.string().max(2000).default(''),
+      action: z.string().max(2000).default(''),
+      result: z.string().max(2000).default(''),
+    })
+    .optional(),
   details: z.array(z.string().max(2000)).max(20),
   technologies: z.array(z.string().max(80)).max(30),
   url: z.string().max(500),
@@ -54,7 +65,12 @@ export async function importModel(
           : {}),
       store: false,
       messages: [
-        { role: 'system', content: system },
+        {
+          role: 'system',
+          content:
+            system +
+            ' Education may also include optional major (verbatim string), relevantCoursework (verbatim course names array), and expectedEndMonth (YYYY-MM or null). Keep coursework distinct from demonstrated skills. Omit fields not supplied by the source.',
+        },
         { role: 'user', content },
       ],
       response_format: { type: 'json_object' },
@@ -96,11 +112,23 @@ function sourceQuote(text: string, quote: string) {
   return match && match.length <= 6000 ? match : '';
 }
 const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+export const ongoingSupported = (text: string) =>
+  /\bpresent\b|\bcurrent\b|\b(?:i['’]m|i am)\s+(?:still\s+)?studying\b|\bcurrently\s+(?:studying|enrolled)\b|至今|正在.*(?:攻读|就读|学习)|在读/i.test(
+    text,
+  );
 export function dateSupported(value: string | null, text: string) {
   if (value === null) return true;
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(value)) return false;
   const [year, month] = value.split('-');
   const m = Number(month);
+  const namedRange =
+    /\b(jan[a-z]*|feb[a-z]*|mar[a-z]*|apr[a-z]*|may|jun[a-z]*|jul[a-z]*|aug[a-z]*|sep[a-z]*|oct[a-z]*|nov[a-z]*|dec[a-z]*)\s*(?:to|through|[-–—])\s*(jan[a-z]*|feb[a-z]*|mar[a-z]*|apr[a-z]*|may|jun[a-z]*|jul[a-z]*|aug[a-z]*|sep[a-z]*|oct[a-z]*|nov[a-z]*|dec[a-z]*)[ ,]+(\d{4})\b/gi;
+  for (const range of text.matchAll(namedRange)) {
+    const first = months.indexOf(range[1].slice(0, 3).toLowerCase()) + 1;
+    const last = months.indexOf(range[2].slice(0, 3).toLowerCase()) + 1;
+    // An omitted start year is clear only for an ordered same-year range.
+    if (range[3] === year && first <= last && (m === first || m === last)) return true;
+  }
   return (
     new RegExp(`(?<!\\d)${year}\\s*(?:[./-]\\s*0?${m}(?!\\d)|年\\s*0?${m}\\s*月)`).test(text) ||
     new RegExp(
@@ -133,6 +161,12 @@ export function groundImportedRecords(
         [
           { field: 'title', value: r.title },
           { field: 'organisation', value: r.organisation },
+          { field: 'major', value: r.major || '' },
+          ...Object.entries(r.starStory || {}).map(([key, value]) => ({
+            field: `starStory.${key}`,
+            value,
+          })),
+          ...(r.relevantCoursework || []).map((value, i) => ({ field: `coursework[${i}]`, value })),
           { field: 'location', value: r.location },
           ...r.details.map((value, i) => ({ field: `details[${i + 1}]`, value })),
           ...r.technologies.map((value, i) => ({ field: `technologies[${i + 1}]`, value })),
@@ -153,6 +187,12 @@ export function groundImportedRecords(
             if (r[key] && !text.includes(normal(r[key]))) r[key] = '';
           r.details = r.details.filter((v) => text.includes(normal(v)));
           r.technologies = r.technologies.filter((v) => text.includes(normal(v)));
+          if (r.major && !text.includes(normal(r.major))) r.major = '';
+          r.relevantCoursework = r.relevantCoursework?.filter((v) => text.includes(normal(v)));
+          if (r.starStory)
+            for (const key of ['situation', 'task', 'action', 'result'] as const)
+              if (r.starStory[key] && !text.includes(normal(r.starStory[key])))
+                r.starStory[key] = '';
         }
       }
       const values = entries().map((e) => e.value);
@@ -162,7 +202,8 @@ export function groundImportedRecords(
         values.every((v) => text.includes(normal(v))) &&
         dateSupported(r.startMonth, text) &&
         dateSupported(r.endMonth, text) &&
-        (!r.current || /\bpresent\b|\bcurrent\b|至今/.test(text)) &&
+        dateSupported(r.expectedEndMonth ?? null, text) &&
+        (!r.current || ongoingSupported(text)) &&
         !(r.current && r.endMonth) &&
         !(r.startMonth && r.endMonth && r.startMonth > r.endMonth);
       if (valid && options.salvageOptional && mismatches.length)
@@ -180,7 +221,9 @@ export function groundImportedRecords(
           reasons.push('Start month is not explicitly supported by the cited text.');
         if (!dateSupported(r.endMonth, text))
           reasons.push('End month is not explicitly supported by the cited text.');
-        if (r.current && !/\bpresent\b|\bcurrent\b|至今/.test(text))
+        if (!dateSupported(r.expectedEndMonth ?? null, text))
+          reasons.push('Expected completion month is not explicitly supported by the cited text.');
+        if (r.current && !ongoingSupported(text))
           reasons.push('Ongoing status is not explicit in the cited text.');
         if ((r.current && r.endMonth) || (r.startMonth && r.endMonth && r.startMonth > r.endMonth))
           reasons.push('Dates are inconsistent.');

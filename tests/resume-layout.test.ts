@@ -1,6 +1,59 @@
 import { expect, it } from 'vitest';
 import { resumeLayout } from '../packages/contracts/src/resume-layout.js';
 import { composeSelection } from '../apps/api/src/resume-composition.js';
+it('selects at most three relevant courses without losing the major or qualification', () => {
+  const courses = [
+    'SQL Databases',
+    'Data Analysis',
+    'Business Statistics',
+    'Data Visualisation',
+    'Medieval History',
+  ];
+  const facts: any[] = [
+    {
+      id: 'educations-degree',
+      kind: 'education',
+      text: 'Bachelor of Commerce',
+      recordId: 'degree',
+      section: 'educations',
+    },
+    ...courses.map((course, i) => ({
+      id: `educations-degree-coursework-${i + 1}`,
+      kind: 'education',
+      text: `Relevant coursework: ${course}`,
+      recordId: 'degree',
+      recordHeaderId: 'educations-degree',
+      section: 'educations',
+    })),
+  ];
+  const selection = composeSelection(
+    facts.map((f) => ({ factId: f.id, reason: 'Relevant' })),
+    facts,
+    'SQL data analysis business statistics data visualisation',
+  );
+  const picked = selection.filter((c) => c.factId.includes('-coursework-'));
+  expect(picked).toHaveLength(3);
+  expect(picked.some((c) => c.factId.endsWith('-5'))).toBe(false);
+  const sections = resumeLayout({
+    name: 'Alex',
+    jobTitle: 'Analyst',
+    records: [
+      {
+        id: 'degree',
+        section: 'educations',
+        title: 'Bachelor of Commerce',
+        major: 'Business Analytics',
+        startMonth: '2024-02',
+        current: true,
+        expectedEndMonth: '2026-11',
+      },
+    ],
+    claims: selection.map((c) => ({ ...facts.find((f) => f.id === c.factId), factId: c.factId })),
+  });
+  expect(JSON.stringify(sections)).toContain('Major: Business Analytics');
+  expect(JSON.stringify(sections)).toContain('Expected completion: 2026-11');
+  expect(JSON.stringify(sections)).not.toContain('Medieval History');
+});
 const facts: any[] = [
   {
     id: 'h',

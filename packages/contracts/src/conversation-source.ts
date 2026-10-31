@@ -18,7 +18,7 @@ export function sourceStatements(
   const found: { text: string; messageId: string }[] = [];
   for (const message of messages.filter((m) => m.role === 'user')) {
     const clauses = message.text
-      .split(/(?<=[.!?;])\s+|\n/)
+      .split(/(?<=[.!?])\s+|\n/)
       .map((s) => s.trim())
       .filter(Boolean);
     let active = recoverSingleExperience || message.id === focusMessageId;

@@ -16,6 +16,7 @@ export function OptionalTools({
   request: (p: string, m?: string, b?: unknown) => Promise<any>;
   onRefresh: () => Promise<any>;
 }) {
+  const [activeTool, setActiveTool] = useState('progress');
   const [selected, S] = useState(''),
     [dashboard, D] = useState<any>(null),
     [error, E] = useState(''),
@@ -53,12 +54,8 @@ export function OptionalTools({
     <>
       <div className="page-heading">
         <div>
-          <span className="eyebrow">07 · OPTIONAL TOOLS</span>
-          <h1>Your next steps, organised.</h1>
-          <p>
-            Persistent tools attached to your selected mission. Local outputs are labelled
-            explicitly.
-          </p>
+          <h1>Application tools</h1>
+          <p>Work with the selected job and approved resume.</p>
         </div>
       </div>
       {error && (
@@ -82,8 +79,20 @@ export function OptionalTools({
         </label>
         {!mission && <p>Select a job in Career missions to enable these tools.</p>}
       </section>
-      <section className="panel">
-        <h2>O1 · Career progress dashboard</h2>
+      <nav className="workspace-tabs" aria-label="Application tools">
+        {[
+          ['progress', 'Progress'],
+          ['letter', 'Cover letter'],
+          ['reminders', 'Reminders'],
+          ['practice', 'Scripted practice'],
+        ].map(([id, label]) => (
+          <button key={id} aria-pressed={activeTool === id} onClick={() => setActiveTool(id)}>
+            {label}
+          </button>
+        ))}
+      </nav>
+      <section className="panel tool-surface" hidden={activeTool !== 'progress'}>
+        <h2>Application progress</h2>
         <p>Self-reported application statuses. Recording here does not submit an application.</p>
         <label>
           Status
@@ -131,8 +140,8 @@ export function OptionalTools({
           </>
         )}
       </section>
-      <section className="panel">
-        <h2>O3 · Grounded cover letter</h2>
+      <section className="panel tool-surface" hidden={activeTool !== 'letter'}>
+        <h2>Cover letter</h2>
         <button
           className="secondary"
           disabled={!mission || busy}
@@ -160,8 +169,8 @@ export function OptionalTools({
           </>
         )}
       </section>
-      <section className="panel">
-        <h2>O4 · Application reminders</h2>
+      <section className="panel tool-surface" hidden={activeTool !== 'reminders'}>
+        <h2>Reminders</h2>
         <p>
           In-app reminders persist in the database. Export to your calendar for a 15-minute alarm
           when this app is closed.
@@ -219,8 +228,8 @@ export function OptionalTools({
           </div>
         ))}
       </section>
-      <section className="panel">
-        <h2>O5 · Salary negotiation practice</h2>
+      <section className="panel tool-surface" hidden={activeTool !== 'practice'}>
+        <h2>Scripted salary practice</h2>
         <p>Scripted local roleplay. No market salary estimate or employer message.</p>
         <label>
           Offer context

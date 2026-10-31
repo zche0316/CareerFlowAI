@@ -8,6 +8,12 @@ export const recordSchema = z
   .object({
     id: z.string().regex(/^[a-zA-Z0-9-]{1,80}$/),
     title: z.string().trim().min(1).max(200),
+    major: z.string().trim().max(200).optional(),
+    relevantCoursework: z
+      .array(z.string().trim().max(200))
+      .max(20)
+      .transform((items) => items.filter(Boolean))
+      .optional(),
     experienceType: z.enum(['work', 'course', 'personal', 'volunteer', 'club']).optional(),
     organisation: z.string().trim().max(200).default(''),
     location: z.string().trim().max(120).default(''),
@@ -15,6 +21,15 @@ export const recordSchema = z
     endMonth: month,
     expectedEndMonth: month.optional(),
     current: z.boolean().default(false),
+    overview: z.string().trim().max(4000).optional(),
+    starStory: z
+      .object({
+        situation: z.string().max(2000).default(''),
+        task: z.string().max(2000).default(''),
+        action: z.string().max(2000).default(''),
+        result: z.string().max(2000).default(''),
+      })
+      .optional(),
     details: z
       .array(z.string().trim().max(2000))
       .max(20)
@@ -119,6 +134,8 @@ export function recordText(r: ProfileRecord) {
     r.location,
     [r.startMonth, r.current ? 'Present' : r.endMonth].filter(Boolean).join(' – '),
     r.expectedEndMonth ? 'Expected completion: ' + r.expectedEndMonth : '',
+    r.major ? 'Major: ' + r.major : '',
+    r.relevantCoursework?.length ? 'Relevant coursework: ' + r.relevantCoursework.join(', ') : '',
     ...r.details,
     r.technologies.length ? 'Technologies: ' + r.technologies.join(', ') : '',
     r.url,

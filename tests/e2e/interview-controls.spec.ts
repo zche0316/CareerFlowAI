@@ -20,8 +20,9 @@ test('interview controls stop and skip without model calls, survive reload and l
   await page
     .getByLabel('Projects 1 details', { exact: true })
     .fill('I used SQL. The outcome is unknown.');
-  await page.getByText('Conversation history & recovery', { exact: true }).click();
-  await page.getByRole('button', { name: 'Start profile conversation', exact: true }).click();
+  await page.getByText('Need an earlier conversation?', { exact: true }).click();
+  await page.getByText('Recovery options', { exact: true }).click();
+  await page.getByRole('button', { name: 'Start a separate conversation', exact: true }).click();
   await expect(page.getByRole('log')).toContainText('When did Alpha data project start?');
   await page.getByRole('button', { name: 'Skip this question', exact: true }).click();
   await expect(page.getByRole('log').locator('article').last()).toContainText(
@@ -33,7 +34,7 @@ test('interview controls stop and skip without model calls, survive reload and l
   );
   await expect(page.getByRole('log').locator('article').last()).not.toContainText('When did Alpha');
   await page.reload();
-  await page.getByRole('button', { name: 'Career chat', exact: true }).click();
+  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
   await expect(page.getByText('Finished experiences', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Add another experience', exact: true }).click();
   await expect(page.getByRole('log').locator('article').last()).toContainText(
@@ -42,7 +43,7 @@ test('interview controls stop and skip without model calls, survive reload and l
   await page.getByRole('button', { name: 'Finish interview & review', exact: true }).click();
   await expect(page.getByLabel('Your next profile message')).not.toBeVisible();
   await page.reload();
-  await page.getByRole('button', { name: 'Career chat', exact: true }).click();
+  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
   await expect(
     page.getByText('Interview finished — review your draft.', { exact: true }),
   ).toBeVisible();
@@ -98,7 +99,11 @@ test('finishing a pending new experience requests organisation before any draft 
     page.getByRole('button', { name: 'Use these details in my draft', exact: true }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Finish this experience', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('Test organiser unavailable');
+  await expect(
+    page
+      .getByRole('region', { name: 'Persistent Profile Builder', exact: true })
+      .getByRole('alert'),
+  ).toContainText('Test organiser unavailable');
   expect(requestBody.recordSection).toBe('projects');
   expect(requestBody.recordId).toBeTruthy();
   expect(requestBody.currentProfile.projects || []).toHaveLength(0);

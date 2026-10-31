@@ -166,27 +166,53 @@ export function registerExperienceOrganisation(app: Express) {
     }
     if ((await db.careerMemory.count({ where: { userId } })) >= 500)
       throw new AppError(409, 'MEMORY_LIMIT', 'This workspace supports 500 memory versions.');
+    const hasStar = Object.values(record.starStory || {}).some(Boolean);
     let result;
     try {
+      const starGroups = hasStar
+        ? (['situation', 'task', 'action', 'result'] as const)
+            .filter((part) => record.starStory[part])
+            .map((part) => ({
+              category: (
+                {
+                  situation: 'background',
+                  task: 'responsibility',
+                  action: 'action',
+                  result: 'result',
+                } as const
+              )[part],
+              items: [
+                {
+                  sourceIndices: record.details.flatMap((line: string, index: number) =>
+                    record.starStory[part].includes(line) || line.includes(record.starStory[part])
+                      ? [index]
+                      : [],
+                  ),
+                },
+              ],
+            }))
+        : [];
       result = validateStory(
-        await generate(
-          'organiser',
-          {
-            goal: 'Group complete experience answers with source-linked labels, without resume compression.',
-            facts: [],
-            sourceText: JSON.stringify(record.details),
-            profileBase: {
-              title: record.title,
-              organisation: record.organisation,
-              startMonth: record.startMonth,
-              endMonth: record.endMonth,
-              technologies: record.technologies,
-            },
-          },
-          storySchema,
-          configuredMode(),
-          { onCall: async () => {}, onTool: async () => {}, onUsage: async () => {} },
-        ),
+        starGroups.length && starGroups.every((g) => g.items[0].sourceIndices.length)
+          ? { groups: starGroups }
+          : await generate(
+              'organiser',
+              {
+                goal: 'Group complete experience answers with source-linked labels, without resume compression.',
+                facts: [],
+                sourceText: JSON.stringify(record.details),
+                profileBase: {
+                  title: record.title,
+                  organisation: record.organisation,
+                  startMonth: record.startMonth,
+                  endMonth: record.endMonth,
+                  technologies: record.technologies,
+                },
+              },
+              storySchema,
+              configuredMode(),
+              { onCall: async () => {}, onTool: async () => {}, onUsage: async () => {} },
+            ),
         record.details,
       );
     } catch (e) {
@@ -250,15 +276,20 @@ export function registerExperienceOrganisation(app: Express) {
             ? existing
             : await tx.careerMemory.update({
                 where: { id: existing.id },
-                data: { text, revision: { increment: 1 } },
+                data: {
+                  text,
+                  ...(hasStar ? { kind: 'STAR', star: json(record.starStory) } : {}),
+                  revision: { increment: 1 },
+                },
               })
           : await tx.careerMemory.create({
               data: {
                 userId,
-                kind: 'NOTE',
-                title: record.title.slice(0, 180),
+                kind: hasStar ? 'STAR' : 'NOTE',
+                recordId: record.id,
+                title: (hasStar ? 'Example: ' + record.title : record.title).slice(0, 180),
                 text,
-                star: json({ situation: '', task: '', action: '', result: '' }),
+                star: json(record.starStory || { situation: '', task: '', action: '', result: '' }),
                 source: json(source),
               },
             });

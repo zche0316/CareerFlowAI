@@ -12,6 +12,53 @@ const record = recordSchema.parse({
   endMonth: '2025-02',
   details: ['Built SQL reports.'],
 });
+it('keeps major and coursework as education evidence without promoting courses or preferences to skills', () => {
+  const text =
+    'Bachelor of Commerce at University of Sydney. Major: Business Analytics. Courses: Database Systems, Business Statistics.';
+  const imported = {
+    section: 'educations' as const,
+    title: 'Bachelor of Commerce',
+    organisation: 'University of Sydney',
+    major: 'Business Analytics',
+    relevantCoursework: ['Database Systems', 'Business Statistics', 'Invented Course'],
+    location: '',
+    startMonth: null,
+    endMonth: null,
+    current: false,
+    details: [],
+    technologies: [],
+    url: '',
+    evidence: [{ page: 1, quote: text }],
+  };
+  const grounded = groundImportedRecords(
+    { records: [imported], questions: [] },
+    [{ page: 1, text, route: 'text', method: 'plain-text' }],
+    { salvageOptional: true },
+  );
+  expect(grounded.records[0].relevantCoursework).toEqual([
+    'Database Systems',
+    'Business Statistics',
+  ]);
+  const education = recordSchema.parse({ ...grounded.records[0], id: 'degree', evidence: [] });
+  const facts = buildFacts({
+    ...sampleProfile,
+    skills: [],
+    goals: 'Find remote work',
+    salaryMin: 90000,
+    workArrangement: 'Remote',
+    educations: [education],
+  });
+  expect(facts.find((f) => f.id === 'educations-degree')?.text).toContain(
+    'Major: Business Analytics',
+  );
+  expect(facts.find((f) => f.id === 'educations-degree')?.text).not.toContain('Database Systems');
+  expect(facts.find((f) => f.id === 'educations-degree-coursework-1')).toMatchObject({
+    kind: 'education',
+    recordHeaderId: 'educations-degree',
+  });
+  expect(facts.some((f) => f.kind === 'skill')).toBe(false);
+  expect(facts.some((f) => /Find remote work|90000|Remote/.test(f.text))).toBe(false);
+});
 it('supports multiple independent dated records and preserves IDs, source quotes and section through resume selection', () => {
   const p = profileSchema.parse({
     ...sampleProfile,

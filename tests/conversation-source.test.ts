@@ -1,5 +1,22 @@
 import { it, expect } from 'vitest';
 import { sourceStatements } from '../packages/contracts/src/conversation-source.js';
+it('keeps scope qualifications joined across a semicolon', () => {
+  const result = sourceStatements(
+    'Analyst Intern',
+    ['Analyst Intern'],
+    [
+      {
+        id: 'one',
+        role: 'user',
+        text: 'I worked as an Analyst Intern. I supported the analysis; I did not manage the team.',
+      },
+    ],
+  );
+  expect(result.map((r) => r.text)).toContain(
+    'I supported the analysis; I did not manage the team.',
+  );
+  expect(result.map((r) => r.text)).not.toContain('I supported the analysis;');
+});
 it('retains complete user answers under the named experience without copying questions, headers or a different project', () => {
   const messages = [
     { id: 'assistant', role: 'assistant', text: 'What did you do in Course Atlas Project?' },
