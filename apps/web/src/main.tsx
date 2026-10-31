@@ -8,6 +8,7 @@ import { JobFit } from './job-fit.js';
 import { suggestJobSearch } from '../../../packages/contracts/src/job-search.js';
 import { ProfileRecords } from './profile-records.js';
 import { ProfileImport } from './profile-import.js';
+import { ResumeManualEdit } from './resume-manual-edit.js';
 import { ResumeAgent } from './resume-agent.js';
 import { ProfileConversation } from './profile-conversation.js';
 import { CareerMemoryPanel } from './career-memory.js';
@@ -1696,6 +1697,7 @@ function MissionDetail({
     [jobURL, setJobURL] = useState(''),
     [question, setQuestion] = useState(0),
     [analysisFeedback, setAnalysisFeedback] = useState(''),
+    [manualDirty, setManualDirty] = useState(false),
     [confirm, setConfirm] = useState(false),
     [compareIds, setCompareIds] = useState<string[]>([]),
     [offerSalary, setOfferSalary] = useState(''),
@@ -1893,10 +1895,22 @@ function MissionDetail({
           </p>
         </section>
       )}
-      {phase === 2 && !completed && (
+      {phase === 2 && !completed && !d.selectedJob && (
         <button className="primary" onClick={onNewSearch}>
           Search Australian jobs
         </button>
+      )}
+      {phase === 2 && d.selectedJob && !completed && (
+        <div className="info">
+          <span>
+            {d.resumeDraft
+              ? 'Your resume is ready for review.'
+              : 'Your selected job is saved. Preparing your resume…'}
+          </span>
+          <button className="primary" onClick={() => onNavigate(3)}>
+            Review your resume <ArrowRight size={15} />
+          </button>
+        </div>
       )}
       {m.error && (
         <div className="error-banner" role="alert">
@@ -2407,6 +2421,33 @@ function MissionDetail({
         )}
       {(phase === null || phase === 3) && d.resumeDraft && (
         <section id="resume-tailoring" className="panel resume">
+          {m.status === 'AWAITING_APPROVAL' && (
+            <div className="approval-controls resume-approval-bar">
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={confirm && !manualDirty}
+                  disabled={busy || manualDirty}
+                  onChange={(e) => setConfirm(e.target.checked)}
+                />
+                I reviewed this resume and am ready to save it.
+              </label>
+              <button
+                className="primary"
+                disabled={!confirm || busy || manualDirty}
+                onClick={() =>
+                  void onAction('decisions', {
+                    kind: 'resume',
+                    decision: 'approve',
+                    draftHash: d.resumeDraft.hash,
+                  })
+                }
+              >
+                <Check size={16} />
+                Approve & save resume
+              </button>
+            </div>
+          )}
           <div className="prototype-resume-layout">
             <div
               className="prototype-resume-paper resume-draft-preview"
@@ -2418,7 +2459,7 @@ function MissionDetail({
                 changes={
                   d.approvedResumeId ? [] : pendingResumeChanges(d.resumeDraft, d.resumeChanges)
                 }
-                busy={busy}
+                busy={busy || manualDirty}
                 onRestore={
                   m.status === 'AWAITING_APPROVAL'
                     ? (factId) =>
@@ -2448,40 +2489,27 @@ function MissionDetail({
                 </span>
               </div>
               {m.status === 'AWAITING_APPROVAL' && (
-                <ResumeAgent
+                <ResumeManualEdit
                   draft={d.resumeDraft}
-                  messages={d.resumeChat || []}
                   busy={busy}
-                  onEdit={(message) =>
-                    onAction('resume-agent', { draftHash: d.resumeDraft.hash, message })
+                  onDirty={(dirty) => {
+                    setManualDirty(dirty);
+                    if (dirty) setConfirm(false);
+                  }}
+                  onSave={(factId, text) =>
+                    onAction('resume-agent/manual', { draftHash: d.resumeDraft.hash, factId, text })
                   }
                 />
               )}
               {m.status === 'AWAITING_APPROVAL' && (
-                <div className="approval-controls">
-                  <label className="checkbox">
-                    <input
-                      type="checkbox"
-                      checked={confirm}
-                      onChange={(e) => setConfirm(e.target.checked)}
-                    />
-                    I reviewed this resume and am ready to save it.
-                  </label>
-                  <button
-                    className="primary"
-                    disabled={!confirm || busy}
-                    onClick={() =>
-                      void onAction('decisions', {
-                        kind: 'resume',
-                        decision: 'approve',
-                        draftHash: d.resumeDraft.hash,
-                      })
-                    }
-                  >
-                    <Check size={16} />
-                    Approve & save resume
-                  </button>
-                </div>
+                <ResumeAgent
+                  draft={d.resumeDraft}
+                  messages={d.resumeChat || []}
+                  busy={busy || manualDirty}
+                  onEdit={(message) =>
+                    onAction('resume-agent', { draftHash: d.resumeDraft.hash, message })
+                  }
+                />
               )}
               {d.approvedResumeId && <ResumeDownloads id={d.approvedResumeId} />}
               {d.approvedResumeId && (

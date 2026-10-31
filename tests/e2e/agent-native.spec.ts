@@ -484,3 +484,48 @@ test('step three reads a URL into a reviewable candidate and preserves user sele
     page.getByRole('button', { name: 'Approve & save resume', exact: true }),
   ).toBeDisabled();
 });
+
+test('resume approval remains visible and manual edits require applying and fresh review', async ({
+  page,
+}) => {
+  const { mission } = await app(page);
+  mission.status = 'AWAITING_APPROVAL';
+  await page.route('**/api/missions/mission-qa/resume-agent/manual', async (route) => {
+    const input = route.request().postDataJSON();
+    expect(input.draftHash).toBe('draft-qa');
+    const before = mission.data.resumeDraft.claims[0].text;
+    mission.data.resumeDraft = {
+      ...mission.data.resumeDraft,
+      hash: 'manual-new',
+      claims: [{ ...mission.data.resumeDraft.claims[0], text: input.text }],
+    };
+    (mission.data as any).resumeChanges = [{ factId: input.factId, before, after: input.text }];
+    await route.fulfill({ json: { resumeDraft: mission.data.resumeDraft } });
+  });
+  await page.goto('/?view=missions&mission=mission-qa&step=2');
+  await expect(
+    page.getByRole('button', { name: 'Search Australian jobs', exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole('button', { name: 'Review your resume', exact: true }).click();
+  const approve = page.getByRole('button', { name: 'Approve & save resume', exact: true });
+  await expect(approve).toBeInViewport();
+  await page.getByLabel('I reviewed this resume and am ready to save it.').check();
+  await page.getByText('Edit wording yourself', { exact: true }).click();
+  await page.getByLabel('Your wording', { exact: true }).fill('SQL reports were built.');
+  await expect(approve).toBeDisabled();
+  await page.getByRole('button', { name: 'Apply wording change', exact: true }).click();
+  await expect(page.getByRole('article', { name: 'Resume preview' })).toContainText(
+    'SQL reports were built.',
+  );
+  await expect(approve).toBeDisabled();
+  await page.getByLabel('I reviewed this resume and am ready to save it.').check();
+  await expect(approve).toBeEnabled();
+  await approve.scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: 'output/agent-native/resume-visible-approval.png',
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await approve.scrollIntoViewIfNeeded();
+  await expect(approve).toBeInViewport();
+});

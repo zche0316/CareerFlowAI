@@ -197,6 +197,80 @@ export function registerResumeAgent(app: Express) {
     });
     res.json({ resumeDraft });
   });
+  app.post('/api/missions/:id/resume-agent/manual', async (req, res) => {
+    const input = z
+      .object({
+        draftHash: z.string(),
+        factId: z.string().min(1),
+        text: z.string().trim().min(1).max(5000),
+      })
+      .parse(req.body);
+    const id = String(req.params.id),
+      userId = req.actor!.id;
+    const result = await db.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Mission" WHERE id=${id} FOR UPDATE`;
+      const m = requireValue(
+        await tx.mission.findFirst({
+          where: { id, userId },
+          include: { profile: true, user: true },
+        }),
+      );
+      const d = m.data as any;
+      if (
+        m.status !== 'AWAITING_APPROVAL' ||
+        m.user.profileVersion !== m.profile.version ||
+        d.resumeDraft?.hash !== input.draftHash
+      )
+        throw new AppError(
+          409,
+          'STALE_APPROVAL',
+          'The draft changed. Review the current resume and try again.',
+        );
+      const claim = requireValue(d.resumeDraft.claims.find((c: any) => c.factId === input.factId));
+      const fact = requireValue(
+        (m.profile.facts as unknown as Fact[]).find((f) => f.id === input.factId),
+      );
+      const reason = checkWording(fact.text, input.text);
+      if (reason)
+        throw new AppError(
+          422,
+          'UNSUPPORTED_WORDING',
+          'This wording changes or adds a fact. Keep the original facts, or update and approve My profile first.',
+        );
+      const claims = d.resumeDraft.claims.map((c: any) =>
+        c.factId === input.factId ? { ...c, factText: fact.text, text: input.text } : c,
+      );
+      const { hash: _, ...old } = d.resumeDraft;
+      const content = { ...old, claims, editRevision: (old.editRevision || 0) + 1 };
+      const resumeDraft = { ...content, hash: digest(content) };
+      await tx.mission.update({
+        where: { id },
+        data: {
+          data: json({
+            ...d,
+            resumeDraft,
+            resumeChanges: resumeChanges(
+              d.resumeDraft.claims,
+              claims,
+              pendingResumeChanges(d.resumeDraft, d.resumeChanges),
+            ),
+          }),
+          events: json([
+            ...(m.events as any[]),
+            {
+              at: new Date().toISOString(),
+              agent: 'Resume Tailor',
+              action: 'manual_wording_edit',
+              detail: 'User edited draft wording; fresh resume approval required.',
+            },
+          ]),
+        },
+      });
+      return { resumeDraft };
+    });
+    res.json(result);
+  });
+
   app.post('/api/missions/:id/resume-agent/restore', async (req, res) => {
     const input = z.object({ draftHash: z.string(), factId: z.string().min(1) }).parse(req.body);
     const id = String(req.params.id),
