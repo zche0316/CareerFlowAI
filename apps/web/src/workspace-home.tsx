@@ -22,7 +22,7 @@ const actionText: Record<string, string> = {
   AWAITING_JOB: 'Choose a job',
   AWAITING_APPROVAL: 'Review your resume',
   AWAITING_INTERVIEW: 'Practise your interview',
-  COMPLETE: 'View interview feedback',
+  COMPLETE: 'Review journey results',
   FAILED: 'Review and retry',
   STALE: 'Review previous search',
   NO_MATCHES: 'Review search results',

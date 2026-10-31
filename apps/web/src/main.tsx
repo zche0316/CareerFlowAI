@@ -408,7 +408,7 @@ function App() {
                     ? tab === 'missions' && phase === 2
                       ? 'nav active'
                       : 'nav'
-                    : tab === n.id && !(n.id === 'missions' && phase !== null)
+                    : tab === n.id && !(n.id === 'missions' && (phase !== null || selected))
                       ? 'nav active'
                       : 'nav'
                 }
@@ -527,9 +527,11 @@ function App() {
             <span>
               {phase !== null
                 ? phaseNames[phase]
-                : tab === 'approved-profile'
-                  ? 'My profile'
-                  : nav.find((n) => n.id === tab)?.label}
+                : tab === 'missions' && mission?.status === 'COMPLETE'
+                  ? 'Journey results'
+                  : tab === 'approved-profile'
+                    ? 'My profile'
+                    : nav.find((n) => n.id === tab)?.label}
             </span>
           </div>
           <details className="provider-details">
@@ -560,7 +562,13 @@ function App() {
           )}
           {(tab === 'profile' || (tab === 'missions' && (selected || phase !== null))) && (
             <FlowNavigation
-              current={tab === 'profile' ? 0 : (phase ?? 0)}
+              current={
+                tab === 'profile'
+                  ? 0
+                  : phase === null && mission?.status === 'COMPLETE'
+                    ? -1
+                    : (phase ?? 0)
+              }
               onSelect={selectJourneyStep}
             />
           )}
@@ -717,7 +725,9 @@ function App() {
                     }}
                     onOpen={(m, targetPhase) => {
                       setSelected(m.id);
-                      setPhase(targetPhase ?? nextMissionStep(m));
+                      setPhase(
+                        targetPhase ?? (m.status === 'COMPLETE' ? null : nextMissionStep(m)),
+                      );
                     }}
                   />
                 </>
@@ -1678,11 +1688,77 @@ function MissionDetail({
     setNegotiationMessage('');
   }, [m.id, d.selectedJob?.job.id]);
 
+  const completed = m.status === 'COMPLETE';
+  if (completed && (phase === null || phase > 4))
+    return (
+      <section aria-label="Completed journey results">
+        <button className="back" onClick={onBack}>
+          ← All missions
+        </button>
+        <div className="page-heading">
+          <div>
+            <span className="eyebrow">JOURNEY COMPLETE · 5 OF 5</span>
+            <h1>Your journey results</h1>
+            <p>{m.goal}</p>
+          </div>
+          <button className="primary" onClick={onNewSearch}>
+            Start a new journey <ArrowRight size={16} />
+          </button>
+        </div>
+        <p>
+          This journey is saved. Review its five steps above. New work uses your latest approved
+          profile and keeps these results unchanged.
+        </p>
+        <section className="panel" aria-label="Saved application results">
+          <h2>{d.selectedJob?.job.title || 'Your application'}</h2>
+          <p>{d.selectedJob?.job.company}</p>
+          {d.approvedResumeId && <ResumeDownloads id={d.approvedResumeId} />}
+          <button className="text-button" onClick={() => onNavigate(3)}>
+            View approved resume
+          </button>
+          <button className="text-button" onClick={() => onNavigate(4)}>
+            Review interview answers
+          </button>
+        </section>
+        {d.feedback && (
+          <section className="panel" aria-label="Saved interview feedback">
+            <h2>Interview feedback</h2>
+            {(['strengths', 'improvements', 'nextSteps'] as const).map((key) => (
+              <div key={key}>
+                <h3>
+                  {key === 'nextSteps'
+                    ? 'Next practice'
+                    : key === 'improvements'
+                      ? 'Areas to improve'
+                      : 'Strengths'}
+                </h3>
+                <ul>
+                  {(d.feedback[key] || []).map((item: string, i: number) => (
+                    <li key={i}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </section>
+        )}
+      </section>
+    );
   return (
     <>
       <button className="back" onClick={onBack}>
         ← All missions
       </button>
+      {completed && (
+        <div className="info" role="note">
+          <span>Saved journey · Read-only history</span>
+          <button className="text-button" onClick={() => onNavigate(null)}>
+            Back to results
+          </button>
+          <button className="secondary" onClick={onNewSearch}>
+            Start a new journey
+          </button>
+        </div>
+      )}
       <div className="mission-heading">
         <div>
           <span className="eyebrow">
@@ -1742,10 +1818,11 @@ function MissionDetail({
         <MissionProfile
           missionId={m.id}
           api={api}
-          onContinue={() => onNavigate(nextMissionStep(m))}
+          onContinue={() => onNavigate(completed ? null : nextMissionStep(m))}
+          completed={completed}
         />
       )}
-      {phase === 2 && (
+      {phase === 2 && !completed && (
         <button className="primary" onClick={onNewSearch}>
           Search Australian jobs
         </button>
@@ -1959,30 +2036,32 @@ function MissionDetail({
               ))}
             </div>
           </div>
-          <aside className="agent-decision-pane">
-            <h3>Career Coach</h3>
-            <p className="agent-context-caption">Using your approved profile</p>
-            <label>
-              What should the Career Coach revisit?
-              <textarea
-                value={analysisFeedback}
-                onChange={(e) => setAnalysisFeedback(e.target.value)}
-                placeholder="For example: focus more on leadership evidence or explain why a direction fits."
-              />
-            </label>
-            <button
-              className="secondary"
-              disabled={busy || analysisFeedback.trim().length < 3}
-              onClick={() => void onRefineAnalysis(analysisFeedback.trim())}
-            >
-              <RefreshCw size={15} />
-              Run revised analysis
-            </button>
-            <p className="small muted">Starts a new analysis; this result stays saved.</p>
-            <button className="text-button" onClick={() => onNavigate(2)}>
-              Explore matched jobs <ArrowRight size={14} />
-            </button>
-          </aside>
+          {!completed && (
+            <aside className="agent-decision-pane">
+              <h3>Career Coach</h3>
+              <p className="agent-context-caption">Using your approved profile</p>
+              <label>
+                What should the Career Coach revisit?
+                <textarea
+                  value={analysisFeedback}
+                  onChange={(e) => setAnalysisFeedback(e.target.value)}
+                  placeholder="For example: focus more on leadership evidence or explain why a direction fits."
+                />
+              </label>
+              <button
+                className="secondary"
+                disabled={busy || analysisFeedback.trim().length < 3}
+                onClick={() => void onRefineAnalysis(analysisFeedback.trim())}
+              >
+                <RefreshCw size={15} />
+                Run revised analysis
+              </button>
+              <p className="small muted">Starts a new analysis; this result stays saved.</p>
+              <button className="text-button" onClick={() => onNavigate(2)}>
+                Explore matched jobs <ArrowRight size={14} />
+              </button>
+            </aside>
+          )}
         </section>
       )}
       <div className={phase === 2 ? 'prototype-job-layout' : undefined}>
@@ -2127,7 +2206,7 @@ function MissionDetail({
                       </p>
                     </div>
                   )}
-                  <JobSourceActions job={r.job} missionId={m.id} request={api} />
+                  {!completed && <JobSourceActions job={r.job} missionId={m.id} request={api} />}
                   <details>
                     <summary>Evidence, gaps & source</summary>
                     <p>
@@ -2286,7 +2365,7 @@ function MissionDetail({
                 </div>
               )}
               <div className="section-heading">
-                <h2>Edit with your agent</h2>
+                <h2>{completed ? 'Saved resume' : 'Edit with your agent'}</h2>
                 <span className="tag">
                   {d.approvedResumeId ? 'Approved & saved' : 'Review required'}
                 </span>
@@ -2338,7 +2417,7 @@ function MissionDetail({
           </div>
         </section>
       )}
-      {d.approvedResumeId && (phase === null || phase === 3) && (
+      {!completed && d.approvedResumeId && (phase === null || phase === 3) && (
         <button className="primary" onClick={() => onNavigate(4)}>
           Continue to interview practice
         </button>
@@ -2431,9 +2510,23 @@ function MissionDetail({
                 {d.endedEarly ? 'You finished early; feedback reflects the available answers.' : ''}
               </p>
             )}
+            {completed && (
+              <section aria-label="Saved interview answers">
+                <h3>Your saved answers</h3>
+                {(d.answers || []).map((a: any, i: number) => (
+                  <article key={a.questionId || i}>
+                    <h4>
+                      {questions.find((q: any) => q.id === a.questionId)?.question ||
+                        `Question ${i + 1}`}
+                    </h4>
+                    <p>{a.answer}</p>
+                  </article>
+                ))}
+              </section>
+            )}
             {d.feedback && phase === 4 && (
               <button className="secondary" onClick={() => onNavigate(null)}>
-                View full mission & optional practice
+                Back to journey results
               </button>
             )}
             {d.feedback && (
@@ -2466,7 +2559,7 @@ function MissionDetail({
           </aside>
         </div>
       )}
-      {(phase === null || phase === 4) && d.feedback && (
+      {!completed && (phase === null || phase === 4) && d.feedback && (
         <details className="panel feedback-memory-action">
           <summary>Keep a learning note</summary>
           <p>Save this feedback for later. It stays separate from your approved profile.</p>
@@ -2495,7 +2588,7 @@ function MissionDetail({
           ))}
         </details>
       )}
-      {(phase === null || phase === 5) && d.feedback && d.selectedJob && (
+      {!completed && (phase === null || phase === 5) && d.feedback && d.selectedJob && (
         <section className="panel negotiation">
           <div className="section-heading">
             <h2>

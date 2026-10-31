@@ -196,30 +196,54 @@ test('a user answers every interview question and receives complete feedback', a
     fullPage: true,
   });
 
-  await page
-    .getByRole('button', { name: 'View full mission & optional practice', exact: true })
-    .click();
-  await page.getByLabel('Practice offer salary').fill('65000');
-  await page.getByLabel('Your target salary').fill('72000');
-  await page.getByLabel('Currency').fill('AUD');
-  await page
-    .getByLabel('Your negotiation response')
-    .fill(
-      'I am interested in the role and would like to discuss the salary range based on the scope and my confirmed reporting experience.',
-    );
-  await page.getByRole('button', { name: 'Practice salary negotiation' }).click();
-  await expect(page.getByRole('heading', { name: 'Simulated recruiter reply' })).toBeVisible({
-    timeout: 30000,
-  });
-  await expect(page.getByRole('heading', { name: 'Negotiation strengths' })).toBeVisible();
-  await page.getByRole('button', { name: 'Record my choice: accept' }).click();
+  const completedId = new URL(page.url()).searchParams.get('mission');
+  await page.getByRole('button', { name: 'Back to journey results', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Completed journey results' })).toBeVisible();
+  await page.reload();
   await expect(
-    page.getByText('Practice decision recorded: accept.', { exact: false }),
+    page.getByRole('heading', { name: 'Your journey results', exact: true }),
   ).toBeVisible();
   await page.screenshot({
-    path: `output/acceptance/cfs-33-salary-negotiation-${process.env.PROVIDER_MODE === 'openai' ? 'live' : 'fixture'}.png`,
+    path: 'output/acceptance/completed-journey-results.png',
     fullPage: true,
   });
+  const stages = [
+    'Profile building',
+    'Career analysis',
+    'Job matching',
+    'Resume tailoring',
+    'Interview practice',
+  ];
+  for (let i = 0; i < stages.length; i++) {
+    await page
+      .getByRole('button', {
+        name: `${String(i + 1).padStart(2, '0')} · ${stages[i]}`,
+        exact: true,
+      })
+      .click();
+    await expect(
+      page.getByText('Saved journey · Read-only history', { exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Run revised analysis' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Select this opportunity' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Approve & save resume' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Refine wording' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Save response', exact: true })).toHaveCount(0);
+  }
+  await expect(page.getByRole('region', { name: 'Saved interview answers' })).toContainText(
+    'In example 1',
+  );
+  await page.getByRole('button', { name: 'Back to results', exact: true }).click();
+  await page.getByRole('button', { name: 'Start a new journey', exact: true }).click();
+  await page.getByRole('button', { name: 'Start career mission', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Select this opportunity' }).first()).toBeVisible({
+    timeout: 30000,
+  });
+  expect(new URL(page.url()).searchParams.get('mission')).not.toBe(completedId);
+  const previous = await (await page.request.get(`/api/missions/${completedId}`)).json();
+  expect(previous.status).toBe('COMPLETE');
+  expect(previous.data.answers).toHaveLength(questionCount);
+  expect(previous.data.approvedResumeId).toBeTruthy();
 });
 
 test('mobile workspace stays usable without horizontal scrolling', async ({ page }) => {
