@@ -418,3 +418,69 @@ test('overview shows three concise recent journeys and keeps unsuccessful attemp
     .locator('section[aria-labelledby="recent-searches-title"]')
     .screenshot({ path: 'output/agent-native/recent-journeys.png' });
 });
+
+test('step three reads a URL into a reviewable candidate and preserves user selection', async ({
+  page,
+}) => {
+  const { mission, bodies } = await app(page);
+  delete (mission.data as any).selectedJob;
+  delete (mission.data as any).resumeDraft;
+  const original = mission.data.matches[0];
+  const imported = {
+    ...original,
+    job: {
+      ...original.job,
+      id: 'imported-job',
+      title: 'Business Analyst',
+      company: 'Prezzee',
+      source: {
+        ...original.job.source,
+        board: 'prezzee',
+        provider: 'greenhouse',
+        importedFromURL: 'https://job-boards.greenhouse.io/prezzee/jobs/123',
+      },
+    },
+  };
+  await page.route('**/api/missions/mission-qa/job-link', async (route) => {
+    bodies.push(route.request().postDataJSON());
+    mission.data.matches = [imported, original];
+    await route.fulfill({ json: { jobId: 'imported-job' } });
+  });
+  await page.route('**/api/missions/mission-qa/decisions', async (route) => {
+    expect(route.request().postDataJSON()).toMatchObject({ kind: 'job', jobId: 'imported-job' });
+    mission.data.selectedJob = imported;
+    mission.status = 'AWAITING_APPROVAL';
+    mission.data.resumeDraft = {
+      name: 'Alex',
+      jobTitle: 'Business Analyst',
+      profileVersion: 1,
+      hash: 'parsed-url',
+      claims: [],
+      omittedFacts: [],
+    };
+    await route.fulfill({ json: mission });
+  });
+  await page.goto('/?view=missions&mission=mission-qa&step=2');
+  await page
+    .getByLabel('Job listing URL', { exact: true })
+    .fill('https://job-boards.greenhouse.io/prezzee/jobs/123');
+  await page.getByRole('button', { name: 'Read job', exact: true }).click();
+  await expect(page.locator('article.job-card h3')).toHaveText('Business Analyst');
+  expect(bodies[0]).toEqual({ url: 'https://job-boards.greenhouse.io/prezzee/jobs/123' });
+  expect((mission.data as any).selectedJob).toBeUndefined();
+  await expect(page.locator('article.job-card .company-avatar img').first()).toHaveAttribute(
+    'src',
+    /prezzee/,
+  );
+  await page.screenshot({ path: 'output/agent-native/job-url-review.png', fullPage: true });
+  await page.route('**/company-icons/prezzee.ico', (route) => route.abort());
+  await page.reload();
+  await expect(page.locator('article.job-card .company-avatar').first()).toHaveText('P');
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.getByRole('button', { name: 'Select this opportunity', exact: true }).click();
+  await expect(page).toHaveURL(/step=3/);
+  await expect(
+    page.getByRole('button', { name: 'Approve & save resume', exact: true }),
+  ).toBeDisabled();
+});

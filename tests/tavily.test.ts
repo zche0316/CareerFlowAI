@@ -58,7 +58,7 @@ it('bounds search and uses official content instead of untrusted search snippets
   const query = JSON.parse(calls[0].options.body);
   expect(query).toMatchObject({
     search_depth: 'basic',
-    max_results: 5,
+    max_results: 10,
     include_answer: false,
     include_raw_content: false,
     auto_parameters: false,
@@ -204,4 +204,37 @@ it('treats removed search-indexed postings as no results and accepts canonical G
   expect(empty.sources[0].status).toBe('closed_or_removed');
   removed = false;
   expect((await repo.search(criteria)).jobs[0].source.host).toBe('job-boards.greenhouse.io');
+});
+
+it('expands role queries, retains a successful query when another fails, and deduplicates official checks', async () => {
+  const queries: any[] = [];
+  let checked = 0;
+  const repo = new JobRepository({
+    fetcher: async (url: any, options: any) => {
+      if (String(url).includes('api.tavily.com')) {
+        const body = JSON.parse(options.body);
+        queries.push(body);
+        return queries.length === 1
+          ? reply({
+              results: [{ url: gh().absolute_url }, { url: gh().absolute_url + '?duplicate=1' }],
+              usage: { credits: 1 },
+            })
+          : ({ ok: false, status: 503 } as Response);
+      }
+      checked++;
+      return reply(gh());
+    },
+  });
+  const r = await repo.search({ ...criteria, keyword: 'business analyst' });
+  expect(queries).toHaveLength(2);
+  expect(queries.every((q) => q.max_results === 10)).toBe(true);
+  expect(queries[1].query).toContain('business intelligence analyst');
+  expect(r.jobs).toHaveLength(1);
+  expect(checked).toBe(1);
+  expect(r.discovery).toMatchObject({
+    queryCount: 2,
+    failedQueries: 1,
+    resultLimit: 20,
+    credits: 1,
+  });
 });

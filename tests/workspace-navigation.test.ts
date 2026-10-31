@@ -36,3 +36,20 @@ describe('opening a saved mission at the next user action', () => {
     expect(nextMissionStep({ status: 'QUEUED', data: {} })).toBe(1);
   });
 });
+
+it('keeps accepted decisions at their preparation stage while the worker catches up', () => {
+  expect(
+    nextMissionStep({
+      status: 'QUEUED',
+      pendingDecision: { kind: 'job' },
+      data: { matches: [{}] },
+    }),
+  ).toBe(3);
+  expect(
+    nextMissionStep({
+      status: 'RUNNING',
+      pendingDecision: { kind: 'resume' },
+      data: { resumeDraft: {} },
+    }),
+  ).toBe(4);
+});

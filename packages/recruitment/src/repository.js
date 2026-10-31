@@ -7,6 +7,16 @@ export const employerBoards = [
   { board: 'vgw', company: 'VGW', hosts: [] },
   { board: 'gofundme', company: 'GoFundMe', hosts: [] },
   { board: 'mongodb', company: 'MongoDB', hosts: ['www.mongodb.com', 'mongodb.com'] },
+  { board: 'australianenergymarketoperator', company: 'AEMO', hosts: [] },
+  { board: 'prezzee', company: 'Prezzee', hosts: [] },
+  { board: 'hipagesgroup', company: 'hipages Group', hosts: [] },
+  { board: 'vgw-australia', company: 'VGW Australia', hosts: [] },
+  { board: 'imc', company: 'IMC Trading', hosts: [] },
+  {
+    board: 'akunacapital',
+    company: 'Akuna Capital',
+    hosts: ['www.akunacapital.com', 'akunacapital.com'],
+  },
 ];
 export function recruitmentSettings(env = process.env) {
   const provider = env.JOB_SOURCE === 'fixtures' ? 'fixtures' : 'auto';
@@ -52,7 +62,7 @@ export function manualListing(listing) {
   if (u.protocol !== 'https:' || u.username || u.password || u.port)
     throw Error('Use an official HTTPS listing URL.');
   if (
-    ['seek.com.au', 'www.seek.com.au'].includes(u.hostname) &&
+    ['seek.com.au', 'www.seek.com.au', 'au.seek.com'].includes(u.hostname) &&
     /^\/job\/\d+\/?$/.test(u.pathname)
   ) {
     platform = 'SEEK';
@@ -66,7 +76,13 @@ export function manualListing(listing) {
     const key = u.searchParams.get('jk');
     u.search = '';
     u.searchParams.set('jk', key);
-  } else throw Error('Use a SEEK /job/ID or Indeed /viewjob?jk=ID listing.');
+  } else if (
+    ['linkedin.com', 'www.linkedin.com', 'au.linkedin.com'].includes(u.hostname) &&
+    /^\/jobs\/view\/(?:[a-zA-Z0-9-]+-)?\d+\/?$/.test(u.pathname)
+  ) {
+    platform = 'LinkedIn';
+    u.search = '';
+  } else throw Error('Use a SEEK, Indeed or LinkedIn job listing URL.');
   u.hash = '';
   return {
     id: 'manual-' + encodeURIComponent(u.href),

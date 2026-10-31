@@ -105,7 +105,7 @@ test('a user compares ranked jobs and selects one for downstream context', async
     .getByRole('button');
   const jobCount = await choices.count();
   expect(jobCount).toBeGreaterThan(1);
-  const scoreTexts = await choices.locator('span').allTextContents();
+  const scoreTexts = await choices.locator(':scope > span:last-child').allTextContents();
   const scores = scoreTexts.map((text) => Number(text.match(/(\d+)\/100/)?.[1]));
   expect(scores).toEqual([...scores].sort((left, right) => right - left));
   await expect(page.getByText('Evidence, gaps & source', { exact: true })).toHaveCount(1);

@@ -2,6 +2,7 @@ import { WorkspaceHome, nextMissionStep } from './workspace-home.js';
 import { FlowNavigation } from './flow-navigation.js';
 import { ResumePreview } from './resume-preview.js';
 import { pendingResumeChanges } from '../../../packages/contracts/src/resume-review.js';
+import { CompanyAvatar, SourceIcon } from './company-avatar.js';
 import { MissionProfile } from './mission-profile.js';
 import { JobFit } from './job-fit.js';
 import { suggestJobSearch } from '../../../packages/contracts/src/job-search.js';
@@ -220,6 +221,7 @@ function App() {
   const mission = workspace?.missions.find((m: any) => m.id === selected);
   useEffect(() => {
     if (
+      !busy &&
       tab === 'missions' &&
       mission &&
       phase !== null &&
@@ -230,7 +232,7 @@ function App() {
       setPhase(nextMissionStep(mission));
       setNotice('Continue from the next available step in this application journey.');
     }
-  }, [tab, mission?.id, mission?.status, phase]);
+  }, [tab, mission?.id, mission?.status, phase, busy]);
   useEffect(() => {
     if (tab === 'profile' && workspace?.profile) {
       setTab('approved-profile');
@@ -678,6 +680,8 @@ function App() {
                   onAction={(kind, body) =>
                     act(async () => {
                       await api(`/missions/${mission.id}/${kind}`, 'POST', body || {});
+                      if (kind === 'job-link')
+                        setNotice('Job read. Review the listing and choose it as your target.');
                       if (kind === 'decisions' && (body as any)?.kind === 'job') {
                         setPhase(3);
                         setNotice('Job selected. Preparing your resume…');
@@ -1689,6 +1693,7 @@ function MissionDetail({
 }) {
   const d = m.data,
     [answer, setAnswer] = useState(''),
+    [jobURL, setJobURL] = useState(''),
     [question, setQuestion] = useState(0),
     [analysisFeedback, setAnalysisFeedback] = useState(''),
     [confirm, setConfirm] = useState(false),
@@ -1858,6 +1863,35 @@ function MissionDetail({
           onContinue={() => onNavigate(completed ? null : nextMissionStep(m))}
           completed={completed}
         />
+      )}
+      {phase === 2 && ['AWAITING_JOB', 'NO_MATCHES'].includes(m.status) && !d.selectedJob && (
+        <section className="panel" aria-label="Read a job link">
+          <h2>Have a job in mind?</h2>
+          <div className="form-actions">
+            <label style={{ flex: 1 }}>
+              Job listing URL
+              <input
+                type="url"
+                value={jobURL}
+                onChange={(e) => setJobURL(e.target.value)}
+                placeholder="Paste a job listing link…"
+              />
+            </label>
+            <button
+              className="secondary"
+              disabled={busy || !jobURL.trim()}
+              onClick={async () => {
+                await onAction('job-link', { url: jobURL.trim() });
+                setViewJobId('');
+              }}
+            >
+              {busy ? 'Reading job listing…' : 'Read job'}
+            </button>
+          </div>
+          <p className="small muted">
+            We’ll read the public listing. Review the job and its gaps before choosing it.
+          </p>
+        </section>
       )}
       {phase === 2 && !completed && (
         <button className="primary" onClick={onNewSearch}>
@@ -2182,7 +2216,10 @@ function MissionDetail({
                     aria-pressed={(viewJobId || d.matches[0]?.job.id) === r.job.id}
                     onClick={() => setViewJobId(r.job.id)}
                   >
-                    <strong>{r.job.title}</strong>
+                    <span className="job-choice-identity">
+                      <CompanyAvatar job={r.job} small />
+                      <strong>{r.job.title}</strong>
+                    </span>
                     <span>
                       {r.job.company} · {r.score}/100
                     </span>
@@ -2197,7 +2234,7 @@ function MissionDetail({
               ).map((r: any) => (
                 <article className="job-card" key={r.job.id}>
                   <div className="job-card-top">
-                    <div className="company-letter">{r.job.company[0]}</div>
+                    <CompanyAvatar job={r.job} />
                     <div
                       className="score"
                       role="img"
@@ -2212,7 +2249,10 @@ function MissionDetail({
                       <small>/ 100</small>
                     </div>
                   </div>
-                  <span className="small muted">{r.job.company}</span>
+                  <span className="small muted job-choice-identity">
+                    <SourceIcon job={r.job} />
+                    {r.job.company}
+                  </span>
                   <h3>{r.job.title}</h3>
                   <p className="small muted">
                     {r.job.location} · {r.job.employmentType}

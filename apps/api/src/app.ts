@@ -14,6 +14,7 @@ import { registerProfilePolish } from './profile-polish.js';
 import { registerResumeWording } from './resume-wording.js';
 import { registerResumeAgent } from './resume-agent.js';
 import { registerApplicationReadiness } from './application-readiness.js';
+import { registerJobLink } from './job-link.js';
 import { registerJobFit } from './job-fit.js';
 import { registerApplicationVersions } from './application-versions.js';
 import { routerSettings } from '../../../packages/agents/src/router.js';
@@ -233,6 +234,7 @@ export function createApp() {
   registerResumeAgent(app);
   registerProfilePolish(app);
   registerJobFit(app);
+  registerJobLink(app);
   registerApplicationReadiness(app);
   registerApplicationVersions(app);
   app.post('/api/profiles/drafts', async (req, res) =>

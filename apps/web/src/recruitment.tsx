@@ -56,7 +56,7 @@ export function JobSearchFields({
       {value.provider === 'tavily' && (
         <p role="status" className="info">
           {tavilyConfigured
-            ? `Tavily ${tavilyAccessMode === 'keyless' ? 'limited keyless access' : 'API access'}: one basic search, up to five links. Only postings confirmed through official Greenhouse, Lever or Ashby APIs are matched.`
+            ? `Tavily ${tavilyAccessMode === 'keyless' ? 'limited keyless access' : 'API access'}: ${tavilyAccessMode === 'keyless' ? 'one search, up to 5 links' : 'up to two searches, up to 20 links'}. Only postings confirmed through official Greenhouse, Lever or Ashby APIs are matched.`
             : 'Tavily is not configured. Set TAVILY_API_KEY on the server, or explicitly choose limited TAVILY_ACCESS_MODE=keyless, then restart.'}
         </p>
       )}

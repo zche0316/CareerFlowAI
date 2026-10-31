@@ -163,7 +163,7 @@ it('queries multiple employers concurrently, discloses partial failures and keep
     },
   });
   const r = await repo.search({ ...query, provider: 'employers' });
-  expect(r.jobs).toHaveLength(3);
+  expect(r.jobs).toHaveLength(9);
   expect(r.sources?.find((s: any) => s.board === 'vgw')?.status).toBe('unavailable');
   expect(r.jobs.every((j: any) => j.source.listingId === '42')).toBe(true);
   expect(r.jobs.find((j: any) => j.company === 'MongoDB')?.applicationUrl).toContain('mongodb.com');
