@@ -123,7 +123,7 @@ export const blankProfile: CareerProfile = {
   salaryMin: null,
   salaryMax: null,
   currency: '',
-  sharing: { coach: false, matching: false, resume: false, interview: false },
+  sharing: { coach: true, matching: true, resume: true, interview: true },
 };
 
 export type Fact = {
@@ -336,8 +336,8 @@ export const AGENTS = [
 
 export const jobSearchSchema = z.object({
   provider: z
-    .enum(['employers', 'greenhouse', 'tavily', 'adzuna', 'fixtures', 'manual'])
-    .default('greenhouse'),
+    .enum(['auto', 'employers', 'greenhouse', 'tavily', 'adzuna', 'fixtures', 'manual'])
+    .default('auto'),
   board: z
     .string()
     .regex(/^[a-zA-Z0-9_-]{1,80}$/)

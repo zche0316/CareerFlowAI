@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ApplicationReadiness } from './application-readiness.js';
 import { countries } from '../../../packages/recruitment/src/geography.js';
 export const defaultJobSearch = {
-  provider: 'employers',
+  provider: 'auto',
   board: 'spaceship',
   country: 'au',
   region: '',
@@ -27,21 +27,32 @@ export function JobSearchFields({
   return (
     <section>
       <h3>Job source and location</h3>
-      <label>
-        Job source
-        <select
-          aria-label="Job source"
-          value={value.provider}
-          onChange={(e) => update({ provider: e.target.value })}
-        >
-          <option value="employers">Official employer boards · multiple companies</option>
-          <option value="greenhouse">Live company careers (Greenhouse)</option>
-          <option value="tavily">Tavily discovery · verified public job boards</option>
-          <option value="adzuna">Live country-wide search (Adzuna credentials required)</option>
-          <option value="manual">SEEK / Indeed · paste a listing</option>
-          <option value="fixtures">Fictional demo jobs (explicit offline choice)</option>
-        </select>
-      </label>
+      <p className="small muted">
+        {value.provider === 'fixtures'
+          ? 'Offline demo listings are selected explicitly.'
+          : value.provider === 'manual'
+            ? 'Use the listing you provide below.'
+            : 'All configured live sources are searched automatically.'}
+      </p>
+      <details>
+        <summary>Advanced source options</summary>
+        <label>
+          Job source
+          <select
+            aria-label="Job source"
+            value={value.provider}
+            onChange={(e) => update({ provider: e.target.value })}
+          >
+            <option value="auto">Automatic · all available sources</option>
+            <option value="employers">Official employer boards · multiple companies</option>
+            <option value="greenhouse">Live company careers (Greenhouse)</option>
+            <option value="tavily">Tavily discovery · verified public job boards</option>
+            <option value="adzuna">Live country-wide search (Adzuna credentials required)</option>
+            <option value="manual">SEEK / Indeed · paste a listing</option>
+            <option value="fixtures">Fictional demo jobs (explicit offline choice)</option>
+          </select>
+        </label>
+      </details>
       {value.provider === 'tavily' && (
         <p role="status" className="info">
           {tavilyConfigured
@@ -128,11 +139,14 @@ export function JobSearchFields({
           </label>
         </div>
       )}
-      <p className="small muted">
-        Jobs are fetched during the matching step. No fixture fallback after API errors. Unknown
-        global-remote locations are excluded when country eligibility is unclear. Adzuna needs
-        separate server credentials.
-      </p>
+      <details className="source-help">
+        <summary>About job sources</summary>
+        <p>
+          Jobs are retrieved when the mission reaches matching. Source failures are reported; sample
+          jobs are never substituted. Availability and location must be checked on the original
+          listing.
+        </p>
+      </details>
     </section>
   );
 }
@@ -167,8 +181,8 @@ export function ApplicationPanel({
       <h2>Prepare your real application</h2>
       <ApplicationReadiness key={mission.id} missionId={mission.id} api={request} />
       <p>
-        Review the exact approved resume and official destination before continuing. SEEK/Indeed
-        direct auto-submit is unavailable without platform partner authorization.
+        Check your approved resume and destination. You submit the application on the employer’s
+        site.
       </p>
       <button className="secondary" disabled={busy} onClick={() => void load()}>
         Review application package
@@ -180,7 +194,10 @@ export function ApplicationPanel({
             {packet.company} · {packet.title}
           </h3>
           <p>{packet.destination}</p>
-          <pre>{packet.resumeText}</pre>
+          <details>
+            <summary>Preview attached resume</summary>
+            <pre>{packet.resumeText}</pre>
+          </details>
           <p>{packet.notice}</p>
           <div className="mission-actions">
             <a className="secondary" href={`/api/resumes/${packet.approvedResumeId}/download`}>

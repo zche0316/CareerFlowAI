@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { JobRepository } from '../packages/recruitment/src/repository.js';
 const query = {
   provider: 'greenhouse',
@@ -10,6 +10,42 @@ const query = {
 };
 const response = (data: unknown) =>
   ({ ok: true, text: async () => JSON.stringify(data) }) as Response;
+it('automatically merges configured sources, removes duplicate jobs and tolerates an unavailable source', async () => {
+  const repo = new JobRepository({ adzunaId: 'test-id', adzunaKey: 'test-key' });
+  const original = repo.search.bind(repo);
+  let unavailable = false;
+  const called: string[] = [];
+  const spy = vi
+    .spyOn(repo, 'search')
+    .mockImplementation(async (criteria: any, options?: any): Promise<any> => {
+      if (criteria.provider === 'auto') return original(criteria, options);
+      called.push(criteria.provider);
+      if (criteria.provider === 'adzuna' && unavailable) throw Error('Provider unavailable');
+      const jobs =
+        criteria.provider === 'employers'
+          ? [{ id: 'one', applicationUrl: 'https://jobs.example.com/one' }]
+          : criteria.provider === 'adzuna'
+            ? [
+                { id: 'duplicate', applicationUrl: 'https://jobs.example.com/one' },
+                { id: 'two', applicationUrl: 'https://jobs.example.com/two' },
+              ]
+            : [];
+      return { jobs, sources: [], limitations: [] };
+    });
+  try {
+    const combined = await repo.search({ ...query, provider: 'auto' });
+    expect(called).toContain('employers');
+    expect(called).toContain('adzuna');
+    expect(combined.jobs).toHaveLength(2);
+    expect(combined.duplicateCount).toBe(1);
+    unavailable = true;
+    const partial = await repo.search({ ...query, provider: 'auto' });
+    expect(partial.jobs).toHaveLength(1);
+    expect(partial.sources).toContainEqual({ provider: 'adzuna', status: 'unavailable', count: 0 });
+  } finally {
+    spy.mockRestore();
+  }
+});
 it('fetches real board data and excludes explicit foreign countries and uncertain remote locations', async () => {
   let requested = '';
   const repo = new JobRepository({
@@ -269,7 +305,7 @@ it('reads recruitment defaults and exports only credential availability', async 
     ADZUNA_APP_ID: 'secret-id',
     ADZUNA_APP_KEY: 'secret-key',
   });
-  expect(settings.defaults).toEqual({ provider: 'adzuna', country: 'au' });
+  expect(settings.defaults).toEqual({ provider: 'auto', country: 'au' });
   expect(settings.adzunaConfigured).toBe(true);
   expect(JSON.stringify(settings)).not.toContain('secret');
 });

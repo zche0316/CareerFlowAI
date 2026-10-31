@@ -8,7 +8,7 @@ test('structured records and locally imported text remain separate from approval
   await page.getByLabel('Email address').fill(`import-qa-${Date.now()}@careerflow.test`);
   await page.getByLabel('Password', { exact: true }).fill('Fictional-import-QA-password');
   await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
-  await page.getByRole('button', { name: 'Career chat', exact: true }).click();
+  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
   await page.getByText('Demo test data', { exact: true }).click();
   await page.getByRole('button', { name: 'Use fictional example', exact: true }).click();
   await page.getByText('Edit profile details manually', { exact: true }).click();
@@ -58,7 +58,7 @@ test('structured records and locally imported text remain separate from approval
   await page.getByRole('button', { name: 'Approve & save profile', exact: true }).click();
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
   await page.reload();
-  await page.getByRole('button', { name: 'Career chat', exact: true }).click();
+  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
   await page.getByText('Edit profile details manually', { exact: true }).click();
   await expect(page.getByLabel('Work experience 1 title', { exact: true })).toHaveValue(
     'Fictional Software Engineer',

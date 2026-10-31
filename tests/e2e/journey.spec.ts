@@ -12,7 +12,7 @@ async function createAccount(page: Page) {
 
 async function openRankedJobs(page: Page) {
   await createAccount(page);
-  await page.getByRole('button', { name: 'Career chat', exact: true }).click();
+  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
   await page.getByText('Demo test data', { exact: true }).click();
   await page.getByRole('button', { name: 'Use fictional example' }).click();
   await page.getByText('Edit profile details manually', { exact: true }).click();
@@ -22,6 +22,7 @@ async function openRankedJobs(page: Page) {
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Overview', exact: true }).click();
   await page.getByRole('button', { name: 'New career mission' }).click();
+  await page.getByText('Advanced source options', { exact: true }).click();
   await page.getByLabel('Job source', { exact: true }).selectOption('fixtures');
   await page.getByRole('button', { name: 'Start career mission', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Select this opportunity' }).first()).toBeVisible({
@@ -37,7 +38,7 @@ async function openInterview(page: Page) {
   });
   await page.getByRole('button', { name: '04 · Resume tailoring', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Approve & save resume' })).toBeDisabled();
-  await page.getByLabel('I reviewed the selected claims').check();
+  await page.getByLabel('I reviewed this resume').check();
   await page.getByRole('button', { name: 'Approve & save resume' }).click();
   await expect(
     page.getByRole('heading', { name: 'Get ready for the conversation', exact: true }),
@@ -47,7 +48,7 @@ async function openInterview(page: Page) {
 
 test('a user must explicitly review a profile before v1 is persisted', async ({ page }) => {
   await createAccount(page);
-  await page.getByRole('button', { name: 'Career chat', exact: true }).click();
+  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
   await page.getByText('Demo test data', { exact: true }).click();
   await page.getByRole('button', { name: 'Use fictional example' }).click();
   await page.getByText('Edit profile details manually', { exact: true }).click();
@@ -61,7 +62,7 @@ test('a user must explicitly review a profile before v1 is persisted', async ({ 
   await approve.click();
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
   await page.reload();
-  await page.getByRole('button', { name: 'Career chat', exact: true }).click();
+  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
   await page.screenshot({ path: 'output/acceptance/cfs-13-approved-v1.png', fullPage: true });
 });
@@ -83,9 +84,7 @@ test('a user compares ranked jobs and selects one for downstream context', async
   await expect(page.getByRole('heading', { name: 'Your evidence-grounded resume' })).toBeVisible({
     timeout: 30000,
   });
-  await expect(page.locator('#resume-tailoring')).toContainText(
-    selectedTitle,
-  );
+  await expect(page.locator('#resume-tailoring')).toContainText(selectedTitle);
   // Selection opens resume review; the chosen opportunity remains available in Job matching.
   await page.getByRole('button', { name: '03 · Job matching', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Your selected opportunity' })).toBeVisible();
@@ -97,9 +96,7 @@ test('a user compares ranked jobs and selects one for downstream context', async
   await expect(page.getByRole('heading', { name: 'Your evidence-grounded resume' })).toBeVisible({
     timeout: 30000,
   });
-  await expect(page.locator('#resume-tailoring')).toContainText(
-    selectedTitle,
-  );
+  await expect(page.locator('#resume-tailoring')).toContainText(selectedTitle);
   await page.screenshot({
     path: 'output/acceptance/cfs-21-selected-job-handoff.png',
     fullPage: true,

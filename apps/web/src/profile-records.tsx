@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { CareerProfile } from '../../../packages/contracts/src/index.js';
+import { experienceOverview } from '../../../packages/contracts/src/experience-view.js';
 import {
   recordKeys,
   type ProfileRecord,
@@ -71,6 +72,31 @@ export function ProfileRecords({
                     onChange={(e) => update(key, r.id, { startMonth: e.target.value || null })}
                   />
                 </label>
+                {key === 'educations' && (
+                  <>
+                    <label>
+                      Major / Specialisation (optional)
+                      <input
+                        aria-label={`Education records ${index + 1} major`}
+                        value={r.major || ''}
+                        maxLength={200}
+                        onChange={(e) => update(key, r.id, { major: e.target.value })}
+                      />
+                    </label>
+                    <label>
+                      Relevant coursework (optional, one per line)
+                      <textarea
+                        aria-label={`Education records ${index + 1} relevant coursework`}
+                        value={(r.relevantCoursework || []).join('\n')}
+                        onChange={(e) =>
+                          update(key, r.id, {
+                            relevantCoursework: e.target.value.split('\n').slice(0, 20),
+                          })
+                        }
+                      />
+                    </label>
+                  </>
+                )}
                 <label>
                   {key === 'educations' ? 'Completion month' : 'End month'}
                   <input
@@ -108,13 +134,62 @@ export function ProfileRecords({
                   Current / Present
                 </label>
                 <label className="wide">
-                  Responsibilities, contributions and outcomes · one per line
+                  {key === 'educations'
+                    ? 'Academic notes / achievements (optional, one per line)'
+                    : 'Experience overview · responsibilities, tools and scope'}
                   <textarea
                     aria-label={`${labels[key]} ${index + 1} details`}
-                    value={r.details.join('\n')}
-                    onChange={(e) => update(key, r.id, { details: e.target.value.split('\n') })}
+                    value={key === 'educations' ? r.details.join('\n') : experienceOverview(r)}
+                    onChange={(e) =>
+                      update(
+                        key,
+                        r.id,
+                        key === 'educations'
+                          ? { details: e.target.value.split('\n') }
+                          : {
+                              overview: e.target.value,
+                              details: [
+                                e.target.value,
+                                ...Object.values(r.starStory || {}).filter(Boolean),
+                              ],
+                              organisedStory: undefined,
+                            },
+                      )
+                    }
                   />
                 </label>
+                {key !== 'educations' && (
+                  <details className="wide">
+                    <summary>Personal STAR example (optional)</summary>
+                    {(['situation', 'task', 'action', 'result'] as const).map((part) => (
+                      <label key={part}>
+                        {part[0].toUpperCase() + part.slice(1)}
+                        <textarea
+                          aria-label={`${labels[key]} ${index + 1} STAR ${part}`}
+                          value={r.starStory?.[part] || ''}
+                          onChange={(e) => {
+                            const story = {
+                              situation: '',
+                              task: '',
+                              action: '',
+                              result: '',
+                              ...r.starStory,
+                              [part]: e.target.value,
+                            };
+                            update(key, r.id, {
+                              starStory: story,
+                              details: [
+                                experienceOverview(r),
+                                ...Object.values(story).filter(Boolean),
+                              ],
+                              organisedStory: undefined,
+                            });
+                          }}
+                        />
+                      </label>
+                    ))}
+                  </details>
+                )}
                 <label>
                   Technologies · comma separated
                   <input

@@ -9,11 +9,7 @@ export const employerBoards = [
   { board: 'mongodb', company: 'MongoDB', hosts: ['www.mongodb.com', 'mongodb.com'] },
 ];
 export function recruitmentSettings(env = process.env) {
-  const provider = ['employers', 'greenhouse', 'tavily', 'adzuna', 'fixtures'].includes(
-    env.JOB_SOURCE,
-  )
-    ? env.JOB_SOURCE
-    : 'employers';
+  const provider = env.JOB_SOURCE === 'fixtures' ? 'fixtures' : 'auto';
   const country = countries.some((c) => c.code === env.ADZUNA_COUNTRY) ? env.ADZUNA_COUNTRY : 'au';
   return {
     defaults: { provider, country },
@@ -300,6 +296,47 @@ export class JobRepository {
         limitations: ['User-provided content; availability and accuracy have not been verified.'],
       };
     if (b.provider === 'tavily') return discoverTavily(this, b, signal);
+    if (b.provider === 'auto') {
+      const providers = [
+        'employers',
+        ...(tavilyAccess().configured ? ['tavily'] : []),
+        ...(this.adzunaId && this.adzunaKey ? ['adzuna'] : []),
+      ];
+      const outcomes = await Promise.allSettled(
+        providers.map((provider) => this.search({ ...b, provider }, { signal })),
+      );
+      signal?.throwIfAborted();
+      if (outcomes.every((r) => r.status === 'rejected'))
+        throw Error('All configured job sources are unavailable. No demo jobs were substituted.');
+      const batches = outcomes.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []));
+      const raw = batches.flatMap((r) => r.jobs);
+      const jobs = uniqueJobs(raw);
+      return {
+        jobs,
+        count: jobs.length,
+        duplicateCount: raw.length - jobs.length,
+        geography: { country, countryName: geo.name, region, city: b.location },
+        sources: outcomes.flatMap((r, i) =>
+          r.status === 'fulfilled'
+            ? r.value.sources?.length
+              ? r.value.sources
+              : [{ provider: providers[i], status: 'retrieved', count: r.value.jobs.length }]
+            : [{ provider: providers[i], status: 'unavailable', count: 0 }],
+        ),
+        discovery: batches.find((r) => r.discovery)?.discovery || null,
+        limitations: [
+          ...new Set([
+            'All configured live sources searched; coverage is not the entire job market.',
+            ...batches.flatMap((r) => r.limitations || []),
+            ...outcomes.flatMap((r, i) =>
+              r.status === 'rejected'
+                ? [providers[i] + ' source unavailable; other sources retained.']
+                : [],
+            ),
+          ]),
+        ],
+      };
+    }
     if (b.provider === 'employers') {
       const outcomes = await Promise.allSettled(
         employerBoards.map((source) =>

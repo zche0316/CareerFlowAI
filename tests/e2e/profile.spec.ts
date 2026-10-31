@@ -26,7 +26,7 @@ async function openProfile(page: Page, approvedProfile: () => unknown = () => nu
     }),
   );
   await page.goto('/');
-  await page.getByRole('button', { name: 'Career chat', exact: true }).click();
+  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
   await page.getByText('Edit profile details manually', { exact: true }).click();
   await expect(page.getByLabel('Full name', { exact: true })).toBeVisible();
 }
@@ -50,7 +50,7 @@ async function draftResponse(route: Route) {
   });
 }
 
-test('a new profile starts with no invented background or sharing permissions', async ({
+test('a new profile starts with no invented background and automatic career-team access', async ({
   page,
 }) => {
   await openProfile(page);
@@ -61,9 +61,11 @@ test('a new profile starts with no invented background or sharing permissions', 
   await expect(
     page.getByLabel('Experience and projects or “none yet”', { exact: true }),
   ).toHaveValue('');
-  for (const name of ['Career Coach', 'Job Matcher', 'Resume Tailor', 'Interview Coach']) {
-    await expect(page.getByRole('checkbox', { name, exact: true })).not.toBeChecked();
-  }
+  await expect(
+    page.getByText('Your career team uses approved profile facts when you start a mission.', {
+      exact: false,
+    }),
+  ).toBeVisible();
 });
 
 test('a pending save locks the reviewed form and a failed save keeps it available', async ({
@@ -177,6 +179,7 @@ test('a delayed chat update cannot overwrite a manual edit or approve the profil
 }) => {
   const request = holdRequest();
   const form = structuredClone(sampleProfile);
+  form.name = '';
   const thread = {
     id: 'chat-ui',
     revision: 2,
@@ -215,7 +218,9 @@ test('a delayed chat update cannot overwrite a manual edit or approve the profil
   await page.getByLabel('Full name', { exact: true }).fill('My manual name');
   request.release();
   await expect(
-    page.getByText('You edited these details while the request ran.', { exact: false }),
+    page
+      .getByRole('region', { name: 'Persistent Profile Builder', exact: true })
+      .getByRole('alert'),
   ).toBeVisible();
   await expect(page.getByLabel('Full name', { exact: true })).toHaveValue('My manual name');
   await expect(page.getByRole('button', { name: 'Approve & save profile' })).toHaveCount(0);
@@ -402,7 +407,11 @@ test('saved-answer preparation with no proposals reports no changes instead of s
   await page
     .getByRole('button', { name: 'Prepare missing experience from saved answers', exact: true })
     .click();
-  await expect(page.getByRole('alert')).toContainText('No source-supported suggestions');
+  await expect(
+    page
+      .getByRole('region', { name: 'Persistent Profile Builder', exact: true })
+      .getByRole('alert'),
+  ).toContainText('No source-supported suggestions');
   await expect(
     page.getByRole('status').filter({ hasText: 'No draft updates were prepared' }),
   ).toBeVisible();

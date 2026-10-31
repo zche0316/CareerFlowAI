@@ -10,11 +10,14 @@ import { registerProfileImports } from './profile-import.js';
 import { registerExperienceOrganisation } from './experience-organisation.js';
 import { registerProfileConversations } from './profile-conversations.js';
 import { registerCareerMemory } from './career-memory.js';
+import { registerProfilePolish } from './profile-polish.js';
 import { registerResumeWording } from './resume-wording.js';
+import { registerResumeAgent } from './resume-agent.js';
 import { registerApplicationReadiness } from './application-readiness.js';
 import { registerJobFit } from './job-fit.js';
 import { registerApplicationVersions } from './application-versions.js';
 import { routerSettings } from '../../../packages/agents/src/router.js';
+import { suggestJobSearch } from '../../../packages/contracts/src/job-search.js';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
@@ -227,6 +230,8 @@ export function createApp() {
   registerExperienceOrganisation(app);
   registerCareerMemory(app);
   registerResumeWording(app);
+  registerResumeAgent(app);
+  registerProfilePolish(app);
   registerJobFit(app);
   registerApplicationReadiness(app);
   registerApplicationVersions(app);
@@ -298,13 +303,12 @@ export function createApp() {
           'Describe what the Career Coach should revisit.',
         );
     }
-    const sharing = (profile.data as any).sharing;
-    if (Object.values(sharing).some((v) => !v))
-      throw new AppError(
-        403,
-        'SHARING_REQUIRED',
-        'The full five-agent mission needs permission for all four downstream agents. Review sharing preferences and approve a new profile.',
-      );
+    const suggestions = suggestJobSearch(profile.data as any);
+    const search = {
+      ...jobSearch,
+      keyword: jobSearch.keyword || suggestions.keyword,
+      location: jobSearch.location || (jobSearch.country === 'au' ? suggestions.location : ''),
+    };
     const previous = await db.mission.findFirst({
       where: { userId: req.actor!.id, status: 'COMPLETE' },
       orderBy: { updatedAt: 'desc' },
@@ -330,7 +334,8 @@ export function createApp() {
           apiCalls: 0,
           priorFeedback,
           minScore,
-          jobSearch,
+          jobSearch: search,
+          agentAccess: 'all-approved-profile',
           simulateSourceFailure: process.env.ENABLE_DEMO_LOGIN === 'true' && simulateSourceFailure,
           analysisFeedback,
           ...(sourceMissionId ? { refinedFromMissionId: sourceMissionId } : {}),

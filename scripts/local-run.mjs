@@ -9,7 +9,7 @@ const env = {
   DEV_DATABASE: 'portable',
   DATABASE_URL: database.url,
   ...(process.argv.includes('--verify')
-    ? { JOB_SOURCE: 'fixtures', PROVIDER_MODE: 'fixture' }
+    ? { JOB_SOURCE: 'fixtures', PROVIDER_MODE: 'fixture', OPENAI_NATIVE_API_KEY: '' }
     : {}),
 };
 let active,
@@ -55,4 +55,3 @@ try {
   process.removeListener('SIGINT', stop);
   process.removeListener('SIGTERM', stop);
 }
-

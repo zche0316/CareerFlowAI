@@ -1,11 +1,31 @@
 import { it, expect } from 'vitest';
 import { sampleProfile } from '../packages/contracts/src/index.js';
+import { recordSchema } from '../packages/contracts/src/profile-records.js';
 import {
   interviewState,
   interviewIntent,
   planInterview,
   transitionInterview,
 } from '../packages/contracts/src/profile-interview.js';
+it('does not require optional majors or coursework before continuing the interview', () => {
+  const p = {
+    ...sampleProfile,
+    education: '',
+    educations: [
+      recordSchema.parse({
+        id: 'degree',
+        title: 'Bachelor of Commerce',
+        organisation: 'University of Sydney',
+        startMonth: '2024-02',
+        current: true,
+      }),
+    ],
+  };
+  const plan = planInterview(p, interviewState([], p));
+  expect(plan.state.question?.text || '').not.toMatch(
+    /major|coursework|subjects|education|degree/i,
+  );
+});
 const profile = {
   ...sampleProfile,
   projects: [
@@ -20,6 +40,56 @@ const profile = {
     },
   ],
 };
+it('asks for an optional personal incident after a role overview instead of repeating duties or tools', () => {
+  const p = {
+    ...sampleProfile,
+    projects: [],
+    workExperiences: [
+      {
+        id: 'intern',
+        title: 'Business Analyst Intern',
+        organisation: 'Northstar Logistics',
+        startMonth: '2025-11',
+        endMonth: '2026-02',
+        current: false,
+        details: ['I supported reporting using SQL and Excel; I did not manage the team.'],
+        technologies: [],
+      },
+    ],
+  };
+  const first = planInterview(p, interviewState([], p));
+  expect(first.state.question?.key).toContain(':story:situation');
+  expect(first.state.question?.text).toContain('optional');
+  transitionInterview(first.state, 'skip_question', p);
+  expect(planInterview(p, first.state).state.question).toBeNull();
+  const withStory = {
+    ...p,
+    workExperiences: [
+      {
+        ...p.workExperiences[0],
+        starStory: {
+          situation: 'Warehouses used inconsistent labels.',
+          task: 'I needed to standardise the categories.',
+          action: 'I reviewed definitions with my supervisor.',
+          result: 'Preparation took about one hour rather than half a day.',
+        },
+      },
+    ],
+  };
+  expect(planInterview(withStory, interviewState([], withStory)).state.question).toBeNull();
+  const missingResult = {
+    ...p,
+    workExperiences: [
+      {
+        ...withStory.workExperiences[0],
+        starStory: { ...withStory.workExperiences[0].starStory, result: '' },
+      },
+    ],
+  };
+  expect(
+    planInterview(missingResult, interviewState([], missingResult)).state.question?.key,
+  ).toContain(':story:result');
+});
 it('treats enough as a durable control and excludes finished experiences from subsequent questions', () => {
   expect(interviewIntent('I think the content is enough now for this project')).toBe(
     'finish_experience',

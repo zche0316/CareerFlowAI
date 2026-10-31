@@ -2,6 +2,8 @@ export type ResumeRecord = {
   id: string;
   section: string;
   title: string;
+  major?: string;
+  expectedEndMonth?: string | null;
   organisation?: string;
   location?: string;
   startMonth?: string | null;
@@ -84,7 +86,9 @@ export function resumeLayout(c: ResumeView) {
           section,
           [
             r.title,
+            r.major ? `Major: ${r.major}` : '',
             [r.organisation, r.location, dates].filter(Boolean).join(' · '),
+            r.expectedEndMonth ? `Expected completion: ${r.expectedEndMonth}` : '',
             ...bullets.map((s) => '• ' + s),
           ]
             .filter(Boolean)
@@ -141,6 +145,8 @@ export function resumeRecordIndex(p: any): ResumeRecord[] {
             ? 'activities'
             : section,
       title: r.title,
+      major: r.major,
+      expectedEndMonth: r.expectedEndMonth,
       organisation: r.organisation,
       location: r.location,
       startMonth: r.startMonth,

@@ -27,7 +27,7 @@ afterEach(() => vi.unstubAllEnvs());
 it('accepts Tavily as a source without exposing credentials through capabilities', () => {
   expect(jobSearchSchema.parse(criteria).provider).toBe('tavily');
   const settings = recruitmentSettings({ JOB_SOURCE: 'tavily', TAVILY_API_KEY: 'secret' });
-  expect(settings.defaults.provider).toBe('tavily');
+  expect(settings.defaults.provider).toBe('auto');
   expect(settings.tavilyConfigured).toBe(true);
   expect(JSON.stringify(settings)).not.toContain('secret');
 });

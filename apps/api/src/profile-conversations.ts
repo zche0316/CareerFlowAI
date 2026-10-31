@@ -1,5 +1,7 @@
 import type { Express } from 'express';
 import { labelledExperience } from './labelled-experience.js';
+import { profileModelNotes, searchProfileHistory } from './profile-context.js';
+import { canonicalProfileField } from '../../../packages/contracts/src/profile-comparison.js';
 import {
   interviewState,
   interviewIntent,
@@ -30,9 +32,14 @@ import { recordKeys, recordSchema } from '../../../packages/contracts/src/profil
 import {
   importedRecordSchema,
   dateSupported,
+  ongoingSupported,
   groundImportedRecords,
 } from '../../../packages/agents/src/import-model.js';
-import { generate, configuredMode } from '../../../packages/agents/src/provider.js';
+import {
+  generate,
+  configuredMode,
+  providerTimeoutMs,
+} from '../../../packages/agents/src/provider.js';
 
 const formSchema = z.object({
   ...profileSchema.shape,
@@ -42,17 +49,7 @@ const formSchema = z.object({
 const owner = (userId: string, id: string) =>
   db.profileThread.findFirst({ where: { id, userId } }).then(requireValue);
 // PostgreSQL JSONB reorders object keys. Compare values, not serialization order.
-const canonical = (value: any): any =>
-  Array.isArray(value)
-    ? value.map(canonical)
-    : value && typeof value === 'object'
-      ? Object.fromEntries(
-          Object.keys(value)
-            .sort()
-            .map((k) => [k, canonical(value[k])]),
-        )
-      : value;
-const fieldDigest = (value: unknown) => digest(canonical(value ?? []));
+const fieldDigest = (value: unknown) => digest(canonicalProfileField(value));
 const hasQuote = (text: string, quote: string) =>
   text.toLowerCase().replace(/\s+/g, ' ').includes(quote.toLowerCase().replace(/\s+/g, ' '));
 const interviewProfile = (t: any, profile = t.workingForm) =>
@@ -82,13 +79,17 @@ export const conversationModelProfile = (profile: any) => ({
         startMonth: r.startMonth,
         endMonth: r.endMonth,
         current: r.current,
-        technologies: r.technologies,
-        details: (r.details || []).slice(0, 4).map((s: string) => s.slice(0, 160)),
+        major: r.major,
+        expectedEndMonth: r.expectedEndMonth,
+        details: [],
+        storyParts: Object.entries(r.starStory || {})
+          .filter(([, value]) => Boolean(value))
+          .map(([key]) => key),
       })),
     ]),
   ),
 });
-const publicThread = (t: any) => ({
+export const publicThread = (t: any) => ({
   ...t,
   busyToken: undefined,
   busyUntil: undefined,
@@ -107,6 +108,7 @@ const publicThread = (t: any) => ({
   processing: !!t.busyToken && t.busyUntil > new Date(),
 });
 const conversationRecordSchema = importedRecordSchema.extend({
+  details: z.array(z.string().max(2000)).max(20).default([]),
   evidence: z
     .array(z.object({ page: z.number().int().min(1).max(30), quote: z.string().min(1).max(6000) }))
     .min(1)
@@ -223,6 +225,7 @@ export function registerProfileConversations(app: Express) {
       .object({
         currentProfile: formSchema,
         title: z.string().trim().min(1).max(100).default('Career profile conversation'),
+        mode: z.enum(['build', 'edit']).default('build'),
       })
       .parse(req.body);
     const userId = req.actor!.id;
@@ -244,8 +247,16 @@ export function registerProfileConversations(app: Express) {
                 id: randomUUID(),
                 role: 'assistant',
                 at: new Date().toISOString(),
-                text: 'Let’s start with your direction. You can use course projects, personal projects, volunteering or work; no resume is required.',
-                questions: firstPlan.state.question ? [firstPlan.state.question.text] : [],
+                text:
+                  input.mode === 'edit'
+                    ? 'What would you like to change in your profile? I will suggest edits for you to review.'
+                    : 'Let’s start with your direction. You can use course projects, personal projects, volunteering or work; no resume is required.',
+                questions:
+                  input.mode === 'edit'
+                    ? []
+                    : firstPlan.state.question
+                      ? [firstPlan.state.question.text]
+                      : [],
                 interviewState: firstPlan.state,
               },
             ]),
@@ -279,6 +290,7 @@ export function registerProfileConversations(app: Express) {
         currentProfile: formSchema,
         revision: z.number().int(),
         consent: z.literal(true),
+        mode: z.enum(['build', 'edit']).default('build'),
         retryMessageId: z.string().uuid().optional(),
         recoverSavedAnswers: z.literal(true).optional(),
       })
@@ -287,7 +299,7 @@ export function registerProfileConversations(app: Express) {
       t = await owner(userId, String(req.params.id));
     const messages = t.messages as any[];
     const action = interviewIntent(input.text);
-    if (action && !input.retryMessageId && !input.recoverSavedAnswers) {
+    if (input.mode === 'build' && action && !input.retryMessageId && !input.recoverSavedAnswers) {
       res.json(await controlInterview(userId, t.id, { ...input, action }));
       return;
     }
@@ -308,7 +320,12 @@ export function registerProfileConversations(app: Express) {
         'RECOVERY_STAGE',
         'Finish the interview before organising saved answers.',
       );
-    if (previousState.phase === 'review' && !input.retryMessageId && !input.recoverSavedAnswers)
+    if (
+      input.mode === 'build' &&
+      previousState.phase === 'review' &&
+      !input.retryMessageId &&
+      !input.recoverSavedAnswers
+    )
       throw new AppError(
         409,
         'INTERVIEW_FINISHED',
@@ -366,6 +383,8 @@ export function registerProfileConversations(app: Express) {
         'Conversation changed or is processing. Reload before sending again.',
       );
     let response: any;
+    const startedAt = Date.now();
+    const historySearches: { query: string; offset: number; hits: number }[] = [];
     let processingStage = 'model-response';
     try {
       const sourceMessages: any[] = [];
@@ -378,7 +397,7 @@ export function registerProfileConversations(app: Express) {
         .reverse()) {
         // Keep a contiguous recent window, including the current/retried answer.
         // The full conversation remains saved in updatedMessages.
-        if (sourceSize + item.text.length > 18000) break;
+        if (sourceSize + item.text.length > 120000) break;
         sourceMessages.unshift(item);
         sourceSize += item.text.length;
       }
@@ -388,15 +407,10 @@ export function registerProfileConversations(app: Express) {
         route: 'text' as const,
         method: 'plain-text' as const,
       }));
-      const modelNotes: string[] = [];
-      let modelNoteSize = 0;
-      for (let i = sourceMessages.length - 1; i >= 0; i--) {
-        const text = `Message ${i + 1}: ${sourceMessages[i].text}`;
-        if (modelNoteSize + text.length > 9000) break;
-        modelNotes.unshift(text);
-        modelNoteSize += text.length;
-      }
-      const notes = modelNotes.join('\n');
+      // Complete sources stay server-side for retrieval and grounding only.
+      const notes = sourceMessages.map((m, i) => `Message ${i + 1}: ${m.text}`).join('\n');
+      const compactNotes = profileModelNotes(sourceMessages, Boolean(input.recoverSavedAnswers));
+      processingStage = 'evidence-retrieval';
       const evidence = await retrieveEvidence(
         userId,
         input.recoverSavedAnswers ? input.currentProfile.goals : input.text,
@@ -406,6 +420,7 @@ export function registerProfileConversations(app: Express) {
         !input.recoverSavedAnswers && answerPage > 0
           ? labelledExperience(input.text, answerPage)
           : null;
+      processingStage = 'model-response';
       const result = labelled
         ? {
             builder: profileBuilderDraftSchema.parse({
@@ -422,27 +437,36 @@ export function registerProfileConversations(app: Express) {
             {
               goal: input.recoverSavedAnswers
                 ? 'Prepare complete structured profile/project records from the saved user answers. Include finished experiences that are missing from the current draft. Do not ask questions. Do not approve or apply changes.'
-                : 'Build an editable career profile through a sustained interview.',
+                : input.mode === 'edit'
+                  ? 'Edit the existing career profile in response to the user request. Review clarity and completeness. Suggest only evidence-supported changes, preserve facts, and explain when no supported edit is needed. Do not restart a career interview. Never apply or approve changes.'
+                  : 'Build an editable career profile through a sustained interview.',
               prepareSavedAnswers: Boolean(input.recoverSavedAnswers),
               facts: [],
-              profileNotes: notes,
+              profileNotes: compactNotes,
+              educationRules:
+                'For education records extract major and relevantCoursework as separate optional fields, verbatim from user evidence. Never infer proficiency from attending a course. Do not ask for coursework when it was not supplied. Goals, salary, location and working preferences are coaching/matching context, not candidate accomplishments or resume copy.',
+              experienceRules:
+                'Separate the everyday role overview from ONE specific personal STAR example. General responsibilities, tools and workload belong to the overview, not automatically to a STAR story. For a concrete incident, return optional starStory {situation,task,action,result} using short exact contiguous source excerpts, empty for unknown parts. Include several supplied STAR parts together; never ask again about parts already stated. For work/projects omit details when original answers are already available to the server; do not repeat the full narrative. Use a short title anchor as evidence. The server preserves the original statements and overview. Never invent results or force a story when the user wants to move on.',
+              extractionRules:
+                'Return only new or changed fields and records supported by the recent answers. Do not re-emit unchanged profileBase records. Copy all profile values from original user wording; do not translate or paraphrase. Goals may use the original goal sentence. Omit unknown dates. For current study keep current=true, startMonth=stated enrolment month, endMonth=null, expectedEndMonth=explicit expected graduation month. Populate draft and records, not only a reply claiming they are organised.',
               profileBase: conversationModelProfile(input.currentProfile),
               interviewControl: previousState,
-              conversationHistory: updatedMessages
-                .filter((m) => m.role === 'assistant')
-                .slice(-4)
-                .map((m) => ({
-                  role: m.role,
-                  text: typeof m.text === 'string' ? m.text.slice(0, 400) : '',
-                  questions: m.questions || [],
-                })),
               retrievedEvidence: evidence.hits
                 .map((h) => ({ id: h.id, text: h.text.slice(0, 800) }))
                 .slice(0, 2),
             },
             assistantSchema,
             configuredMode(),
-            { onCall: async () => {}, onTool: async () => {}, onUsage: async () => {} },
+            {
+              onCall: async () => {},
+              onTool: async () => {},
+              onUsage: async () => {},
+              onSearchHistory: async (query, offset) => {
+                const found = searchProfileHistory(sourceMessages, query, offset);
+                historySearches.push({ query, offset, hits: found.hits.length });
+                return found;
+              },
+            },
           );
       processingStage = 'field-grounding';
       const groundingNotes = [
@@ -499,10 +523,48 @@ export function registerProfileConversations(app: Express) {
         if (r.current)
           add(pages.find((p) => /\bpresent\b|\bcurrent\b|至今/.test(p.text.toLowerCase())));
         for (const e of r.evidence) add(pages.find((p) => p.text.includes(e.quote)));
-        for (const value of [...r.technologies, ...r.details].filter(Boolean))
+        for (const value of [
+          ...r.technologies,
+          ...r.details,
+          ...Object.values(r.starStory || {}),
+        ].filter(Boolean))
           add(pages.find((p) => lower(p.text).includes(lower(value))));
+        const source = chosen
+          .map((p) => p.text)
+          .join('\n')
+          .toLowerCase();
+        const studying =
+          r.section === 'educations' && ongoingSupported(anchors.map((p) => p.text).join('\n'));
+        // Keep expected graduation separate even if a model uses endMonth.
+        const expected =
+          r.expectedEndMonth ||
+          (studying && /\bexpect(?:ed)?\b|预计|预期/.test(source) ? r.endMonth : null);
         return {
           ...r,
+          // Conversation dates are optional. An inferred enrolment month must
+          // not discard a verbatim, source-backed qualification altogether.
+          startMonth: dateSupported(
+            r.startMonth,
+            chosen
+              .map((p) => p.text)
+              .join('\n')
+              .toLowerCase(),
+          )
+            ? r.startMonth
+            : null,
+          endMonth: studying
+            ? null
+            : dateSupported(
+                  r.endMonth,
+                  chosen
+                    .map((p) => p.text)
+                    .join('\n')
+                    .toLowerCase(),
+                )
+              ? r.endMonth
+              : null,
+          expectedEndMonth: dateSupported(expected ?? null, source) ? expected : null,
+          current: studying || (r.current && !r.endMonth && ongoingSupported(source)),
           evidence: chosen.slice(0, 10).map((p) => ({ page: p.page, quote: p.text })),
         };
       });
@@ -604,6 +666,22 @@ export function registerProfileConversations(app: Express) {
                   );
             return recordSchema.parse({
               ...r,
+              ...(section !== 'educations' && originals.length
+                ? {
+                    overview: originals
+                      .filter(
+                        (line) =>
+                          line.messageId === originals[0].messageId &&
+                          !Object.values(r.starStory || {}).some((part) =>
+                            part.includes(line.text),
+                          ) &&
+                          !/^From .*\bI worked as\b/i.test(line.text),
+                      )
+                      .map((line) => line.text)
+                      .join(' ')
+                      .slice(0, 4000),
+                  }
+                : {}),
               // Only the deterministic labelled-answer path supplies a type.
               // Keep it after grounding; the model cannot invent a category.
               ...(labelled ? { experienceType: labelled.experienceType } : {}),
@@ -659,11 +737,29 @@ export function registerProfileConversations(app: Express) {
               const old = merged[index];
               merged[index] = {
                 ...old,
+                overview: old.overview || record.overview,
+                starStory:
+                  old.starStory || record.starStory
+                    ? {
+                        situation: record.starStory?.situation || old.starStory?.situation || '',
+                        task: record.starStory?.task || old.starStory?.task || '',
+                        action: record.starStory?.action || old.starStory?.action || '',
+                        result: record.starStory?.result || old.starStory?.result || '',
+                      }
+                    : undefined,
                 experienceType: record.experienceType || old.experienceType,
                 organisation: record.organisation || old.organisation,
                 location: record.location || old.location,
                 startMonth: record.startMonth || old.startMonth,
-                endMonth: record.endMonth || old.endMonth,
+                major: record.major || old.major,
+                relevantCoursework: [
+                  ...new Set([
+                    ...(old.relevantCoursework || []),
+                    ...(record.relevantCoursework || []),
+                  ]),
+                ].slice(0, 20),
+                expectedEndMonth: record.expectedEndMonth || old.expectedEndMonth,
+                endMonth: record.current ? null : record.endMonth || old.endMonth,
                 current: record.endMonth ? false : record.current || old.current,
                 details: [...new Set([...old.details, ...record.details])],
                 technologies: [...new Set([...old.technologies, ...record.technologies])],
@@ -699,6 +795,21 @@ export function registerProfileConversations(app: Express) {
             });
         }
       }
+      // A failed extraction is not an answered field. Keep it open instead of
+      // silently advancing to the next interview topic.
+      const unsupported = new Set(prepared.discardedFields);
+      if (
+        result.records.some(
+          (r) => r.section === 'educations' && grounded.rejected.includes(r.title),
+        )
+      )
+        unsupported.add('education');
+      const planState = {
+        ...previousState,
+        addressed: previousState.addressed.filter(
+          (key) => !unsupported.has(key.replace('profile:', '') as any),
+        ),
+      };
       const plan = planInterview(
         Object.assign(
           {},
@@ -713,9 +824,11 @@ export function registerProfileConversations(app: Express) {
             .map((p) => ({ [p.field]: p.after })),
           ...changes.map((p) => ({ [p.field]: p.after })),
         ),
-        previousState,
+        planState,
       );
-      const questions = plan.state.question ? [plan.state.question.text] : [];
+      const questions =
+        input.mode === 'edit' ? [] : plan.state.question ? [plan.state.question.text] : [];
+      const chinese = /\p{Script=Han}/u.test(input.text);
       response = {
         id: randomUUID(),
         role: 'assistant',
@@ -726,20 +839,24 @@ export function registerProfileConversations(app: Express) {
               ? `Prepared ${changes.length} draft update(s). Review the suggested details and choose Use these details in my draft. Your draft has not changed yet.`
               : 'No source-supported draft updates were prepared. Your draft is unchanged. See the preparation details below; do not approve the old draft expecting this experience to be included.'
             : null) ||
-          (!questions.length ? plan.hint : null) ||
-          (result.reply &&
-          /\b(?:I['’]ve|I have|I)\s+(?:added|saved|updated|approved|confirmed|applied)\b/i.test(
-            result.reply,
-          )
-            ? 'I have prepared a suggested update. Review it before adding it to your working draft.'
-            : result.reply) ||
-          (changes.length
-            ? 'I have organised the details you shared. Review them and update your working draft below.'
-            : 'Your message is saved. I will keep unknown details open and will not invent facts.'),
+          (input.mode === 'build' && !questions.length ? plan.hint : null) ||
+          (!changes.length && (prepared.discardedFields.length || grounded.rejected.length)
+            ? chinese
+              ? '这条消息已保留，但我还没有生成通过来源核对的 Profile 修改。右侧草稿尚未变化。'
+              : 'Your message is retained, but no source-supported profile changes are ready. Your working draft is unchanged.'
+            : changes.length
+              ? chinese
+                ? `已准备 ${changes.length} 处修改，请在 Profile 中逐项查看并接受，随后会加入草稿。`
+                : `Prepared ${changes.length} suggested change(s). Review and accept them in your profile to add them to the draft.`
+              : null) ||
+          (chinese
+            ? '消息已保留。本轮没有新的 Profile 修改，当前草稿未变化。'
+            : 'Your message is retained. There are no new profile changes in this turn; your working draft is unchanged.'),
         questions,
         interviewState: plan.state,
         retrieved: evidence.hits.map((h) => ({ id: h.id, text: h.text, score: h.score })),
         insufficientRecall: evidence.insufficientRecall,
+        historySearches,
         discarded: [...prepared.discardedFields, ...grounded.rejected],
         mode: configuredMode(),
         preparation: input.recoverSavedAnswers
@@ -773,15 +890,40 @@ export function registerProfileConversations(app: Express) {
       });
     } catch (error) {
       const failure = error as any;
+      const timedOut = failure?.name === 'ProviderTimeoutError';
+      const category = timedOut
+        ? 'timeout'
+        : failure?.name === 'ProviderOutputLimitError'
+          ? 'response-truncated'
+          : error instanceof z.ZodError || error instanceof SyntaxError
+            ? 'invalid-response'
+            : failure?.status === 429
+              ? 'rate-limit'
+              : failure?.status >= 500
+                ? 'provider-unavailable'
+                : failure?.status === 400
+                  ? 'provider-request-rejected'
+                  : failure?.status === 401 || failure?.status === 403
+                    ? 'provider-auth'
+                    : failure?.name === 'APIConnectionError'
+                      ? 'connection-error'
+                      : 'processing-error';
       response = {
         id: randomUUID(),
         role: 'assistant',
         at: new Date().toISOString(),
-        text: 'Your message was saved, but model processing failed. No fields or approved facts changed. You can retry in a new turn or continue manually.',
+        text: timedOut
+          ? `The model took longer than ${providerTimeoutMs('conversation') / 1000} seconds. Your answer is saved and your draft is unchanged. Use Retry saved answer to try again without retyping.`
+          : 'Your answer is saved, but processing did not complete. Your draft is unchanged. Open the failure details or retry the saved answer.',
         questions: [],
         interviewState: previousState,
         failed: true,
         diagnostic: {
+          category,
+          elapsedMs: Date.now() - startedAt,
+          timeoutMs: providerTimeoutMs('conversation'),
+          requestId: failure?.request_id || null,
+          historySearches,
           stage: processingStage,
           kind: failure?.name || 'Error',
           code: failure?.code || null,

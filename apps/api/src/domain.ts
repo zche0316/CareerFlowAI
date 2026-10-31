@@ -83,13 +83,30 @@ export function buildFacts(p: CareerProfile): Fact[] {
             'User-reviewed career record; complete original statements and source links retained',
         };
         return [
-          { ...common, id, text: recordText({ ...r, details: [] }) },
-          ...r.details.map((text, index) => ({
-            ...common,
-            id: `${id}-detail-${index + 1}`,
-            text,
-            recordHeaderId: id,
-          })),
+          { ...common, id, text: recordText({ ...r, details: [], relevantCoursework: [] }) },
+          ...(key === 'educations'
+            ? (r.relevantCoursework || []).map((course, index) => ({
+                ...common,
+                id: `${id}-coursework-${index + 1}`,
+                text: `Relevant coursework: ${course}`,
+                recordHeaderId: id,
+              }))
+            : []),
+          ...r.details.flatMap((text, index) =>
+            key === 'educations' &&
+            r.relevantCoursework?.some((course) =>
+              text.toLowerCase().includes(course.toLowerCase()),
+            )
+              ? []
+              : [
+                  {
+                    ...common,
+                    id: `${id}-detail-${index + 1}`,
+                    text,
+                    recordHeaderId: id,
+                  },
+                ],
+          ),
         ];
       }),
     ),

@@ -7,6 +7,94 @@ afterEach(() => {
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
 });
+it('supplies history only after the model requests the allowlisted search tool', async () => {
+  vi.stubEnv('OPENAI_NATIVE_API_KEY', '');
+  vi.stubEnv('LIGHT_TEXT_MODEL', 'gpt-6-luna');
+  vi.stubEnv('OPENAI_API_KEY', 'test-key');
+  vi.stubEnv('OPENAI_MODEL', 'test-model');
+  const bodies: any[] = [];
+  vi.stubGlobal('fetch', async (_input: unknown, init?: RequestInit) => {
+    bodies.push(JSON.parse(String(init?.body)));
+    const message =
+      bodies.length === 1
+        ? {
+            role: 'assistant',
+            content: null,
+            tool_calls: [
+              {
+                id: 'search-1',
+                type: 'function',
+                function: {
+                  name: 'search_profile_history',
+                  arguments: JSON.stringify({ query: 'Northstar', offset: 0 }),
+                },
+              },
+            ],
+          }
+        : { role: 'assistant', content: JSON.stringify({ result: 'ok' }) };
+    return new Response(
+      JSON.stringify({
+        id: 'chat-test',
+        object: 'chat.completion',
+        created: 1,
+        model: 'test-model',
+        choices: [
+          { index: 0, message, finish_reason: bodies.length === 1 ? 'tool_calls' : 'stop' },
+        ],
+        usage: { prompt_tokens: 1, completion_tokens: 1 },
+      }),
+      { headers: { 'Content-Type': 'application/json' } },
+    );
+  });
+  const search = vi.fn(async () => ({ hits: [{ page: 1, text: 'Earlier Northstar fact' }] }));
+  const result = await generate(
+    'conversation',
+    { goal: 'Build', facts: [], profileNotes: 'Current answer' },
+    z.object({ result: z.string() }),
+    'openai',
+    {
+      onCall: async () => {},
+      onTool: async () => {},
+      onUsage: async () => {},
+      onSearchHistory: search,
+    },
+  );
+  expect(result.result).toBe('ok');
+  expect(JSON.stringify(bodies[0].messages)).not.toContain('Earlier Northstar fact');
+  expect(bodies[0].reasoning_effort).toBe('none');
+  expect(search).toHaveBeenCalledWith('Northstar', 0);
+  expect(bodies[1].messages.find((m: any) => m.role === 'tool').content).toContain(
+    'Earlier Northstar fact',
+  );
+});
+it('classifies a profile deadline as a timeout instead of a generic model failure', async () => {
+  vi.stubEnv('PROFILE_TIMEOUT_MS', '50');
+  vi.stubEnv('OPENAI_API_KEY', 'test-only-not-a-real-key');
+  vi.stubEnv('OPENAI_MODEL', 'test-model');
+  vi.stubGlobal(
+    'fetch',
+    (_input: RequestInfo | URL, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener(
+          'abort',
+          () => reject(new DOMException('Deadline', 'AbortError')),
+          { once: true },
+        );
+      }),
+  );
+  await expect(
+    generate(
+      'conversation',
+      { goal: 'Build a profile', facts: [] },
+      z.object({ result: z.string() }),
+      'openai',
+      { onCall: async () => {}, onTool: async () => {}, onUsage: async () => {} },
+    ),
+  ).rejects.toMatchObject({
+    name: 'ProviderTimeoutError',
+    message: 'The model did not respond within 0.05 seconds.',
+  });
+});
 
 it('enforces the configured provider deadline below the 30-second budget', async () => {
   vi.stubEnv('PROVIDER_TIMEOUT_MS', '50');

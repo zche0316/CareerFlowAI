@@ -53,7 +53,10 @@ const containsValue = (source: string, value: unknown) => {
   const needle = normalized(value);
   if (!needle) return false;
   const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(`(?<![\\p{L}\\p{N}_+#])${escaped}(?![\\p{L}\\p{N}_+#])`, 'u').test(text);
+  // Han text has no whitespace word boundaries. Keep Latin token protection
+  // (Java must not match JavaScript) without rejecting “悉尼” in “寻找悉尼的”.
+  const boundary = '[\\p{Script=Latin}\\p{N}_+#]';
+  return new RegExp(`(?<!${boundary})${escaped}(?!${boundary})`, 'u').test(text);
 };
 
 // A mentioned skill/qualification can be explicitly absent or only a learning
@@ -169,15 +172,20 @@ export async function prepareProfileBuilderDraft(input: {
   for (const field of builderFields) {
     const proposed = result.draft[field];
     if (proposed === undefined || sameValue(proposed, base[field])) continue;
-    const values = atomicValues(proposed);
+    let values = atomicValues(proposed);
     const quotes = citedChanges.filter((change) => change.field === field);
+    if (Array.isArray(proposed)) {
+      values = values.filter((value) =>
+        quotes.some((quote) => supportsValue(field, value, quote.evidence, sources)),
+      );
+    }
     if (
       values.length &&
       values.every((value) =>
         quotes.some((quote) => supportsValue(field, value, quote.evidence, sources)),
       )
     )
-      prepared[field] = proposed;
+      prepared[field] = Array.isArray(proposed) ? values : proposed;
     else discardedFields.push(field);
   }
 
@@ -246,7 +254,7 @@ export function citeExactUserValues(
     const statedGoal = [...clauses]
       .reverse()
       .find((clause) =>
-        /\b(?:I want|I would like|my goal|I aim|I hope)\b.*\b(?:role|career|job|work|become|apply)\b|我(?:想|希望).*(?:岗位|职业|工作)/i.test(
+        /\b(?:I want|I would like|my goal|I aim|I hope)\b.*\b(?:role|career|job|work|become|apply)\b|我(?:想|希望|正在寻找).*(?:岗位|职业|工作)/i.test(
           clause,
         ),
       );
