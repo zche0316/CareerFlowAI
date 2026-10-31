@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { blankProfile } from '../../packages/contracts/src/index.js';
-test('a candidate with no resume or formal work builds a story, selects job content, exports and retains feedback as a draft', async ({
+test('a candidate with no resume or formal work builds a story, selects job content, exports and reviews saved feedback', async ({
   page,
 }) => {
   let uploads = 0;
@@ -157,16 +157,15 @@ test('a candidate with no resume or formal work builds a story, selects job cont
   await page.getByLabel('Your response', { exact: true }).fill(action);
   await page.getByRole('button', { name: 'Save response', exact: true }).click();
   await page.getByRole('button', { name: 'Finish early & get feedback', exact: true }).click();
-  await page.getByText('Keep a learning note', { exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Strengths', exact: true })).toBeVisible({
+    timeout: 30000,
+  });
   await expect(
     page.getByRole('button', {
       name: 'Save interview feedback as draft learning memory',
       exact: true,
     }),
-  ).toBeVisible({ timeout: 30000 });
-  await page
-    .getByRole('button', { name: 'Save interview feedback as draft learning memory', exact: true })
-    .click();
+  ).toHaveCount(0);
   await page.getByRole('button', { name: 'My documents', exact: true }).click();
   await page.getByRole('button', { name: 'Polish wording', exact: true }).first().click();
   await page.getByLabel('Resume bullet', { exact: true }).selectOption({ label: action });

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ArrowRight,
   BriefcaseBusiness,
@@ -10,6 +10,8 @@ import {
 
 export function nextMissionStep(m: any): number {
   if (m.status === 'COMPLETE') return 4;
+  if (['QUEUED', 'RUNNING'].includes(m.status) && m.pendingDecision?.kind === 'job') return 3;
+  if (['QUEUED', 'RUNNING'].includes(m.status) && m.pendingDecision?.kind === 'resume') return 4;
   if (m.status === 'AWAITING_APPROVAL' || (m.data?.resumeDraft && !m.data?.approvedResumeId))
     return 3;
   if (m.status === 'AWAITING_INTERVIEW' || m.data?.approvedResumeId) return 4;
@@ -22,7 +24,7 @@ const actionText: Record<string, string> = {
   AWAITING_JOB: 'Choose a job',
   AWAITING_APPROVAL: 'Review your resume',
   AWAITING_INTERVIEW: 'Practise your interview',
-  COMPLETE: 'View interview feedback',
+  COMPLETE: 'Review journey results',
   FAILED: 'Review and retry',
   STALE: 'Review previous search',
   NO_MATCHES: 'Review search results',
@@ -43,6 +45,40 @@ export function WorkspaceHome({
   onLibrary: () => void;
 }) {
   const missions = workspace?.missions || [];
+  const [showHistory, setShowHistory] = useState(false);
+  const recent = missions
+    .filter((m: any) =>
+      [
+        'QUEUED',
+        'RUNNING',
+        'AWAITING_JOB',
+        'AWAITING_APPROVAL',
+        'AWAITING_INTERVIEW',
+        'COMPLETE',
+      ].includes(m.status),
+    )
+    .slice(0, 3);
+  const visibleJourneys = showHistory ? missions : recent;
+  const statusLabel = (status: string) =>
+    ({
+      COMPLETE: 'Completed',
+      FAILED: 'Failed',
+      NO_MATCHES: 'No matches',
+      CANCELLED: 'Cancelled',
+      STALE: 'Profile updated',
+    })[status] || 'In progress';
+  const journeyTitle = (m: any) => {
+    const job = m.data?.selectedJob?.job;
+    if (job) return [job.title, job.company].filter(Boolean).join(' · ');
+    const search = m.data?.jobSearch;
+    const role =
+      search?.keyword ||
+      m.goal
+        .replace(/^(?:I['’]m looking for|Help me find|Find)\s+(?:a\s+)?/i, '')
+        .split(/[.!?\n]/)[0]
+        .slice(0, 72);
+    return [role, search?.location || search?.country?.toUpperCase()].filter(Boolean).join(' · ');
+  };
   const current = missions[0];
   const hasProfile = !!workspace?.profile;
   const steps = [
@@ -243,30 +279,35 @@ export function WorkspaceHome({
       </div>
       <section aria-labelledby="recent-searches-title">
         <div className="section-heading">
-          <h2 id="recent-searches-title">
-            Application journeys <span>{missions.length}</span>
-          </h2>
-          <button className="text-button" onClick={onLibrary}>
-            Saved documents <ArrowRight size={15} />
-          </button>
+          <h2 id="recent-searches-title">{showHistory ? 'All journeys' : 'Recent journeys'}</h2>
+          {missions.length > recent.length && (
+            <button
+              className="text-button"
+              aria-expanded={showHistory}
+              onClick={() => setShowHistory(!showHistory)}
+            >
+              {showHistory ? 'Show recent journeys' : `View all journeys (${missions.length})`}{' '}
+              <ArrowRight size={15} />
+            </button>
+          )}
         </div>
-        <p className="muted small">
-          Each journey keeps its own profile snapshot, target job, resume and interview practice.
-        </p>
         {missions.length ? (
           <div className="search-list">
-            {missions.map((m: any) => (
+            {!visibleJourneys.length && (
+              <p className="muted">Previous attempts are available in All journeys.</p>
+            )}
+            {visibleJourneys.map((m: any) => (
               <button className="search-row" key={m.id} onClick={() => onOpen(m)}>
                 <BriefcaseBusiness size={19} />
                 <div>
-                  <strong>{m.goal}</strong>
+                  <strong>{journeyTitle(m)}</strong>
                   <p>
                     {new Date(m.createdAt).toLocaleDateString('en-AU', {
                       day: 'numeric',
                       month: 'short',
                     })}{' '}
-                    · {m.mode === 'fixture' ? 'Demo data' : 'Live AI'}
-                    {m.data?.selectedJob ? ` · ${m.data.selectedJob.job.title}` : ''}
+                    · {statusLabel(m.status)}
+                    {m.mode === 'fixture' ? ' · Demo data' : ''}
                   </p>
                 </div>
                 <span className="row-action">

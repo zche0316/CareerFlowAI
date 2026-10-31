@@ -180,18 +180,13 @@ async function app(page: Page) {
   return { errors, bodies, mission };
 }
 
-test('build leads with conversation; edit leads with profile and polish sends a real edit request', async ({
+test('approved profile links route to editing and polish sends a real edit request', async ({
   page,
 }) => {
   const { errors, bodies } = await app(page);
   await page.goto('/?view=profile');
-  const chat = await page
-    .getByRole('region', { name: 'Profile building conversation' })
-    .boundingBox();
-  const profile = await page.getByLabel('Profile document', { exact: true }).boundingBox();
-  expect(chat!.x).toBeLessThan(profile!.x);
-  expect(chat!.width).toBeGreaterThan(profile!.width);
-  await page.screenshot({ path: 'output/agent-native/build-desktop.png' });
+  await expect(page).toHaveURL(/view=approved-profile/);
+  await expect(page.getByRole('button', { name: 'Build profile', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'My profile', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'My profile', exact: true })).toBeVisible();
   const doc = await page.getByLabel('Profile document', { exact: true }).boundingBox();
@@ -327,9 +322,7 @@ test('output workspaces stay compact and usable across stages and mobile', async
   for (const width of [1024, 390]) {
     await page.setViewportSize({ width, height: 844 });
     await page.goto('/?view=profile');
-    await expect(
-      page.getByRole('heading', { name: 'Build your profile', exact: true }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'My profile', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
@@ -339,4 +332,200 @@ test('output workspaces stay compact and usable across stages and mobile', async
     });
   }
   expect(errors).toEqual([]);
+});
+
+test('global Find jobs starts fresh after the latest completed journey instead of reopening an older search', async ({
+  page,
+}) => {
+  await app(page);
+  const older = {
+    id: 'older-search',
+    status: 'AWAITING_JOB',
+    mode: 'fixture',
+    goal: 'Older search',
+    createdAt: '2026-10-30T00:00:00Z',
+    data: { matches: [] },
+    events: [],
+  };
+  const latest = {
+    ...older,
+    id: 'latest-complete',
+    status: 'COMPLETE',
+    goal: 'Completed application',
+    createdAt: '2026-10-31T00:00:00Z',
+    data: {
+      approvedResumeId: 'saved',
+      feedback: { strengths: [], improvements: [], nextSteps: [] },
+    },
+  };
+  await page.route('**/api/workspace', (route) =>
+    route.fulfill({
+      json: {
+        profile: { id: 'p1', version: 1, data: sampleProfile },
+        missions: [latest, older],
+        resumes: [],
+        drafts: [],
+      },
+    }),
+  );
+  await page.goto('/?view=approved-profile');
+  await expect(page.getByRole('heading', { name: 'My profile', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Build profile', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Find jobs', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Start career mission', exact: true }),
+  ).toBeVisible();
+  await expect(page).not.toHaveURL(/older-search/);
+});
+
+test('overview shows three concise recent journeys and keeps unsuccessful attempts in history', async ({
+  page,
+}) => {
+  await app(page);
+  const missions = Array.from({ length: 6 }, (_, i) => ({
+    id: `recent-${i}`,
+    status: i < 4 ? 'COMPLETE' : i === 4 ? 'FAILED' : 'NO_MATCHES',
+    mode: 'openai',
+    goal: 'A long repeated career goal that should not become every journey title',
+    createdAt: '2026-11-01T00:00:00Z',
+    data: {
+      selectedJob: i < 4 ? { job: { title: `Analyst ${i}`, company: `Example ${i}` } } : undefined,
+    },
+    events: [],
+  }));
+  await page.route('**/api/workspace', (route) =>
+    route.fulfill({
+      json: {
+        profile: { id: 'p1', version: 1, data: sampleProfile },
+        missions,
+        resumes: [],
+        drafts: [],
+      },
+    }),
+  );
+  await page.goto('/');
+  await expect(page.locator('.search-row')).toHaveCount(3);
+  await expect(page.locator('.search-row').first()).toContainText('Analyst 0 · Example 0');
+  await expect(page.locator('.search-row').first()).toContainText('Completed');
+  await expect(page.locator('.search-list')).not.toContainText('Failed');
+  await page.getByRole('button', { name: 'View all journeys (6)', exact: true }).click();
+  await expect(page.locator('.search-row')).toHaveCount(6);
+  await expect(page.locator('.search-list')).toContainText('Failed');
+  await expect(page.locator('.search-list')).toContainText('No matches');
+  await page.getByRole('button', { name: 'Show recent journeys', exact: true }).click();
+  await expect(page.locator('.search-row')).toHaveCount(3);
+  await page
+    .locator('section[aria-labelledby="recent-searches-title"]')
+    .screenshot({ path: 'output/agent-native/recent-journeys.png' });
+});
+
+test('step three reads a URL into a reviewable candidate and preserves user selection', async ({
+  page,
+}) => {
+  const { mission, bodies } = await app(page);
+  delete (mission.data as any).selectedJob;
+  delete (mission.data as any).resumeDraft;
+  const original = mission.data.matches[0];
+  const imported = {
+    ...original,
+    job: {
+      ...original.job,
+      id: 'imported-job',
+      title: 'Business Analyst',
+      company: 'Prezzee',
+      source: {
+        ...original.job.source,
+        board: 'prezzee',
+        provider: 'greenhouse',
+        importedFromURL: 'https://job-boards.greenhouse.io/prezzee/jobs/123',
+      },
+    },
+  };
+  await page.route('**/api/missions/mission-qa/job-link', async (route) => {
+    bodies.push(route.request().postDataJSON());
+    mission.data.matches = [imported, original];
+    await route.fulfill({ json: { jobId: 'imported-job' } });
+  });
+  await page.route('**/api/missions/mission-qa/decisions', async (route) => {
+    expect(route.request().postDataJSON()).toMatchObject({ kind: 'job', jobId: 'imported-job' });
+    mission.data.selectedJob = imported;
+    mission.status = 'AWAITING_APPROVAL';
+    mission.data.resumeDraft = {
+      name: 'Alex',
+      jobTitle: 'Business Analyst',
+      profileVersion: 1,
+      hash: 'parsed-url',
+      claims: [],
+      omittedFacts: [],
+    };
+    await route.fulfill({ json: mission });
+  });
+  await page.goto('/?view=missions&mission=mission-qa&step=2');
+  await page
+    .getByLabel('Job listing URL', { exact: true })
+    .fill('https://job-boards.greenhouse.io/prezzee/jobs/123');
+  await page.getByRole('button', { name: 'Read job', exact: true }).click();
+  await expect(page.locator('article.job-card h3')).toHaveText('Business Analyst');
+  expect(bodies[0]).toEqual({ url: 'https://job-boards.greenhouse.io/prezzee/jobs/123' });
+  expect((mission.data as any).selectedJob).toBeUndefined();
+  await expect(page.locator('article.job-card .company-avatar img').first()).toHaveAttribute(
+    'src',
+    /prezzee/,
+  );
+  await page.screenshot({ path: 'output/agent-native/job-url-review.png', fullPage: true });
+  await page.route('**/company-icons/prezzee.ico', (route) => route.abort());
+  await page.reload();
+  await expect(page.locator('article.job-card .company-avatar').first()).toHaveText('P');
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.getByRole('button', { name: 'Select this opportunity', exact: true }).click();
+  await expect(page).toHaveURL(/step=3/);
+  await expect(
+    page.getByRole('button', { name: 'Approve & save resume', exact: true }),
+  ).toBeDisabled();
+});
+
+test('resume approval remains visible and manual edits require applying and fresh review', async ({
+  page,
+}) => {
+  const { mission } = await app(page);
+  mission.status = 'AWAITING_APPROVAL';
+  await page.route('**/api/missions/mission-qa/resume-agent/manual', async (route) => {
+    const input = route.request().postDataJSON();
+    expect(input.draftHash).toBe('draft-qa');
+    const before = mission.data.resumeDraft.claims[0].text;
+    mission.data.resumeDraft = {
+      ...mission.data.resumeDraft,
+      hash: 'manual-new',
+      claims: [{ ...mission.data.resumeDraft.claims[0], text: input.text }],
+    };
+    (mission.data as any).resumeChanges = [{ factId: input.factId, before, after: input.text }];
+    await route.fulfill({ json: { resumeDraft: mission.data.resumeDraft } });
+  });
+  await page.goto('/?view=missions&mission=mission-qa&step=2');
+  await expect(
+    page.getByRole('button', { name: 'Search Australian jobs', exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole('button', { name: 'Review your resume', exact: true }).click();
+  const approve = page.getByRole('button', { name: 'Approve & save resume', exact: true });
+  await expect(approve).toBeInViewport();
+  await page.getByLabel('I reviewed this resume and am ready to save it.').check();
+  await page.getByText('Edit wording yourself', { exact: true }).click();
+  await page.getByLabel('Your wording', { exact: true }).fill('SQL reports were built.');
+  await expect(approve).toBeDisabled();
+  await page.getByRole('button', { name: 'Apply wording change', exact: true }).click();
+  await expect(page.getByRole('article', { name: 'Resume preview' })).toContainText(
+    'SQL reports were built.',
+  );
+  await expect(approve).toBeDisabled();
+  await page.getByLabel('I reviewed this resume and am ready to save it.').check();
+  await expect(approve).toBeEnabled();
+  await approve.scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: 'output/agent-native/resume-visible-approval.png',
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await approve.scrollIntoViewIfNeeded();
+  await expect(approve).toBeInViewport();
 });

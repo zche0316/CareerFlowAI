@@ -60,7 +60,11 @@ test('new imports clear previous pages and consent; organization uses explicitly
     await r.fulfill({ json: current });
   });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Build profile', exact: true })
+    .or(page.getByRole('button', { name: 'My profile', exact: true }))
+    .first()
+    .click();
   await page.getByText('Edit profile details manually', { exact: true }).click();
   await page
     .getByText('Already have career material? Optional resume import', { exact: true })

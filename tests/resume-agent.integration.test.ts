@@ -146,6 +146,46 @@ it('edits the preview from approved profile facts, searches memory only on deman
     ((await db.mission.findUniqueOrThrow({ where: { id: m.id } })).data as any).resumeChat.at(-1)
       .text,
   ).toContain('No wording changes needed');
+  const manual = await request(
+    m.id,
+    {
+      draftHash: restoredDraft.hash,
+      factId: fact.id,
+      text: 'Using SQL, I supported reporting for 2,000 orders.',
+    },
+    '/manual',
+  );
+  expect(manual.status).toBe(200);
+  const manualDraft = (await manual.json()).resumeDraft;
+  expect(manualDraft.hash).not.toBe(restoredDraft.hash);
+  expect(manualDraft.claims[0].factText).toBe(fact.text);
+  expect(
+    (
+      await request(
+        m.id,
+        {
+          draftHash: restoredDraft.hash,
+          factId: fact.id,
+          text: 'Using SQL, I supported reporting for 2,000 orders.',
+        },
+        '/manual',
+      )
+    ).status,
+  ).toBe(409);
+  expect(
+    (
+      await request(
+        m.id,
+        {
+          draftHash: manualDraft.hash,
+          factId: fact.id,
+          text: 'I managed a team of 20 and increased revenue by 50%.',
+        },
+        '/manual',
+      )
+    ).status,
+  ).toBe(422);
+  expect(spy.mock.calls.length).toBe(callsBeforeRestore + 1);
   expect((await db.profile.findUniqueOrThrow({ where: { id: p.id } })).facts).toEqual([fact]);
   expect(
     (await request('another-account-mission', { draftHash: 'original', message: 'Edit' })).status,
