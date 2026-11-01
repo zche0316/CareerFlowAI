@@ -7,12 +7,10 @@ Stage 1 requirements R1–R5 are represented by Profile Builder, Career Coach, J
 The first implementation is a modular TypeScript application: React/Vite client, Express API, PostgreSQL/Prisma domain persistence, pg-boss worker and LangGraph with PostgreSQL checkpoints. The worker can run in the API process for simple deployment or separately with `EMBEDDED_WORKER=false`. A page refresh or closed browser does not stop server work. A powered-off server cannot continue work.
 
 The repository layout, shared schemas, HTTP endpoints, sample data and local commands are
-specified in [API.md](API.md). The connected five-agent evidence matrix is recorded in
-[INTEGRATION_ACCEPTANCE.md](INTEGRATION_ACCEPTANCE.md).
+specified in [API.md](API.md).
 
 Request IDs, lifecycle transitions and the approved-profile handoff are specified in
-[ORCHESTRATION.md](ORCHESTRATION.md). Quality budgets and their test mapping are recorded in
-[QUALITY_CHECKS.md](QUALITY_CHECKS.md).
+[ORCHESTRATION.md](ORCHESTRATION.md).
 
 ## Requirement traceability
 
@@ -34,13 +32,13 @@ Domain rows hold factual source versions and human approvals; checkpoints hold g
 
 Passwords use salted scrypt hashes. Sessions use random HTTP-only, SameSite=Strict cookies with hashed tokens stored in PostgreSQL. Mutations require the session CSRF token and validate supplied browser origins. All candidate data queries are scoped to the authenticated user. Models receive task context without login credentials or account email. Four downstream sharing permissions are captured in each approved profile; a full mission refuses to run if any required permission is absent.
 
-The Operations/Activity views in this prototype cover the signed-in user's workspace, not a privileged cross-customer administration portal. Demo login is a shared fictional workspace and must be disabled for production. Production requires HTTPS and an explicitly permitted origin. This classroom prototype is not a production security certification.
+The Operations/Activity views in this prototype cover the signed-in user's workspace, not a privileged cross-customer administration portal. Production requires HTTPS and an explicitly permitted origin. This classroom prototype is not a production security certification.
 
 ## Honest modes and proof boundaries
 
 `fixture` is a deterministic development provider, not a local LLM. Fixture jobs and their salary/growth data are labelled fictional; external jobs retain source and retrieval metadata. `openai` uses the Responses API, a controlled context tool and Zod structured outputs. Live mode never silently falls back to fixtures. Missing configuration or provider failures become recoverable mission failures and preserve approved data.
 
-Live vacancy retrieval is implemented through supported official employer APIs and optional configured discovery/aggregator sources. Pasted listings remain unverified. Direct SEEK/Indeed API submission, browser auto-application, email/calendar connectors and hosted deployment are not claimed. See CURRENT_DELIVERY.md for the current evidence boundary. Model choice is configured with `OPENAI_MODEL`; deterministic fixtures and locally exercised live-provider paths are kept separate.
+Live vacancy retrieval is implemented through supported official employer APIs and optional configured discovery/aggregator sources. Pasted listings remain unverified. Direct SEEK/Indeed API submission, browser auto-application, email/calendar connectors and hosted deployment are not claimed. Model choice is configured with `OPENAI_MODEL`; deterministic fixtures and locally exercised live-provider paths are kept separate.
 
 ## Jira and ownership
 

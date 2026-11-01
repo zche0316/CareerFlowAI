@@ -17,12 +17,13 @@
     "db:migrate": "prisma migrate deploy",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "verify": "npm run typecheck && npm run test:matching && npm test && npm run build",
+    "verify": "npm run typecheck && npm run test:matching && npm run test:packaging && npm test && npm run build",
     "test:matching": "node --test packages/matching/original.test.js",
     "postinstall": "node scripts/generate-client.mjs",
     "start:local": "node scripts/local-run.mjs",
     "verify:local": "node scripts/local-run.mjs --verify",
-    "package:source": "python3 scripts/package-source.py"
+    "package:source": "python3 scripts/package-source.py",
+    "test:packaging": "python3 -B -m unittest discover -s tests -p 'test_source_package.py'"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.10",
@@ -43,6 +44,9 @@
     "vitest": "4.1.11"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1161.0",
+    "@aws-sdk/credential-providers": "^3.1161.0",
+    "@aws-sdk/s3-request-presigner": "^3.1161.0",
     "@langchain/langgraph": "1.5.1",
     "@langchain/langgraph-checkpoint-postgres": "1.1.0",
     "@napi-rs/canvas": "1.0.13",

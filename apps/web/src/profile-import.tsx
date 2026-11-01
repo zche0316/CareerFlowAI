@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { RecordKey, ProfileRecord } from '../../../packages/contracts/src/profile-records.js';
 type Api = (path: string, method?: string, body?: unknown) => Promise<any>;
 export function ProfileImport({

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { sameProfileField } from '../../../packages/contracts/src/profile-comparison.js';
 import {
   closedExperience,

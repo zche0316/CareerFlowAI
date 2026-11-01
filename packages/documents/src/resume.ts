@@ -33,16 +33,6 @@ export type ResumeContent = {
     recordHeaderId?: string;
   }[];
 };
-const headings: Record<string, string> = {
-  skill: 'Skills',
-  education: 'Education',
-  experience: 'Experience',
-  workExperiences: 'Work Experience',
-  projects: 'Projects',
-  volunteering: 'Volunteering',
-  activities: 'Clubs & Activities',
-  educations: 'Education',
-};
 export function resumeSections(c: ResumeContent) {
   return resumeLayout(c);
 }
@@ -82,7 +72,12 @@ export async function resumeDocx(c: ResumeContent) {
       for (const [i, line] of item.split('\n').entries())
         children.push(
           new Paragraph({
-            children: [new TextRun({ text: line, bold: i === 0 && !['Skills', 'Career Objective'].includes(section.title) })],
+            children: [
+              new TextRun({
+                text: line,
+                bold: i === 0 && !['Skills', 'Career Objective'].includes(section.title),
+              }),
+            ],
             spacing: { after: 100 },
             keepNext: i === 0 && item.includes('\n'),
           }),
@@ -171,7 +166,11 @@ export async function resumePdf(c: ResumeContent): Promise<Buffer> {
         if (doc.y > doc.page.height - 110) doc.addPage();
         lines.forEach((line, i) =>
           doc
-            .font(i === 0 && !['Skills', 'Career Objective'].includes(section.title) ? 'ResumeBold' : 'Resume')
+            .font(
+              i === 0 && !['Skills', 'Career Objective'].includes(section.title)
+                ? 'ResumeBold'
+                : 'Resume',
+            )
             .fontSize(10.5)
             .fillColor('#111111')
             .text(line, { lineGap: 2 }),

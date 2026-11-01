@@ -1,6 +1,5 @@
 # CareerFlow product contract — zero-resume journey
 
-Decision date: 29 October 2026, Australia/Sydney. Source: the project owner's explicit written direction in this working conversation. This is a product decision and implementation contract, not a claim of a team planning meeting.
 
 ## User outcome
 
@@ -33,9 +32,8 @@ Evidence must cover the stated user outcome, persistence/ownership, explicit app
 
 Primary: one sustained conversation with grouped draft cards, complete evidence retention, reviewed facts, target-specific documents and feedback-driven learning. Secondary: import existing career material. Defer additional OCR providers, broad template marketplaces, auto-submission, embedding infrastructure and external memory platforms until a demonstrated user need and capacity decision exist.
 
-Jira: CFS-59–63 implementation areas; CFS-64 product-contract/Definition-of-Ready action; CFS-65 end-to-end verification and retrospective follow-up. These newly recorded actions are uncommitted backlog, with provisional remaining-work estimates, not retrospective estimates of engineering effort.
 
-## Chat-first interface consolidation (owner feedback, 29 October)
+## Chat-first interface
 
 The six stages above describe the interview logic, not six competing form pages. The wizard and quick-notes UI have been retired. My career profile now has one conversation and grouped draft cards. Manual editing/import and memory tools are secondary. A reviewed conversation turn updates only the working draft; final approval is still explicit.
 

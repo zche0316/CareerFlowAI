@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Request } from './profile-conversation.js';
 
 export function JobFit({

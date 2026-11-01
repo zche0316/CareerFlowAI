@@ -328,26 +328,3 @@ test('intermediate screens keep the document and conversation usable', async ({ 
     ).toBeVisible();
   }
 });
-
-test('record a short preview of suggestion, accept and approval motion', async ({ browser }) => {
-  const context = await browser.newContext({
-    viewport: { width: 1440, height: 1000 },
-    recordVideo: { dir: 'output/profile-workbench/motion', size: { width: 1440, height: 1000 } },
-  });
-  const page = await context.newPage();
-  await workbench(page);
-  await page.waitForTimeout(700);
-  await page.getByRole('region', { name: 'Skills block', exact: true }).scrollIntoViewIfNeeded();
-  await page.waitForTimeout(600);
-  await page.getByRole('button', { name: 'Accept Skills change', exact: true }).click();
-  await page.waitForTimeout(900);
-  await page.getByRole('button', { name: 'Keep current Career direction', exact: true }).click();
-  await page.waitForTimeout(500);
-  await page.getByRole('button', { name: 'Review profile draft', exact: true }).click();
-  await page.getByLabel('I reviewed this exact draft').check();
-  await page.waitForTimeout(500);
-  await page.getByRole('button', { name: 'Approve & save profile', exact: true }).click();
-  await expect(page.getByText('Approved v2', { exact: true })).toBeVisible();
-  await page.waitForTimeout(1500);
-  await context.close();
-});

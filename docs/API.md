@@ -45,7 +45,7 @@ prisma/
   migrations/          PostgreSQL schema history
 scripts/               local database, demo seed and readiness helpers
 tests/                 unit, PostgreSQL integration and Playwright E2E suites
-docs/                  architecture, API, verification and evidence
+docs/                  architecture, API, user journey and operational playbooks
 ```
 
 ## UI, service and data boundaries
@@ -89,7 +89,6 @@ Schemas live in `packages/contracts/src/index.ts`:
 | `profileSchema`             | Required profile fields, salary/date cross-field rules and four sharing switches |
 | `profileBuilderDraftSchema` | Partial LLM profile draft, follow-up questions and evidence-backed changes       |
 | `coachSchema`               | Strengths, gaps, directions and actions with approved evidence IDs and reasons   |
-| `resumePlanSchema`          | Ordered evidence IDs and relevance reasons; server renders approved fact text    |
 | `questionsSchema`           | One to three unique role-specific interview questions                            |
 | `answerSchema`              | One saved answer bound to a question in the current interview                    |
 | `feedbackSchema`            | Non-empty strengths, improvements and next steps                                 |
@@ -399,7 +398,7 @@ Authenticated import endpoints (mutations require the existing CSRF token):
 
 Model operations require `PROVIDER_MODE=openai`; fixture mode never creates fake import records. Eight calls per import are reserved before requests; repeated/overlapping operations are rejected. Failures retain source data and require explicit retries. A processing record older than two minutes can be retried after a server interruption. No model output controls ownership or approval.
 
-`GET /api/resumes/:id/download?format=txt|docx|pdf` exports the current user's persisted approved snapshot, with TXT as the backwards-compatible default. DOCX is editable and PDF retains searchable text. Unsupported formats return validation errors; another user's resume remains unavailable. Imports and model configuration are documented in `docs/PROFILE_IMPORT_AND_MODEL_ROUTER.md`.
+`GET /api/resumes/:id/download?format=txt|docx|pdf` exports the current user's persisted approved snapshot, with TXT as the backwards-compatible default. DOCX is editable and PDF retains searchable text. Unsupported formats return validation errors; another user's resume remains unavailable. Model configuration is documented in the repository README and `.env.example`.
 
 # Conversational profile and evidence endpoints
 
@@ -417,7 +416,7 @@ All routes below require the existing signed-in account; mutations require its C
 - `POST /api/resumes/:id/wording/finalize`: `{reviewed:true}` creates an idempotent separate approved edition; original content and the mission's existing application packet remain unchanged.
 - `GET/POST /api/missions/:id/application-readiness`: fetch supported public questions or save `{hash,answers,reviewed:true}` against the current schema. Preparation only; no external submission.
 
-See [CONVERSATIONAL_PROFILE.md](CONVERSATIONAL_PROFILE.md) for scope, model configuration, limits and manual testing.
+See [PRODUCT_WORKFLOW.md](PRODUCT_WORKFLOW.md) for the profile, source and application boundaries.
 
 ## Zero-resume application workflow
 
@@ -442,3 +441,11 @@ Conversational replies expose a short reply and one follow-up question. Grounded
 `POST .../:id/messages` optionally supports `retryMessageId` for the latest failed saved answer, or `recoverSavedAnswers:true` in review stage to prepare pending data from saved history. Both avoid duplicate user messages. Recovery keeps the interview finished. Conversation sources can cite up to 30 complete user messages within an 18,000-character context budget; commands are excluded from candidate evidence. Resume-import page limits remain unchanged.
 
 `POST /api/profile-threads/:id/organise`: body `{currentProfile, revision, recordSection: "workExperiences" | "projects", recordId, consent: true}`. Generates labelled source-index story groups, atomically saves a pending profile suggestion and DRAFT career memory, and returns `{memoryId, revision}`. GET the owned thread to review the new suggestion. Does not apply the suggestion, confirm memory or approve a profile. Concurrent/stale updates return 409; unsupported/empty sources return 422; provider failures return 503 with originals unchanged. Current records must include the selected section and ID. New complete labelled chat answers map to records without a second generative extraction; free-form answers continue through the conversational model.
+
+## Optional approved-resume cloud backups
+
+- `GET /api/cloud-backups`: returns whether optional cloud storage is configured and the signed-in user’s backed-up approved versions.
+- `POST /api/resumes/:id/cloud-backup`: exports the owned persisted approved resume to private storage as a PDF. It requires the existing session and CSRF token; no browser-supplied resume content or storage key is accepted.
+- `GET /api/cloud-backups/:id/download`: validates the opaque backup ID within the current user’s scope, verifies the object exists and redirects to a 60-second signed download URL with private/no-store headers.
+
+Local document downloads work independently of cloud configuration or storage failures. See [AWS_S3_BACKUPS.md](AWS_S3_BACKUPS.md) for configuration and operating instructions.

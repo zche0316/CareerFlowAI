@@ -1,10 +1,10 @@
-# Week 13 Source Deployment Runbook
+# Source deployment playbook
 
 依据老师最新通知：可以使用自己的电脑、提前装工具和依赖、使用热点，并有额外部署时间；但演示必须从 Canvas 下载的已提交源码现场构建/部署。以下是准备和演练步骤，不是已经完成 Canvas 上传/下载的证明。
 
 ## 提交前冻结候选版本
 
-1. 组员 review 全部本地修改和新增文件，记录实际 commit/PR。当前工作区包含大量未提交内容，不能仅 `git archive HEAD`，否则新模块可能丢失。
+1. 组员 review 全部本地修改和新增文件，记录实际 commit/PR。打包前确认新增模块已纳入候选版本，避免仅归档旧提交而遗漏本地源码。
 2. 在小组仓库运行 `npm run package:source`。打包脚本会包含约定源码目录下的相关未跟踪文件，并生成逐文件 SHA-256 清单。发布前人工检查包内容，不把自动打包当作安全审查。
 3. 候选 ZIP 应包含 `CareerFlowAI/` 顶层目录、package/lock、apps、packages、prisma migrations、scripts、tests、docs、`.env.example`。不含 `.env`、`.git`、`.runtime`、旧数据库、node_modules、dist、个人简历、测试截图/日志或私钥文件。
 4. 用该 ZIP 在新目录演练安装。小组确认后上传 Canvas，再下载一份，核对 ZIP SHA-256 与内容清单，重新走部署流程。这里不代替实际 Canvas 操作。
@@ -12,7 +12,7 @@
 
 ## 可以提前准备
 
-- Node.js 22.12+；建议与当前验证环境一致的 Node 24 和 npm。终端确认 `node -v`、`npm -v`。
+- Node.js 22.13+；建议与当前验证环境一致的 Node 24 和 npm。终端确认 `node -v`、`npm -v`。
 - VS Code 和熟悉的浏览器。源码部署不要求必须 Docker；项目内开发数据库避免现场临时安装系统 PostgreSQL。
 - 按锁文件预热 npm 缓存，保存缓存位置；可以先安装依赖，但不能用旧目录/旧编译产物冒充从提交源码构建。
 - 准备热点并测试学校网络、模型 endpoint、招聘源域名。带好电源和热点设备。
@@ -64,14 +64,6 @@ npm run start:local
 9. 展示真实 Jira review/feedback/retrospective 和对应代码改动；展示技术选型的理由与限制。
 10. 重启应用并确认任务/批准文档仍存在。无需把自动投递、邮件、更多招聘源临时塞进核心 demo。
 
-## 交付闸门
+## 交付记录
 
-- [ ] 全部 UC1–UC5 的需求到操作和证据映射由每位负责人核对。
-- [ ] 当前小组版本的真实 AI 工具/结构化输出与质量验收通过，或清楚标记风险并准备已披露演示方案。
-- [ ] 从最终上传包下载、干净目录安装、构建、启动并完成浏览器主链；记录机器、工具版本、耗时和 ZIP hash。
-- [ ] 另一位组员独立重做并记录发现的问题和修复。
-- [ ] 全组 contribution statement：5 人姓名/SID；每项评分行合计 100%，由全组确认而非按 Jira assignee 自动分配。
-- [ ] 实际 Sprint review/retro/用户反馈及处理记录，不能预填会议和验收。
-- [ ] Canvas 上传和重新下载核对，确认正确 ZIP 与贡献说明。
-
-源码包能启动只是交付条件之一；测试通过不等于评分类别自动满分。
+安装、构建、浏览器主链、独立复核、贡献说明及 Canvas 提交结果统一记录在 Jira 的相关任务中。此文档仅保留操作步骤，不维护进度或验收勾选表。

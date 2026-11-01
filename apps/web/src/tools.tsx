@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 function download(name: string, content: string, type: string) {
   const url = URL.createObjectURL(new Blob([content], { type }));
   const a = document.createElement('a');

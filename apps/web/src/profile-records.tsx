@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type { CareerProfile } from '../../../packages/contracts/src/index.js';
 import { experienceOverview } from '../../../packages/contracts/src/experience-view.js';
 import {

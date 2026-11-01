@@ -22,12 +22,7 @@ import { digest, json } from './domain.js';
 import { AppError, requireValue } from './errors.js';
 import { prepareProfileBuilderDraft, citeExactUserValues } from './profile-builder.js';
 import { retrieveEvidence } from './career-memory.js';
-import {
-  blankProfile,
-  profileSchema,
-  profileBuilderDraftSchema,
-} from '../../../packages/contracts/src/index.js';
-import { nextProfileQuestions } from '../../../packages/contracts/src/career-evidence.js';
+import { profileSchema, profileBuilderDraftSchema } from '../../../packages/contracts/src/index.js';
 import { recordKeys, recordSchema } from '../../../packages/contracts/src/profile-records.js';
 import {
   importedRecordSchema,

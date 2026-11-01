@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { visibleResumeText } from '../../../packages/contracts/src/resume-review.js';
 export function ResumeManualEdit({
   draft,

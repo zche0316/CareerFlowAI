@@ -20,10 +20,10 @@ const stop = () => {
 };
 process.on('SIGINT', stop);
 process.on('SIGTERM', stop);
-function run(args) {
+function run(args, executable = process.execPath) {
   return new Promise((resolve, reject) => {
     if (stopping) return reject(Error('Startup cancelled.'));
-    active = spawn(process.execPath, args, { cwd: root, env, stdio: 'inherit' });
+    active = spawn(executable, args, { cwd: root, env, stdio: 'inherit' });
     active.once('error', reject);
     active.once('exit', (code, signal) => {
       active = undefined;
@@ -39,6 +39,10 @@ try {
   if (process.argv.includes('--verify')) {
     await run(['node_modules/typescript/bin/tsc', '--noEmit']);
     await run(['--test', 'packages/matching/original.test.js']);
+    await run(
+      ['-B', '-m', 'unittest', 'discover', '-s', 'tests', '-p', 'test_source_package.py'],
+      'python3',
+    );
     await run(['node_modules/vitest/vitest.mjs', 'run']);
     await run(['node_modules/vite/bin/vite.js', 'build', '--config', 'apps/web/vite.config.ts']);
   } else {

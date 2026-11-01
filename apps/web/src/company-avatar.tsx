@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import manifest from '../public/company-icons/sources.json' with { type: 'json' };
 const aliases: Record<string, string> = {
   australianenergymarketoperator: 'aemo',
