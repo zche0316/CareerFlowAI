@@ -5804,3 +5804,32 @@ summary:focus-visible {
     padding-bottom: 28px;
   }
 }
+
+.inbox-context {
+  margin: 0 0 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e6e3df;
+}
+.inbox-context p {
+  margin-bottom: 10px;
+}
+.approval-details {
+  min-width: 0;
+  flex: 1;
+}
+.approval-details h3 {
+  margin-top: 8px;
+  overflow-wrap: anywhere;
+}
+.approval-details > strong {
+  display: block;
+  margin-top: 12px;
+  font-size: 14px;
+}
+.approval-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-top: 16px;
+}

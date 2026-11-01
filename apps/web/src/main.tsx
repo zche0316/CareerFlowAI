@@ -781,28 +781,78 @@ function App() {
                 title="Approval inbox"
                 text="Review the important moments. Your agents will wait for your decision."
               />
-              {approvals.length ? (
-                approvals.map((m: any) => (
+              {workspace?.missions[0]?.status === 'COMPLETE' && approvals.length > 0 && (
+                <div className="inbox-context" role="note">
+                  <p>
+                    Your latest journey is complete. The decisions below belong to earlier journeys.
+                  </p>
                   <button
-                    className="approval-card"
-                    key={m.id}
+                    className="text-button"
                     onClick={() => {
                       setTab('missions');
-                      setSelected(m.id);
-                      setPhase(nextMissionStep(m));
+                      setSelected(workspace.missions[0].id);
+                      setPhase(null);
                     }}
                   >
+                    View latest journey results <ArrowRight size={16} />
+                  </button>
+                </div>
+              )}
+              {approvals.length ? (
+                approvals.map((m: any) => (
+                  <article className="approval-card" key={m.id}>
                     <FileCheck2 size={24} />
-                    <div>
-                      <h3>
+                    <div className="approval-details">
+                      <span className="muted">
+                        {m.id === workspace?.missions[0]?.id ? 'Latest journey' : 'Earlier journey'}{' '}
+                        · Started {date(m.createdAt)}
+                      </span>
+                      <h3>{m.data?.selectedJob?.job?.title || m.goal}</h3>
+                      {m.data?.selectedJob?.job?.company && <p>{m.data.selectedJob.job.company}</p>}
+                      <strong>
                         {m.status === 'AWAITING_JOB'
                           ? 'Choose a target opportunity'
                           : 'Review your resume draft'}
-                      </h3>
-                      <p>{m.goal}</p>
+                      </strong>
+                      <div className="approval-actions">
+                        <button
+                          className="primary"
+                          disabled={busy}
+                          onClick={() =>
+                            void act(async () => {
+                              const current = await refresh();
+                              const latest = current.missions.find((item: any) => item.id === m.id);
+                              if (!latest) return;
+                              setTab('missions');
+                              setSelected(latest.id);
+                              setPhase(
+                                latest.status === 'COMPLETE' ? null : nextMissionStep(latest),
+                              );
+                              setNotice(
+                                latest.status === 'COMPLETE'
+                                  ? 'This journey is complete. Showing its saved results.'
+                                  : `Opened journey: ${latest.goal}`,
+                              );
+                            })
+                          }
+                        >
+                          Open journey <ArrowRight size={16} />
+                        </button>
+                        <button
+                          className="text-button"
+                          disabled={busy}
+                          onClick={() =>
+                            void act(async () => {
+                              await api(`/missions/${m.id}/cancel`, 'POST', {});
+                              setNotice('Journey cancelled. Its saved history is still available.');
+                            })
+                          }
+                        >
+                          Cancel this journey
+                        </button>
+                      </div>
                     </div>
-                    <ArrowRight size={20} />
-                  </button>
+                  </article>
                 ))
               ) : (
                 <div className="empty-state">

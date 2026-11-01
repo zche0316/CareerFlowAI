@@ -529,3 +529,92 @@ test('resume approval remains visible and manual edits require applying and fres
   await approve.scrollIntoViewIfNeeded();
   await expect(approve).toBeInViewport();
 });
+
+test('approval inbox distinguishes an earlier pending journey from latest completed results and refreshes before opening', async ({
+  page,
+}) => {
+  const { mission } = await app(page);
+  const completed = {
+    ...mission,
+    id: 'latest-complete',
+    status: 'COMPLETE',
+    goal: 'Latest completed application',
+  };
+  const earlier = {
+    ...mission,
+    id: 'earlier-pending',
+    goal: 'Earlier technology search',
+    data: { ...mission.data, selectedJob: undefined, resumeDraft: undefined },
+  };
+  let completeEarlier = false;
+  await page.route('**/api/workspace', (route) =>
+    route.fulfill({
+      json: {
+        profile: { id: 'p1', version: 1, data: sampleProfile },
+        missions: [completed, completeEarlier ? { ...earlier, status: 'COMPLETE' } : earlier],
+        resumes: [],
+      },
+    }),
+  );
+  await page.goto('/?view=approvals');
+  await expect(
+    page.getByText(
+      'Your latest journey is complete. The decisions below belong to earlier journeys.',
+    ),
+  ).toBeVisible();
+  const card = page.locator('.approval-card');
+  await expect(card).toHaveCount(1);
+  await expect(card).toContainText('Earlier journey');
+  await expect(card).toContainText('Earlier technology search');
+  await page.getByRole('button', { name: 'Open journey', exact: true }).click();
+  await expect(page).toHaveURL(/mission=earlier-pending/);
+  await expect(page).toHaveURL(/step=2/);
+  await page.goto('/?view=approvals');
+  await page.getByRole('button', { name: 'View latest journey results', exact: true }).click();
+  await expect(page).toHaveURL(/mission=latest-complete/);
+  await expect(
+    page.getByRole('button', { name: 'Search Australian jobs', exact: true }),
+  ).toHaveCount(0);
+  await page.goto('/?view=approvals');
+  await expect(page.getByRole('button', { name: 'Open journey', exact: true })).toBeVisible();
+  completeEarlier = true;
+  await page.getByRole('button', { name: 'Open journey', exact: true }).click();
+  await expect(page).toHaveURL(/mission=earlier-pending/);
+  await expect(
+    page.getByText('This journey is complete. Showing its saved results.', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Search Australian jobs', exact: true }),
+  ).toHaveCount(0);
+});
+
+test('cancelling an earlier inbox journey clears its pending badge while retaining history', async ({
+  page,
+}) => {
+  const { mission } = await app(page);
+  const earlier = {
+    ...mission,
+    id: 'pending-cancel',
+    data: { ...mission.data, selectedJob: undefined, resumeDraft: undefined },
+  };
+  await page.route('**/api/workspace', (route) =>
+    route.fulfill({
+      json: {
+        profile: { id: 'p1', version: 1, data: sampleProfile },
+        missions: [earlier],
+        resumes: [],
+      },
+    }),
+  );
+  await page.route('**/api/missions/pending-cancel/cancel', (route) => {
+    earlier.status = 'CANCELLED';
+    return route.fulfill({ json: earlier });
+  });
+  await page.goto('/?view=approvals');
+  await page.getByRole('button', { name: 'Cancel this journey', exact: true }).click();
+  await expect(page.getByText('You’re all caught up.', { exact: true })).toBeVisible();
+  await expect(page.locator('.approval-card')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Overview', exact: true }).click();
+  await page.getByRole('button', { name: 'View all journeys (1)', exact: true }).click();
+  await expect(page.locator('.search-row')).toContainText('Cancelled');
+});
