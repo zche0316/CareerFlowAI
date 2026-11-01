@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Check, Sparkles, X } from 'lucide-react';
 import type { Request } from './profile-conversation.js';
 

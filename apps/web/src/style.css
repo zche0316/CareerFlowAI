@@ -2323,12 +2323,6 @@ h3,
 .chat-first textarea {
   min-height: 110px;
 }
-.profile-summary {
-  overflow-wrap: anywhere;
-}
-.profile-summary section {
-  margin-top: 20px;
-}
 .career-record-card {
   border-left: 3px solid #d8dadd;
   padding: 4px 0 4px 14px;
@@ -3776,7 +3770,7 @@ summary:focus-visible {
   }
 }
 
-/* Exact typography, palette and logo from careerflow-complete-journey.html. */
+/* Shared workspace typography, palette and logo. */
 @font-face {
   font-family: Inter;
   font-style: normal;

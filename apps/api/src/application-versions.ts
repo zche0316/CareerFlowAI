@@ -6,7 +6,7 @@ import {
 import type { Express } from 'express';
 import { z } from 'zod';
 import { db } from './db.js';
-import { digest, json, includeRecordHeaders, validateResumeClaims } from './domain.js';
+import { digest, json, validateResumeClaims } from './domain.js';
 import type { Fact } from '../../../packages/contracts/src/index.js';
 import { AppError, requireValue } from './errors.js';
 export function registerApplicationVersions(app: Express) {

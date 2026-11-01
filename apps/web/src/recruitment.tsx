@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ApplicationReadiness } from './application-readiness.js';
 import { countries } from '../../../packages/recruitment/src/geography.js';
 export const defaultJobSearch = {

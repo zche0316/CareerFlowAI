@@ -1,0 +1,74 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Optional private document backups for the locally hosted CareerFlow app
+Resources:
+  AccessLogs:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketNamePrefix: careerflow-backup-access-logs
+      BucketNamespace: account-regional
+      AbacStatus: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+            BucketKeyEnabled: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireLogs
+            Status: Enabled
+            ExpirationInDays: 30
+  AccessLogsPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref AccessLogs
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: logging.s3.amazonaws.com }
+            Action: s3:PutObject
+            Resource: !Sub '${AccessLogs.Arn}/access/*'
+            Condition:
+              StringEquals: { 'aws:SourceAccount': !Ref 'AWS::AccountId' }
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: s3:*
+            Resource: [!GetAtt AccessLogs.Arn, !Sub '${AccessLogs.Arn}/*']
+            Condition: { Bool: { 'aws:SecureTransport': 'false' } }
+  Backups:
+    Type: AWS::S3::Bucket
+    DependsOn: AccessLogsPolicy
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketNamePrefix: careerflow-approved-resumes
+      BucketNamespace: account-regional
+      AbacStatus: Enabled
+      VersioningConfiguration: { Status: Enabled }
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+            BucketKeyEnabled: true
+      LoggingConfiguration:
+        DestinationBucketName: !Ref AccessLogs
+        LogFilePrefix: access/
+      Tags: [{ Key: Project, Value: CareerFlow }, { Key: Jira, Value: CFS-91 }]
+  BackupsPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref Backups
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: s3:*
+            Resource: [!GetAtt Backups.Arn, !Sub '${Backups.Arn}/*']
+            Condition: { Bool: { 'aws:SecureTransport': 'false' } }
+Outputs:
+  BucketName: { Value: !Ref Backups }
+  BucketArn: { Value: !GetAtt Backups.Arn }
+  AccessLogsBucketName: { Value: !Ref AccessLogs }

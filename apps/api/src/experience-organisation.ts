@@ -5,11 +5,7 @@ import { db } from './db.js';
 import { digest, json } from './domain.js';
 import { AppError, requireValue } from './errors.js';
 import { profileSchema } from '../../../packages/contracts/src/index.js';
-import {
-  recordKeys,
-  recordSchema,
-  storyFingerprint,
-} from '../../../packages/contracts/src/profile-records.js';
+import { storyFingerprint } from '../../../packages/contracts/src/profile-records.js';
 import { generate, configuredMode } from '../../../packages/agents/src/provider.js';
 
 export const storyLabels = {

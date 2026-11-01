@@ -1,5 +1,4 @@
 {
-  "description": "Synthetic, manually labelled examples; unlabelled hits are candidates for manual review, not verified false associations. In-memory latency excludes network and database.",
   "records": [
     {
       "id": "data-en",
@@ -34,33 +33,6 @@
       "text": "I coordinated weekly tasks with teammates and documented project decisions in GitHub."
     }
   ],
-  "categories": {
-    "exact": {
-      "cases": 3,
-      "meanRecallAt5": 1,
-      "returnedUnlabelled": 0
-    },
-    "paraphrase": {
-      "cases": 3,
-      "meanRecallAt5": 0,
-      "returnedUnlabelled": 0
-    },
-    "cross-language": {
-      "cases": 3,
-      "meanRecallAt5": 0.3333333333333333,
-      "returnedUnlabelled": 1
-    },
-    "cross-story": {
-      "cases": 3,
-      "meanRecallAt5": 0.611111111111111,
-      "returnedUnlabelled": 0
-    },
-    "negative": {
-      "cases": 2,
-      "meanRecallAt5": null,
-      "returnedUnlabelled": 0
-    }
-  },
   "results": [
     {
       "category": "exact",
@@ -68,40 +40,21 @@
       "relevant": [
         "data-en",
         "data-zh"
-      ],
-      "hits": [
-        "data-en",
-        "data-zh"
-      ],
-      "recall": 1,
-      "unlabelled": [],
-      "elapsedMs": 1.795833000000016
+      ]
     },
     {
       "category": "exact",
       "query": "SQL reporting dashboard",
       "relevant": [
         "dashboard"
-      ],
-      "hits": [
-        "dashboard"
-      ],
-      "recall": 1,
-      "unlabelled": [],
-      "elapsedMs": 0.08187500000002501
+      ]
     },
     {
       "category": "exact",
       "query": "pytest unit tests CSV importer",
       "relevant": [
         "testing"
-      ],
-      "hits": [
-        "testing"
-      ],
-      "recall": 1,
-      "unlabelled": [],
-      "elapsedMs": 0.05891699999995126
+      ]
     },
     {
       "category": "paraphrase",
@@ -109,11 +62,7 @@
       "relevant": [
         "data-en",
         "data-zh"
-      ],
-      "hits": [],
-      "recall": 0,
-      "unlabelled": [],
-      "elapsedMs": 0.049624999999991815
+      ]
     },
     {
       "category": "paraphrase",
@@ -121,22 +70,14 @@
       "relevant": [
         "support-en",
         "support-zh"
-      ],
-      "hits": [],
-      "recall": 0,
-      "unlabelled": [],
-      "elapsedMs": 0.04824999999999591
+      ]
     },
     {
       "category": "paraphrase",
       "query": "Give an example of checking software against bad input",
       "relevant": [
         "testing"
-      ],
-      "hits": [],
-      "recall": 0,
-      "unlabelled": [],
-      "elapsedMs": 0.047000000000025466
+      ]
     },
     {
       "category": "cross-language",
@@ -144,13 +85,7 @@
       "relevant": [
         "data-en",
         "data-zh"
-      ],
-      "hits": [
-        "data-en"
-      ],
-      "recall": 0.5,
-      "unlabelled": [],
-      "elapsedMs": 0.045000000000015916
+      ]
     },
     {
       "category": "cross-language",
@@ -158,28 +93,14 @@
       "relevant": [
         "support-en",
         "support-zh"
-      ],
-      "hits": [
-        "support-en"
-      ],
-      "recall": 0.5,
-      "unlabelled": [],
-      "elapsedMs": 0.04424999999997681
+      ]
     },
     {
       "category": "cross-language",
       "query": "我在哪个项目中开发了数据报表？",
       "relevant": [
         "dashboard"
-      ],
-      "hits": [
-        "data-zh"
-      ],
-      "recall": 0,
-      "unlabelled": [
-        "data-zh"
-      ],
-      "elapsedMs": 0.055542000000002645
+      ]
     },
     {
       "category": "cross-story",
@@ -188,15 +109,7 @@
         "data-en",
         "data-zh",
         "dashboard"
-      ],
-      "hits": [
-        "dashboard",
-        "data-en",
-        "data-zh"
-      ],
-      "recall": 1,
-      "unlabelled": [],
-      "elapsedMs": 10.955667000000005
+      ]
     },
     {
       "category": "cross-story",
@@ -205,13 +118,7 @@
         "testing",
         "support-en",
         "support-zh"
-      ],
-      "hits": [
-        "support-en"
-      ],
-      "recall": 0.3333333333333333,
-      "unlabelled": [],
-      "elapsedMs": 0.09904199999999719
+      ]
     },
     {
       "category": "cross-story",
@@ -219,31 +126,17 @@
       "relevant": [
         "backend",
         "team"
-      ],
-      "hits": [
-        "backend"
-      ],
-      "recall": 0.5,
-      "unlabelled": [],
-      "elapsedMs": 0.07025000000004411
+      ]
     },
     {
       "category": "negative",
       "query": "Where did I administer Kubernetes clusters?",
-      "relevant": [],
-      "hits": [],
-      "recall": null,
-      "unlabelled": [],
-      "elapsedMs": 0.051625000000001364
+      "relevant": []
     },
     {
       "category": "negative",
       "query": "Describe my Salesforce implementation",
-      "relevant": [],
-      "hits": [],
-      "recall": null,
-      "unlabelled": [],
-      "elapsedMs": 0.05408399999998892
+      "relevant": []
     }
   ]
 }

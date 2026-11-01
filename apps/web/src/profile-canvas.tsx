@@ -1,4 +1,3 @@
-import React from 'react';
 import { sameProfileField } from '../../../packages/contracts/src/profile-comparison.js';
 import { Check, CheckCheck, FilePenLine, ArrowRight, X } from 'lucide-react';
 import type { CareerProfile } from '../../../packages/contracts/src/index.js';

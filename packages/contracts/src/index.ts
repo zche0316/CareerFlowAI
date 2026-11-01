@@ -206,14 +206,6 @@ export const profileBuilderDraftSchema = z.object({
     .max(40),
 });
 
-// Models propose evidence IDs and emphasis only; the server supplies candidate claim text.
-export const resumePlanSchema = z.object({
-  claims: z
-    .array(z.object({ factId: z.string(), reason: z.string() }))
-    .min(1)
-    .max(20),
-});
-
 export const questionsSchema = z
   .object({
     questions: z
@@ -356,4 +348,3 @@ export const jobSearchSchema = z.object({
     })
     .optional(),
 });
-export type JobSearch = z.infer<typeof jobSearchSchema>;

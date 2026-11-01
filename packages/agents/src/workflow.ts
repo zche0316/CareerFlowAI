@@ -4,7 +4,7 @@ import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
 import { Command } from '@langchain/langgraph';
 import { z } from 'zod';
 import { readFile } from 'node:fs/promises';
-import { db, databaseUrl, portablePool } from '../../../apps/api/src/db.js';
+import { databaseUrl, portablePool } from '../../../apps/api/src/db.js';
 import { AppError } from '../../../apps/api/src/errors.js';
 import {
   getInterviewCompletion,
@@ -16,9 +16,7 @@ import {
   patchRun,
   reserveCall,
   appendUsage,
-  deduplicateResumeClaims,
   validateResumeClaims,
-  includeRecordHeaders,
   mutateRun,
   digest,
   json,

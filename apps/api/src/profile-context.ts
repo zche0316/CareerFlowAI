@@ -1,4 +1,4 @@
-export function profileModelNotes(messages: { text: string }[], recover = false) {
+export function profileModelNotes(messages: { text: string }[], _recover = false) {
   // Only the current answer is sent. Recovery also uses the search tool rather
   // than switching back to transcript injection.
   const candidates = messages.slice(-1);

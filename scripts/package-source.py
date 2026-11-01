@@ -3,7 +3,7 @@
 import argparse, datetime, hashlib, json, subprocess, zipfile
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
-DIRS = ['apps','packages','prisma','scripts','tests','docs','.github','.vscode']
+DIRS = ['apps','packages','prisma','scripts','tests','docs','infra','.github','.vscode']
 FILES = ['package.json','package-lock.json','README.md','AGENTS.md','.env.example','.gitignore','.dockerignore','.prettierrc.json','Dockerfile','compose.yaml','tsconfig.json','prisma.config.ts','vitest.config.ts','playwright.config.ts','CareerFlowAI.code-workspace']
 BLOCKED = {'node_modules','.git','.runtime','output','dist','test-results','playwright-report','__pycache__'}
 def candidates():

@@ -226,7 +226,7 @@ export function registerResumeAgent(app: Express) {
           'STALE_APPROVAL',
           'The draft changed. Review the current resume and try again.',
         );
-      const claim = requireValue(d.resumeDraft.claims.find((c: any) => c.factId === input.factId));
+      requireValue(d.resumeDraft.claims.find((c: any) => c.factId === input.factId));
       const fact = requireValue(
         (m.profile.facts as unknown as Fact[]).find((f) => f.id === input.factId),
       );

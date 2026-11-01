@@ -69,7 +69,7 @@ it('edits the preview from approved profile facts, searches memory only on deman
   });
   const spy = vi
     .spyOn(provider, 'generate')
-    .mockImplementation(async (role, context, schema, mode, hooks) => {
+    .mockImplementation(async (role, context, _schema, _mode, hooks) => {
       expect(role).toBe('resume-edit');
       expect(context).not.toHaveProperty('conversationHistory');
       expect(context.facts[0].text).toBe(fact.text);

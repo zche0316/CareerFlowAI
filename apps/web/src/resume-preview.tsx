@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { resumeLayout, type ResumeView } from '../../../packages/contracts/src/resume-layout.js';
 import type { ResumeChange } from '../../../packages/contracts/src/resume-review.js';
 export function ResumePreview({

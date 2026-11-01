@@ -1,3 +1,4 @@
+import { CloudBackups } from './cloud-backups.js';
 import { MISSION_MODEL_CALL_LIMIT } from '../../../packages/contracts/src/mission-limits.js';
 import { WorkspaceHome, nextMissionStep } from './workspace-home.js';
 import { FlowNavigation } from './flow-navigation.js';
@@ -25,24 +26,20 @@ import {
 import React, { useEffect, useState, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
-  ArrowUpRight,
   ArrowRight,
   Check,
   ChevronRight,
   Compass,
   Sparkles,
-  Layers,
   FileCheck2,
   Activity,
   LogOut,
-  Plus,
   X,
   Pause,
   RefreshCw,
   ShieldCheck,
   BriefcaseBusiness,
   MessageSquare,
-  Clock3,
   Download,
   CheckCircle2,
   AlertCircle,
@@ -1046,15 +1043,7 @@ function App() {
   );
 }
 
-function Login({
-  session,
-  error,
-  onLogin,
-}: {
-  session: any;
-  error: string;
-  onLogin: (s: any) => void;
-}) {
+function Login({ error, onLogin }: { session: any; error: string; onLogin: (s: any) => void }) {
   const [email, setEmail] = useState(''),
     [password, setPassword] = useState(''),
     [name, setName] = useState(''),
@@ -1187,7 +1176,7 @@ function Login({
   );
 }
 
-function PageTitle({ eyebrow, title, text }: { eyebrow: string; title: string; text: string }) {
+function PageTitle({ title, text }: { eyebrow: string; title: string; text: string }) {
   return (
     <div className="page-heading">
       <div>
@@ -1204,16 +1193,6 @@ function Status({ value }: { value: string }) {
       {['RUNNING', 'QUEUED'].includes(value) && <span className="pulse" />}
       {nice(value)}
     </span>
-  );
-}
-
-function Stat({ label, value, sub }: { label: string; value: string | number; sub: string }) {
-  return (
-    <div className="stat">
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <small>{sub}</small>
-    </div>
   );
 }
 
@@ -1238,13 +1217,11 @@ function Profile({
   mode = 'build',
   initialPrompt,
   profile,
-  userName,
   busy,
   onDraft,
   onApprove,
   onDiscard,
   onMission,
-  onLibrary,
 }: {
   mode?: 'build' | 'edit';
   initialPrompt?: { id: string; text: string; label: string } | null;
@@ -2953,13 +2930,16 @@ createRoot(document.getElementById('root')!).render(<App />);
 
 function ResumeDownloads({ id }: { id: string }) {
   return (
-    <span className="form-actions">
-      <a className="secondary" href={`/api/resumes/${id}/download?format=docx`}>
-        Download DOCX
-      </a>
-      <a className="secondary" href={`/api/resumes/${id}/download?format=pdf`}>
-        Download PDF
-      </a>
-    </span>
+    <>
+      <span className="form-actions">
+        <a className="secondary" href={`/api/resumes/${id}/download?format=docx`}>
+          Download DOCX
+        </a>
+        <a className="secondary" href={`/api/resumes/${id}/download?format=pdf`}>
+          Download PDF
+        </a>
+      </span>
+      <CloudBackups key={id} id={id} api={api} />
+    </>
   );
 }

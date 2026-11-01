@@ -1,3 +1,4 @@
+import { registerCloudBackups } from './cloud-backups.js';
 import {
   JobRepository,
   recruitmentSettings,
@@ -21,7 +22,6 @@ import { routerSettings } from '../../../packages/agents/src/router.js';
 import { suggestJobSearch } from '../../../packages/contracts/src/job-search.js';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { Prisma } from '@prisma/client';
 import { fileURLToPath } from 'node:url';
 import { db } from './db.js';
 import {
@@ -41,7 +41,6 @@ import {
   cancelMission,
   json,
   type MissionData,
-  type Event,
 } from './domain.js';
 import { AppError, requireValue } from './errors.js';
 import { enqueue, abortRun } from './queue.js';
@@ -211,6 +210,7 @@ export function createApp() {
   registerExperienceOrganisation(app);
   registerCareerMemory(app);
   registerResumeWording(app);
+  registerCloudBackups(app);
   registerResumeAgent(app);
   registerProfilePolish(app);
   registerJobFit(app);

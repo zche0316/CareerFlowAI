@@ -7,13 +7,9 @@ import {
   negotiationDecisionSchema,
   negotiationInputSchema,
   negotiationOutputSchema,
-  type CareerProfile,
   type Fact,
 } from '../../../packages/contracts/src/index.js';
 import { generate, type Mode } from '../../../packages/agents/src/provider.js';
-
-type NegotiationInput = z.infer<typeof negotiationInputSchema>;
-type NegotiationDecision = z.infer<typeof negotiationDecisionSchema>;
 
 async function negotiationMission(userId: string, id: string) {
   const mission = requireValue(

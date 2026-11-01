@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from transformers import AutoModel, AutoTokenizer
 
 ROOT = Path(__file__).resolve().parent.parent
-data = json.loads((ROOT / 'docs/retrieval-evaluation/keyword-baseline.json').read_text())
+data = json.loads((ROOT / 'tests/fixtures/career-retrieval.json').read_text())
 model_id = 'intfloat/multilingual-e5-small'
 started = time.perf_counter()
 tokenizer = AutoTokenizer.from_pretrained(model_id)
@@ -53,6 +53,7 @@ for category in dict.fromkeys(item['category'] for item in results):
                             'returnedUnlabelled': sum(len(item['unlabelled']) for item in group)}
 out = {'model': model_id, 'description': 'Synthetic benchmark, raw top 5 without a relevance threshold; unlabelled results require human review. CPU timings exclude database/network and include model warm-up. No personal data or paid API used.',
        'loadMs': load_ms, 'indexMs': index_ms, 'categories': categories, 'results': results}
-path = ROOT / 'docs/retrieval-evaluation/vector-baseline.json'
+path = ROOT / 'output/retrieval-evaluation/vector-results.json'
+path.parent.mkdir(parents=True, exist_ok=True)
 path.write_text(json.dumps(out, ensure_ascii=False, indent=2) + '\n')
 print(json.dumps({'loadMs': load_ms, 'indexMs': index_ms, 'categories': categories}, indent=2))
