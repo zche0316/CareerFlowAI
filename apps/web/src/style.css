@@ -5499,6 +5499,35 @@ summary:focus-visible {
   overflow: hidden;
 }
 
+/* CFS-87: journey history follows the workspace's warm accent palette. */
+.workspace-home .search-list {
+  border-color: #e5e2de;
+}
+.workspace-home .search-row {
+  border-bottom-color: #e5e2de;
+  transition: background-color 160ms ease;
+}
+.workspace-home .search-row p {
+  color: #62676d;
+}
+.workspace-home .search-row .row-action {
+  color: #b83b10;
+}
+.workspace-home .search-row:hover {
+  border-color: #e5e2de;
+  background: #fff0e7;
+}
+.workspace-home .search-row:focus-visible {
+  outline: 2px solid var(--cf-accent);
+  outline-offset: -3px;
+  background: #fff0e7;
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-home .search-row {
+    transition: none;
+  }
+}
+
 .company-avatar {
   display: inline-grid;
   place-items: center;
