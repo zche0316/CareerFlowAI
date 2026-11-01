@@ -144,15 +144,17 @@ async function executeMission(id: string) {
       const publicMessage =
         e instanceof JobSourceError
           ? e.message
-          : (e as any)?.status === 429
-            ? `AI provider rate limit reached${/tokens per day|TPD/i.test(message) ? ' (daily token allowance)' : ''}. Retry after the allowance recovers; repeated retries will not resolve this limit. Your approved profile and saved answers are preserved.`
-            : (e as any)?.status === 413
-              ? 'The AI request exceeded the provider size limit. Your approved profile and saved answers are preserved.'
-              : /Live AI requires|Job source|sharing|budget|profile changed|unsupported|evidence|revision limit|Mission unavailable/i.test(
-                    message,
-                  )
-                ? message
-                : 'The specialist could not complete this step. Your approved data and saved answers are preserved. Retry the step or check provider availability.';
+          : /Request was aborted/.test(message) && !controller.signal.aborted
+            ? 'The AI analysis exceeded its time limit while generating or correcting its result. Your approved data is preserved. Retry this step.'
+            : (e as any)?.status === 429
+              ? `AI provider rate limit reached${/tokens per day|TPD/i.test(message) ? ' (daily token allowance)' : ''}. Retry after the allowance recovers; repeated retries will not resolve this limit. Your approved profile and saved answers are preserved.`
+              : (e as any)?.status === 413
+                ? 'The AI request exceeded the provider size limit. Your approved profile and saved answers are preserved.'
+                : /Live AI requires|Job source|sharing|budget|profile changed|unsupported|evidence|revision limit|Mission unavailable/i.test(
+                      message,
+                    )
+                  ? message
+                  : 'The specialist could not complete this step. Your approved data and saved answers are preserved. Retry the step or check provider availability.';
       await db.mission.updateMany({
         where: { id, status: 'RUNNING', leaseToken: lease },
         data: {
@@ -171,7 +173,11 @@ async function executeMission(id: string) {
           ]),
         },
       });
-      console.error('Mission step failed:', id, message);
+      console.error('Mission step failed:', id, message, {
+        at: new Date().toISOString(),
+        name: e instanceof Error ? e.name : 'UnknownError',
+        workerAborted: controller.signal.aborted,
+      });
     }
   } finally {
     clearInterval(heartbeat);

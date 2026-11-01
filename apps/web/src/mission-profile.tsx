@@ -7,7 +7,9 @@ export function MissionProfile({
   missionId,
   api,
   onContinue,
+  completed = false,
 }: {
+  completed?: boolean;
   missionId: string;
   api: Request;
   onContinue: () => void;
@@ -37,7 +39,7 @@ export function MissionProfile({
         profile and start a new journey after approving it.
       </p>
       <button className="primary" onClick={onContinue}>
-        Continue this journey
+        {completed ? 'Back to journey results' : 'Continue this journey'}
       </button>
       <ProfileCanvas
         data={profile.data}

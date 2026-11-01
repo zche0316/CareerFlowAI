@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Check, Sparkles, X } from 'lucide-react';
 import type { Request } from './profile-conversation.js';
 
@@ -22,9 +22,15 @@ export function WordingStudio({
     [error, setError] = useState(''),
     [saved, setSaved] = useState<any>(null);
 
-  const load = async () => setRows(await api(`/resumes/${resume.id}/wording`));
+  const requestVersion = useRef(0);
+  const load = async () => {
+    const version = ++requestVersion.current;
+    const next = await api(`/resumes/${resume.id}/wording`);
+    if (version === requestVersion.current) setRows(next);
+  };
   useEffect(() => {
     let active = true;
+    const version = ++requestVersion.current;
     setRows([]);
     setEdits({});
     setReviewed(false);
@@ -33,13 +39,14 @@ export function WordingStudio({
     setFact(resume.content.claims[0]?.factId || '');
     void api(`/resumes/${resume.id}/wording`)
       .then((result) => {
-        if (active) setRows(result);
+        if (active && version === requestVersion.current) setRows(result);
       })
       .catch((requestError) => {
-        if (active) setError(requestError.message);
+        if (active && version === requestVersion.current) setError(requestError.message);
       });
     return () => {
       active = false;
+      requestVersion.current++;
     };
   }, [resume.id]);
   const run = async (fn: () => Promise<void>) => {

@@ -1,3 +1,4 @@
+import { fillProfileFixture } from './profile-fixture.js';
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { AGENTS, sampleProfile } from '../../packages/contracts/src/index.js';
 
@@ -26,7 +27,11 @@ async function openProfile(page: Page, approvedProfile: () => unknown = () => nu
     }),
   );
   await page.goto('/');
-  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Build profile', exact: true })
+    .or(page.getByRole('button', { name: 'My profile', exact: true }))
+    .first()
+    .click();
   await page.getByText('Edit profile details manually', { exact: true }).click();
   await expect(page.getByLabel('Full name', { exact: true })).toBeVisible();
 }
@@ -79,8 +84,7 @@ test('a pending save locks the reviewed form and a failed save keeps it availabl
     await route.fulfill({ status: 500, json: { error: 'Injected save failure' } });
   });
   await openProfile(page);
-  await page.getByText('Demo test data', { exact: true }).click();
-  await page.getByRole('button', { name: 'Use fictional example' }).click();
+  await fillProfileFixture(page);
   await page.getByRole('button', { name: 'Review profile draft' }).click();
   const reviewed = page.getByLabel('I reviewed this exact draft');
   await reviewed.check();
@@ -110,8 +114,7 @@ test('failed discard keeps the exact reviewed draft available for retry', async 
     });
   });
   await openProfile(page);
-  await page.getByText('Demo test data', { exact: true }).click();
-  await page.getByRole('button', { name: 'Use fictional example' }).click();
+  await fillProfileFixture(page);
   await page.getByRole('button', { name: 'Review profile draft' }).click();
   const reviewed = page.getByLabel('I reviewed this exact draft');
   await reviewed.check();
@@ -146,8 +149,7 @@ test('field errors can be corrected and changed drafts require fresh review', as
     }
   });
   await openProfile(page);
-  await page.getByText('Demo test data', { exact: true }).click();
-  await page.getByRole('button', { name: 'Use fictional example' }).click();
+  await fillProfileFixture(page);
   await page.getByLabel('Experience start date (optional)', { exact: true }).fill('2026-02-02');
   await page.getByLabel('Experience end date (optional)', { exact: true }).fill('2026-01-01');
   await page.getByRole('button', { name: 'Review profile draft' }).click();
@@ -422,4 +424,67 @@ test('saved-answer preparation with no proposals reports no changes instead of s
   await expect(
     page.getByRole('button', { name: 'Review current draft without this experience', exact: true }),
   ).toBeVisible();
+});
+
+test('experience picker sends only the selected record and section after consent', async ({
+  page,
+}) => {
+  const record = {
+    id: 'same-id',
+    title: 'Fictional employment',
+    organisation: '',
+    location: '',
+    startMonth: null,
+    endMonth: null,
+    current: false,
+    details: ['I cleaned a fictional dataset.'],
+    technologies: ['SQL'],
+    url: '',
+    evidence: [],
+  };
+  const workingForm = {
+    ...sampleProfile,
+    workExperiences: [record],
+    projects: [{ ...record, title: 'Fictional project' }],
+  };
+  const thread = {
+    id: 'picker-qa',
+    revision: 1,
+    profileVersion: 0,
+    workingForm,
+    messages: [],
+    proposals: [],
+    interview: { phase: 'review', closed: [] },
+  };
+  await page.route('**/api/profile-threads', (route) => route.fulfill({ json: [thread] }));
+  await page.route('**/api/profile-threads/picker-qa', (route) => route.fulfill({ json: thread }));
+  let submitted: any;
+  await page.route('**/api/profile-threads/picker-qa/organise', async (route) => {
+    submitted = route.request().postDataJSON();
+    await route.fulfill({ json: {} });
+  });
+  await openProfile(page);
+  await expect(page.getByRole('button', { name: /^Organise:/ })).toHaveCount(0);
+  await page.getByText('Experience summaries', { exact: true }).click();
+  const action = page.getByRole('button', { name: 'Organise selected experience', exact: true });
+  await expect(action).toBeDisabled();
+  await page.getByLabel('Experience to organise', { exact: true }).selectOption('projects:same-id');
+  await expect(action).toBeDisabled();
+  await page
+    .getByLabel(
+      'I allow the configured model to process this conversation, working form and retrieved confirmed evidence.',
+    )
+    .check();
+  await action.click();
+  await expect.poll(() => submitted?.recordSection).toBe('projects');
+  expect(submitted.recordId).toBe('same-id');
+  expect(submitted.consent).toBe(true);
+  await expect(
+    page.getByRole('button', { name: 'Approve & save profile', exact: true }),
+  ).toHaveCount(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByLabel('Experience to organise', { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
 });

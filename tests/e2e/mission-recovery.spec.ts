@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { sampleProfile } from '../../packages/contracts/src/index.js';
 
-for (const calls of [11, 12]) {
+for (const calls of [12, 59, 60]) {
   test(`failed mission recovery with ${calls} calls`, async ({ page }) => {
     await page.route('**/api/**', async (route) => {
       const path = new URL(route.request().url()).pathname;
@@ -19,7 +19,7 @@ for (const calls of [11, 12]) {
                     status: 'FAILED',
                     mode: 'fixture',
                     createdAt: '2026-10-30T00:00:00Z',
-                    error: 'The mission reached its 12-call budget.',
+                    error: 'The mission reached its 60-call budget.',
                     data: { apiCalls: calls },
                     events: [],
                   },
@@ -31,7 +31,7 @@ for (const calls of [11, 12]) {
     await page.goto('/');
     await page
       .getByRole('button', {
-        name: calls === 12 ? 'Review saved results' : 'Review and retry',
+        name: calls === 60 ? 'Review saved results' : 'Review and retry',
         exact: true,
       })
       .click();
@@ -40,7 +40,7 @@ for (const calls of [11, 12]) {
     await expect(
       page.getByText('Your career team is preparing this step.', { exact: false }),
     ).toHaveCount(0);
-    if (calls === 12) {
+    if (calls === 60) {
       await expect(page.getByRole('button', { name: 'Retry failed step' })).toHaveCount(0);
       await expect(page.getByRole('alert')).toContainText('Your saved results are still available');
       await page.setViewportSize({ width: 390, height: 844 });

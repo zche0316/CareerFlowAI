@@ -1,3 +1,4 @@
+import { MISSION_MODEL_CALL_LIMIT } from '../../../packages/contracts/src/mission-limits.js';
 import { createHash } from 'node:crypto';
 import {
   recordKeys,
@@ -322,11 +323,11 @@ export async function appendUsage(id: string, lease: string, input: number, outp
 export async function reserveCall(id: string, lease: string) {
   await mutateRun(id, lease, async (tx, m) => {
     const d = m.data as MissionData;
-    if ((d.apiCalls || 0) >= 12)
+    if ((d.apiCalls || 0) >= MISSION_MODEL_CALL_LIMIT)
       throw new AppError(
         409,
         'BUDGET_REACHED',
-        'The mission reached its 12-call budget. Review it before starting further work.',
+        `The mission reached its ${MISSION_MODEL_CALL_LIMIT}-call budget. Review it before starting further work.`,
       );
     await tx.mission.update({
       where: { id },

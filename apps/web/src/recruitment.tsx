@@ -16,11 +16,13 @@ export function JobSearchFields({
   adzunaConfigured,
   tavilyConfigured,
   tavilyAccessMode,
+  internalFixtures = false,
 }: {
   value: typeof defaultJobSearch;
   adzunaConfigured?: boolean;
   tavilyConfigured?: boolean;
   tavilyAccessMode?: string;
+  internalFixtures?: boolean;
   onChange: (v: typeof defaultJobSearch) => void;
 }) {
   const update = (p: Partial<typeof defaultJobSearch>) => onChange({ ...value, ...p });
@@ -29,10 +31,10 @@ export function JobSearchFields({
       <h3>Job source and location</h3>
       <p className="small muted">
         {value.provider === 'fixtures'
-          ? 'Offline demo listings are selected explicitly.'
+          ? 'Offline verification listings are selected.'
           : value.provider === 'manual'
             ? 'Use the listing you provide below.'
-            : 'All configured live sources are searched automatically.'}
+            : 'Searches connected job sources, not the entire job market.'}
       </p>
       <details>
         <summary>Advanced source options</summary>
@@ -49,14 +51,14 @@ export function JobSearchFields({
             <option value="tavily">Tavily discovery · verified public job boards</option>
             <option value="adzuna">Live country-wide search (Adzuna credentials required)</option>
             <option value="manual">SEEK / Indeed · paste a listing</option>
-            <option value="fixtures">Fictional demo jobs (explicit offline choice)</option>
+            {internalFixtures && <option value="fixtures">Offline verification listings</option>}
           </select>
         </label>
       </details>
       {value.provider === 'tavily' && (
         <p role="status" className="info">
           {tavilyConfigured
-            ? `Tavily ${tavilyAccessMode === 'keyless' ? 'limited keyless access' : 'API access'}: one basic search, up to five links. Only postings confirmed through official Greenhouse, Lever or Ashby APIs are matched.`
+            ? `Tavily ${tavilyAccessMode === 'keyless' ? 'limited keyless access' : 'API access'}: ${tavilyAccessMode === 'keyless' ? 'one search, up to 5 links' : 'up to two searches, up to 20 links'}. Only postings confirmed through official Greenhouse, Lever or Ashby APIs are matched.`
             : 'Tavily is not configured. Set TAVILY_API_KEY on the server, or explicitly choose limited TAVILY_ACCESS_MODE=keyless, then restart.'}
         </p>
       )}

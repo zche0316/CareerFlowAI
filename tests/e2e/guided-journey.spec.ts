@@ -1,3 +1,4 @@
+import { fillProfileFixture } from './profile-fixture.js';
 import { test, expect } from '@playwright/test';
 
 test('five-step journey automatically hands off and preserves decisions across reloads', async ({
@@ -12,8 +13,7 @@ test('five-step journey automatically hands off and preserves decisions across r
   await page.getByLabel('Email address').fill(`guided-${Date.now()}@careerflow.test`);
   await page.getByLabel('Password', { exact: true }).fill('Disposable-Journey-password');
   await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
-  await page.getByText('Demo test data', { exact: true }).click();
-  await page.getByRole('button', { name: 'Use fictional example', exact: true }).click();
+  await fillProfileFixture(page);
   await page.getByRole('button', { name: 'Review profile draft', exact: true }).click();
   await page.getByLabel('I reviewed this exact draft').check();
   await page.getByRole('button', { name: 'Approve & save profile', exact: true }).click();

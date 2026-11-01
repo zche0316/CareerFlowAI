@@ -1,0 +1,40 @@
+{
+  "retrievedAt": "2026-10-31T13:25:54.608164+00:00",
+  "icons": {
+    "vgw": {
+      "file": "vgw.ico",
+      "url": "https://vgw.co/favicon.ico",
+      "sha256": "88baf40feb43463a8f6aa6543e88bdbe33f0db9a317486e786eee1e5c76a9544"
+    },
+    "gofundme": {
+      "file": "gofundme.ico",
+      "url": "https://gofundme.com/favicon.ico",
+      "sha256": "30efcb007fa4677611fd95899ac1c3aabd33952a5fb374dfc4c603f7c7e6570b"
+    },
+    "mongodb": {
+      "file": "mongodb.ico",
+      "url": "https://mongodb.com/favicon.ico",
+      "sha256": "1143ff8a5619ad9d016e3d94462f44ae9047ab4ac4c39722d265c88961591a1a"
+    },
+    "prezzee": {
+      "file": "prezzee.ico",
+      "url": "https://prezzee.com.au/favicon.ico",
+      "sha256": "693656836be482363638fb9e60649f8d91428959cb1fc58cd53a78cdb9858eab"
+    },
+    "seek": {
+      "file": "seek.png",
+      "url": "https://seek.com.au/favicon.ico",
+      "sha256": "d9fe417207cd800e7f84da1194d281d66d77e781c0c232918860eff647c6ddf2"
+    },
+    "indeed": {
+      "file": "indeed.ico",
+      "url": "https://indeed.com/favicon.ico",
+      "sha256": "5dd908b160254ccd9f846828e850aa86002eb2b945e23edc71cb19fc5e02f7e3"
+    },
+    "tavily": {
+      "file": "tavily.ico",
+      "url": "https://tavily.com/favicon.ico",
+      "sha256": "90a01533b740859e0c2fb4235ed98f8b13bdbb69b52e5ecc984f38e717276aed"
+    }
+  }
+}

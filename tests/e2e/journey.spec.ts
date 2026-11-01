@@ -1,3 +1,4 @@
+import { fillProfileFixture } from './profile-fixture.js';
 import { test, expect, type Page } from '@playwright/test';
 
 async function createAccount(page: Page) {
@@ -12,9 +13,12 @@ async function createAccount(page: Page) {
 
 async function openRankedJobs(page: Page) {
   await createAccount(page);
-  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
-  await page.getByText('Demo test data', { exact: true }).click();
-  await page.getByRole('button', { name: 'Use fictional example' }).click();
+  await page
+    .getByRole('button', { name: 'Build profile', exact: true })
+    .or(page.getByRole('button', { name: 'My profile', exact: true }))
+    .first()
+    .click();
+  await fillProfileFixture(page);
   await page.getByText('Edit profile details manually', { exact: true }).click();
   await page.getByRole('button', { name: 'Review profile draft' }).click();
   await page.getByLabel('I reviewed this exact draft').check();
@@ -23,7 +27,11 @@ async function openRankedJobs(page: Page) {
     page.getByRole('button', { name: 'Start career mission', exact: true }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Close mission form', exact: true }).click();
-  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Build profile', exact: true })
+    .or(page.getByRole('button', { name: 'My profile', exact: true }))
+    .first()
+    .click();
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Overview', exact: true }).click();
   await page.getByRole('button', { name: 'New career mission' }).click();
@@ -53,9 +61,12 @@ async function openInterview(page: Page) {
 
 test('a user must explicitly review a profile before v1 is persisted', async ({ page }) => {
   await createAccount(page);
-  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
-  await page.getByText('Demo test data', { exact: true }).click();
-  await page.getByRole('button', { name: 'Use fictional example' }).click();
+  await page
+    .getByRole('button', { name: 'Build profile', exact: true })
+    .or(page.getByRole('button', { name: 'My profile', exact: true }))
+    .first()
+    .click();
+  await fillProfileFixture(page);
   await page.getByText('Edit profile details manually', { exact: true }).click();
   await page.getByRole('button', { name: 'Review profile draft' }).click();
   const approve = page.getByRole('button', { name: 'Approve & save profile' });
@@ -69,10 +80,18 @@ test('a user must explicitly review a profile before v1 is persisted', async ({ 
     page.getByRole('button', { name: 'Start career mission', exact: true }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Close mission form', exact: true }).click();
-  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Build profile', exact: true })
+    .or(page.getByRole('button', { name: 'My profile', exact: true }))
+    .first()
+    .click();
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
   await page.reload();
-  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Build profile', exact: true })
+    .or(page.getByRole('button', { name: 'My profile', exact: true }))
+    .first()
+    .click();
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
   await page.screenshot({ path: 'output/acceptance/cfs-13-approved-v1.png', fullPage: true });
 });
@@ -85,7 +104,7 @@ test('a user compares ranked jobs and selects one for downstream context', async
     .getByRole('button');
   const jobCount = await choices.count();
   expect(jobCount).toBeGreaterThan(1);
-  const scoreTexts = await choices.locator('span').allTextContents();
+  const scoreTexts = await choices.locator(':scope > span:last-child').allTextContents();
   const scores = scoreTexts.map((text) => Number(text.match(/(\d+)\/100/)?.[1]));
   expect(scores).toEqual([...scores].sort((left, right) => right - left));
   await expect(page.getByText('Evidence, gaps & source', { exact: true })).toHaveCount(1);
@@ -94,6 +113,14 @@ test('a user compares ranked jobs and selects one for downstream context', async
     await choices.nth(1).locator('strong').innerText(),
   );
   await choices.first().click();
+  await jobCards.first().getByText('Evidence, gaps & source', { exact: true }).click();
+  await expect(jobCards.first()).toContainText('Preferred skills (optional)');
+  await expect(jobCards.first()).toContainText('40% required skills');
+  await expect(
+    jobCards.first().getByRole('list', { name: 'Suitability score components' }),
+  ).toContainText('preferred: 5% weight');
+  await jobCards.first().getByText('Skill extraction evidence', { exact: true }).click();
+  await expect(jobCards.first()).toContainText('Required skills:');
   await page.screenshot({ path: 'output/acceptance/cfs-21-ranked-jobs.png', fullPage: true });
 
   const selectedTitle = await jobCards.locator('h3').first().innerText();
@@ -196,36 +223,62 @@ test('a user answers every interview question and receives complete feedback', a
     fullPage: true,
   });
 
-  await page
-    .getByRole('button', { name: 'View full mission & optional practice', exact: true })
-    .click();
-  await page.getByLabel('Practice offer salary').fill('65000');
-  await page.getByLabel('Your target salary').fill('72000');
-  await page.getByLabel('Currency').fill('AUD');
-  await page
-    .getByLabel('Your negotiation response')
-    .fill(
-      'I am interested in the role and would like to discuss the salary range based on the scope and my confirmed reporting experience.',
-    );
-  await page.getByRole('button', { name: 'Practice salary negotiation' }).click();
-  await expect(page.getByRole('heading', { name: 'Simulated recruiter reply' })).toBeVisible({
-    timeout: 30000,
-  });
-  await expect(page.getByRole('heading', { name: 'Negotiation strengths' })).toBeVisible();
-  await page.getByRole('button', { name: 'Record my choice: accept' }).click();
+  const completedId = new URL(page.url()).searchParams.get('mission');
+  await page.getByRole('button', { name: 'Back to journey results', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Completed journey results' })).toBeVisible();
+  await page.reload();
   await expect(
-    page.getByText('Practice decision recorded: accept.', { exact: false }),
+    page.getByRole('heading', { name: 'Your journey results', exact: true }),
   ).toBeVisible();
   await page.screenshot({
-    path: `output/acceptance/cfs-33-salary-negotiation-${process.env.PROVIDER_MODE === 'openai' ? 'live' : 'fixture'}.png`,
+    path: 'output/acceptance/completed-journey-results.png',
     fullPage: true,
   });
+  const stages = [
+    'Profile building',
+    'Career analysis',
+    'Job matching',
+    'Resume tailoring',
+    'Interview practice',
+  ];
+  for (let i = 0; i < stages.length; i++) {
+    await page
+      .getByRole('button', {
+        name: `${String(i + 1).padStart(2, '0')} · ${stages[i]}`,
+        exact: true,
+      })
+      .click();
+    await expect(
+      page.getByText('Saved journey · Read-only history', { exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Run revised analysis' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Select this opportunity' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Approve & save resume' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Refine wording' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Save response', exact: true })).toHaveCount(0);
+  }
+  await expect(page.getByRole('region', { name: 'Saved interview answers' })).toContainText(
+    'In example 1',
+  );
+  await page.getByRole('button', { name: 'Back to results', exact: true }).click();
+  await page.getByRole('button', { name: 'My profile', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Build profile', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Find jobs', exact: true }).click();
+  await page.getByRole('button', { name: 'Start career mission', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Select this opportunity' }).first()).toBeVisible({
+    timeout: 30000,
+  });
+  expect(new URL(page.url()).searchParams.get('mission')).not.toBe(completedId);
+  const previous = await (await page.request.get(`/api/missions/${completedId}`)).json();
+  expect(previous.status).toBe('COMPLETE');
+  expect(previous.data.answers).toHaveLength(questionCount);
+  expect(previous.data.approvedResumeId).toBeTruthy();
 });
 
 test('mobile workspace stays usable without horizontal scrolling', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Open demo workspace' }).click();
+  await createAccount(page);
   await expect(page.getByRole('heading', { name: 'Build your profile' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,

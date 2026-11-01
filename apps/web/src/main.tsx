@@ -1,12 +1,15 @@
+import { MISSION_MODEL_CALL_LIMIT } from '../../../packages/contracts/src/mission-limits.js';
 import { WorkspaceHome, nextMissionStep } from './workspace-home.js';
 import { FlowNavigation } from './flow-navigation.js';
 import { ResumePreview } from './resume-preview.js';
 import { pendingResumeChanges } from '../../../packages/contracts/src/resume-review.js';
+import { CompanyAvatar, SourceIcon } from './company-avatar.js';
 import { MissionProfile } from './mission-profile.js';
 import { JobFit } from './job-fit.js';
 import { suggestJobSearch } from '../../../packages/contracts/src/job-search.js';
 import { ProfileRecords } from './profile-records.js';
 import { ProfileImport } from './profile-import.js';
+import { ResumeManualEdit } from './resume-manual-edit.js';
 import { ResumeAgent } from './resume-agent.js';
 import { ProfileConversation } from './profile-conversation.js';
 import { CareerMemoryPanel } from './career-memory.js';
@@ -27,6 +30,7 @@ import {
   Check,
   ChevronRight,
   Compass,
+  Sparkles,
   Layers,
   FileCheck2,
   Activity,
@@ -220,6 +224,7 @@ function App() {
   const mission = workspace?.missions.find((m: any) => m.id === selected);
   useEffect(() => {
     if (
+      !busy &&
       tab === 'missions' &&
       mission &&
       phase !== null &&
@@ -230,7 +235,14 @@ function App() {
       setPhase(nextMissionStep(mission));
       setNotice('Continue from the next available step in this application journey.');
     }
-  }, [tab, mission?.id, mission?.status, phase]);
+  }, [tab, mission?.id, mission?.status, phase, busy]);
+  useEffect(() => {
+    if (tab === 'profile' && workspace?.profile) {
+      setTab('approved-profile');
+      setSelected(null);
+      setPhase(null);
+    }
+  }, [tab, workspace?.profile?.id]);
   const selectJourneyStep = (i: number) => {
     const active = mission || workspace?.missions[0];
     if (i > 0 && active && i > nextMissionStep(active)) {
@@ -341,7 +353,6 @@ function App() {
       key={mode}
       profile={workspace?.profile}
       userName={session.user.name}
-      sample={workspace?.sampleProfile}
       onMission={() => {
         setPhase(null);
         setTab('missions');
@@ -398,7 +409,11 @@ function App() {
         <div className="workspace-label">Workspace</div>
         <nav aria-label="Main navigation">
           {nav
-            .filter((n) => !['approvals', 'applications', 'activity', 'tools'].includes(n.id))
+            .filter(
+              (n) =>
+                !['approvals', 'applications', 'activity', 'tools'].includes(n.id) &&
+                !(n.id === 'profile' && workspace?.profile),
+            )
             .map((n) => (
               <button
                 key={n.id}
@@ -408,13 +423,38 @@ function App() {
                     ? tab === 'missions' && phase === 2
                       ? 'nav active'
                       : 'nav'
-                    : tab === n.id && !(n.id === 'missions' && phase !== null)
+                    : tab === n.id && !(n.id === 'missions' && (phase !== null || selected))
                       ? 'nav active'
                       : 'nav'
                 }
                 onClick={() => {
                   if (n.id === 'jobs') {
-                    selectJourneyStep(2);
+                    if (!workspace?.profile) {
+                      setTab('profile');
+                      setSelected(null);
+                      setPhase(0);
+                      return;
+                    }
+                    const candidate = mission || workspace?.missions[0];
+                    const active =
+                      candidate &&
+                      [
+                        'QUEUED',
+                        'RUNNING',
+                        'AWAITING_JOB',
+                        'AWAITING_APPROVAL',
+                        'AWAITING_INTERVIEW',
+                      ].includes(candidate.status)
+                        ? candidate
+                        : null;
+                    if (active) {
+                      setSelected(active.id);
+                      setTab('missions');
+                      setPhase(active.data?.matches?.length ? 2 : nextMissionStep(active));
+                    } else {
+                      setCreating(true);
+                    }
+                    setError('');
                     return;
                   }
                   if (n.id === 'applications') {
@@ -527,16 +567,18 @@ function App() {
             <span>
               {phase !== null
                 ? phaseNames[phase]
-                : tab === 'approved-profile'
-                  ? 'My profile'
-                  : nav.find((n) => n.id === tab)?.label}
+                : tab === 'missions' && mission?.status === 'COMPLETE'
+                  ? 'Journey results'
+                  : tab === 'approved-profile'
+                    ? 'My profile'
+                    : nav.find((n) => n.id === tab)?.label}
             </span>
           </div>
           <details className="provider-details">
             <summary>Service status</summary>
             <span className={`provider ${session.mode === 'fixture' ? 'fixture' : ''}`}>
               <i />
-              {session.mode === 'fixture' ? 'Demo mode' : 'Live AI enabled'}
+              {session.mode === 'fixture' ? 'Verification mode' : 'Live AI enabled'}
             </span>
           </details>
         </header>
@@ -560,7 +602,13 @@ function App() {
           )}
           {(tab === 'profile' || (tab === 'missions' && (selected || phase !== null))) && (
             <FlowNavigation
-              current={tab === 'profile' ? 0 : (phase ?? 0)}
+              current={
+                tab === 'profile'
+                  ? 0
+                  : phase === null && mission?.status === 'COMPLETE'
+                    ? -1
+                    : (phase ?? 0)
+              }
               onSelect={selectJourneyStep}
             />
           )}
@@ -634,6 +682,8 @@ function App() {
                   onAction={(kind, body) =>
                     act(async () => {
                       await api(`/missions/${mission.id}/${kind}`, 'POST', body || {});
+                      if (kind === 'job-link')
+                        setNotice('Job read. Review the listing and choose it as your target.');
                       if (kind === 'decisions' && (body as any)?.kind === 'job') {
                         setPhase(3);
                         setNotice('Job selected. Preparing your resume…');
@@ -717,7 +767,9 @@ function App() {
                     }}
                     onOpen={(m, targetPhase) => {
                       setSelected(m.id);
-                      setPhase(targetPhase ?? nextMissionStep(m));
+                      setPhase(
+                        targetPhase ?? (m.status === 'COMPLETE' ? null : nextMissionStep(m)),
+                      );
                     }}
                   />
                 </>
@@ -730,28 +782,78 @@ function App() {
                 title="Approval inbox"
                 text="Review the important moments. Your agents will wait for your decision."
               />
-              {approvals.length ? (
-                approvals.map((m: any) => (
+              {workspace?.missions[0]?.status === 'COMPLETE' && approvals.length > 0 && (
+                <div className="inbox-context" role="note">
+                  <p>
+                    Your latest journey is complete. The decisions below belong to earlier journeys.
+                  </p>
                   <button
-                    className="approval-card"
-                    key={m.id}
+                    className="text-button"
                     onClick={() => {
                       setTab('missions');
-                      setSelected(m.id);
-                      setPhase(nextMissionStep(m));
+                      setSelected(workspace.missions[0].id);
+                      setPhase(null);
                     }}
                   >
+                    View latest journey results <ArrowRight size={16} />
+                  </button>
+                </div>
+              )}
+              {approvals.length ? (
+                approvals.map((m: any) => (
+                  <article className="approval-card" key={m.id}>
                     <FileCheck2 size={24} />
-                    <div>
-                      <h3>
+                    <div className="approval-details">
+                      <span className="muted">
+                        {m.id === workspace?.missions[0]?.id ? 'Latest journey' : 'Earlier journey'}{' '}
+                        · Started {date(m.createdAt)}
+                      </span>
+                      <h3>{m.data?.selectedJob?.job?.title || m.goal}</h3>
+                      {m.data?.selectedJob?.job?.company && <p>{m.data.selectedJob.job.company}</p>}
+                      <strong>
                         {m.status === 'AWAITING_JOB'
                           ? 'Choose a target opportunity'
                           : 'Review your resume draft'}
-                      </h3>
-                      <p>{m.goal}</p>
+                      </strong>
+                      <div className="approval-actions">
+                        <button
+                          className="primary"
+                          disabled={busy}
+                          onClick={() =>
+                            void act(async () => {
+                              const current = await refresh();
+                              const latest = current.missions.find((item: any) => item.id === m.id);
+                              if (!latest) return;
+                              setTab('missions');
+                              setSelected(latest.id);
+                              setPhase(
+                                latest.status === 'COMPLETE' ? null : nextMissionStep(latest),
+                              );
+                              setNotice(
+                                latest.status === 'COMPLETE'
+                                  ? 'This journey is complete. Showing its saved results.'
+                                  : `Opened journey: ${latest.goal}`,
+                              );
+                            })
+                          }
+                        >
+                          Open journey <ArrowRight size={16} />
+                        </button>
+                        <button
+                          className="text-button"
+                          disabled={busy}
+                          onClick={() =>
+                            void act(async () => {
+                              await api(`/missions/${m.id}/cancel`, 'POST', {});
+                              setNotice('Journey cancelled. Its saved history is still available.');
+                            })
+                          }
+                        >
+                          Cancel this journey
+                        </button>
+                      </div>
                     </div>
-                    <ArrowRight size={20} />
-                  </button>
+                  </article>
                 ))
               ) : (
                 <div className="empty-state">
@@ -873,6 +975,7 @@ function App() {
               adzunaConfigured={session?.recruitment?.adzunaConfigured}
               tavilyConfigured={session?.recruitment?.tavilyConfigured}
               tavilyAccessMode={session?.recruitment?.tavilyAccessMode}
+              internalFixtures={session?.mode === 'fixture'}
             />
             <p className="small muted">
               Search sends only keywords and selected location to the recruitment API, not your
@@ -926,6 +1029,7 @@ function App() {
                       },
                     });
                     setCreating(false);
+                    setTab('missions');
                     setSelected(m.id);
                     setPhase(1);
                   })
@@ -971,32 +1075,57 @@ function Login({
   return (
     <div className="login-page">
       <section className="login-brand">
-        <div className="brand">
+        <a href="/" className="brand" aria-label="CareerFlow home">
           <span className="brandmark">
-            <Compass />
+            <img src="/careerflow-logo.svg" alt="" />
           </span>
-          CareerFlow AI
-        </div>
-        <div>
+          CareerFlow
+        </a>
+        <div className="login-story">
           <span className="eyebrow">YOUR NEXT CHAPTER</span>
           <h1>
-            Big career goals.
-            <br />A team to get
+            Your experience.
             <br />
-            you there.
+            Your next move.
           </h1>
           <p>
-            Five specialist agents, one connected workspace.
+            A clearer direction, a stronger application.
             <br />
-            Built around your facts and your decisions.
+            Your career coach, with you at every step.
           </p>
+          <div className="career-personas" aria-label="Career paths for every stage">
+            <div className="career-persona persona-student">
+              <span className="persona-avatar">JL</span>
+              <span className="persona-stage">Finding a first role</span>
+              <strong>Jordan’s next chapter</strong>
+              <span>Business Analytics student</span>
+              <div className="persona-path">
+                <i />
+                Profile built<span>→</span>Graduate Analyst
+              </div>
+            </div>
+            <div className="career-persona persona-professional">
+              <span className="persona-avatar">AM</span>
+              <span className="persona-stage">Ready for a change</span>
+              <strong>Alex’s next chapter</strong>
+              <span>Operations → Business Analysis</span>
+              <div className="persona-path">
+                <i />
+                Experience connected<span>→</span>New possibilities
+              </div>
+            </div>
+            <div className="persona-coach">
+              <Sparkles size={18} />
+              <span>Your story. A plan to move forward.</span>
+            </div>
+          </div>
         </div>
-        <small>A private workspace for your professional future.</small>
+        <small>Your profile, applications and progress. In your own workspace.</small>
       </section>
       <section className="login-form">
         <div>
           <span className="eyebrow">WELCOME TO CAREERFLOW</span>
-          <h2>{register ? 'Create your workspace' : 'Your direction starts here.'}</h2>
+          <h2>{register ? 'Create your workspace' : 'Welcome back.'}</h2>
           <p>
             {register
               ? 'Keep your career context connected and under your control.'
@@ -1052,23 +1181,6 @@ function Login({
           <button className="text-button" onClick={() => setRegister(!register)}>
             {register ? 'Already have an account? Sign in' : 'New here? Create an account'}
           </button>
-          {session?.demoEnabled && (
-            <>
-              <div className="divider">OR EXPLORE FIRST</div>
-              <button
-                className="secondary full"
-                disabled={busy}
-                onClick={() => void submit('demo')}
-              >
-                Open demo workspace
-                <ArrowUpRight size={16} />
-              </button>
-              <p className="small muted">
-                Shared fictional candidate. Job sources are selected separately. Demo AI mode does
-                not make live AI calls.
-              </p>
-            </>
-          )}
         </div>
       </section>
     </div>
@@ -1127,7 +1239,6 @@ function Profile({
   initialPrompt,
   profile,
   userName,
-  sample,
   busy,
   onDraft,
   onApprove,
@@ -1141,7 +1252,6 @@ function Profile({
   onMission: () => void;
   onLibrary: () => void;
   userName: string;
-  sample: CareerProfile | undefined;
   busy: boolean;
   onDraft: (p: CareerProfile) => Promise<any>;
   onApprove: (id: string) => Promise<void>;
@@ -1154,7 +1264,6 @@ function Profile({
   const profileSurface = useRef<HTMLElement | null>(null);
   const approvedVersion = useRef<number | null>(profile?.version ?? null);
   useEffect(() => {
-    if (!sample) return;
     const nextVersion = profile?.version || 0;
     if (approvedVersion.current === null) {
       approvedVersion.current = nextVersion;
@@ -1168,7 +1277,7 @@ function Profile({
       return () => clearTimeout(timer);
     }
     approvedVersion.current = nextVersion;
-  }, [profile?.version, Boolean(sample)]);
+  }, [profile?.version]);
   const [skillInput, setSkillInput] = useState(''),
     [interestInput, setInterestInput] = useState('');
   const [form, setForm] = useState<CareerProfile | null>(null),
@@ -1201,7 +1310,6 @@ function Profile({
 
   useEffect(() => {
     // Reset only when the approved version changes, not on each workspace poll.
-    if (!profile?.data && !sample) return;
     if (profile?.data) {
       setForm(profile.data);
       setSkillInput(profile.data.skills.join(', '));
@@ -1216,7 +1324,7 @@ function Profile({
     setPreparing(false);
     setError('');
     setFields({});
-  }, [profile?.id, Boolean(sample)]);
+  }, [profile?.id]);
   if (!form) return <div className="loading">Loading your profile…</div>;
 
   const change = (key: keyof CareerProfile, value: any) => {
@@ -1560,22 +1668,6 @@ function Profile({
                   Find jobs using this approved profile
                 </button>
               )}
-              <details>
-                <summary>Demo test data</summary>
-                <p>Replaces the current unsaved draft with fictional sample information.</p>
-                <button
-                  className="text-button"
-                  disabled={!sample}
-                  onClick={() => {
-                    setForm(structuredClone(sample!));
-                    setSkillInput(sample!.skills.join(', '));
-                    setInterestInput(sample!.interests.join(', '));
-                    invalidateDraft();
-                  }}
-                >
-                  Use fictional example
-                </button>
-              </details>
             </section>
             {draft && (
               <section className="panel draft-preview">
@@ -1642,8 +1734,10 @@ function MissionDetail({
 }) {
   const d = m.data,
     [answer, setAnswer] = useState(''),
+    [jobURL, setJobURL] = useState(''),
     [question, setQuestion] = useState(0),
     [analysisFeedback, setAnalysisFeedback] = useState(''),
+    [manualDirty, setManualDirty] = useState(false),
     [confirm, setConfirm] = useState(false),
     [compareIds, setCompareIds] = useState<string[]>([]),
     [offerSalary, setOfferSalary] = useState(''),
@@ -1654,7 +1748,7 @@ function MissionDetail({
   const questions = d.questions || [],
     q = questions[question],
     responseCount = d.answers?.length || 0,
-    budgetExhausted = (d.apiCalls || 0) >= 12,
+    budgetExhausted = (d.apiCalls || 0) >= MISSION_MODEL_CALL_LIMIT,
     isWorking = ['RUNNING', 'QUEUED'].includes(m.status);
 
   useEffect(() => {
@@ -1678,11 +1772,77 @@ function MissionDetail({
     setNegotiationMessage('');
   }, [m.id, d.selectedJob?.job.id]);
 
+  const completed = m.status === 'COMPLETE';
+  if (completed && (phase === null || phase > 4))
+    return (
+      <section aria-label="Completed journey results">
+        <button className="back" onClick={onBack}>
+          ← All missions
+        </button>
+        <div className="page-heading">
+          <div>
+            <span className="eyebrow">JOURNEY COMPLETE · 5 OF 5</span>
+            <h1>Your journey results</h1>
+            <p>{m.goal}</p>
+          </div>
+          <button className="primary" onClick={onNewSearch}>
+            Start a new journey <ArrowRight size={16} />
+          </button>
+        </div>
+        <p>
+          This journey is saved. Review its five steps above. New work uses your latest approved
+          profile and keeps these results unchanged.
+        </p>
+        <section className="panel" aria-label="Saved application results">
+          <h2>{d.selectedJob?.job.title || 'Your application'}</h2>
+          <p>{d.selectedJob?.job.company}</p>
+          {d.approvedResumeId && <ResumeDownloads id={d.approvedResumeId} />}
+          <button className="text-button" onClick={() => onNavigate(3)}>
+            View approved resume
+          </button>
+          <button className="text-button" onClick={() => onNavigate(4)}>
+            Review interview answers
+          </button>
+        </section>
+        {d.feedback && (
+          <section className="panel" aria-label="Saved interview feedback">
+            <h2>Interview feedback</h2>
+            {(['strengths', 'improvements', 'nextSteps'] as const).map((key) => (
+              <div key={key}>
+                <h3>
+                  {key === 'nextSteps'
+                    ? 'Next practice'
+                    : key === 'improvements'
+                      ? 'Areas to improve'
+                      : 'Strengths'}
+                </h3>
+                <ul>
+                  {(d.feedback[key] || []).map((item: string, i: number) => (
+                    <li key={i}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </section>
+        )}
+      </section>
+    );
   return (
     <>
       <button className="back" onClick={onBack}>
         ← All missions
       </button>
+      {completed && (
+        <div className="info" role="note">
+          <span>Saved journey · Read-only history</span>
+          <button className="text-button" onClick={() => onNavigate(null)}>
+            Back to results
+          </button>
+          <button className="secondary" onClick={onNewSearch}>
+            Start a new journey
+          </button>
+        </div>
+      )}
       <div className="mission-heading">
         <div>
           <span className="eyebrow">
@@ -1690,7 +1850,7 @@ function MissionDetail({
               ? phase < 5
                 ? `STEP ${String(phase + 1).padStart(2, '0')} OF 05`
                 : 'OPTIONAL CAREER TOOL'
-              : `CAREER MISSION · ${m.mode === 'fixture' ? 'DEMO' : 'LIVE'}`}
+              : `CAREER MISSION · ${m.mode === 'fixture' ? 'VERIFICATION' : 'LIVE'}`}
           </span>
           <h1>
             {phase === 0
@@ -1742,13 +1902,55 @@ function MissionDetail({
         <MissionProfile
           missionId={m.id}
           api={api}
-          onContinue={() => onNavigate(nextMissionStep(m))}
+          onContinue={() => onNavigate(completed ? null : nextMissionStep(m))}
+          completed={completed}
         />
       )}
-      {phase === 2 && (
+      {phase === 2 && ['AWAITING_JOB', 'NO_MATCHES'].includes(m.status) && !d.selectedJob && (
+        <section className="panel" aria-label="Read a job link">
+          <h2>Have a job in mind?</h2>
+          <div className="form-actions">
+            <label style={{ flex: 1 }}>
+              Job listing URL
+              <input
+                type="url"
+                value={jobURL}
+                onChange={(e) => setJobURL(e.target.value)}
+                placeholder="Paste a job listing link…"
+              />
+            </label>
+            <button
+              className="secondary"
+              disabled={busy || !jobURL.trim()}
+              onClick={async () => {
+                await onAction('job-link', { url: jobURL.trim() });
+                setViewJobId('');
+              }}
+            >
+              {busy ? 'Reading job listing…' : 'Read job'}
+            </button>
+          </div>
+          <p className="small muted">
+            We’ll read the public listing. Review the job and its gaps before choosing it.
+          </p>
+        </section>
+      )}
+      {phase === 2 && !completed && !d.selectedJob && (
         <button className="primary" onClick={onNewSearch}>
           Search Australian jobs
         </button>
+      )}
+      {phase === 2 && d.selectedJob && !completed && (
+        <div className="info">
+          <span>
+            {d.resumeDraft
+              ? 'Your resume is ready for review.'
+              : 'Your selected job is saved. Preparing your resume…'}
+          </span>
+          <button className="primary" onClick={() => onNavigate(3)}>
+            Review your resume <ArrowRight size={15} />
+          </button>
+        </div>
       )}
       {m.error && (
         <div className="error-banner" role="alert">
@@ -1782,7 +1984,7 @@ function MissionDetail({
         <details className="run-details">
           <summary>AI usage</summary>
           <span className="muted small">
-            {d.apiCalls || 0} / 12 model calls ·{' '}
+            {d.apiCalls || 0} / {MISSION_MODEL_CALL_LIMIT} model calls ·{' '}
             {((d.inputTokens || 0) + (d.outputTokens || 0)).toLocaleString()} tokens recorded
           </span>
         </details>
@@ -1959,30 +2161,32 @@ function MissionDetail({
               ))}
             </div>
           </div>
-          <aside className="agent-decision-pane">
-            <h3>Career Coach</h3>
-            <p className="agent-context-caption">Using your approved profile</p>
-            <label>
-              What should the Career Coach revisit?
-              <textarea
-                value={analysisFeedback}
-                onChange={(e) => setAnalysisFeedback(e.target.value)}
-                placeholder="For example: focus more on leadership evidence or explain why a direction fits."
-              />
-            </label>
-            <button
-              className="secondary"
-              disabled={busy || analysisFeedback.trim().length < 3}
-              onClick={() => void onRefineAnalysis(analysisFeedback.trim())}
-            >
-              <RefreshCw size={15} />
-              Run revised analysis
-            </button>
-            <p className="small muted">Starts a new analysis; this result stays saved.</p>
-            <button className="text-button" onClick={() => onNavigate(2)}>
-              Explore matched jobs <ArrowRight size={14} />
-            </button>
-          </aside>
+          {!completed && (
+            <aside className="agent-decision-pane">
+              <h3>Career Coach</h3>
+              <p className="agent-context-caption">Using your approved profile</p>
+              <label>
+                What should the Career Coach revisit?
+                <textarea
+                  value={analysisFeedback}
+                  onChange={(e) => setAnalysisFeedback(e.target.value)}
+                  placeholder="For example: focus more on leadership evidence or explain why a direction fits."
+                />
+              </label>
+              <button
+                className="secondary"
+                disabled={busy || analysisFeedback.trim().length < 3}
+                onClick={() => void onRefineAnalysis(analysisFeedback.trim())}
+              >
+                <RefreshCw size={15} />
+                Run revised analysis
+              </button>
+              <p className="small muted">Starts a new analysis; this result stays saved.</p>
+              <button className="text-button" onClick={() => onNavigate(2)}>
+                Explore matched jobs <ArrowRight size={14} />
+              </button>
+            </aside>
+          )}
         </section>
       )}
       <div className={phase === 2 ? 'prototype-job-layout' : undefined}>
@@ -2066,7 +2270,10 @@ function MissionDetail({
                     aria-pressed={(viewJobId || d.matches[0]?.job.id) === r.job.id}
                     onClick={() => setViewJobId(r.job.id)}
                   >
-                    <strong>{r.job.title}</strong>
+                    <span className="job-choice-identity">
+                      <CompanyAvatar job={r.job} small />
+                      <strong>{r.job.title}</strong>
+                    </span>
                     <span>
                       {r.job.company} · {r.score}/100
                     </span>
@@ -2081,7 +2288,7 @@ function MissionDetail({
               ).map((r: any) => (
                 <article className="job-card" key={r.job.id}>
                   <div className="job-card-top">
-                    <div className="company-letter">{r.job.company[0]}</div>
+                    <CompanyAvatar job={r.job} />
                     <div
                       className="score"
                       role="img"
@@ -2096,7 +2303,10 @@ function MissionDetail({
                       <small>/ 100</small>
                     </div>
                   </div>
-                  <span className="small muted">{r.job.company}</span>
+                  <span className="small muted job-choice-identity">
+                    <SourceIcon job={r.job} />
+                    {r.job.company}
+                  </span>
                   <h3>{r.job.title}</h3>
                   <p className="small muted">
                     {r.job.location} · {r.job.employmentType}
@@ -2127,12 +2337,65 @@ function MissionDetail({
                       </p>
                     </div>
                   )}
-                  <JobSourceActions job={r.job} missionId={m.id} request={api} />
+                  {!completed && <JobSourceActions job={r.job} missionId={m.id} request={api} />}
                   <details>
                     <summary>Evidence, gaps & source</summary>
                     <p>
                       <strong>Gaps:</strong> {r.gaps.join('; ') || 'No explicit gaps identified.'}
                     </p>
+                    {r.scoringVersion === 'matching-v2' && (
+                      <>
+                        <p>
+                          <strong>Required skills:</strong>{' '}
+                          {r.requirements.required.join(', ') || 'Unknown — not explicitly stated'}
+                        </p>
+                        <p>
+                          <strong>Preferred skills (optional):</strong>{' '}
+                          {r.requirements.preferred.join(', ') || 'Not stated'}. Evidenced:{' '}
+                          {r.preferredMatches?.join(', ') || 'None identified'}.
+                        </p>
+                        <p>
+                          <strong>Other skill mentions:</strong>{' '}
+                          {r.requirements.mentioned?.join(', ') || 'None'}. These are excluded from
+                          skill requirement scoring.
+                        </p>
+                        <p>
+                          <strong>Education:</strong>{' '}
+                          {r.assessment.education.status.replace('_', ' ')} —{' '}
+                          {r.assessment.education.reason}
+                        </p>
+                        <p>
+                          <strong>Location:</strong>{' '}
+                          {r.assessment.location.status.replace('_', ' ')} —{' '}
+                          {r.assessment.location.reason}
+                        </p>
+                        <p>
+                          <strong>Experience:</strong> {r.assessment.experience.replace('_', ' ')}.
+                          Unknown requirements receive neutral half-credit.
+                        </p>
+                        <ul aria-label="Suitability score components">
+                          {Object.entries(r.scoringWeights as Record<string, number>).map(
+                            ([key, weight]) => (
+                              <li key={key}>
+                                {key === 'semantic' ? 'TF-IDF overlap' : key}:{' '}
+                                {Math.round(weight * 100)}% weight ·{' '}
+                                {Math.round(r.components[key] * 100)}% component
+                              </li>
+                            ),
+                          )}
+                        </ul>
+                        <details>
+                          <summary>Skill extraction evidence</summary>
+                          <ul>
+                            {r.requirements.skillEvidence?.map((item: any, index: number) => (
+                              <li key={index}>
+                                {item.kind}: {item.skills.join(', ')} — {item.text}
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
+                      </>
+                    )}
                     <p>{r.job.description}</p>
                     <ul>
                       {r.limitations?.map((limit: string) => (
@@ -2153,8 +2416,9 @@ function MissionDetail({
                           : 'Fictional sample vacancy.'}
                     </p>
                     <p>
-                      45% skills · 15% experience · 10% education · 15% preferences · 15% TF-IDF
-                      overlap.
+                      {r.scoringVersion === 'matching-v2'
+                        ? '40% required skills · 5% preferred skills · 15% experience · 10% education · 15% preferences · 15% TF-IDF overlap. Unknown components receive neutral half-credit.'
+                        : '45% skills · 15% experience · 10% education · 15% preferences · 15% TF-IDF overlap (saved legacy result).'}
                     </p>
                     <p>Scores indicate heuristic suitability, not hiring probabilities.</p>
                   </details>
@@ -2251,6 +2515,33 @@ function MissionDetail({
         )}
       {(phase === null || phase === 3) && d.resumeDraft && (
         <section id="resume-tailoring" className="panel resume">
+          {m.status === 'AWAITING_APPROVAL' && (
+            <div className="approval-controls resume-approval-bar">
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={confirm && !manualDirty}
+                  disabled={busy || manualDirty}
+                  onChange={(e) => setConfirm(e.target.checked)}
+                />
+                I reviewed this resume and am ready to save it.
+              </label>
+              <button
+                className="primary"
+                disabled={!confirm || busy || manualDirty}
+                onClick={() =>
+                  void onAction('decisions', {
+                    kind: 'resume',
+                    decision: 'approve',
+                    draftHash: d.resumeDraft.hash,
+                  })
+                }
+              >
+                <Check size={16} />
+                Approve & save resume
+              </button>
+            </div>
+          )}
           <div className="prototype-resume-layout">
             <div
               className="prototype-resume-paper resume-draft-preview"
@@ -2262,7 +2553,7 @@ function MissionDetail({
                 changes={
                   d.approvedResumeId ? [] : pendingResumeChanges(d.resumeDraft, d.resumeChanges)
                 }
-                busy={busy}
+                busy={busy || manualDirty}
                 onRestore={
                   m.status === 'AWAITING_APPROVAL'
                     ? (factId) =>
@@ -2286,46 +2577,33 @@ function MissionDetail({
                 </div>
               )}
               <div className="section-heading">
-                <h2>Edit with your agent</h2>
+                <h2>{completed ? 'Saved resume' : 'Edit with your agent'}</h2>
                 <span className="tag">
                   {d.approvedResumeId ? 'Approved & saved' : 'Review required'}
                 </span>
               </div>
               {m.status === 'AWAITING_APPROVAL' && (
-                <ResumeAgent
+                <ResumeManualEdit
                   draft={d.resumeDraft}
-                  messages={d.resumeChat || []}
                   busy={busy}
-                  onEdit={(message) =>
-                    onAction('resume-agent', { draftHash: d.resumeDraft.hash, message })
+                  onDirty={(dirty) => {
+                    setManualDirty(dirty);
+                    if (dirty) setConfirm(false);
+                  }}
+                  onSave={(factId, text) =>
+                    onAction('resume-agent/manual', { draftHash: d.resumeDraft.hash, factId, text })
                   }
                 />
               )}
               {m.status === 'AWAITING_APPROVAL' && (
-                <div className="approval-controls">
-                  <label className="checkbox">
-                    <input
-                      type="checkbox"
-                      checked={confirm}
-                      onChange={(e) => setConfirm(e.target.checked)}
-                    />
-                    I reviewed this resume and am ready to save it.
-                  </label>
-                  <button
-                    className="primary"
-                    disabled={!confirm || busy}
-                    onClick={() =>
-                      void onAction('decisions', {
-                        kind: 'resume',
-                        decision: 'approve',
-                        draftHash: d.resumeDraft.hash,
-                      })
-                    }
-                  >
-                    <Check size={16} />
-                    Approve & save resume
-                  </button>
-                </div>
+                <ResumeAgent
+                  draft={d.resumeDraft}
+                  messages={d.resumeChat || []}
+                  busy={busy || manualDirty}
+                  onEdit={(message) =>
+                    onAction('resume-agent', { draftHash: d.resumeDraft.hash, message })
+                  }
+                />
               )}
               {d.approvedResumeId && <ResumeDownloads id={d.approvedResumeId} />}
               {d.approvedResumeId && (
@@ -2338,7 +2616,7 @@ function MissionDetail({
           </div>
         </section>
       )}
-      {d.approvedResumeId && (phase === null || phase === 3) && (
+      {!completed && d.approvedResumeId && (phase === null || phase === 3) && (
         <button className="primary" onClick={() => onNavigate(4)}>
           Continue to interview practice
         </button>
@@ -2431,9 +2709,23 @@ function MissionDetail({
                 {d.endedEarly ? 'You finished early; feedback reflects the available answers.' : ''}
               </p>
             )}
+            {completed && (
+              <section aria-label="Saved interview answers">
+                <h3>Your saved answers</h3>
+                {(d.answers || []).map((a: any, i: number) => (
+                  <article key={a.questionId || i}>
+                    <h4>
+                      {questions.find((q: any) => q.id === a.questionId)?.question ||
+                        `Question ${i + 1}`}
+                    </h4>
+                    <p>{a.answer}</p>
+                  </article>
+                ))}
+              </section>
+            )}
             {d.feedback && phase === 4 && (
               <button className="secondary" onClick={() => onNavigate(null)}>
-                View full mission & optional practice
+                Back to journey results
               </button>
             )}
             {d.feedback && (
@@ -2466,7 +2758,7 @@ function MissionDetail({
           </aside>
         </div>
       )}
-      {(phase === null || phase === 4) && d.feedback && (
+      {!completed && (phase === null || phase === 4) && d.feedback && (
         <details className="panel feedback-memory-action">
           <summary>Keep a learning note</summary>
           <p>Save this feedback for later. It stays separate from your approved profile.</p>
@@ -2495,7 +2787,7 @@ function MissionDetail({
           ))}
         </details>
       )}
-      {(phase === null || phase === 5) && d.feedback && d.selectedJob && (
+      {!completed && (phase === null || phase === 5) && d.feedback && d.selectedJob && (
         <section className="panel negotiation">
           <div className="section-heading">
             <h2>

@@ -1,3 +1,10 @@
+import {
+  requirementClauses,
+  experienceRequirement,
+  educationAssessment,
+  locationAssessment,
+} from './requirements.js';
+export { experienceRequirement, educationAssessment, locationAssessment } from './requirements.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -55,23 +62,60 @@ export function validateProfile(p) {
   return { ...p, skills: [...new Set(p.skills.map(canonical))] };
 }
 
-// Prefer explicit advertisement sections; missing requirements remain visible to the caller.
+export const scoringVersion = 'matching-v2';
+export const scoringWeights = Object.freeze({
+  skill: 0.4,
+  preferred: 0.05,
+  experience: 0.15,
+  education: 0.1,
+  preference: 0.15,
+  semantic: 0.15,
+});
+export const educationMeets = (evidence, requirement) =>
+  educationAssessment(evidence, requirement).status === 'met';
+export const locationMatches = (preference, location) =>
+  locationAssessment(preference, location).status === 'met';
+
+// Finite vocabulary and explicit clause evidence keep this local fallback auditable.
 export function extractRequirements(job) {
-  const d = job.description.toLowerCase();
-  const section = (label) => d.match(new RegExp(label + ' skills:\\s*([^.]*)'))?.[1] || '';
-  const skills = (t) => vocabulary.filter((s) => new RegExp('\\b' + s + '\\b').test(t));
-  const explicitRequired = skills(section('required'));
-  const inferred =
-    (job.source?.liveVacancy === true || job.source?.externalListing) && !explicitRequired.length;
-  const required = inferred ? skills(d) : explicitRequired,
-    preferred = skills(section('preferred'));
+  const clauses = requirementClauses(job.description);
+  const skillTerms = [...vocabulary, ...Object.keys(aliases)];
+  const skills = (t) => [
+    ...new Set(skillTerms.filter((s) => new RegExp('\\b' + s + '\\b', 'i').test(t)).map(canonical)),
+  ];
+  const evidence = clauses.map((c) => ({ ...c, skills: skills(c.text) }));
+  // Alternatives and negated skill requirements require manual interpretation, never an AND penalty.
+  const uncertain = (t) => /\b(or|not required|not essential|no .{0,30} required)\b/i.test(t);
+  const required = [
+    ...new Set(
+      evidence.filter((c) => c.kind === 'required' && !uncertain(c.text)).flatMap((c) => c.skills),
+    ),
+  ];
+  const preferred = [
+    ...new Set(
+      evidence.filter((c) => c.kind === 'preferred' && !uncertain(c.text)).flatMap((c) => c.skills),
+    ),
+  ].filter((s) => !required.includes(s));
+  const mentioned = skills(job.description).filter(
+    (s) => !required.includes(s) && !preferred.includes(s),
+  );
+  const qualification =
+    clauses.find(
+      (c) =>
+        c.kind === 'required' &&
+        /\b(bachelor|master|phd|doctorate|diploma|associate|b\.?sc|m\.?sc)\b/i.test(c.text),
+    )?.text || 'unspecified';
   return {
     required,
     preferred,
-    experienceYears: Number(d.match(/minimum (\d+) years? experience/)?.[1] || 0),
-    qualification: d.match(/qualification:\s*([^.]*)/)?.[1] || 'unspecified',
-    confidence: !inferred && required.length ? 'medium' : 'low',
-    inferred,
+    mentioned,
+    experienceYears: experienceRequirement(job.description),
+    qualification,
+    confidence: required.length ? 'medium' : 'low',
+    inferred: false,
+    skillEvidence: evidence
+      .filter((c) => c.skills.length)
+      .map((c) => ({ ...c, kind: uncertain(c.text) ? 'mentioned' : c.kind })),
     evidence: job.description,
   };
 }
@@ -122,20 +166,30 @@ export function compare(profile, job, corpus) {
     known = new Set(profile.skills.map(canonical));
   const matches = requirements.required.filter((s) => known.has(s)),
     gaps = requirements.required.filter((s) => !known.has(s));
-  const skill = requirements.required.length ? matches.length / requirements.required.length : 0;
-  const experience = requirements.experienceYears
-    ? Math.min(1, profile.experienceYears / requirements.experienceYears)
-    : 1;
-  const education =
-    requirements.qualification === 'unspecified'
+  const skill = requirements.required.length ? matches.length / requirements.required.length : 0.5;
+  const preferredMatches = requirements.preferred.filter((s) => known.has(s));
+  const preferredGaps = requirements.preferred.filter((s) => !known.has(s));
+  const preferred = requirements.preferred.length
+    ? preferredMatches.length / requirements.preferred.length
+    : 0.5;
+  const educationResult = educationAssessment(profile.education, requirements.qualification);
+  const locationResult = locationAssessment(profile.location, job.location);
+  const credit = (r) => (r.status === 'met' ? 1 : r.status === 'not_met' ? 0 : 0.5);
+  const experience =
+    requirements.experienceYears === null
       ? 0.5
-      : profile.education.toLowerCase().includes(requirements.qualification.split(' ')[0])
+      : requirements.experienceYears === 0
         ? 1
-        : 0;
-  const preference =
-    ((job.location === profile.location || job.location === 'Remote' ? 1 : 0) +
-      (job.employmentType === profile.employmentType ? 1 : 0)) /
-    2;
+        : Math.min(1, profile.experienceYears / requirements.experienceYears);
+  const education = credit(educationResult);
+  const employmentKnown =
+    job.employmentType && !/^(unknown|unspecified|not provided)$/i.test(job.employmentType);
+  const employment = employmentKnown
+    ? canonical(job.employmentType) === canonical(profile.employmentType)
+      ? 1
+      : 0
+    : 0.5;
+  const preference = (credit(locationResult) + employment) / 2;
   const semantic = vectorSimilarity(
     profile.skills.join(' ') + ' ' + profile.goals,
     job.title + ' ' + job.description,
@@ -143,10 +197,13 @@ export function compare(profile, job, corpus) {
   );
 
   // Keep components inspectable so the weighted suitability score can be reproduced.
-  const components = { skill, experience, education, preference, semantic };
+  const components = { skill, preferred, experience, education, preference, semantic };
   const score = Math.round(
     100 *
-      (0.45 * skill + 0.15 * experience + 0.1 * education + 0.15 * preference + 0.15 * semantic),
+      Object.entries(scoringWeights).reduce(
+        (sum, [key, weight]) => sum + weight * components[key],
+        0,
+      ),
   );
   const limitations = [
     job.source?.liveVacancy
@@ -158,27 +215,53 @@ export function compare(profile, job, corpus) {
     'TF-IDF uses word overlap, not pretrained semantic embeddings.',
     'Scores are heuristic suitability indicators, not hiring probabilities.',
   ];
-  if (requirements.inferred)
-    limitations.push('Skills are inferred mentions, not confirmed mandatory requirements.');
+  if (requirements.mentioned.length)
+    limitations.push(
+      'Unclassified skill mentions are excluded from mandatory and preferred skill scoring.',
+    );
+  if (!requirements.required.length)
+    limitations.push('Required skills unknown; neutral half-credit is used.');
+  if (!requirements.preferred.length)
+    limitations.push('Preferred skills unspecified; neutral half-credit is used.');
+  if (educationResult.status === 'unknown') limitations.push(educationResult.reason);
+  if (locationResult.status === 'unknown') limitations.push(locationResult.reason);
   if (requirements.confidence === 'low')
     limitations.push(
       'Low confidence: explicit skill requirements are missing; verify requirements before selecting.',
     );
-  if (!education) gaps.push('Qualification evidence: ' + requirements.qualification);
-  if (experience < 1)
+  if (requirements.experienceYears === null)
+    limitations.push(
+      'Experience requirement unknown; neutral half-credit is used, not a confirmed match.',
+    );
+  if (requirements.qualification === 'unspecified')
+    limitations.push('Qualification requirement unknown; neutral half-credit is used.');
+  if (educationResult.status === 'not_met')
+    gaps.push('Qualification evidence: ' + requirements.qualification);
+  if (requirements.experienceYears !== null && experience < 1)
     gaps.push(
       `${requirements.experienceYears - profile.experienceYears} additional years of experience`,
     );
-  if (preference < 1) gaps.push('Location or employment preference mismatch');
+  if (locationResult.status === 'not_met') gaps.push('Location preference mismatch');
+  if (employment === 0) gaps.push('Employment preference mismatch');
   return {
     job,
     requirements,
     matches,
     gaps,
     components,
+    scoringVersion,
+    scoringWeights,
+    preferredMatches,
+    preferredGaps,
+    assessment: {
+      experience:
+        requirements.experienceYears === null ? 'unknown' : experience === 1 ? 'met' : 'not_met',
+      education: educationResult,
+      location: locationResult,
+    },
     score,
     confidence: requirements.confidence,
-    explanation: `${matches.length}/${requirements.required.length} required skills evidenced. Experience ${profile.experienceYears}/${requirements.experienceYears} years. Review gaps and score components before choosing.`,
+    explanation: `${matches.length}/${requirements.required.length} required skills evidenced; ${preferredMatches.length}/${requirements.preferred.length} preferred skills evidenced (optional). Experience ${profile.experienceYears}/${requirements.experienceYears ?? 'unknown'} years. Review gaps and score components before choosing.`,
     limitations,
   };
 }

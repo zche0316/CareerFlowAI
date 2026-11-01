@@ -110,14 +110,13 @@ All paths are relative to `http://localhost:8787`. Mutations after authenticatio
 
 ### Public and session
 
-| Method | Path                 | Purpose                                              |
-| ------ | -------------------- | ---------------------------------------------------- |
-| GET    | `/api/health`        | Process readiness and current provider mode          |
-| GET    | `/api/session`       | Current user or anonymous state                      |
-| POST   | `/api/auth/register` | Create an owned workspace and session                |
-| POST   | `/api/auth/login`    | Sign in                                              |
-| POST   | `/api/auth/demo`     | Fictional demo session when `ENABLE_DEMO_LOGIN=true` |
-| POST   | `/api/logout`        | Delete the current session                           |
+| Method | Path                 | Purpose                                     |
+| ------ | -------------------- | ------------------------------------------- |
+| GET    | `/api/health`        | Process readiness and current provider mode |
+| GET    | `/api/session`       | Current user or anonymous state             |
+| POST   | `/api/auth/register` | Create an owned workspace and session       |
+| POST   | `/api/auth/login`    | Sign in                                     |
+| POST   | `/api/logout`        | Delete the current session                  |
 
 ### Profile
 
@@ -340,7 +339,7 @@ generates a UUID. JSON error bodies include the same value as `requestId`.
 
 ## Sample data
 
-- `sampleProfile` in `packages/contracts/src/index.ts` is a fictional candidate used by the UI and tests.
+- `sampleProfile` in `packages/contracts/src/index.ts` is an internal fictional candidate used only by automated verification; it is not exposed by the workspace API or offered in the product.
 - `packages/matching/jobs.json` contains eight fictional job advertisements with source and salary metadata.
 - `packages/matching/profile.json` is the retained Member 3 matching fixture.
 - Tests create disposable `@careerflow.test` accounts and remove their workflow rows.
@@ -401,6 +400,7 @@ Authenticated import endpoints (mutations require the existing CSRF token):
 Model operations require `PROVIDER_MODE=openai`; fixture mode never creates fake import records. Eight calls per import are reserved before requests; repeated/overlapping operations are rejected. Failures retain source data and require explicit retries. A processing record older than two minutes can be retried after a server interruption. No model output controls ownership or approval.
 
 `GET /api/resumes/:id/download?format=txt|docx|pdf` exports the current user's persisted approved snapshot, with TXT as the backwards-compatible default. DOCX is editable and PDF retains searchable text. Unsupported formats return validation errors; another user's resume remains unavailable. Imports and model configuration are documented in `docs/PROFILE_IMPORT_AND_MODEL_ROUTER.md`.
+
 # Conversational profile and evidence endpoints
 
 All routes below require the existing signed-in account; mutations require its CSRF token.

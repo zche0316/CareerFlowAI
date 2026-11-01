@@ -26,7 +26,7 @@ Request IDs, lifecycle transitions and the approved-profile handoff are specifie
 
 Approved profile -> Career Coach -> Job Matcher -> interrupt for job selection -> Resume Tailor -> interrupt for exact-draft approval -> Interview Coach questions -> interrupt for saved responses -> Interview Coach feedback. A completed interview may then run an optional, single-round salary negotiation practice.
 
-Resume revision branches back to selection/ordering of supported evidence, limited to two revisions. Provider work is capped at 12 model calls per mission. Live generation makes one authorised, argument-validated context tool call followed by a structured response; the complete specialist call has a 25-second timeout. No arbitrary web/terminal tools are exposed to the model.
+Resume revision branches back to selection/ordering of supported evidence, limited to two revisions. Provider work is capped at 60 model calls per mission. Live generation makes one authorised, argument-validated context tool call followed by a structured response; the complete specialist call has a shared 90-second default timeout, configurable up to 120 seconds. No arbitrary web/terminal tools are exposed to the model.
 
 Domain rows hold factual source versions and human approvals; checkpoints hold graph continuation state. PostgreSQL row locks, worker leases, current-version checks and task-state checks guard side effects. Cancelling or superseding a mission prevents late results from committing. Worker recovery re-enqueues queued work and expired leases. Generation/checkpoint recovery is idempotent at the business layer; this is not a claim that remote LLM billing is exactly once after an abrupt process crash.
 
@@ -38,9 +38,9 @@ The Operations/Activity views in this prototype cover the signed-in user's works
 
 ## Honest modes and proof boundaries
 
-`fixture` is a deterministic development provider, not a local LLM. Jobs and salary/growth data are labelled fictional. `openai` uses the Responses API, a controlled context tool and Zod structured outputs. Live mode never silently falls back to fixtures. Missing configuration or provider failures become recoverable mission failures and preserve approved data.
+`fixture` is a deterministic development provider, not a local LLM. Fixture jobs and their salary/growth data are labelled fictional; external jobs retain source and retrieval metadata. `openai` uses the Responses API, a controlled context tool and Zod structured outputs. Live mode never silently falls back to fixtures. Missing configuration or provider failures become recoverable mission failures and preserve approved data.
 
-No live vacancy integration, browser auto-application, email/calendar connector or hosted deployment is claimed by this implementation. Model choice is configured with `OPENAI_MODEL`; deterministic fixtures and locally exercised live-provider paths are kept separate.
+Live vacancy retrieval is implemented through supported official employer APIs and optional configured discovery/aggregator sources. Pasted listings remain unverified. Direct SEEK/Indeed API submission, browser auto-application, email/calendar connectors and hosted deployment are not claimed. See CURRENT_DELIVERY.md for the current evidence boundary. Model choice is configured with `OPENAI_MODEL`; deterministic fixtures and locally exercised live-provider paths are kept separate.
 
 ## Jira and ownership
 
@@ -51,3 +51,4 @@ CFS-34/35/36/37: contracts, persistence and orchestration. CFS-12–18: profile 
 Container services bind published ports to loopback for local demonstration. Docker Compose is supplied; verify it with a running Docker daemon before treating container deployment as tested. The native PostgreSQL helper is development-only and owns `.runtime/postgres` on port 55432. No existing course databases are modified.
 
 GitHub Enterprise Server installations may need an administrator-provided Actions runner and compatible versions of the checkout/setup-node/artifact actions. A committed workflow alone is not a successful CI run.
+

@@ -1,3 +1,4 @@
+import { fillProfileFixture } from './profile-fixture.js';
 import { writeFile } from 'node:fs/promises';
 import { test, expect, type Page } from '@playwright/test';
 async function signup(page: Page) {
@@ -7,7 +8,11 @@ async function signup(page: Page) {
   await page.getByLabel('Email address').fill(`memory-browser-${Date.now()}@careerflow.test`);
   await page.getByLabel('Password', { exact: true }).fill('Memory-QA-disposable-password');
   await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
-  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Build profile', exact: true })
+    .or(page.getByRole('button', { name: 'My profile', exact: true }))
+    .first()
+    .click();
 }
 test('saved profile conversation survives reload while memory management stays in My profile', async ({
   page,
@@ -39,7 +44,11 @@ test('saved profile conversation survives reload while memory management stays i
   ).toHaveCount(2);
   await expect(page.getByLabel('Full name', { exact: true })).toHaveValue('Manual edit stays');
   await page.reload();
-  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Build profile', exact: true })
+    .or(page.getByRole('button', { name: 'My profile', exact: true }))
+    .first()
+    .click();
   await expect(page.getByRole('log', { name: 'Saved profile messages' })).toContainText(
     'Atlas student project',
   );
@@ -119,8 +128,7 @@ test('reviewed wording creates a downloadable edition and application answers st
   page,
 }) => {
   await signup(page);
-  await page.getByText('Demo test data', { exact: true }).click();
-  await page.getByRole('button', { name: 'Use fictional example', exact: true }).click();
+  await fillProfileFixture(page);
   await page.getByText('Edit profile details manually', { exact: true }).click();
   await page
     .getByLabel('Experience and projects or “none yet”', { exact: true })
@@ -132,7 +140,11 @@ test('reviewed wording creates a downloadable edition and application answers st
     page.getByRole('button', { name: 'Start career mission', exact: true }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Close mission form', exact: true }).click();
-  await page.getByRole('button', { name: 'Build profile', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Build profile', exact: true })
+    .or(page.getByRole('button', { name: 'My profile', exact: true }))
+    .first()
+    .click();
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Overview', exact: true }).click();
   await page.getByRole('button', { name: 'New career mission', exact: true }).click();
@@ -173,7 +185,9 @@ test('reviewed wording creates a downloadable edition and application answers st
   await page.getByLabel('I reviewed the accepted wording.').check();
   await page.getByRole('button', { name: 'Create revised resume version', exact: true }).click();
   await page.locator('.download-formats summary').click();
-  await expect(page.getByRole('link', { name: 'Download PDF', exact: true })).toBeVisible();
+  await expect(
+    page.locator('.wording-saved').getByRole('link', { name: 'Download PDF', exact: true }),
+  ).toBeVisible();
   const session = await (await page.request.get('/api/session')).json();
   await writeFile(
     'output/conversational-profile-20261029/browser-account.json',

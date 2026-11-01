@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { blankProfile } from '../../packages/contracts/src/index.js';
-test('a candidate with no resume or formal work builds a story, selects job content, exports and retains feedback as a draft', async ({
+test('a candidate with no resume or formal work builds a story, selects job content, exports and reviews saved feedback', async ({
   page,
 }) => {
   let uploads = 0;
@@ -157,27 +157,55 @@ test('a candidate with no resume or formal work builds a story, selects job cont
   await page.getByLabel('Your response', { exact: true }).fill(action);
   await page.getByRole('button', { name: 'Save response', exact: true }).click();
   await page.getByRole('button', { name: 'Finish early & get feedback', exact: true }).click();
-  await page.getByText('Keep a learning note', { exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Strengths', exact: true })).toBeVisible({
+    timeout: 30000,
+  });
   await expect(
     page.getByRole('button', {
       name: 'Save interview feedback as draft learning memory',
       exact: true,
     }),
-  ).toBeVisible({ timeout: 30000 });
-  await page
-    .getByRole('button', { name: 'Save interview feedback as draft learning memory', exact: true })
-    .click();
+  ).toHaveCount(0);
+  // Delay the initial list until a new suggestion has already been saved.
+  let releaseInitial!: () => void;
+  let initialSeen!: () => void;
+  let initialReturned!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    releaseInitial = resolve;
+  });
+  const seen = new Promise<void>((resolve) => {
+    initialSeen = resolve;
+  });
+  const returned = new Promise<void>((resolve) => {
+    initialReturned = resolve;
+  });
+  let initial = true;
+  await page.route('**/api/resumes/*/wording', async (route) => {
+    if (route.request().method() === 'GET' && initial) {
+      initial = false;
+      initialSeen();
+      await gate;
+      await route.fulfill({ json: [] });
+      initialReturned();
+    } else await route.continue();
+  });
   await page.getByRole('button', { name: 'My documents', exact: true }).click();
   await page.getByRole('button', { name: 'Polish wording', exact: true }).first().click();
+  await seen;
   await page.getByLabel('Resume bullet', { exact: true }).selectOption({ label: action });
   await page.getByLabel('Use AI to suggest a factual rewrite of this bullet.').check();
   await page.getByRole('button', { name: 'Suggest rewrite', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Use this wording', exact: true })).toBeVisible();
+  releaseInitial();
+  await returned;
   await expect(page.getByRole('button', { name: 'Use this wording', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Use this wording', exact: true }).click();
   await page.getByLabel('I reviewed the accepted wording.').check();
   await page.getByRole('button', { name: 'Create revised resume version', exact: true }).click();
   await page.locator('.download-formats summary').click();
-  const pdf = page.getByRole('link', { name: 'Download PDF', exact: true });
+  const pdf = page
+    .locator('.wording-saved')
+    .getByRole('link', { name: 'Download PDF', exact: true });
   await expect(pdf).toBeVisible();
   const response = await page.request.get((await pdf.getAttribute('href'))!);
   expect(response.status()).toBe(200);

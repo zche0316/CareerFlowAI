@@ -139,76 +139,89 @@ export async function discoverTavily(repo, criteria, signal) {
       422,
     );
   const country = countrySpec(criteria.country || 'au');
-  const query = [
-    criteria.keyword || 'technology graduate software data',
-    'jobs',
-    criteria.location,
-    criteria.region,
-    country.name,
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .slice(0, 399);
+  const keyword = criteria.keyword || 'graduate analyst business operations software data';
+  const alternatives = {
+    'business analyst':
+      '("business analyst" OR "business intelligence analyst" OR "business systems analyst")',
+    'data analyst': '("data analyst" OR "analytics analyst" OR "reporting analyst")',
+    'software engineer': '("software engineer" OR "software developer" OR "graduate developer")',
+  };
+  const queryFor = (role) =>
+    [role, 'jobs', criteria.location, criteria.region, country.name]
+      .filter(Boolean)
+      .join(' ')
+      .slice(0, 399);
+  const queries = [queryFor(keyword)];
+  if (access.mode === 'api_key' && alternatives[keyword.toLowerCase()])
+    queries.push(queryFor(alternatives[keyword.toLowerCase()]));
+  const resultLimit = access.mode === 'keyless' ? 5 : 10;
+  const query = queries[0];
   const deadline = signal
     ? AbortSignal.any([signal, AbortSignal.timeout(25000)])
     : AbortSignal.timeout(25000);
-  let response;
-  try {
-    response = await repo.fetcher('https://api.tavily.com/search', {
-      method: 'POST',
-      redirect: 'error',
-      signal: deadline,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(access.mode === 'keyless'
-          ? { 'X-Tavily-Access-Mode': 'keyless' }
-          : { Authorization: `Bearer ${access.key}` }),
-      },
-      body: JSON.stringify({
-        query,
-        topic: 'general',
-        search_depth: 'basic',
-        max_results: 5,
-        include_domains: boards,
-        include_answer: false,
-        include_raw_content: false,
-        include_usage: true,
-        auto_parameters: false,
-      }),
-    });
-  } catch {
-    signal?.throwIfAborted();
-    throw new JobSourceError(
-      'UNAVAILABLE',
-      'Tavily search unavailable or timed out. Retry; no sample data was substituted.',
-    );
-  }
-  if (!response.ok) {
-    const status = response.status;
-    throw new JobSourceError(
-      status === 429
-        ? 'RATE_LIMITED'
-        : [401, 403].includes(status)
-          ? 'AUTH_REQUIRED'
-          : 'HTTP_ERROR',
-      `Tavily search rejected the request (HTTP ${status}). Check access/credits and retry. No credential-mode fallback was attempted.`,
-      status,
-    );
-  }
-  const raw = await response.text();
-  if (raw.length > 2000000)
-    throw new JobSourceError('INVALID_RESPONSE', 'Tavily response was too large.');
-  let data;
-  try {
-    data = JSON.parse(raw);
-  } catch {
-    throw new JobSourceError('INVALID_RESPONSE', 'Tavily returned invalid JSON.');
-  }
-  if (!Array.isArray(data.results))
-    throw new JobSourceError('INVALID_RESPONSE', 'Tavily returned no valid result list.');
+  const search = async (query) => {
+    let response;
+    try {
+      response = await repo.fetcher('https://api.tavily.com/search', {
+        method: 'POST',
+        redirect: 'error',
+        signal: deadline,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(access.mode === 'keyless'
+            ? { 'X-Tavily-Access-Mode': 'keyless' }
+            : { Authorization: `Bearer ${access.key}` }),
+        },
+        body: JSON.stringify({
+          query,
+          topic: 'general',
+          search_depth: 'basic',
+          max_results: resultLimit,
+          include_domains: boards,
+          include_answer: false,
+          include_raw_content: false,
+          include_usage: true,
+          auto_parameters: false,
+        }),
+      });
+    } catch {
+      signal?.throwIfAborted();
+      throw new JobSourceError(
+        'UNAVAILABLE',
+        'Tavily search unavailable or timed out. Retry; no sample data was substituted.',
+      );
+    }
+    if (!response.ok)
+      throw new JobSourceError(
+        response.status === 429
+          ? 'RATE_LIMITED'
+          : [401, 403].includes(response.status)
+            ? 'AUTH_REQUIRED'
+            : 'HTTP_ERROR',
+        `Tavily search rejected the request (HTTP ${response.status}). Check access/credits and retry. No credential-mode fallback was attempted.`,
+        response.status,
+      );
+    const raw = await response.text();
+    if (raw.length > 2000000)
+      throw new JobSourceError('INVALID_RESPONSE', 'Tavily response was too large.');
+    let data;
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      throw new JobSourceError('INVALID_RESPONSE', 'Tavily returned invalid JSON.');
+    }
+    if (!Array.isArray(data.results))
+      throw new JobSourceError('INVALID_RESPONSE', 'Tavily returned no valid result list.');
+    return { ...data, results: data.results.slice(0, resultLimit) };
+  };
+  const outcomes = await Promise.allSettled(queries.map(search));
+  signal?.throwIfAborted();
+  const batches = outcomes.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []));
+  if (!batches.length) throw outcomes[0].reason;
+  const data = { results: batches.flatMap((r) => r.results) };
   const candidates = [],
     seen = new Set();
-  for (const result of data.results.slice(0, 5)) {
+  for (const result of data.results.slice(0, 20)) {
     const identity = postingIdentity(result.url);
     if (!identity) continue;
     const key = [identity.host, identity.board, identity.id].join('/');
@@ -217,13 +230,18 @@ export async function discoverTavily(repo, criteria, signal) {
     candidates.push({ identity, citation: result.url.split('?')[0].split('#')[0] });
   }
   const cache = new Map();
-  const checks = await Promise.allSettled(
-    candidates.map(async (c) => {
-      const job = await verifyPosting(repo, c.identity, deadline, cache);
-      job.source.discoveryURL = c.citation;
-      return job;
-    }),
-  );
+  const checks = [];
+  for (let start = 0; start < candidates.length; start += 4) {
+    checks.push(
+      ...(await Promise.allSettled(
+        candidates.slice(start, start + 4).map(async (c) => {
+          const job = await verifyPosting(repo, c.identity, deadline, cache);
+          job.source.discoveryURL = c.citation;
+          return job;
+        }),
+      )),
+    );
+  }
   signal?.throwIfAborted();
   if (
     candidates.length &&
@@ -253,12 +271,17 @@ export async function discoverTavily(repo, criteria, signal) {
       accessMode: access.mode,
       query,
       searchDepth: 'basic',
-      resultLimit: 5,
+      queries,
+      queryCount: queries.length,
+      failedQueries: outcomes.filter((r) => r.status === 'rejected').length,
+      resultLimit: queries.length * resultLimit,
       discovered: data.results.length,
       supportedCandidates: candidates.length,
       verified: verified.length,
       excluded: data.results.length - jobs.length,
-      credits: typeof data.usage?.credits === 'number' ? data.usage.credits : null,
+      credits: batches.every((r) => typeof r.usage?.credits === 'number')
+        ? batches.reduce((sum, r) => sum + r.usage.credits, 0)
+        : null,
     },
     sources: candidates.map((c, i) => ({
       provider: c.identity.provider,
@@ -272,7 +295,10 @@ export async function discoverTavily(repo, criteria, signal) {
             : 'unavailable',
     })),
     limitations: [
-      'Tavily discovers at most five indexed posting links; this is not exhaustive market coverage.',
+      ...(outcomes.some((r) => r.status === 'rejected')
+        ? ['One discovery query failed; successful query results were retained.']
+        : []),
+      `Tavily uses ${queries.length} bounded search query/queries and at most ${queries.length * resultLimit} indexed links; this is not exhaustive market coverage.`,
       'Only Greenhouse, Lever and Ashby posting URLs confirmed by their public APIs become job matches.',
       'Search snippets are not used as job descriptions. Unconfirmed links and unclear country eligibility are excluded.',
       'Salary remains unknown unless separately confirmed. Company labels use the public board identifier.',

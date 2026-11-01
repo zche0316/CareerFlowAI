@@ -104,7 +104,7 @@ export const profileSchema = z
 export type CareerProfile = z.infer<typeof profileSchema>;
 
 // A real user starts without candidate claims or permission to share their data.
-// The separately labelled sampleProfile is only used after an explicit demo action.
+// sampleProfile is an internal automated-verification fixture, never a real draft base.
 export const blankProfile: CareerProfile = {
   name: '',
   goals: '',

@@ -19,7 +19,6 @@ jobs:
       DATABASE_URL: postgresql://careerflow:careerflow-test@localhost:5432/careerflow_test
       PROVIDER_MODE: fixture
       JOB_SOURCE: fixtures
-      ENABLE_DEMO_LOGIN: 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
