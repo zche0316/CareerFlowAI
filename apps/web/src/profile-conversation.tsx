@@ -52,6 +52,7 @@ export function ProfileConversation({
     [error, setError] = useState(''),
     [preparingSaved, setPreparingSaved] = useState(false),
     [preparationNotice, setPreparationNotice] = useState(''),
+    [selectedExperience, setSelectedExperience] = useState(''),
     [applied, setApplied] = useState<Record<string, { value: any; stamp: number }>>({});
   useEffect(() => {
     if (!initialPrompt) return;
@@ -468,29 +469,31 @@ export function ProfileConversation({
             <details>
               <summary>Experience summaries</summary>
               <p>Turn your answers into a structured summary for review.</p>
-              {[...(form.workExperiences || []), ...(form.projects || [])]
-                .filter((r) => r.details.length)
-                .map((r) => (
-                  <p key={r.id}>
-                    <button
-                      className="secondary"
-                      disabled={busy || !consent || pending.length > 0}
-                      onClick={() =>
-                        void run(() =>
-                          organise(
-                            thread,
-                            r.id,
-                            (form.workExperiences || []).includes(r)
-                              ? 'workExperiences'
-                              : 'projects',
-                          ),
-                        )
-                      }
-                    >
-                      Organise: {r.title}
-                    </button>
-                  </p>
-                ))}
+              <div className="organise-controls">
+                <label>
+                  Experience to organise
+                  <select value={selectedExperience} onChange={(event) => setSelectedExperience(event.target.value)}>
+                    <option value="">Choose an experience</option>
+                    {(['workExperiences', 'projects'] as const).flatMap((section) =>
+                      (form[section] || []).filter((record) => record.details.length).map((record) => (
+                        <option key={`${section}:${record.id}`} value={`${section}:${record.id}`}>
+                          {section === 'projects' ? 'Project' : 'Work'} · {record.title}
+                        </option>
+                      )),
+                    )}
+                  </select>
+                </label>
+                <button className="secondary" disabled={busy || !consent || pending.length > 0 || !selectedExperience}
+                  onClick={() => {
+                    const separator = selectedExperience.indexOf(':');
+                    const section = selectedExperience.slice(0, separator) as 'workExperiences' | 'projects';
+                    const recordId = selectedExperience.slice(separator + 1);
+                    if (!(form[section] || []).some((record) => record.id === recordId && record.details.length)) return;
+                    void run(() => organise(thread, recordId, section));
+                  }}>
+                  Organise selected experience
+                </button>
+              </div>
             </details>
           )}
         {preparationNotice && (

@@ -425,3 +425,66 @@ test('saved-answer preparation with no proposals reports no changes instead of s
     page.getByRole('button', { name: 'Review current draft without this experience', exact: true }),
   ).toBeVisible();
 });
+
+test('experience picker sends only the selected record and section after consent', async ({
+  page,
+}) => {
+  const record = {
+    id: 'same-id',
+    title: 'Fictional employment',
+    organisation: '',
+    location: '',
+    startMonth: null,
+    endMonth: null,
+    current: false,
+    details: ['I cleaned a fictional dataset.'],
+    technologies: ['SQL'],
+    url: '',
+    evidence: [],
+  };
+  const workingForm = {
+    ...sampleProfile,
+    workExperiences: [record],
+    projects: [{ ...record, title: 'Fictional project' }],
+  };
+  const thread = {
+    id: 'picker-qa',
+    revision: 1,
+    profileVersion: 0,
+    workingForm,
+    messages: [],
+    proposals: [],
+    interview: { phase: 'review', closed: [] },
+  };
+  await page.route('**/api/profile-threads', (route) => route.fulfill({ json: [thread] }));
+  await page.route('**/api/profile-threads/picker-qa', (route) => route.fulfill({ json: thread }));
+  let submitted: any;
+  await page.route('**/api/profile-threads/picker-qa/organise', async (route) => {
+    submitted = route.request().postDataJSON();
+    await route.fulfill({ json: {} });
+  });
+  await openProfile(page);
+  await expect(page.getByRole('button', { name: /^Organise:/ })).toHaveCount(0);
+  await page.getByText('Experience summaries', { exact: true }).click();
+  const action = page.getByRole('button', { name: 'Organise selected experience', exact: true });
+  await expect(action).toBeDisabled();
+  await page.getByLabel('Experience to organise', { exact: true }).selectOption('projects:same-id');
+  await expect(action).toBeDisabled();
+  await page
+    .getByLabel(
+      'I allow the configured model to process this conversation, working form and retrieved confirmed evidence.',
+    )
+    .check();
+  await action.click();
+  await expect.poll(() => submitted?.recordSection).toBe('projects');
+  expect(submitted.recordId).toBe('same-id');
+  expect(submitted.consent).toBe(true);
+  await expect(
+    page.getByRole('button', { name: 'Approve & save profile', exact: true }),
+  ).toHaveCount(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByLabel('Experience to organise', { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+});
