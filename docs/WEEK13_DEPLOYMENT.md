@@ -87,3 +87,15 @@ docker compose -p careerflow-demo up -d --build --wait
 上传前确认候选 ZIP 的干净部署通过。上传后从 Canvas 再下载同一个 ZIP，核对 SHA-256，并从新目录再执行上述构建/启动流程。只有这一步才能证明 Canvas 上的包就是演练过的包。
 
 现场再次从 Canvas 下载，解压到新目录，独立恢复私有 `.env`，然后执行 `docker compose up -d --build --wait`。S3 登录和私有 API 配置留在演示电脑上，不交给源码 ZIP。保留下载记录、包校验值、构建/启动结果和已披露的 fixture/live 边界到对应 Jira 任务；实际上传和下载由提交人完成。
+
+
+## 空数据库现场演示
+
+最终演示需要空库时，不要复用开发时的 `careerflow-demo` project。解压 Canvas 包、恢复私有 `.env` 后，停止旧实例以释放端口，再用一个尚未使用过的新名字：
+
+```sh
+docker compose -p careerflow-demo stop
+docker compose -p careerflow-canvas-final up -d --build --wait
+```
+
+第一次使用这个名字时，Compose 会创建独立空数据库，现场注册虚构账号后开始旅程。不要提前用同一个名字演练；若它已有数据，换成 `careerflow-canvas-final-2` 等新名字。仅重新下载或解压 ZIP 不会清空已有数据卷。旧项目数据保留。S3 桶可以复用，但新账号的备份列表按新用户身份隔离。
