@@ -313,7 +313,10 @@ export function registerProfileConversations(app: Express) {
       res.json(await controlInterview(userId, t.id, { ...input, action }));
       return;
     }
-    const previousState = publicThread({ ...t, workingForm: input.currentProfile }).interview;
+    const previousState: ReturnType<typeof interviewState> = publicThread({
+      ...t,
+      workingForm: input.currentProfile,
+    }).interview;
     const lastAnswer = [...messages]
       .reverse()
       .find((m) => m.role === 'user' && m.kind !== 'interview-control' && !interviewIntent(m.text));
