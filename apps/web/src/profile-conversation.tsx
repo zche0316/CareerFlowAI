@@ -1,9 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { sameProfileField } from '../../../packages/contracts/src/profile-comparison.js';
-import {
-  closedExperience,
-  experiences,
-} from '../../../packages/contracts/src/profile-interview.js';
 import type { CareerProfile } from '../../../packages/contracts/src/index.js';
 import { createPortal } from 'react-dom';
 import { ProfileCanvas, profileFieldLabels, type ProfileProposal } from './profile-canvas.js';
@@ -46,6 +42,7 @@ export function ProfileConversation({
   const [threads, setThreads] = useState<any[]>([]),
     [thread, setThread] = useState<any>(null),
     [message, setMessage] = useState(''),
+    [outgoing, setOutgoing] = useState<{ text: string; failed?: boolean } | null>(null),
     [consent, setConsent] = useState(false),
     [busy, setBusy] = useState(false),
     [waitSeconds, setWaitSeconds] = useState(0),
@@ -95,7 +92,7 @@ export function ProfileConversation({
   }, []);
   useEffect(() => {
     if (log.current) log.current.scrollTop = log.current.scrollHeight;
-  }, [thread?.revision]);
+  }, [thread?.revision, outgoing]);
   useEffect(() => {
     if (!busy) {
       setWaitSeconds(0);
@@ -133,17 +130,31 @@ export function ProfileConversation({
   };
   const send = (text = message) =>
     run(async () => {
-      const t = thread || (await start());
-      const next = await api(`/profile-threads/${t.id}/messages`, 'POST', {
-        text,
-        mode,
-        currentProfile: latest.current,
-        revision: t.revision,
-        consent,
-      });
-      if (mounted.current) {
-        setThread(next);
-        setMessage((current) => (current === text ? '' : current));
+      setMessage('');
+      setOutgoing({ text });
+      let t = thread;
+      try {
+        t = t || (await start());
+        const next = await api(`/profile-threads/${t.id}/messages`, 'POST', {
+          text,
+          mode,
+          currentProfile: latest.current,
+          revision: t.revision,
+          consent,
+        });
+        if (mounted.current) {
+          setThread(next);
+          setOutgoing(null);
+        }
+      } catch (error) {
+        // A disconnected response may still have saved the answer. Reconcile before retrying.
+        const saved = t ? await api(`/profile-threads/${t.id}`).catch(() => null) : null;
+        if (mounted.current) {
+          if (saved) setThread(saved);
+          const lastUser = saved?.messages.filter((m: any) => m.role === 'user').at(-1);
+          setOutgoing(lastUser?.text === text ? null : { text, failed: true });
+        }
+        throw error;
       }
     });
   const pending = thread?.proposals.filter((p: any) => p.status === 'PENDING') || [];
@@ -189,22 +200,7 @@ export function ProfileConversation({
         revision: t.revision,
       });
       if (mounted.current) setThread(next);
-      if (consent && ['finish_experience', 'finish_interview'].includes(action)) {
-        const effective = Object.assign(
-          {},
-          latest.current,
-          ...t.proposals
-            .filter((p: any) => p.status === 'PENDING')
-            .map((p: any) => ({ [p.field]: p.after })),
-        );
-        const candidate = experiences(effective).find((r: any) => r.key === t.interview?.active);
-        if (candidate?.details.length)
-          await organise(
-            next,
-            candidate.id,
-            candidate.key.startsWith('workExperiences:') ? 'workExperiences' : 'projects',
-          );
-      }
+      // Choices only update interview state. AI organisation is a separate explicit action.
     });
   const retry = () =>
     run(async () => {
@@ -436,6 +432,26 @@ export function ProfileConversation({
               )}
             </article>
           ))}
+          {!outgoing &&
+            mode === 'build' &&
+            thread?.interview?.question &&
+            !(thread.messages.at(-1)?.questions || []).includes(thread.interview.question.text) && (
+              <article className="conversation-message assistant">
+                <strong>Profile Builder</strong>
+                <p>{thread.interview.question.text}</p>
+              </article>
+            )}
+          {outgoing && (
+            <article className="conversation-message user" aria-label="Submitted profile message">
+              <strong>You</strong>
+              <p>{outgoing.text}</p>
+              <small role="status">
+                {outgoing.failed
+                  ? 'Delivery unconfirmed. Reload to check saved messages before sending again.'
+                  : 'Sending…'}
+              </small>
+            </article>
+          )}
         </div>
         {busy && (
           <p role="status" className="conversation-working">
@@ -511,6 +527,87 @@ export function ProfileConversation({
               </div>
             </details>
           )}
+        {mode === 'build' && thread && (
+          <section className="interview-controls" aria-label="Interview progress">
+            {reviewStage ? (
+              <>
+                <p role="status">Interview finished — review your draft.</p>
+                {thread.hasUnfiledExperience && (
+                  <div className="info">
+                    <div>
+                      <p>
+                        A finished experience is saved in the conversation but is not yet a
+                        structured draft record. Organise those answers without another interview,
+                        or review the current draft.
+                      </p>
+                      <button
+                        className="secondary"
+                        disabled={busy || !consent}
+                        onClick={() => void recoverAnswers()}
+                      >
+                        {preparingSaved
+                          ? 'Preparing saved answers…'
+                          : 'Prepare missing experience from saved answers'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <button
+                  className="primary"
+                  disabled={busy || pending.length > 0 || !onReview}
+                  onClick={onReview}
+                >
+                  {thread.hasUnfiledExperience
+                    ? 'Review current draft without this experience'
+                    : 'Review profile draft now'}
+                </button>
+                {pending.length > 0 && (
+                  <p>Use or decline the pending details above before preparing the final draft.</p>
+                )}
+                <button
+                  className="text-button"
+                  disabled={busy}
+                  onClick={() => void control('resume')}
+                >
+                  Resume interview
+                </button>
+              </>
+            ) : !busy &&
+              !outgoing &&
+              (!thread.interview?.question ||
+                thread.interview.question.key.startsWith('inventory:')) ? (
+              <div className="form-actions">
+                {thread.interview?.active && (
+                  <button
+                    className="secondary"
+                    disabled={busy}
+                    onClick={() => void control('finish_experience')}
+                  >
+                    Finish this experience
+                  </button>
+                )}
+                <button
+                  className="secondary"
+                  disabled={busy}
+                  onClick={() => void control('next_experience')}
+                >
+                  Add another experience
+                </button>
+                <button
+                  className="secondary"
+                  disabled={busy}
+                  onClick={() => void control('finish_interview')}
+                >
+                  End conversation & review
+                </button>
+              </div>
+            ) : !busy && !outgoing && thread.interview?.question ? (
+              <button className="text-button" onClick={() => void control('skip_question')}>
+                Skip this question
+              </button>
+            ) : null}
+          </section>
+        )}
         {preparationNotice && (
           <p role="status" aria-live="polite">
             {preparationNotice}
@@ -572,110 +669,6 @@ export function ProfileConversation({
           <button className="secondary" disabled={busy || !consent} onClick={() => void retry()}>
             Retry saved answer
           </button>
-        )}
-        {mode === 'build' && thread && (
-          <section className="interview-controls" aria-label="Interview progress">
-            <p role="status">
-              {reviewStage
-                ? 'Interview finished — review your draft.'
-                : thread.interview?.active
-                  ? `Discussing: ${thread.interviewRecords?.find((r: any) => r.key === thread.interview.active)?.title || 'current experience'}`
-                  : 'Choose an experience or finish when ready.'}
-            </p>
-            {reviewStage ? (
-              <>
-                {thread.hasUnfiledExperience && (
-                  <div className="info">
-                    <div>
-                      <p>
-                        A finished experience is saved in the conversation but is not yet a
-                        structured draft record. Organise those answers without another interview,
-                        or review the current draft.
-                      </p>
-                      <button
-                        className="secondary"
-                        disabled={busy || !consent}
-                        onClick={() => void recoverAnswers()}
-                      >
-                        {preparingSaved
-                          ? 'Preparing saved answers…'
-                          : 'Prepare missing experience from saved answers'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-                <button
-                  className="primary"
-                  disabled={busy || pending.length > 0 || !onReview}
-                  onClick={onReview}
-                >
-                  {thread.hasUnfiledExperience
-                    ? 'Review current draft without this experience'
-                    : 'Review profile draft now'}
-                </button>
-                {pending.length > 0 && (
-                  <p>Use or decline the pending details above before preparing the final draft.</p>
-                )}
-                <button
-                  className="text-button"
-                  disabled={busy}
-                  onClick={() => void control('resume')}
-                >
-                  Resume interview
-                </button>
-              </>
-            ) : (
-              <div className="form-actions">
-                <button
-                  className="secondary"
-                  disabled={busy || !thread.interview?.active}
-                  onClick={() => void control('finish_experience')}
-                >
-                  Finish this experience
-                </button>
-                <button
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() => void control('next_experience')}
-                >
-                  Add another experience
-                </button>
-                <button
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() => void control('finish_interview')}
-                >
-                  Finish interview & review
-                </button>
-                <button
-                  className="text-button"
-                  disabled={busy || !thread.interview?.question}
-                  onClick={() => void control('skip_question')}
-                >
-                  Skip this question
-                </button>
-              </div>
-            )}
-            {!!thread.interview?.closed?.length && (
-              <details>
-                <summary>Finished experiences</summary>
-                {thread.interviewRecords
-                  ?.filter((r: any) => closedExperience(thread.interview.closed, r.key))
-                  .map((r: any) => (
-                    <p key={r.key}>
-                      {r.title}{' '}
-                      <button
-                        className="text-button"
-                        disabled={busy || r.historical}
-                        onClick={() => void control('resume', r.key)}
-                      >
-                        Reopen this experience
-                      </button>
-                    </p>
-                  ))}
-              </details>
-            )}
-          </section>
         )}
         {mode === 'edit' && (
           <button

@@ -1,3 +1,4 @@
+import { proposeOutcomeAnswer } from './profile-outcomes.js';
 import type { Express } from 'express';
 import { labelledExperience } from './labelled-experience.js';
 import { profileModelNotes, searchProfileHistory } from './profile-context.js';
@@ -6,6 +7,7 @@ import {
   interviewState,
   interviewIntent,
   planInterview,
+  hasOutcomeDetail,
   transitionInterview,
   experiences,
   closedExperience,
@@ -88,7 +90,12 @@ export const publicThread = (t: any) => ({
   ...t,
   busyToken: undefined,
   busyUntil: undefined,
-  interview: interviewState(t.messages, interviewProfile(t)),
+  interview: planInterview(
+    interviewProfile(t),
+    interviewState(t.messages, interviewProfile(t)),
+    [...t.messages].reverse().find((m: any) => m.role === 'user' && m.kind !== 'interview-control')
+      ?.text || '',
+  ).state,
   hasUnfiledExperience: interviewState(t.messages, interviewProfile(t)).closed.some(
     (key) => !experiences(interviewProfile(t)).some((r) => closedExperience([key], r.key)),
   ),
@@ -139,6 +146,15 @@ async function controlInterview(
       state = interviewState(t.messages as any[], p);
     if (input.recordKey && !experiences(p).some((r) => r.key === input.recordKey))
       throw new AppError(422, 'INVALID_RECORD', 'Choose an experience from this conversation.');
+    if (
+      state.phase === 'review' &&
+      !['resume', 'keep_current_draft', 'finish_interview'].includes(input.action)
+    )
+      throw new AppError(
+        409,
+        'INTERVIEW_FINISHED',
+        'Resume the interview before changing its questions.',
+      );
     transitionInterview(state, input.action, p, input.recordKey);
     const plan = planInterview(p, state);
     const messages = [
@@ -298,7 +314,10 @@ export function registerProfileConversations(app: Express) {
       res.json(await controlInterview(userId, t.id, { ...input, action }));
       return;
     }
-    const previousState = interviewState(messages, interviewProfile(t, input.currentProfile));
+    const previousState: ReturnType<typeof interviewState> = publicThread({
+      ...t,
+      workingForm: input.currentProfile,
+    }).interview;
     const lastAnswer = [...messages]
       .reverse()
       .find((m) => m.role === 'user' && m.kind !== 'interview-control' && !interviewIntent(m.text));
@@ -330,15 +349,6 @@ export function registerProfileConversations(app: Express) {
       /(?:don['’]?t|do not)\s+(?:change|edit|update|modify)\s+(?:anything|it|my profile)|just (?:asking|a question)|先别(?:改|修改)/i.test(
         input.text,
       );
-    if (
-      !discussionOnly &&
-      !input.retryMessageId &&
-      !input.recoverSavedAnswers &&
-      previousState.question
-    )
-      previousState.addressed = [
-        ...new Set([...previousState.addressed, previousState.question.key]),
-      ];
 
     if (
       !input.retryMessageId &&
@@ -451,7 +461,7 @@ export function registerProfileConversations(app: Express) {
           ? labelledExperience(input.text, answerPage)
           : null;
       processingStage = 'model-response';
-      const result = labelled
+      let result = labelled
         ? {
             builder: profileBuilderDraftSchema.parse({
               draft: {},
@@ -479,7 +489,7 @@ export function registerProfileConversations(app: Express) {
               educationRules:
                 'For education records extract major and relevantCoursework as separate optional fields, verbatim from user evidence. Never infer proficiency from attending a course. Do not ask for coursework when it was not supplied. Goals, salary, location and working preferences are coaching/matching context, not candidate accomplishments or resume copy.',
               experienceRules:
-                'Separate the everyday role overview from ONE specific personal STAR example. General responsibilities, tools and workload belong to the overview, not automatically to a STAR story. For a concrete incident, return optional starStory {situation,task,action,result} using short exact contiguous source excerpts, empty for unknown parts. Include several supplied STAR parts together; never ask again about parts already stated. For work/projects omit details when original answers are already available to the server; do not repeat the full narrative. Use a short title anchor as evidence. The server preserves the original statements and overview. Never invent results or force a story when the user wants to move on.',
+                'The latest user answer takes priority over the previous interview focus for EXTRACTION. If it introduces a different named work experience or project, create that separate record even when another experience is active. Never silently ignore a new experience. Separate the everyday role overview from ONE specific personal STAR example. General responsibilities, tools and workload belong to the overview, not automatically to a STAR story. For a concrete incident, return optional starStory {situation,task,action,result} using short exact contiguous source excerpts, empty for unknown parts. Include several supplied STAR parts together; never ask again about parts already stated. For work/projects omit details when original answers are already available to the server; do not repeat the full narrative. Use a short title anchor as evidence. The server preserves the original statements and overview. For outcome follow-ups preserve any supplied before/after values, units, approximate/estimated/measured qualifiers and personal-versus-team scope. Approval or adoption alone does not establish a quantified improvement. An unknown or unmeasured outcome is valid; never invent a number. Never invent results or force a story when the user wants to move on.',
               extractionRules:
                 'The profile index omits responsibilities and STAR content. Before saying those details are unavailable, use search_profile_history with record title, organisation or topic; it includes current profile records. Return only new or changed fields and records supported by the recent answers. Do not re-emit unchanged profileBase records. Copy all profile values from original user wording; do not translate or paraphrase. Goals may use the original goal sentence. Omit unknown dates. For current study keep current=true, startMonth=stated enrolment month, endMonth=null, expectedEndMonth=explicit expected graduation month. Populate draft and records, not only a reply claiming they are organised.',
               profileBase: conversationModelProfile(input.currentProfile),
@@ -516,6 +526,42 @@ export function registerProfileConversations(app: Express) {
               },
             },
           );
+      // Retry once when the model ignores an explicit newly introduced named project.
+      // Never silently treat extraction failure as completion of the previous role.
+      if (
+        input.mode === 'build' &&
+        !discussionOnly &&
+        /\bproject (?:called|named)\s+\S/i.test(input.text) &&
+        !result.records.some((r) => r.section === 'projects')
+      ) {
+        result = await generate(
+          'conversation',
+          {
+            goal: 'Extract the NEW project explicitly named in the latest answer. The old interview focus does not limit extraction. Return its literal title and source-backed fields as a projects record. Keep missing STAR parts empty; do not invent outcomes.',
+            facts: [],
+            profileNotes: profileModelNotes(sourceMessages),
+            profileBase: conversationModelProfile(input.currentProfile),
+            interviewControl: { ...previousState, active: null, question: null },
+            experienceRules:
+              'Daily responsibilities are not automatically a specific STAR incident. Preserve full original statements. Unknown parts stay empty.',
+          },
+          assistantSchema,
+          configuredMode(),
+          {
+            onCall: async () => {},
+            onTool: async () => {},
+            onUsage: async () => {},
+            onSearchHistory: async (query, offset) =>
+              searchProfileHistory(sourceMessages, query, offset),
+          },
+        );
+        if (!result.records.some((r) => r.section === 'projects'))
+          throw new AppError(
+            422,
+            'PROFILE_EXTRACTION_INCOMPLETE',
+            'Your answer is saved, but the new project could not be organised. Retry the saved answer; your previous profile is unchanged.',
+          );
+      }
       processingStage = 'field-grounding';
       const groundingNotes = [
         notes,
@@ -860,22 +906,63 @@ export function registerProfileConversations(app: Express) {
           (key) => !unsupported.has(key.replace('profile:', '') as any),
         ),
       };
-      const plan = planInterview(
-        Object.assign(
-          {},
-          prepared.data,
-          ...(t.proposals as any[])
-            .filter(
-              (p) =>
-                p.status === 'PENDING' &&
-                fieldDigest(input.currentProfile[p.field as keyof typeof input.currentProfile]) ===
-                  fieldDigest(p.before),
-            )
-            .map((p) => ({ [p.field]: p.after })),
-          ...changes.map((p) => ({ [p.field]: p.after })),
-        ),
-        planState,
+      const planProfile = Object.assign(
+        {},
+        prepared.data,
+        ...(t.proposals as any[])
+          .filter(
+            (p) =>
+              p.status === 'PENDING' &&
+              fieldDigest(input.currentProfile[p.field as keyof typeof input.currentProfile]) ===
+                fieldDigest(p.before),
+          )
+          .map((p) => ({ [p.field]: p.after })),
+        ...changes.map((p) => ({ [p.field]: p.after })),
       );
+      const focusedPlan = planInterview(planProfile, planState, input.text);
+      if (
+        !discussionOnly &&
+        input.mode === 'build' &&
+        focusedPlan.state.active === previousState.active
+      ) {
+        const outcome = proposeOutcomeAnswer(
+          planProfile,
+          previousState,
+          input.text,
+          t.id,
+          answerId,
+        );
+        if (outcome) {
+          const original =
+            input.currentProfile[outcome.field as 'workExperiences' | 'projects'] || [];
+          const at = changes.findIndex((change) => change.field === outcome.field);
+          const proposal = { ...outcome, before: original };
+          if (at >= 0) changes[at] = proposal as any;
+          else changes.push(proposal as any);
+          planProfile[outcome.field] = outcome.after;
+        }
+      }
+      // A new experience is not an answer to the old experience's pending question.
+      if (
+        !discussionOnly &&
+        !input.retryMessageId &&
+        !input.recoverSavedAnswers &&
+        previousState.question &&
+        !previousState.question.key.includes(':story:') &&
+        !unsupported.has(previousState.question.key.replace('profile:', '') as any) &&
+        (!previousState.active || focusedPlan.state.active === previousState.active)
+      )
+        planState.addressed = [...new Set([...planState.addressed, previousState.question.key])];
+      if (
+        previousState.question?.key.endsWith(':story:measurement') &&
+        focusedPlan.state.active === previousState.active &&
+        hasOutcomeDetail(input.text) &&
+        !/[?？]/.test(input.text)
+      )
+        planState.outcomeReviewed = [
+          ...new Set([...(planState.outcomeReviewed || []), previousState.active!]),
+        ];
+      const plan = planInterview(planProfile, planState, input.text);
       if (discussionOnly) changes.splice(0);
       const questions =
         input.mode === 'edit' || discussionOnly

@@ -2171,6 +2171,8 @@ function MissionDetail({
           <details className="panel job-coverage">
             <summary>Search sources and coverage</summary>
             <p>
+              {d.jobRetrieval.llmReviewed != null &&
+                `${d.jobRetrieval.llmReviewed} shortlisted jobs reviewed by LLM; ${d.jobRetrieval.notLlmReviewed} not reviewed. `}
               {d.jobRetrieval.count} source jobs before suitability filtering ·{' '}
               {d.jobRetrieval.geography?.countryName || d.jobSearch?.country?.toUpperCase()} ·{' '}
               {d.jobRetrieval.geography?.region || 'All regions'}
@@ -2300,6 +2302,12 @@ function MissionDetail({
                     ))}
                   </div>
                   <p>{r.explanation}</p>
+                  {r.scoringVersion === 'matching-v2' && (
+                    <p className="small muted">
+                      Saved rule-based score. A new live mission uses source-quoted LLM requirement
+                      mapping.
+                    </p>
+                  )}
                   {r.gaps?.length > 0 && (
                     <div className="job-gap-notice" role="note">
                       <strong>Before you choose: evidence gaps</strong>
@@ -2320,6 +2328,42 @@ function MissionDetail({
                     <p>
                       <strong>Gaps:</strong> {r.gaps.join('; ') || 'No explicit gaps identified.'}
                     </p>
+                    {r.scoringVersion === 'llm-evidence-v1' && (
+                      <>
+                        <p>
+                          LLM evidence mapping · Coverage: {r.coverage}% · Confidence:{' '}
+                          {r.confidence}
+                        </p>
+                        <ul aria-label="Suitability score components">
+                          {Object.entries(r.scoringWeights as Record<string, number>).map(
+                            ([key, weight]) => (
+                              <li key={key}>
+                                {key}: {Math.round(weight * 100)}% policy weight ·{' '}
+                                {r.components[key] === null
+                                  ? 'Unknown — unscored'
+                                  : `${Math.round(r.components[key] * 100)}% evidenced`}
+                              </li>
+                            ),
+                          )}
+                        </ul>
+                        {r.mapping.items.map((item: any, index: number) => (
+                          <article key={index}>
+                            <strong>
+                              {item.term} · {item.level} · {item.status.replaceAll('_', ' ')}
+                            </strong>
+                            <blockquote>{item.excerpt}</blockquote>
+                            <p>{item.reason}</p>
+                            <ul>
+                              {item.evidence.map((e: any) => (
+                                <li key={e.factId}>
+                                  {e.factId}: {e.quote}
+                                </li>
+                              ))}
+                            </ul>
+                          </article>
+                        ))}
+                      </>
+                    )}
                     {r.scoringVersion === 'matching-v2' && (
                       <>
                         <p>
@@ -2393,9 +2437,11 @@ function MissionDetail({
                           : 'Fictional sample vacancy.'}
                     </p>
                     <p>
-                      {r.scoringVersion === 'matching-v2'
-                        ? '40% required skills · 5% preferred skills · 15% experience · 10% education · 15% preferences · 15% TF-IDF overlap. Unknown components receive neutral half-credit.'
-                        : '45% skills · 15% experience · 10% education · 15% preferences · 15% TF-IDF overlap (saved legacy result).'}
+                      {r.scoringVersion === 'llm-evidence-v1'
+                        ? 'LLM extracts requirements and maps approved facts; code scores evidenced/partial/missing items. Unknown categories are excluded, not awarded half-credit. Coverage reports the weighted categories actually assessed.'
+                        : r.scoringVersion === 'matching-v2'
+                          ? '40% required skills · 5% preferred skills · 15% experience · 10% education · 15% preferences · 15% TF-IDF overlap. Unknown components receive neutral half-credit.'
+                          : '45% skills · 15% experience · 10% education · 15% preferences · 15% TF-IDF overlap (saved legacy result).'}
                     </p>
                     <p>Scores indicate heuristic suitability, not hiring probabilities.</p>
                   </details>

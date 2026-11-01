@@ -143,6 +143,9 @@ async function prepareInterview(
 beforeAll(async () => {
   process.env.PROVIDER_MODE = 'fixture';
   process.env.JOB_SOURCE = 'fixtures';
+  // Fixture/error-path tests must not inherit working native or alternate provider keys.
+  delete process.env.OPENAI_NATIVE_API_KEY;
+  delete process.env.DEEPSEEK_API_KEY;
   delete process.env.OPENAI_API_KEY;
   delete process.env.OPENAI_MODEL;
   await initQueue(true);
