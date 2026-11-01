@@ -134,7 +134,7 @@ Changed wording stays highlighted in the resume until approval. Select a highlig
 
 Open **My documents**. Choose an approved version and use **Download** to save PDF/DOCX/TXT locally. The original and any separately approved wording editions remain distinct.
 
-If Docker has been configured with the optional AWS session and private S3 bucket, choose **Back up approved PDF to cloud**. Wait for the success message, expand **Cloud backups**, then choose **Download backup**. This action backs up the selected approved PDF; it does not upload unapproved profile drafts or submit a job application. The backup list belongs to the signed-in user. Each download authorizes a short-lived S3 link.
+If Docker has been configured with the private S3 bucket and automatic host-login override (`COMPOSE_FILE=compose.yaml:compose.aws-profile.yaml` in the private `.env`; no Python helper required), choose **Back up approved PDF to cloud**. Wait for the success message, expand **Cloud backups**, then choose **Download backup**. This action backs up the selected approved PDF; it does not upload unapproved profile drafts or submit a job application. The backup list belongs to the signed-in user. Each download authorizes a short-lived S3 link.
 
 If cloud backup is disabled or unavailable, continue with local downloads. A cloud failure does not revoke an approval or stop interview practice. The bucket can be provisioned before the demonstration; the app still needs a valid runtime AWS session and network access. See [S3 configuration](AWS_S3_BACKUPS.md).
 

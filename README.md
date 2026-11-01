@@ -35,16 +35,20 @@ For deterministic offline verification, explicitly set `PROVIDER_MODE=fixture` a
 
 ### Optional S3 inside Docker
 
-Existing private S3 buckets can be reused. Set the bucket and region in the private `.env`, then authenticate the selected profile on the host with AWS CLI. After the normal image build/start above:
+Existing private S3 buckets can be reused. On your demo computer, add the following to the private `.env` (use the existing bucket's actual name):
 
-```sh
-aws login --profile careerflow --region ap-southeast-2
-python3 scripts/docker-aws-session.py --profile careerflow
+```dotenv
+S3_BACKUP_BUCKET=<existing-bucket-name>
+AWS_REGION=ap-southeast-2
+AWS_PROFILE=careerflow
+COMPOSE_FILE=compose.yaml:compose.aws-profile.yaml
 ```
 
-The helper requires Python 3 and AWS CLI. It captures the selected temporary session without printing it or writing credential files, then recreates only the app with `compose.aws.yaml`. Database data is retained. Credentials are runtime container settings, not image/source contents. When the exported session expires, renew the host login if needed and rerun the helper; the container does not refresh the host session automatically. Use a limited application identity for routine use.
+Then use the same normal startup command: `docker compose up -d --build --wait`. No Python session helper is required. The optional override mounts the host AWS config read-only and login cache read/write at runtime so the installed SDK can use and refresh the existing `aws login` session. It does not mount static credentials or copy credentials into source/image. This grants the local app access to the mounted login cache; use it only on your own trusted demo computer. A fully expired login still needs browser sign-in again. Optional `AWS_HOST_CONFIG` and `AWS_HOST_LOGIN_CACHE` select different absolute host paths; defaults use your home directory. The colon-separated `COMPOSE_FILE` example is for macOS/Linux.
 
-Without AWS, leave `S3_BACKUP_BUCKET` blank and run only `compose.yaml`; local PDF/DOCX exports and the rest of the journey remain available. See the [deployment playbook](docs/WEEK13_DEPLOYMENT.md) and [S3 guide](docs/AWS_S3_BACKUPS.md).
+The older `scripts/docker-aws-session.py` / `compose.aws.yaml` session-export route remains an alternative for hosts where cache mounting is unsuitable; do not combine both overrides.
+
+Without AWS, leave `S3_BACKUP_BUCKET` blank, leave `COMPOSE_FILE` unset, and run only `compose.yaml`; local PDF/DOCX exports and the rest of the journey remain available. See the [deployment playbook](docs/WEEK13_DEPLOYMENT.md) and [S3 guide](docs/AWS_S3_BACKUPS.md).
 
 ## Optional local development
 

@@ -14,14 +14,9 @@ AWS_PROFILE=careerflow
 
 Authenticate through AWS browser login using the chosen profile. The AWS JavaScript SDK resolves credentials locally; credentials never go to the frontend or source repository. Use a limited IAM identity for the application, not a root/admin identity. The application needs `s3:ListBucket` limited to prefix `approved-resumes/*`, and `s3:PutObject`/`s3:GetObject` on that prefix's objects. No delete, public access or policy-management permissions are required by the app. The server's identity is trusted for all app users; application authentication and hashed user prefixes isolate users.
 
-Restart the application after changing settings. For a standard Docker build/start, follow the repository README. To add the selected host AWS session to that already-built app:
+For Docker on your own macOS/Linux demo computer, add `COMPOSE_FILE=compose.yaml:compose.aws-profile.yaml` to the private `.env`, then use normal `docker compose up -d --build --wait`. No Python helper is required. This runtime override mounts host config read-only and the login cache read/write (SDK refresh persists renewed sessions). Static credentials are not mounted. Credentials remain outside source/image. The app can access the mounted login cache, so use this only on a trusted local computer. An expired overall login still requires browser authentication. Host paths default to `~/.aws/config` and `~/.aws/login/cache`; override with `AWS_HOST_CONFIG` / `AWS_HOST_LOGIN_CACHE` if needed.
 
-```sh
-aws login --profile careerflow --region ap-southeast-2
-python3 scripts/docker-aws-session.py --profile careerflow
-```
-
-The optional `compose.aws.yaml` passes temporary access credentials only at runtime. The helper captures the selected profile's export in memory, never prints credential values and never writes them into source or an image. It disables profile selection inside the container so the injected temporary credentials are used. No host AWS directory is mounted. The app container retains those credentials until recreated; once they expire, rerun the helper with a valid host session. For an isolated deployment, pass `--project-name <name>` and optionally `--env-file /path/to/private.env` matching the original Compose launch.
+The previous Python helper and `compose.aws.yaml` remain an alternative that injects an exported temporary session without mounting host files. Do not combine it with the profile override. Without S3, unset COMPOSE_FILE and leave the bucket blank.
 
 The existing bucket can be reused after downloading a fresh source archive; do not create a new bucket for every demonstration. A fresh application database still requires a new account/profile/resume, and application ownership scopes its backup list. Network access and valid S3 permissions remain necessary. Storage, access-log and request charges continue to apply. An IAM role is preferable on a hosted runtime.
 

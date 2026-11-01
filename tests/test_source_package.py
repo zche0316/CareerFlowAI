@@ -18,7 +18,7 @@ class SourcePackageTest(unittest.TestCase):
     def test_source_archive_includes_infrastructure_and_excludes_private_files(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            included = ['package-lock.json', '.env.example', 'compose.yaml', 'compose.aws.yaml', 'prisma/schema.prisma',
+            included = ['package-lock.json', '.env.example', 'compose.yaml', 'compose.aws.yaml', 'compose.aws-profile.yaml', 'prisma/schema.prisma',
                         'scripts/local-run.mjs', 'packages/matching/jobs.json',
                         'infra/aws/resume-backups.yaml', 'infra/aws/application-policy.example.json']
             excluded = ['.env', 'infra/aws/private.key', 'scripts/__pycache__/cached.pyc',

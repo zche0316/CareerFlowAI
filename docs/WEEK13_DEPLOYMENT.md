@@ -20,7 +20,7 @@ python3 scripts/package-source.py
 ## 2. 提前准备演示电脑
 
 - 安装并启动 Docker Desktop，确认 `docker version` 和 `docker compose version` 可用。
-- 准备模型/招聘服务的私有配置，独立保管在提交包之外。S3 演示另需 AWS CLI、Python 3 和有效登录会话。
+- 准备模型/招聘服务的私有配置，独立保管在提交包之外。S3 演示另需宿主机 AWS CLI 和有效登录会话。
 - 预先缓存 Docker 基础镜像和构建依赖，并验证学校网络/热点。现场仍须对 Canvas 下载的源码执行构建，不能仅运行旧镜像或旧目录来代替。
 - Docker 构建通常需要访问 Docker Registry、Debian 软件源和 npm。已有完整缓存可能减少网络依赖，但不要假定一台新电脑可以完全离线构建。
 - 现场默认使用 8787/55432；停止本项目旧实例或在私有 `.env` 设置 `APP_PORT`/`DB_PORT`。不要删除原有数据库来腾端口。
@@ -59,14 +59,24 @@ docker compose -p careerflow-rehearsal down
 
 S3 是辅助云存储，可以复用预先创建的私有桶；无需现场重新创建桶、重新部署 AWS infrastructure 或公开桶。按课程额外要求判断是否允许云端辅助服务；如果要求完全离线，关闭该功能。
 
-在私有 `.env` 中设置 `S3_BACKUP_BUCKET` 和 `AWS_REGION=ap-southeast-2`，先按上面步骤构建并启动正常应用，再在宿主机运行：
+在你自己的 macOS 演示电脑上，私有 `.env` 中一次性设置（桶名沿用已创建的实际名称）：
 
-```sh
-aws login --profile careerflow --region ap-southeast-2
-python3 scripts/docker-aws-session.py --profile careerflow --project-name careerflow-rehearsal
+```dotenv
+S3_BACKUP_BUCKET=<existing-bucket-name>
+AWS_REGION=ap-southeast-2
+AWS_PROFILE=careerflow
+COMPOSE_FILE=compose.yaml:compose.aws-profile.yaml
 ```
 
-已有有效登录会话时可直接运行第二行。helper 捕获该 profile 的临时凭证，只在运行时传给 app 容器，不打印凭证，不写入源码/镜像，不挂载宿主机 `.aws` 目录；数据库卷保持不变。导出的会话到期后重新运行 helper，必要时先重新登录。使用与启动时相同的 project 名；若用了外部 env 文件，helper 也传入相同的 `--env-file`。
+已有有效的 careerflow 浏览器登录时，直接执行普通启动命令：
+
+```sh
+docker compose -p careerflow-demo up -d --build --wait
+```
+
+无需 Python helper 或 PATH 前缀。可选 override 只读挂载宿主机 AWS config、读写挂载 login cache，让 SDK 使用并刷新短期会话；不挂载静态 credentials 文件，凭证不进入源码 ZIP 或镜像。仅在自己的可信电脑启用，因为应用可以访问挂载的登录缓存。完整会话过期后仍需重新浏览器登录。路径默认使用宿主机 HOME，可通过 AWS_HOST_CONFIG / AWS_HOST_LOGIN_CACHE 指定绝对路径。冒号分隔的 COMPOSE_FILE 适用于 macOS/Linux。
+
+旧 scripts/docker-aws-session.py 与 compose.aws.yaml 保留为替代方案，不要同时选择两个 AWS override。未演示 S3 时，不设置 COMPOSE_FILE 并将 S3_BACKUP_BUCKET 留空。
 
 在 **My documents** 中选择已批准简历，点击 **Back up approved PDF to cloud**，查看成功提示、展开备份列表并下载一次。备份只在用户主动操作时上传。S3 不可用时，本地 PDF/DOCX 下载和主流程仍可用。日常使用应配置仅能访问指定桶的应用身份；root 登录不是最小权限配置。桶、对象版本及访问日志会继续产生相应存储和请求费用。
 
