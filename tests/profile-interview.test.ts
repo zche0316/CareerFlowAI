@@ -340,3 +340,38 @@ it('does not treat an unrelated reply or old addressed flag as a completed STAR 
   transitionInterview(initial.state, 'skip_question', p);
   expect(planInterview(p, initial.state).state.question?.key).toContain(':story:result');
 });
+
+it('asks for quantified impact after approval, accepts estimates or unmeasured outcomes, and honours skip', () => {
+  const role = {
+    title: 'Business Analyst Intern',
+    organisation: 'Northstar Logistics',
+    startMonth: '2025-11',
+    endMonth: '2026-02',
+    current: false,
+    details: ['I supported reporting.'],
+    starStory: {
+      situation: 'Inconsistent categories.',
+      task: 'Help standardise them.',
+      action: 'I reviewed definitions.',
+      result: 'My supervisor approved the definitions before the team used them.',
+    },
+  };
+  const p = { ...sampleProfile, projects: [], workExperiences: [role] };
+  const next = planInterview(p, interviewState([], p));
+  expect(next.state.question?.key).toContain(':story:measurement');
+  expect(next.state.question?.text).toContain('measured or estimated');
+  expect(next.state.question?.text).toContain("team's result");
+  for (const result of [
+    'Preparing the report took about one hour instead of roughly half a day. It was a team estimate.',
+    'We helped 12 people; no time saving was measured.',
+    "I didn't measure the impact and don't know the time saved.",
+  ]) {
+    const updated = {
+      ...p,
+      workExperiences: [{ ...role, starStory: { ...role.starStory, result } }],
+    };
+    expect(planInterview(updated, next.state).state.question).toBeNull();
+  }
+  transitionInterview(next.state, 'skip_question', p);
+  expect(planInterview(p, next.state).state.question).toBeNull();
+});

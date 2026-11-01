@@ -1602,3 +1602,57 @@ it('retries an ignored named project and asks its STAR instead of declaring the 
     spy.mockRestore();
   }
 });
+
+it('asks once about measurable impact and accepts an explicitly unmeasured answer without inventing metrics', async () => {
+  const c = await client(true);
+  const form = {
+    ...sampleProfile,
+    projects: [],
+    workExperiences: [
+      {
+        id: 'quantified-role',
+        title: 'Business Analyst Intern',
+        organisation: 'Northstar Logistics',
+        location: 'Sydney',
+        startMonth: '2025-11',
+        endMonth: '2026-02',
+        current: false,
+        details: ['I supported reporting.'],
+        technologies: [],
+        url: '',
+        evidence: [],
+        starStory: {
+          situation: 'Inconsistent categories.',
+          task: 'Standardise categories.',
+          action: 'I reviewed definitions.',
+          result: 'My supervisor approved the definitions.',
+        },
+      },
+    ],
+  };
+  const started = await c.request('/profile-threads', 'POST', { currentProfile: form });
+  expect(started.body.interview.question.key).toContain(':story:measurement');
+  const spy = vi.spyOn(provider, 'generate').mockResolvedValueOnce({
+    builder: { draft: {}, proposedChanges: [], followUpQuestions: [] },
+    records: [],
+  } as any);
+  try {
+    const next = await c.request(`/profile-threads/${started.body.id}/messages`, 'POST', {
+      currentProfile: form,
+      revision: started.body.revision,
+      consent: true,
+      text: "I didn't measure the impact and don't know the time saved.",
+    });
+    expect(next.status).toBe(200);
+    expect(next.body.interview.question).toBeNull();
+    expect(
+      (await c.request(`/profile-threads/${started.body.id}`)).body.interview.question,
+    ).toBeNull();
+    expect(next.body.workingForm.workExperiences[0].starStory.result).toBe(
+      'My supervisor approved the definitions.',
+    );
+    expect(next.body.messages.at(-2).text).toContain("didn't measure");
+  } finally {
+    spy.mockRestore();
+  }
+});

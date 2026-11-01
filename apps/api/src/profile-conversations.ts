@@ -6,6 +6,7 @@ import {
   interviewState,
   interviewIntent,
   planInterview,
+  hasOutcomeDetail,
   transitionInterview,
   experiences,
   closedExperience,
@@ -312,7 +313,7 @@ export function registerProfileConversations(app: Express) {
       res.json(await controlInterview(userId, t.id, { ...input, action }));
       return;
     }
-    const previousState = interviewState(messages, interviewProfile(t, input.currentProfile));
+    const previousState = publicThread({ ...t, workingForm: input.currentProfile }).interview;
     const lastAnswer = [...messages]
       .reverse()
       .find((m) => m.role === 'user' && m.kind !== 'interview-control' && !interviewIntent(m.text));
@@ -484,7 +485,7 @@ export function registerProfileConversations(app: Express) {
               educationRules:
                 'For education records extract major and relevantCoursework as separate optional fields, verbatim from user evidence. Never infer proficiency from attending a course. Do not ask for coursework when it was not supplied. Goals, salary, location and working preferences are coaching/matching context, not candidate accomplishments or resume copy.',
               experienceRules:
-                'The latest user answer takes priority over the previous interview focus for EXTRACTION. If it introduces a different named work experience or project, create that separate record even when another experience is active. Never silently ignore a new experience. Separate the everyday role overview from ONE specific personal STAR example. General responsibilities, tools and workload belong to the overview, not automatically to a STAR story. For a concrete incident, return optional starStory {situation,task,action,result} using short exact contiguous source excerpts, empty for unknown parts. Include several supplied STAR parts together; never ask again about parts already stated. For work/projects omit details when original answers are already available to the server; do not repeat the full narrative. Use a short title anchor as evidence. The server preserves the original statements and overview. Never invent results or force a story when the user wants to move on.',
+                'The latest user answer takes priority over the previous interview focus for EXTRACTION. If it introduces a different named work experience or project, create that separate record even when another experience is active. Never silently ignore a new experience. Separate the everyday role overview from ONE specific personal STAR example. General responsibilities, tools and workload belong to the overview, not automatically to a STAR story. For a concrete incident, return optional starStory {situation,task,action,result} using short exact contiguous source excerpts, empty for unknown parts. Include several supplied STAR parts together; never ask again about parts already stated. For work/projects omit details when original answers are already available to the server; do not repeat the full narrative. Use a short title anchor as evidence. The server preserves the original statements and overview. For outcome follow-ups preserve any supplied before/after values, units, approximate/estimated/measured qualifiers and personal-versus-team scope. Approval or adoption alone does not establish a quantified improvement. An unknown or unmeasured outcome is valid; never invent a number. Never invent results or force a story when the user wants to move on.',
               extractionRules:
                 'The profile index omits responsibilities and STAR content. Before saying those details are unavailable, use search_profile_history with record title, organisation or topic; it includes current profile records. Return only new or changed fields and records supported by the recent answers. Do not re-emit unchanged profileBase records. Copy all profile values from original user wording; do not translate or paraphrase. Goals may use the original goal sentence. Omit unknown dates. For current study keep current=true, startMonth=stated enrolment month, endMonth=null, expectedEndMonth=explicit expected graduation month. Populate draft and records, not only a reply claiming they are organised.',
               profileBase: conversationModelProfile(input.currentProfile),
@@ -926,6 +927,15 @@ export function registerProfileConversations(app: Express) {
         (!previousState.active || focusedPlan.state.active === previousState.active)
       )
         planState.addressed = [...new Set([...planState.addressed, previousState.question.key])];
+      if (
+        previousState.question?.key.endsWith(':story:measurement') &&
+        focusedPlan.state.active === previousState.active &&
+        hasOutcomeDetail(input.text) &&
+        !/[?？]/.test(input.text)
+      )
+        planState.outcomeReviewed = [
+          ...new Set([...(planState.outcomeReviewed || []), previousState.active!]),
+        ];
       const plan = planInterview(planProfile, planState, input.text);
       if (discussionOnly) changes.splice(0);
       const questions =

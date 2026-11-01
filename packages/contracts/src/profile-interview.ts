@@ -13,6 +13,7 @@ export type InterviewState = {
   closed: string[];
   addressed: string[];
   skipped?: string[];
+  outcomeReviewed?: string[];
   inventoryBaseline?: string[];
   question: { key: string; text: string } | null;
 };
@@ -176,6 +177,18 @@ export function transitionInterview(
   }
   s.question = null;
 }
+// A quantitative result may be approximate. Explicitly unmeasured outcomes are valid too.
+export function hasOutcomeDetail(text: string) {
+  return (
+    /unknown|unmeasured|not (?:formally )?measured|(?:did not|didn't|didn’t|never) (?:measure|track)|(?:don['’]t|do not) know|no (?:reliable |quantitative )?(?:data|measurement)|没有(?:测量|统计|数据)|不清楚|不知道/i.test(
+      text,
+    ) ||
+    /(?:\d+(?:[.,]\d+)?|one|two|three|four|five|six|seven|eight|nine|ten|half)\s*(?:%|percent|hours?|minutes?|days?|weeks?|seconds?|orders?|users?|customers?|students?|cases?|people|reports?|dollars?|倍|小时|分钟|天|人|单)/i.test(
+      text,
+    )
+  );
+}
+
 export function planInterview(p: any, current: InterviewState, latestText = '') {
   const state = structuredClone(current);
   const records = experiences(p).filter((r) => !closedExperience(state.closed, r.key));
@@ -274,6 +287,14 @@ export function planInterview(p: any, current: InterviewState, latestText = '') 
         add(
           `${active.key}:story:result`,
           `What happened after your actions in that example from ${active.title}? An unknown or unmeasured result is fine.`,
+        );
+      else if (
+        !hasOutcomeDetail(story.result) &&
+        !(state.outcomeReviewed || []).includes(active.key)
+      )
+        add(
+          `${active.key}:story:measurement`,
+          `After that result in ${active.title}, was there a measurable change, such as time saved, fewer errors, people helped or work completed? A rough before-and-after estimate is fine. Was it measured or estimated, and was it your own or the team's result? If it was not measured or you do not know, say so.`,
         );
     }
   } else {
