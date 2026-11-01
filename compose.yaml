@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-careerflow-local}
       POSTGRES_DB: careerflow
     ports:
-      - '127.0.0.1:55432:5432'
+      - '127.0.0.1:${DB_PORT:-55432}:5432'
     volumes:
       - careerflow-data:/var/lib/postgresql/data
     healthcheck:
@@ -19,11 +19,18 @@ services:
     environment:
       DATABASE_URL: postgresql://careerflow:${DB_PASSWORD:-careerflow-local}@db:5432/careerflow
       PORT: 8787
+      S3_BACKUP_BUCKET: ${S3_BACKUP_BUCKET:-}
+      AWS_REGION: ${AWS_REGION:-ap-southeast-2}
       HOST: 0.0.0.0
-      APP_ORIGIN: http://localhost:8787
+      APP_ORIGIN: http://localhost:${APP_PORT:-8787}
       PROVIDER_MODE: ${PROVIDER_MODE:-fixture}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_NATIVE_API_KEY: ${OPENAI_NATIVE_API_KEY:-}
+      OPENAI_NATIVE_BASE_URL: ${OPENAI_NATIVE_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_NATIVE_TEXT_MODEL: ${OPENAI_NATIVE_TEXT_MODEL:-gpt-6-luna}
+      OPENAI_NATIVE_LIGHT_MODEL: ${OPENAI_NATIVE_LIGHT_MODEL:-gpt-6-luna}
+      OPENAI_NATIVE_VISION_MODEL: ${OPENAI_NATIVE_VISION_MODEL:-gpt-6-luna}
       OPENAI_MODEL: ${OPENAI_MODEL:-}
       TEXT_MODEL: ${TEXT_MODEL:-}
       LIGHT_TEXT_MODEL: ${LIGHT_TEXT_MODEL:-}
@@ -32,6 +39,7 @@ services:
       VISION_API_KEY: ${VISION_API_KEY:-}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       PROVIDER_TIMEOUT_MS: ${PROVIDER_TIMEOUT_MS:-90000}
+      PROFILE_TIMEOUT_MS: ${PROFILE_TIMEOUT_MS:-60000}
       ADZUNA_APP_ID: ${ADZUNA_APP_ID:-}
       ADZUNA_APP_KEY: ${ADZUNA_APP_KEY:-}
       TAVILY_API_KEY: ${TAVILY_API_KEY:-}
@@ -39,8 +47,18 @@ services:
       JOB_SOURCE: ${JOB_SOURCE:-employers}
       ADZUNA_COUNTRY: ${ADZUNA_COUNTRY:-au}
       EMBEDDED_WORKER: 'true'
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8787/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 3s
+      timeout: 3s
+      retries: 40
+      start_period: 10s
     ports:
-      - '127.0.0.1:8787:8787'
+      - '127.0.0.1:${APP_PORT:-8787}:8787'
     depends_on:
       db:
         condition: service_healthy

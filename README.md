@@ -16,7 +16,37 @@ Progress, acceptance results, defects and delivery evidence are managed in [Jira
 
 Member 3 matching-source provenance is retained in [NOTICE.md](packages/matching/NOTICE.md).
 
-## Local startup
+## Docker deployment from the submitted source
+
+For the Week 13 on-site demonstration, download the submitted ZIP from Canvas, extract it into a new folder and open a terminal in the `CareerFlowAI` folder. Docker Desktop must be running. This path needs no host Node.js/npm installation.
+
+```sh
+cp .env.example .env # first setup only
+# Edit the private .env with your model/job settings; keep it outside the submitted ZIP.
+docker compose up -d --build --wait
+docker compose ps
+```
+
+Open **http://localhost:8787** and create an account. The image installs locked dependencies and builds the app from source; startup applies migrations to PostgreSQL. Local data persists in the Compose volume. `docker compose down` stops services while retaining it; `down -v` deletes that deployment's database.
+
+Default host ports are 8787/55432. Stop the old local instance before using them, or set `APP_PORT`/`DB_PORT` in the private `.env`; the browser origin follows `APP_PORT`. Use a distinct Compose project and fresh data volume for an independent rehearsal. Docker builds need access to the base image, OS packages and npm dependencies unless these have already been cached on the demonstration machine.
+
+For deterministic offline verification, explicitly set `PROVIDER_MODE=fixture` and `JOB_SOURCE=fixtures`. For the actual AI demonstration, configure your provider in the private `.env`; native `OPENAI_NATIVE_*` settings are forwarded too. Internet access is required for live model/job requests and S3.
+
+### Optional S3 inside Docker
+
+Existing private S3 buckets can be reused. Set the bucket and region in the private `.env`, then authenticate the selected profile on the host with AWS CLI. After the normal image build/start above:
+
+```sh
+aws login --profile careerflow --region ap-southeast-2
+python3 scripts/docker-aws-session.py --profile careerflow
+```
+
+The helper requires Python 3 and AWS CLI. It captures the selected temporary session without printing it or writing credential files, then recreates only the app with `compose.aws.yaml`. Database data is retained. Credentials are runtime container settings, not image/source contents. When the exported session expires, renew the host login if needed and rerun the helper; the container does not refresh the host session automatically. Use a limited application identity for routine use.
+
+Without AWS, leave `S3_BACKUP_BUCKET` blank and run only `compose.yaml`; local PDF/DOCX exports and the rest of the journey remain available. See the [deployment playbook](docs/WEEK13_DEPLOYMENT.md) and [S3 guide](docs/AWS_S3_BACKUPS.md).
+
+## Optional local development
 
 Requires Node.js 22.13+ (Node 24 recommended) and npm.
 
@@ -46,16 +76,6 @@ npm start
 Alternatively, `bash scripts/local-db.sh` starts the project-owned development database under `.runtime/postgres` on port 55432. It uses loopback binding and trust authentication for local development. Set `PG_BIN` if its binaries are not on PATH. It does not replace an existing PostgreSQL installation.
 
 For frontend development, run `npm run dev:web` and open http://localhost:5173. `npm run dev` watches API changes.
-
-## Docker
-
-Start Docker Desktop and configure the private `.env`, then run:
-
-```sh
-docker compose up --build
-```
-
-Compose runs the app and PostgreSQL. Default published ports are 8787 and 55432; stop conflicting project services or adjust Compose ports first. The supplied configuration is intended for local use.
 
 ## Configuration
 
@@ -94,4 +114,4 @@ The optional retrieval experiment uses synthetic labels from `tests/fixtures/car
 
 ## Source packaging
 
-Run `npm run package:source`, inspect its contents and follow the [deployment playbook](docs/WEEK13_DEPLOYMENT.md) for clean-source installation. Keep credentials, databases, dependencies, generated builds, logs and personal documents outside the source archive. Record submission and verification outcomes in Jira.
+Use a clean checkout of a fixed, verified GitHub `main` commit, then run `python3 scripts/package-source.py` (or `npm run package:source`). The script includes the optional Docker/AWS configuration and records source-file hashes. Inspect the ZIP and rehearse from its extracted contents using the [deployment playbook](docs/WEEK13_DEPLOYMENT.md). Keep credentials, databases, dependencies, generated builds, logs and personal documents outside the source archive. Record submission and verification outcomes in Jira.
