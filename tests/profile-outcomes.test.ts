@@ -61,3 +61,31 @@ it('does not attach a question, unrelated message or answer with no active outco
     proposeOutcomeAnswer(form, { ...state, question: null }, 'About one hour.', 't', 'm'),
   ).toBeNull();
 });
+
+it('retains the current outcome citation when the existing record already has ten citations', () => {
+  const full = {
+    ...form,
+    workExperiences: [
+      {
+        ...form.workExperiences[0],
+        conversationEvidence: Array.from({ length: 10 }, () => ({
+          threadId: '00000000-0000-4000-8000-000000000001',
+          messageId: '00000000-0000-4000-8000-000000000002',
+          quote: 'I supported reporting.',
+        })),
+      },
+    ],
+  };
+  const state = planInterview(full, interviewState([], full)).state;
+  const proposal = proposeOutcomeAnswer(
+    full,
+    state,
+    'About one hour, a team estimate.',
+    '00000000-0000-4000-8000-000000000001',
+    '00000000-0000-4000-8000-000000000003',
+  )!;
+  expect(proposal.after[0].conversationEvidence).toHaveLength(10);
+  expect(proposal.after[0].conversationEvidence.at(-1).quote).toBe(
+    'About one hour, a team estimate.',
+  );
+});

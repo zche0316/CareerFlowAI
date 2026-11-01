@@ -39,7 +39,7 @@ export function proposeOutcomeAnswer(
     ...record,
     starStory: { ...record.starStory, result },
     conversationEvidence: [
-      ...(record.conversationEvidence || []),
+      ...(record.conversationEvidence || []).slice(-9),
       { quote: text, threadId, messageId },
     ],
   });
