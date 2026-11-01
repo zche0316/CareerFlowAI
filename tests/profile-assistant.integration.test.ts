@@ -1652,6 +1652,13 @@ it('asks once about measurable impact and accepts an explicitly unmeasured answe
       'My supervisor approved the definitions.',
     );
     expect(next.body.messages.at(-2).text).toContain("didn't measure");
+    const outcomeEdit = next.body.proposals.find(
+      (p: any) => p.field === 'workExperiences' && p.status === 'PENDING',
+    );
+    expect(outcomeEdit.after[0].starStory.result).toContain("I didn't measure the impact");
+    expect(outcomeEdit.after[0].conversationEvidence.at(-1).quote).toContain(
+      "don't know the time saved",
+    );
   } finally {
     spy.mockRestore();
   }

@@ -1,3 +1,4 @@
+import { proposeOutcomeAnswer } from './profile-outcomes.js';
 import type { Express } from 'express';
 import { labelledExperience } from './labelled-experience.js';
 import { profileModelNotes, searchProfileHistory } from './profile-context.js';
@@ -919,6 +920,28 @@ export function registerProfileConversations(app: Express) {
         ...changes.map((p) => ({ [p.field]: p.after })),
       );
       const focusedPlan = planInterview(planProfile, planState, input.text);
+      if (
+        !discussionOnly &&
+        input.mode === 'build' &&
+        focusedPlan.state.active === previousState.active
+      ) {
+        const outcome = proposeOutcomeAnswer(
+          planProfile,
+          previousState,
+          input.text,
+          t.id,
+          answerId,
+        );
+        if (outcome) {
+          const original =
+            input.currentProfile[outcome.field as 'workExperiences' | 'projects'] || [];
+          const at = changes.findIndex((change) => change.field === outcome.field);
+          const proposal = { ...outcome, before: original };
+          if (at >= 0) changes[at] = proposal as any;
+          else changes.push(proposal as any);
+          planProfile[outcome.field] = outcome.after;
+        }
+      }
       // A new experience is not an answer to the old experience's pending question.
       if (
         !discussionOnly &&
