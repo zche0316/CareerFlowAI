@@ -12,6 +12,7 @@ export type InterviewState = {
   active: string | null;
   closed: string[];
   addressed: string[];
+  skipped?: string[];
   inventoryBaseline?: string[];
   question: { key: string; text: string } | null;
 };
@@ -61,7 +62,28 @@ export function interviewIntent(text: string): InterviewAction | null {
 }
 export function interviewState(messages: any[], p: any): InterviewState {
   const saved = [...messages].reverse().find((m) => m.interviewState)?.interviewState;
-  if (saved) return structuredClone(saved);
+  if (saved) {
+    const state = structuredClone(saved);
+    // Older versions conflated an arbitrary reply with an answered STAR field.
+    // Recover intentional skips from actual control messages, without rewriting history.
+    const skipped = new Set<string>(state.skipped || []);
+    let question: string | undefined;
+    for (const message of messages) {
+      if (message.role === 'assistant' && message.interviewState)
+        question = message.interviewState.question?.key;
+      if (
+        message.role === 'user' &&
+        interviewIntent(message.text || '') === 'skip_question' &&
+        question
+      )
+        skipped.add(question);
+    }
+    if (skipped.size) state.skipped = [...skipped];
+    state.addressed = state.addressed.filter(
+      (key: string) => !key.includes(':story:') || skipped.has(key),
+    );
+    return state;
+  }
   const state: InterviewState = {
     phase: 'collecting',
     active: null,
@@ -135,7 +157,10 @@ export function transitionInterview(
   // A finished interview resumes only through an explicit resume action.
   if (s.phase === 'review' && action !== 'resume') return;
   if (action === 'skip_question') {
-    if (s.question) s.addressed = [...new Set([...s.addressed, s.question.key])];
+    if (s.question) {
+      s.addressed = [...new Set([...s.addressed, s.question.key])];
+      s.skipped = [...new Set([...(s.skipped || []), s.question.key])];
+    }
   } else if (action === 'resume') {
     s.phase = 'collecting';
     if (recordKey && records.some((r) => r.key === recordKey)) {
@@ -156,7 +181,9 @@ export function planInterview(p: any, current: InterviewState, latestText = '') 
   const records = experiences(p).filter((r) => !closedExperience(state.closed, r.key));
   const questions: { key: string; text: string }[] = [];
   const add = (key: string, text: string) => {
-    if (!state.addressed.includes(key)) questions.push({ key, text });
+    const skipped = (state.skipped || []).includes(key);
+    if (!skipped && (!state.addressed.includes(key) || key.includes(':story:')))
+      questions.push({ key, text });
   };
   if (state.phase === 'review')
     return {
@@ -166,12 +193,16 @@ export function planInterview(p: any, current: InterviewState, latestText = '') 
   if (state.active && !records.some((r) => r.key === state.active)) state.active = null;
   // A uniquely named experience in the latest answer changes the interview focus.
   // Keep the previous story open and preserve its answers; never reopen closed records.
-  const text = careerTitle(latestText);
+  const normalise = (value: string) =>
+    careerTitle(value)
+      .replace(/[^\p{L}\p{N}]+/gu, ' ')
+      .trim();
+  const text = normalise(latestText);
   const mentions = (value: string) => value.length >= 3 && ` ${text} `.includes(` ${value} `);
-  const titleMatches = records.filter((r) => mentions(careerTitle(r.title)));
+  const titleMatches = records.filter((r) => mentions(normalise(r.title)));
   const named = titleMatches.length
     ? titleMatches
-    : records.filter((r) => mentions(careerTitle(r.organisation || '')));
+    : records.filter((r) => mentions(normalise(r.organisation || '')));
   const active =
     (named.length === 1 ? named[0] : undefined) ||
     records.find((r) => r.key === state.active) ||

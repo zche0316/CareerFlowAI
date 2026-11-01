@@ -24,14 +24,18 @@ test('interview controls stop and skip without model calls, survive reload and l
   await page.getByText('Recovery options', { exact: true }).click();
   await page.getByRole('button', { name: 'Start a separate conversation', exact: true }).click();
   await expect(page.getByRole('log')).toContainText('When did Alpha data project start?');
-  await page.getByText('Switch experience', { exact: true }).click();
+  await expect(page.getByText('Switch experience', { exact: true })).toHaveCount(0);
   await expect(
-    page.getByRole('button', { name: 'Continue: Alpha data project', exact: true }),
-  ).toBeDisabled();
-  await page.getByRole('button', { name: 'Skip this question', exact: true }).click();
-  await expect(page.getByRole('log').locator('article').last()).toContainText(
-    'end, or is it ongoing',
-  );
+    page.getByRole('button', { name: 'Finish this experience', exact: true }),
+  ).toHaveCount(0);
+  for (let i = 0; i < 10; i++) {
+    const skip = page.getByRole('button', { name: 'Skip this question', exact: true });
+    if (!(await skip.count())) break;
+    await Promise.all([
+      page.waitForResponse((r) => r.url().includes('/controls') && r.request().method() === 'POST'),
+      skip.click(),
+    ]);
+  }
   await page.getByRole('button', { name: 'Finish this experience', exact: true }).click();
   await expect(page.getByRole('log').locator('article').last()).toContainText(
     'This experience is finished',
@@ -43,7 +47,7 @@ test('interview controls stop and skip without model calls, survive reload and l
     .or(page.getByRole('button', { name: 'My profile', exact: true }))
     .first()
     .click();
-  await expect(page.getByText('Finished experiences', { exact: true })).toBeVisible();
+  await expect(page.getByText('Switch experience', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Add another experience', exact: true }).click();
   await expect(page.getByRole('log').locator('article').last()).toContainText(
     'different experience',
@@ -61,11 +65,6 @@ test('interview controls stop and skip without model calls, survive reload and l
   ).toBeVisible();
   await page.getByRole('button', { name: 'Resume interview', exact: true }).click();
   await expect(page.getByRole('log').locator('article').last()).not.toContainText('When did Alpha');
-  await page.getByText('Finished experiences', { exact: true }).click();
-  await page.getByRole('button', { name: 'Reopen this experience', exact: true }).click();
-  await expect(page.getByRole('log').locator('article').last()).toContainText(
-    'end, or is it ongoing',
-  );
   await page.getByRole('button', { name: 'End conversation & review', exact: true }).click();
   await page.getByRole('button', { name: 'Review profile draft now', exact: true }).click();
   await expect(page.getByLabel('I reviewed this exact draft')).not.toBeChecked();
@@ -106,10 +105,33 @@ test('finishing a pending experience retains suggestions without a hidden model 
       { exact: true },
     )
     .check();
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/api/profile-threads/*/messages', async (route) => {
+    await gate;
+    await route.continue();
+  });
   await page.getByRole('button', { name: 'Send profile message', exact: true }).click();
+  await expect(page.getByLabel('Your next profile message')).toHaveValue('');
+  await expect(page.getByLabel('Submitted profile message')).toContainText(
+    'Fictional Pending Story',
+  );
+  await expect(page.getByLabel('Submitted profile message')).toContainText('Sending');
+  release();
+
   await expect(
     page.getByRole('button', { name: 'Use these details in my draft', exact: true }),
   ).toBeVisible();
+  for (let i = 0; i < 12; i++) {
+    const skip = page.getByRole('button', { name: 'Skip this question', exact: true });
+    if (!(await skip.count())) break;
+    await Promise.all([
+      page.waitForResponse((r) => r.url().includes('/controls') && r.request().method() === 'POST'),
+      skip.click(),
+    ]);
+  }
   await page.getByRole('button', { name: 'Finish this experience', exact: true }).click();
   await expect(page.getByRole('log').locator('article').last()).toContainText(
     'This experience is finished',

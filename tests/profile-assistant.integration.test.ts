@@ -1551,3 +1551,54 @@ it('switches the pending STAR question to a new named role without consuming the
     spy.mockRestore();
   }
 });
+
+it('retries an ignored named project and asks its STAR instead of declaring the previous role complete', async () => {
+  const c = await client(true);
+  const form = { ...sampleProfile, projects: [], workExperiences: [] };
+  const started = await c.request('/profile-threads', 'POST', { currentProfile: form });
+  const text =
+    'I worked on a university project called Student Part-Time Job Finder with three classmates from March to June 2025. I conducted six interviews and used Figma.';
+  const spy = vi
+    .spyOn(provider, 'generate')
+    .mockResolvedValueOnce({
+      builder: { draft: {}, proposedChanges: [], followUpQuestions: [] },
+      records: [],
+    } as any)
+    .mockResolvedValueOnce({
+      builder: { draft: {}, proposedChanges: [], followUpQuestions: [] },
+      records: [
+        {
+          section: 'projects',
+          title: 'Student Part-Time Job Finder',
+          organisation: '',
+          location: '',
+          startMonth: '2025-03',
+          endMonth: '2025-06',
+          current: false,
+          details: [],
+          technologies: ['Figma'],
+          url: '',
+          evidence: [{ page: 1, quote: text }],
+        },
+      ],
+    } as any);
+  try {
+    const next = await c.request(`/profile-threads/${started.body.id}/messages`, 'POST', {
+      currentProfile: form,
+      revision: started.body.revision,
+      consent: true,
+      text,
+    });
+    expect(next.status).toBe(200);
+    expect(next.body.messages.at(-1).failed).not.toBe(true);
+    expect(next.body.interview.active).toContain('part-time job finder');
+    expect(next.body.proposals.find((p: any) => p.field === 'projects').after[0].title).toBe(
+      'Student Part-Time Job Finder',
+    );
+    expect(next.body.interview.question).not.toBeNull();
+    expect(next.body.messages.at(-1).text).not.toContain('enough detail');
+    expect(spy).toHaveBeenCalledTimes(2);
+  } finally {
+    spy.mockRestore();
+  }
+});

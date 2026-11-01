@@ -302,3 +302,41 @@ it('uses a unique role title when two experiences share one employer', () => {
   expect(planInterview(p, first.state, 'Example Company').state.active).toBe(first.state.active);
   expect(interviewIntent("I haven't finished this experience")).toBeNull();
 });
+
+it('does not treat an unrelated reply or old addressed flag as a completed STAR part', () => {
+  const p = {
+    ...sampleProfile,
+    projects: [],
+    workExperiences: [
+      {
+        title: 'Retail Assistant',
+        organisation: 'Harbour Retail',
+        startMonth: '2024-07',
+        endMonth: '2025-10',
+        details: ['I handled enquiries.'],
+        starStory: {
+          situation: 'Colleagues asked repeated questions.',
+          task: 'Help new staff.',
+          action: '',
+          result: '',
+        },
+      },
+    ],
+  };
+  const initial = planInterview(p, interviewState([], p));
+  expect(initial.state.question?.key).toContain(':story:action');
+  initial.state.addressed.push(initial.state.question!.key);
+  expect(planInterview(p, initial.state).state.question?.key).toContain(':story:action');
+  const withAction = {
+    ...p,
+    workExperiences: [
+      {
+        ...p.workExperiences[0],
+        starStory: { ...p.workExperiences[0].starStory, action: 'I wrote guidance.' },
+      },
+    ],
+  };
+  expect(planInterview(withAction, initial.state).state.question?.key).toContain(':story:result');
+  transitionInterview(initial.state, 'skip_question', p);
+  expect(planInterview(p, initial.state).state.question?.key).toContain(':story:result');
+});

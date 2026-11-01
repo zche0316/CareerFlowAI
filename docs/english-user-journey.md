@@ -44,9 +44,9 @@ The example should show Situation, Task and Action using the facts above. The ne
 
 > After the workbook and category list were introduced, preparing the weekly report took about one hour instead of roughly half a day. That was an estimate from our weekly reporting routine, not a formally measured company-wide result. The improvement applied to our reporting process. I didn't measure an improvement in delivery speed.
 
-Accept the supported changes, then choose **Finish this experience** and **Add another experience**. Introduce the second experience:
+Accept the supported changes. The agent asks one missing STAR part at a time; it must not treat an unrelated answer as a completed action or result. Once the example is complete (or explicitly skipped), the next-step choices appear. Then choose **Finish this experience** and **Add another experience**. Introduce the second experience:
 
-The role overview and STAR example stay under the same work record. Finishing a sourced STAR example can prepare a linked draft story in Memory for later review; it does not approve it. You can skip the example and finish the role without an extra story-generation call.
+The role overview and STAR example stay under the same work record. You can also introduce a clearly named new experience directly; the agent should organise it and continue its missing details without a manual focus selector. Sent messages immediately leave the input and appear as chat bubbles while processing. Finishing a sourced STAR example can prepare a linked draft story in Memory for later review; it does not approve it. You can skip the example and finish the role without an extra story-generation call.
 
 > I also worked part-time as a Customer Operations Assistant at Harbour Retail in Sydney from July 2024 to October 2025. I handled order enquiries, returns and delivery issues, and coordinated with the warehouse when an order needed investigation. I used Excel to keep track of unresolved cases and their next actions. I noticed that new team members repeatedly asked how to handle the same types of enquiries.
 
