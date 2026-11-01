@@ -1,0 +1,23 @@
+# Optional local development: use the host's existing `aws login` session.
+# Select once in private .env: COMPOSE_FILE=compose.yaml:compose.aws-profile.yaml
+services:
+  app:
+    environment:
+      S3_BACKUP_BUCKET: ${S3_BACKUP_BUCKET:?Set S3_BACKUP_BUCKET in the private .env file}
+      AWS_PROFILE: ${AWS_PROFILE:-careerflow}
+      AWS_CONFIG_FILE: /run/aws-config
+      AWS_SHARED_CREDENTIALS_FILE: /run/no-static-credentials
+      AWS_LOGIN_CACHE_DIRECTORY: /run/aws-login-cache
+    volumes:
+      - type: bind
+        source: ${AWS_HOST_CONFIG:-${HOME}/.aws/config}
+        target: /run/aws-config
+        read_only: true
+        bind:
+          create_host_path: false
+      # SDK refresh writes the renewed session back to this runtime cache.
+      - type: bind
+        source: ${AWS_HOST_LOGIN_CACHE:-${HOME}/.aws/login/cache}
+        target: /run/aws-login-cache
+        bind:
+          create_host_path: false
