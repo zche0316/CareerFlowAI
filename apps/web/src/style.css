@@ -4045,20 +4045,37 @@ summary:focus-visible {
 .resume-change-text {
   display: inline;
   width: auto;
-  padding: 4px 6px;
-  margin: -4px -6px;
+  padding: 0;
+  margin: 0;
   border: 0;
   border-radius: 3px;
-  background: #e6f2e9;
-  color: #173f2d;
+  background: transparent;
+  color: inherit;
   font: inherit;
   line-height: inherit;
   text-align: left;
   cursor: pointer;
-  box-decoration-break: clone;
 }
 .resume-change-text:hover {
-  background: #d6e9dc;
+  background: transparent;
+}
+.resume-diff-after,
+.resume-diff-before {
+  padding: 0 1px;
+  border-radius: 2px;
+  color: inherit;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.resume-diff-after {
+  background: #bbf7d0;
+}
+.resume-diff-before {
+  background: #fee2e2;
+  text-decoration: line-through;
+}
+.resume-change-text:hover .resume-diff-after {
+  background: #86efac;
 }
 .resume-change-text:focus-visible {
   outline: 2px solid #245e46;

@@ -553,3 +553,113 @@ it('repairs a provider-side JSON-schema 400 once and validates the complete feed
   expect(r.improvements).toEqual(['Add an actual example']);
   expect(r.nextSteps).toHaveLength(1);
 });
+
+it('keeps Groq tool calls separate from JSON mode and repairs malformed resume patches', async () => {
+  vi.stubEnv('OPENAI_NATIVE_API_KEY', '');
+  vi.stubEnv('OPENAI_API_KEY', 'test-key');
+  vi.stubEnv('OPENAI_BASE_URL', 'https://api.groq.com/openai/v1');
+  vi.stubEnv('TEXT_MODEL', 'openai/gpt-oss-120b');
+  const bodies: any[] = [];
+  vi.stubGlobal('fetch', async (_input: unknown, init?: RequestInit) => {
+    const body = JSON.parse(String(init?.body));
+    bodies.push(body);
+    if (body.tools) expect(body.response_format).toBeUndefined();
+    return new Response(
+      JSON.stringify({
+        id: 'chat-test',
+        object: 'chat.completion',
+        created: 1,
+        model: body.model,
+        choices: [
+          {
+            index: 0,
+            finish_reason: 'stop',
+            message: {
+              role: 'assistant',
+              content: JSON.stringify(bodies.length === 1 ? { claims: null } : { claims: [] }),
+            },
+          },
+        ],
+        usage: { prompt_tokens: 1, completion_tokens: 1 },
+      }),
+      { headers: { 'Content-Type': 'application/json' } },
+    );
+  });
+  const calls = vi.fn(async () => {});
+  const result = await generate(
+    'resume-edit',
+    { goal: 'Reorder the experience', facts: [] },
+    z.object({ claims: z.array(z.unknown()) }),
+    'openai',
+    {
+      onCall: calls,
+      onTool: async () => {},
+      onUsage: async () => {},
+      onSearchHistory: async () => ({ hits: [] }),
+    },
+  );
+  expect(result.claims).toEqual([]);
+  expect(calls).toHaveBeenCalledTimes(2);
+  expect(bodies[1].messages.at(-1).content).toContain('did not match the JSON schema');
+});
+
+it('recovers a rejected optional Groq tool call with a genuine JSON-only model request', async () => {
+  vi.stubEnv('OPENAI_NATIVE_API_KEY', '');
+  vi.stubEnv('OPENAI_API_KEY', 'test-key');
+  vi.stubEnv('OPENAI_BASE_URL', 'https://api.groq.com/openai/v1');
+  vi.stubEnv('TEXT_MODEL', 'openai/gpt-oss-120b');
+  const bodies: any[] = [];
+  vi.stubGlobal('fetch', async (_input: unknown, init?: RequestInit) => {
+    const body = JSON.parse(String(init?.body));
+    bodies.push(body);
+    if (bodies.length === 1)
+      return new Response(
+        JSON.stringify({
+          error: {
+            code: 'tool_use_failed',
+            type: 'invalid_request_error',
+            message: 'Tool call validation failed.',
+          },
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } },
+      );
+    expect(body.tools).toBeUndefined();
+    expect(body.response_format).toEqual({ type: 'json_object' });
+    return new Response(
+      JSON.stringify({
+        id: 'chat-test',
+        object: 'chat.completion',
+        created: 1,
+        model: body.model,
+        choices: [
+          {
+            index: 0,
+            finish_reason: 'stop',
+            message: {
+              role: 'assistant',
+              content: JSON.stringify({ removedFactIds: ['skill-sql'] }),
+            },
+          },
+        ],
+        usage: { prompt_tokens: 1, completion_tokens: 1 },
+      }),
+      { headers: { 'Content-Type': 'application/json' } },
+    );
+  });
+  const search = vi.fn(async () => ({ hits: [] }));
+  const result = await generate(
+    'resume-edit',
+    { goal: 'Remove SQL from Skills', facts: [] },
+    z.object({ removedFactIds: z.array(z.string()) }),
+    'openai',
+    {
+      onCall: async () => {},
+      onTool: async () => {},
+      onUsage: async () => {},
+      onSearchHistory: search,
+    },
+  );
+  expect(result.removedFactIds).toEqual(['skill-sql']);
+  expect(bodies).toHaveLength(2);
+  expect(search).not.toHaveBeenCalled();
+});

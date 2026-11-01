@@ -1774,7 +1774,18 @@ function MissionDetail({
           </button>
         )}
         {!['COMPLETE', 'CANCELLED', 'STALE', 'NO_MATCHES', 'FAILED'].includes(m.status) && (
-          <button className="text-button" disabled={busy} onClick={() => void onAction('cancel')}>
+          <button
+            className="text-button"
+            disabled={busy}
+            onClick={() => {
+              if (
+                window.confirm(
+                  'Cancel this entire career mission? This ends further work and is not Undo. To restore a resume change, use Keep original instead.',
+                )
+              )
+                void onAction('cancel');
+            }}
+          >
             <Pause size={15} />
             Cancel further work
           </button>

@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { afterAll, beforeAll, it, expect, vi } from 'vitest';
 import type { Server } from 'node:http';
 import { createApp } from '../apps/api/src/app.js';
@@ -46,9 +47,15 @@ it('edits the preview from approved profile facts, searches memory only on deman
     text: 'I supported reporting for 2,000 orders using SQL.',
     source: 'user',
   };
+  const facts = [
+    fact,
+    { id: 'skill-sql', kind: 'skill', text: 'SQL', source: 'user' },
+    { id: 'skill-python', kind: 'skill', text: 'Python', source: 'user' },
+    { id: 'education-1', kind: 'education', text: 'Bachelor of Commerce.', source: 'user' },
+  ];
   await db.user.update({ where: { id: userId }, data: { profileVersion: 1 } });
   const p = await db.profile.create({
-    data: { userId, version: 1, data: sampleProfile, facts: [fact] },
+    data: { userId, version: 1, data: sampleProfile, facts },
   });
   const m = await db.mission.create({
     data: {
@@ -62,7 +69,7 @@ it('edits the preview from approved profile facts, searches memory only on deman
         resumeDraft: {
           hash: 'original',
           jobTitle: 'Business Analyst',
-          claims: [{ factId: fact.id, text: fact.text, kind: fact.kind }],
+          claims: facts.map((f) => ({ factId: f.id, text: f.text, kind: f.kind })),
         },
       },
     },
@@ -92,6 +99,8 @@ it('edits the preview from approved profile facts, searches memory only on deman
     'Using SQL, I supported reporting for 2,000 orders.',
   );
   expect(result.resumeDraft.hash).not.toBe('original');
+  expect(result.resumeDraft.claims.map((c: any) => c.factId)).toEqual(facts.map((f) => f.id));
+  expect(result.resumeDraft.summary).toContain('SQL, Python');
   expect((await request(m.id, { draftHash: 'original', message: 'Try again' })).status).toBe(409);
   spy.mockResolvedValueOnce({
     message: 'Invented result.',
@@ -107,10 +116,8 @@ it('edits the preview from approved profile facts, searches memory only on deman
     draftHash: result.resumeDraft.hash,
     message: 'Improve impact',
   });
-  expect(unsafe.status).toBe(200);
-  expect((await unsafe.json()).resumeDraft.claims[0].text).toBe(
-    'Using SQL, I supported reporting for 2,000 orders.',
-  );
+  expect(unsafe.status).toBe(422);
+  expect((await unsafe.json()).code).toBe('UNSUPPORTED_WORDING');
   const stored = (await db.mission.findUniqueOrThrow({ where: { id: m.id } })).data as any;
   expect(stored.resumeChanges[0].before).toBe('Supported reporting for 2,000 orders using SQL.');
   expect(stored.resumeChanges[0].after).toBe('Using SQL, I supported reporting for 2,000 orders.');
@@ -146,7 +153,41 @@ it('edits the preview from approved profile facts, searches memory only on deman
     ((await db.mission.findUniqueOrThrow({ where: { id: m.id } })).data as any).resumeChat.at(-1)
       .text,
   ).toContain('No wording changes needed');
-  expect((await db.profile.findUniqueOrThrow({ where: { id: p.id } })).facts).toEqual([fact]);
+  spy.mockResolvedValueOnce({
+    message: 'Removed SQL.',
+    claims: [],
+    removedFactIds: ['skill-sql'],
+  } as any);
+  const removal = await request(m.id, {
+    draftHash: restoredDraft.hash,
+    message: 'Remove SQL from Skills',
+  });
+  expect(removal.status).toBe(200);
+  const removed = (await removal.json()).resumeDraft;
+  expect(removed.claims.map((c: any) => c.factId)).toEqual([
+    'experience-1',
+    'skill-python',
+    'education-1',
+  ]);
+  expect(removed.summary).not.toContain('SQL');
+  expect(removed.summary).toContain('Python');
+  const restoreSkill = await request(
+    m.id,
+    { draftHash: removed.hash, factId: 'skill-sql' },
+    '/restore',
+  );
+  expect(restoreSkill.status).toBe(200);
+  const restoredSkill = (await restoreSkill.json()).resumeDraft;
+  expect(restoredSkill.summary).toContain('SQL, Python');
+  expect(restoredSkill.claims.map((c: any) => c.factId)).toEqual(facts.map((f) => f.id));
+  spy.mockRejectedValueOnce(new z.ZodError([]));
+  const invalid = await request(m.id, { draftHash: restoredSkill.hash, message: 'Refine wording' });
+  expect(invalid.status).toBe(502);
+  expect((await invalid.json()).error).toContain('Your draft is unchanged');
+  expect(
+    ((await db.mission.findUniqueOrThrow({ where: { id: m.id } })).data as any).resumeDraft.hash,
+  ).toBe(restoredSkill.hash);
+  expect((await db.profile.findUniqueOrThrow({ where: { id: p.id } })).facts).toEqual(facts);
   expect(
     (await request('another-account-mission', { draftHash: 'original', message: 'Edit' })).status,
   ).toBe(404);
