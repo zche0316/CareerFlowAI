@@ -472,25 +472,39 @@ export function ProfileConversation({
               <div className="organise-controls">
                 <label>
                   Experience to organise
-                  <select value={selectedExperience} onChange={(event) => setSelectedExperience(event.target.value)}>
+                  <select
+                    value={selectedExperience}
+                    onChange={(event) => setSelectedExperience(event.target.value)}
+                  >
                     <option value="">Choose an experience</option>
                     {(['workExperiences', 'projects'] as const).flatMap((section) =>
-                      (form[section] || []).filter((record) => record.details.length).map((record) => (
-                        <option key={`${section}:${record.id}`} value={`${section}:${record.id}`}>
-                          {section === 'projects' ? 'Project' : 'Work'} · {record.title}
-                        </option>
-                      )),
+                      (form[section] || [])
+                        .filter((record) => record.details.length)
+                        .map((record) => (
+                          <option key={`${section}:${record.id}`} value={`${section}:${record.id}`}>
+                            {section === 'projects' ? 'Project' : 'Work'} · {record.title}
+                          </option>
+                        )),
                     )}
                   </select>
                 </label>
-                <button className="secondary" disabled={busy || !consent || pending.length > 0 || !selectedExperience}
+                <button
+                  className="secondary"
+                  disabled={busy || !consent || pending.length > 0 || !selectedExperience}
                   onClick={() => {
                     const separator = selectedExperience.indexOf(':');
-                    const section = selectedExperience.slice(0, separator) as 'workExperiences' | 'projects';
+                    const section = selectedExperience.slice(0, separator) as
+                      'workExperiences' | 'projects';
                     const recordId = selectedExperience.slice(separator + 1);
-                    if (!(form[section] || []).some((record) => record.id === recordId && record.details.length)) return;
+                    if (
+                      !(form[section] || []).some(
+                        (record) => record.id === recordId && record.details.length,
+                      )
+                    )
+                      return;
                     void run(() => organise(thread, recordId, section));
-                  }}>
+                  }}
+                >
                   Organise selected experience
                 </button>
               </div>

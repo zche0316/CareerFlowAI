@@ -170,9 +170,15 @@ test('a candidate with no resume or formal work builds a story, selects job cont
   let releaseInitial!: () => void;
   let initialSeen!: () => void;
   let initialReturned!: () => void;
-  const gate = new Promise<void>((resolve) => { releaseInitial = resolve; });
-  const seen = new Promise<void>((resolve) => { initialSeen = resolve; });
-  const returned = new Promise<void>((resolve) => { initialReturned = resolve; });
+  const gate = new Promise<void>((resolve) => {
+    releaseInitial = resolve;
+  });
+  const seen = new Promise<void>((resolve) => {
+    initialSeen = resolve;
+  });
+  const returned = new Promise<void>((resolve) => {
+    initialReturned = resolve;
+  });
   let initial = true;
   await page.route('**/api/resumes/*/wording', async (route) => {
     if (route.request().method() === 'GET' && initial) {

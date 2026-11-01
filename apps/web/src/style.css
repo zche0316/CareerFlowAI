@@ -5864,7 +5864,22 @@ summary:focus-visible {
 }
 
 /* Experience selection from PR #10, scoped to the current workbench. */
-.profile-assistant .organise-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
-.profile-assistant .organise-controls label { flex: 1; min-width: 0; }
-.profile-assistant .organise-controls select { width: 100%; }
-@media (max-width: 760px) { .profile-assistant .organise-controls { flex-direction: column; align-items: stretch; } }
+.profile-assistant .organise-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+}
+.profile-assistant .organise-controls label {
+  flex: 1;
+  min-width: 0;
+}
+.profile-assistant .organise-controls select {
+  width: 100%;
+}
+@media (max-width: 760px) {
+  .profile-assistant .organise-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

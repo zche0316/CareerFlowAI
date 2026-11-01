@@ -116,7 +116,9 @@ test('a user compares ranked jobs and selects one for downstream context', async
   await jobCards.first().getByText('Evidence, gaps & source', { exact: true }).click();
   await expect(jobCards.first()).toContainText('Preferred skills (optional)');
   await expect(jobCards.first()).toContainText('40% required skills');
-  await expect(jobCards.first().getByRole('list', { name: 'Suitability score components' })).toContainText('preferred: 5% weight');
+  await expect(
+    jobCards.first().getByRole('list', { name: 'Suitability score components' }),
+  ).toContainText('preferred: 5% weight');
   await jobCards.first().getByText('Skill extraction evidence', { exact: true }).click();
   await expect(jobCards.first()).toContainText('Required skills:');
   await page.screenshot({ path: 'output/acceptance/cfs-21-ranked-jobs.png', fullPage: true });
