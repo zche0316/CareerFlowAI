@@ -503,6 +503,28 @@ export function ProfileConversation({
                   ? `Discussing: ${thread.interviewRecords?.find((r: any) => r.key === thread.interview.active)?.title || 'current experience'}`
                   : 'Choose an experience or finish when ready.'}
             </p>
+            {thread.interviewRecords?.some(
+              (r: any) => !r.historical && !closedExperience(thread.interview.closed, r.key),
+            ) && (
+              <details>
+                <summary>Switch experience</summary>
+                {thread.interviewRecords
+                  .filter(
+                    (r: any) => !r.historical && !closedExperience(thread.interview.closed, r.key),
+                  )
+                  .map((r: any) => (
+                    <p key={r.key}>
+                      <button
+                        className="text-button"
+                        disabled={busy || (!reviewStage && r.key === thread.interview.active)}
+                        onClick={() => void control('resume', r.key)}
+                      >
+                        Continue: {r.title}
+                      </button>
+                    </p>
+                  ))}
+              </details>
+            )}
             {reviewStage ? (
               <>
                 {thread.hasUnfiledExperience && (

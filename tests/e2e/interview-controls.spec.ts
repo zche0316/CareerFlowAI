@@ -24,6 +24,10 @@ test('interview controls stop and skip without model calls, survive reload and l
   await page.getByText('Recovery options', { exact: true }).click();
   await page.getByRole('button', { name: 'Start a separate conversation', exact: true }).click();
   await expect(page.getByRole('log')).toContainText('When did Alpha data project start?');
+  await page.getByText('Switch experience', { exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Continue: Alpha data project', exact: true }),
+  ).toBeDisabled();
   await page.getByRole('button', { name: 'Skip this question', exact: true }).click();
   await expect(page.getByRole('log').locator('article').last()).toContainText(
     'end, or is it ongoing',
