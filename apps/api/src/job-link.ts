@@ -1,3 +1,4 @@
+import { MISSION_MODEL_CALL_LIMIT } from '../../../packages/contracts/src/mission-limits.js';
 import type { Express } from 'express';
 import { z } from 'zod';
 import { db } from './db.js';
@@ -79,7 +80,7 @@ export function registerJobLink(app: Express) {
             {
               onCall: async () => {
                 await locked(async (m, tx) => {
-                  if ((m.data.apiCalls || 0) >= 12)
+                  if ((m.data.apiCalls || 0) >= MISSION_MODEL_CALL_LIMIT)
                     throw new AppError(
                       429,
                       'BUDGET_EXCEEDED',

@@ -60,9 +60,9 @@ export function providerTimeoutMs(role?: string) {
   const timeout = Number(
     interactive
       ? process.env.PROFILE_TIMEOUT_MS || 60000
-      : process.env.PROVIDER_TIMEOUT_MS || 25000,
+      : process.env.PROVIDER_TIMEOUT_MS || 90000,
   );
-  const maximum = interactive ? 75000 : 30000;
+  const maximum = interactive ? 75000 : 120000;
   if (!Number.isInteger(timeout) || timeout < 10 || timeout > maximum)
     throw Error(
       `${interactive ? 'PROFILE_TIMEOUT_MS' : 'PROVIDER_TIMEOUT_MS'} must be an integer between 10 and ${maximum}.`,
@@ -326,8 +326,13 @@ export async function generate<T>(
     negotiation:
       'Return recruiterReply and feedback. Keep recruiterReply under 150 words. feedback must contain all three keys strengths, improvements and nextSteps, each a non-empty array of at most two concise strings. Simulate one fictional recruiter reply to the candidate salary negotiation, then give actionable strengths, improvements and next steps. Use only the selected role, approved profile context and the supplied practice offer/target/message. Never claim market benchmarks, recommend accepting a specific real offer, or make the final decision for the user. Make clear that acceptance remains the user practice choice.',
   }[role];
+  const coachFormat =
+    role === 'coach'
+      ? ' Return strengths, gaps, directions and actions arrays with at most three items each. Every item must contain text, evidenceIds and reason. Use one to three exact IDs copied from facts per item; never invent IDs or use an empty evidenceIds array. Keep text and reason to one short sentence each. Be concise so the complete JSON finishes within the output limit.'
+      : '';
   const instruction =
     'You are one specialist in CareerFlow AI. ' +
+    coachFormat +
     task +
     (role === 'conversation'
       ? ' Separate a general role overview from one optional personal STAR incident. Do not treat daily duties as a specific incident. Work/project details may be omitted: the server preserves full original source statements, so do not echo every sentence. Return record headers, short evidence anchors, and any explicitly supplied STAR parts as starStory {situation,task,action,result}, quoting exact source excerpts. Use empty strings for unknown parts. The server plans follow-up questions; do not independently repeat interview questions in reply.'
@@ -342,6 +347,22 @@ export async function generate<T>(
     signal || new AbortController().signal,
     AbortSignal.timeout(providerTimeoutMs(role)),
   ]);
+  const startedAt = Date.now();
+  const trace = (stage: string, extra: Record<string, unknown> = {}) =>
+    console.info(
+      'Specialist request:',
+      JSON.stringify({
+        at: new Date().toISOString(),
+        role,
+        model: route.model,
+        stage,
+        elapsedMs: Date.now() - startedAt,
+        deadlineMs: providerTimeoutMs(role),
+        deadlineAborted: deadline.aborted,
+        workerAborted: signal?.aborted || false,
+        ...extra,
+      }),
+    );
   // Profile drafts intentionally allow missing fields. The SDK's strict Responses
   // formatter rejects optional non-nullable fields before a request is sent.
   // Use bounded JSON mode for these interactive tasks and validate on the server;
@@ -556,6 +577,7 @@ export async function generate<T>(
     validationSummary: string,
     previousOutput: typeof first.output,
   ) => {
+    trace('schema-correction-start');
     await hooks.onCall();
     return client.responses.parse(
       {
@@ -590,6 +612,7 @@ export async function generate<T>(
   // Replay the tool exchange and require a schema-valid specialist result.
   let response;
   try {
+    trace('structured-result-start');
     response = await client.responses.parse(
       {
         model: route.model,
@@ -612,6 +635,14 @@ export async function generate<T>(
       { signal: deadline },
     );
   } catch (error) {
+    trace('structured-result-error', {
+      name: (error as Error).name,
+      status: (error as any)?.status,
+      validation:
+        error instanceof z.ZodError
+          ? error.issues.map((issue) => ({ path: issue.path.join('.'), code: issue.code }))
+          : undefined,
+    });
     const providerSchemaError =
       (error as any)?.status === 400 &&
       /Generated JSON does not match|json_validate_failed/.test((error as Error).message || '');

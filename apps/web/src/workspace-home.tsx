@@ -1,3 +1,4 @@
+import { MISSION_MODEL_CALL_LIMIT } from '../../../packages/contracts/src/mission-limits.js';
 import React, { useState } from 'react';
 import {
   ArrowRight,
@@ -121,7 +122,7 @@ export function WorkspaceHome({
   const nextLabel = !hasProfile
     ? 'Build your profile'
     : current
-      ? current.status === 'FAILED' && (current.data?.apiCalls || 0) >= 12
+      ? current.status === 'FAILED' && (current.data?.apiCalls || 0) >= MISSION_MODEL_CALL_LIMIT
         ? 'Review saved results'
         : actionText[current.status] || 'View progress'
       : 'Find matching jobs';
@@ -311,7 +312,7 @@ export function WorkspaceHome({
                   </p>
                 </div>
                 <span className="row-action">
-                  {m.status === 'FAILED' && (m.data?.apiCalls || 0) >= 12
+                  {m.status === 'FAILED' && (m.data?.apiCalls || 0) >= MISSION_MODEL_CALL_LIMIT
                     ? 'Review saved results'
                     : actionText[m.status] || 'View progress'}{' '}
                   <ArrowRight size={16} />

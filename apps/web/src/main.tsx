@@ -1,3 +1,4 @@
+import { MISSION_MODEL_CALL_LIMIT } from '../../../packages/contracts/src/mission-limits.js';
 import { WorkspaceHome, nextMissionStep } from './workspace-home.js';
 import { FlowNavigation } from './flow-navigation.js';
 import { ResumePreview } from './resume-preview.js';
@@ -1747,7 +1748,7 @@ function MissionDetail({
   const questions = d.questions || [],
     q = questions[question],
     responseCount = d.answers?.length || 0,
-    budgetExhausted = (d.apiCalls || 0) >= 12,
+    budgetExhausted = (d.apiCalls || 0) >= MISSION_MODEL_CALL_LIMIT,
     isWorking = ['RUNNING', 'QUEUED'].includes(m.status);
 
   useEffect(() => {
@@ -1983,7 +1984,7 @@ function MissionDetail({
         <details className="run-details">
           <summary>AI usage</summary>
           <span className="muted small">
-            {d.apiCalls || 0} / 12 model calls ·{' '}
+            {d.apiCalls || 0} / {MISSION_MODEL_CALL_LIMIT} model calls ·{' '}
             {((d.inputTokens || 0) + (d.outputTokens || 0)).toLocaleString()} tokens recorded
           </span>
         </details>

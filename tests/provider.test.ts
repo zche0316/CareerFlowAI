@@ -96,7 +96,14 @@ it('classifies a profile deadline as a timeout instead of a generic model failur
   });
 });
 
-it('enforces the configured provider deadline below the 30-second budget', async () => {
+it('allows enough default time for a specialist result and one correction', () => {
+  vi.stubEnv('PROVIDER_TIMEOUT_MS', '');
+  expect(providerTimeoutMs('coach')).toBe(90000);
+  vi.stubEnv('PROVIDER_TIMEOUT_MS', '120000');
+  expect(providerTimeoutMs('coach')).toBe(120000);
+});
+
+it('enforces the configured provider deadline within the bounded specialist budget', async () => {
   vi.stubEnv('PROVIDER_TIMEOUT_MS', '50');
   vi.stubEnv('OPENAI_API_KEY', 'test-only-not-a-real-key');
   vi.stubEnv('OPENAI_MODEL', 'test-model');
@@ -132,8 +139,8 @@ it('enforces the configured provider deadline below the 30-second budget', async
   expect(aborted).toBe(true);
   expect(performance.now() - started).toBeLessThan(1000);
   expect(providerTimeoutMs()).toBe(50);
-  vi.stubEnv('PROVIDER_TIMEOUT_MS', '30001');
-  expect(() => providerTimeoutMs()).toThrow(/between 10 and 30000/);
+  vi.stubEnv('PROVIDER_TIMEOUT_MS', '120001');
+  expect(() => providerTimeoutMs()).toThrow(/between 10 and 120000/);
 });
 
 it('routes both tool and structured-output requests to the configured compatible endpoint', async () => {

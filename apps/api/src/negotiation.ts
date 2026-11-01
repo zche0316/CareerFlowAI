@@ -1,3 +1,4 @@
+import { MISSION_MODEL_CALL_LIMIT } from '../../../packages/contracts/src/mission-limits.js';
 import { z } from 'zod';
 import { db } from './db.js';
 import { AppError, requireValue } from './errors.js';
@@ -55,7 +56,7 @@ async function reserveNegotiationCall(userId: string, id: string) {
     if (mission.status !== 'COMPLETE' || mission.profile.version !== mission.user.profileVersion)
       throw new AppError(409, 'RUN_SUPERSEDED', 'This practice is no longer current.');
     const data = mission.data as MissionData;
-    if ((data.apiCalls || 0) >= 12)
+    if ((data.apiCalls || 0) >= MISSION_MODEL_CALL_LIMIT)
       throw new AppError(
         409,
         'BUDGET_REACHED',
