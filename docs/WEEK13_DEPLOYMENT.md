@@ -1,69 +1,79 @@
-# Source deployment playbook
+# Week 13 Docker deployment playbook
 
-依据老师最新通知：可以使用自己的电脑、提前装工具和依赖、使用热点，并有额外部署时间；但演示必须从 Canvas 下载的已提交源码现场构建/部署。以下是准备和演练步骤，不是已经完成 Canvas 上传/下载的证明。
+演示当天必须从 Canvas 下载已提交源码，在现场从该源码构建并启动。这个流程使用本机 Docker；网页、API、PostgreSQL 和 LangGraph 都在本机容器运行。AI、招聘查询及可选 S3 需要网络。操作与结果记录在 Jira，不在此文档维护提交进度。
 
-## 提交前冻结候选版本
+## 1. 选定要提交的源码
 
-1. 组员 review 全部本地修改和新增文件，记录实际 commit/PR。打包前确认新增模块已纳入候选版本，避免仅归档旧提交而遗漏本地源码。
-2. 在小组仓库运行 `npm run package:source`。打包脚本会包含约定源码目录下的相关未跟踪文件，并生成逐文件 SHA-256 清单。发布前人工检查包内容，不把自动打包当作安全审查。
-3. 候选 ZIP 应包含 `CareerFlowAI/` 顶层目录、package/lock、apps、packages、prisma migrations、scripts、tests、docs、`.env.example`。不含 `.env`、`.git`、`.runtime`、旧数据库、node_modules、dist、个人简历、测试截图/日志或私钥文件。
-4. 用该 ZIP 在新目录演练安装。小组确认后上传 Canvas，再下载一份，核对 ZIP SHA-256 与内容清单，重新走部署流程。这里不代替实际 Canvas 操作。
-5. 截止日期以 Canvas 为准。已保存的评分文件写 2026-11-01 23:59，但该 PDF 未写时区；现场务必确认 Canvas 显示的课程时区和实际截止时间，不自行按北京时间换算。
-
-## 可以提前准备
-
-- Node.js 22.13+；建议与当前验证环境一致的 Node 24 和 npm。终端确认 `node -v`、`npm -v`。
-- VS Code 和熟悉的浏览器。源码部署不要求必须 Docker；项目内开发数据库避免现场临时安装系统 PostgreSQL。
-- 按锁文件预热 npm 缓存，保存缓存位置；可以先安装依赖，但不能用旧目录/旧编译产物冒充从提交源码构建。
-- 准备热点并测试学校网络、模型 endpoint、招聘源域名。带好电源和热点设备。
-- 将模型/招聘凭据独立保存在安全的本机配置位置；现场手动填入新下载目录的 `.env`，不上传 ZIP、Canvas、Jira，不在投影屏上展示密钥。
-- 事先核对端口 8787 和 55432，不要杀未知进程；停掉本项目旧实例后再启动。
-
-## 现场标准流程
-
-从 Canvas 下载并解压源码，进入**本次新目录**。不要打开旧的 8791 原型。
+推荐以 GitHub `main` 上已验证的固定提交为准，在干净副本里运行本地打包工具。这样既有 Git 提交记录，又有源码筛选和逐文件 SHA-256 清单。
 
 ```sh
-node -v
-npm -v
-cp .env.example .env
-npm ci
-npm run start:local
+git clone --branch main --single-branch https://github.com/zche0316/CareerFlowAI.git CareerFlowAI-submit
+cd CareerFlowAI-submit
+git rev-parse HEAD
+python3 scripts/package-source.py
 ```
 
-先复制 `.env.example` 再安装：Prisma 的 postinstall/generate 需要读取配置。已有 `.env` 时不要重复覆盖。启动流程会创建 `.runtime/pglite`、部署 Prisma migrations、从源码构建 Vite 客户端并启动原有 API/后台 worker。打开 http://localhost:8787 。VS Code F5 的 `CareerFlow: database + app` 等价于 `start:local`，但首次依赖安装仍需完成。
+记录输出的 commit、ZIP 路径和 SHA-256。打包后若修改源码，生成新包并重新演练。不要把正在开发的脏目录直接压缩成最终提交包。GitHub Download ZIP 也属于源码，但不包含本工具生成的交付清单；本流程优先使用上面的干净副本打包方式。
 
-若现场没有 npm 网络但缓存已充分准备，可在该新目录运行 `npm ci --offline --cache /path/to/prepared-cache`。仅当锁文件对应的包和平台依赖都已缓存才可行；提前验证，不能临场假定成功。真实招聘和远程 AI 仍需要网络。
+提交 ZIP 应包含源码、锁文件、Prisma migrations、Dockerfile、`compose.yaml`、可选 `compose.aws.yaml`、`infra/`、必要文档及 `.env.example`。不包含 `.env`、真实密钥、AWS 登录缓存、个人简历、已有数据库、node_modules、dist、测试输出或 Docker 镜像。`.env.example` 是空密钥配置模板，可以提交。
 
-## 配置两个独立的展示路径
+## 2. 提前准备演示电脑
 
-### 可重复的离线主链
+- 安装并启动 Docker Desktop，确认 `docker version` 和 `docker compose version` 可用。
+- 准备模型/招聘服务的私有配置，独立保管在提交包之外。S3 演示另需 AWS CLI、Python 3 和有效登录会话。
+- 预先缓存 Docker 基础镜像和构建依赖，并验证学校网络/热点。现场仍须对 Canvas 下载的源码执行构建，不能仅运行旧镜像或旧目录来代替。
+- Docker 构建通常需要访问 Docker Registry、Debian 软件源和 npm。已有完整缓存可能减少网络依赖，但不要假定一台新电脑可以完全离线构建。
+- 现场默认使用 8787/55432；停止本项目旧实例或在私有 `.env` 设置 `APP_PORT`/`DB_PORT`。不要删除原有数据库来腾端口。
 
-`.env`：`PROVIDER_MODE=fixture`，`JOB_SOURCE=fixtures`。使用明确标注的虚构资料和样例职位，展示 profile 审批、UC2、排名、选岗、简历精确版本审批、面试回答和反馈。目的是证明系统连通与恢复能力，**不宣称这是实际模型调用或真实岗位**。
+## 3. 从 ZIP 做一次干净演练
 
-### 真实 AI 与真实岗位
+先解压候选 ZIP 到新目录，进入其中的 `CareerFlowAI` 文件夹。使用新的 Compose project 名可以隔离测试数据卷。
 
-`.env`：`PROVIDER_MODE=openai`，填写本组当前 adapter 支持的 `OPENAI_BASE_URL`、`OPENAI_API_KEY`、`OPENAI_MODEL`。Groq 的 base URL 可使用兼容配置，但必须用当前小组版本实测工具调用和 structured output；旧原型的成功日志不能替代当前版本验收。配置后重启，在新 mission/activity 中核对实际 mode、工具交互、调用次数和输出质量。
+```sh
+cp .env.example .env
+# 编辑私有 .env：选择演示模式并填写必要配置，不把该文件重新打入源码包。
+docker compose -p careerflow-rehearsal up -d --build --wait
+docker compose -p careerflow-rehearsal ps
+```
 
-招聘源可选 `JOB_SOURCE=employers`（公开公司 API）或 `adzuna`（需独立 app ID/key）。空结果/源失败正常演示恢复；不要偷偷切回 fixtures。Adzuna 尚未申请凭据时，它不是现场必需路径，更不是已经验收的真实来源。
+打开 http://localhost:8787，创建虚构演示账号。镜像构建会执行锁定依赖安装、Prisma Client 生成和前端构建；启动会迁移 PostgreSQL 数据库。无需在宿主机额外安装 Node.js/npm 或 PostgreSQL。
 
-如果某模型/招聘服务故障：展示清楚的错误和保留的已批准数据，说明依赖失败；再明确新建一个离线演示 mission。当前版本不会把失败 live mission 静默变成成功 AI 输出。
+验证：注册/登录 → 资料草稿与批准 → 职业分析 → 岗位选择 → 简历审核与批准 → PDF/DOCX 下载 → 面试回答与反馈。刷新页面并重启容器，确认已批准内容仍存在。按 [English user journey](english-user-journey.md) 操作；真实模型问题和真实岗位可能变化，不应背诵固定输出。
 
-## 建议演示脚本
+```sh
+docker compose -p careerflow-rehearsal restart app
+docker compose -p careerflow-rehearsal down
+```
 
-顺序按实际时长由组长分配，以下不代表老师规定的时长。
+`down` 保留数据卷，`down -v` 会删除该 project 的数据库。新电脑/新 project 不包含旧电脑上的账号或已批准简历；不要把旧数据库或个人资料打进源码包。
 
-1. 指出新下载源码目录、锁文件、构建与健康检查成功；区分系统/API/招聘源。
-2. 01：虚构候选人的草稿、验证、授权、批准；说明未批准内容不能被下游当成证据。
-3. 02：展示 strengths、gaps、career directions/actions 与 evidence IDs。
-4. 03：检索澳洲岗位，展示来源/时间/缺失薪资、分数和局限；复查并选择目标。解释评分不是录用概率。
-5. 04：用选中岗位和批准事实生成草稿；展示不支持的事实不会插入，明确批准才保存。
-6. 05：回答一题并保存，结束练习展示反馈；练习答案不自动成为 career profile 的事实。
-7. 一个真实失败/恢复：比如无结果或用户取消/重试；展示资料/已批准简历仍保留。
-8. Activity 展示可观察的工具调用和状态，不宣称展示模型隐藏思考。说明哪些是 real API、哪些是 fixture。
-9. 展示真实 Jira review/feedback/retrospective 和对应代码改动；展示技术选型的理由与限制。
-10. 重启应用并确认任务/批准文档仍存在。无需把自动投递、邮件、更多招聘源临时塞进核心 demo。
+## 4. 明确两种演示配置
 
-## 交付记录
+可重复验证：在私有 `.env` 设置 `PROVIDER_MODE=fixture` 和 `JOB_SOURCE=fixtures`，明确说明是虚构资料和确定性输出，不能当成真实 AI 调用证据。
 
-安装、构建、浏览器主链、独立复核、贡献说明及 Canvas 提交结果统一记录在 Jira 的相关任务中。此文档仅保留操作步骤，不维护进度或验收勾选表。
+真实演示：设置 `PROVIDER_MODE=openai`，填写所选模型的私有配置。原生 OpenAI 使用 `OPENAI_NATIVE_*`，兼容服务使用 `OPENAI_BASE_URL`/`OPENAI_API_KEY`/`OPENAI_MODEL`。Compose 会传入这些设置。招聘默认 `JOB_SOURCE=auto`；Tavily/Adzuna 仅在配置有效时使用，不需要为每次演示更换 provider。
+
+更改 `.env` 后重新执行 `docker compose ... up -d` 以更新容器配置；仅 `restart` 不会重新读取环境设置。服务失败应展示实际错误及保留的数据，另建明确标注的 fixture 演示，不把失败的 live mission 静默替换为样例结果。
+
+## 5. 可选：在 Docker 中使用已有 S3 桶
+
+S3 是辅助云存储，可以复用预先创建的私有桶；无需现场重新创建桶、重新部署 AWS infrastructure 或公开桶。按课程额外要求判断是否允许云端辅助服务；如果要求完全离线，关闭该功能。
+
+在私有 `.env` 中设置 `S3_BACKUP_BUCKET` 和 `AWS_REGION=ap-southeast-2`，先按上面步骤构建并启动正常应用，再在宿主机运行：
+
+```sh
+aws login --profile careerflow --region ap-southeast-2
+python3 scripts/docker-aws-session.py --profile careerflow --project-name careerflow-rehearsal
+```
+
+已有有效登录会话时可直接运行第二行。helper 捕获该 profile 的临时凭证，只在运行时传给 app 容器，不打印凭证，不写入源码/镜像，不挂载宿主机 `.aws` 目录；数据库卷保持不变。导出的会话到期后重新运行 helper，必要时先重新登录。使用与启动时相同的 project 名；若用了外部 env 文件，helper 也传入相同的 `--env-file`。
+
+在 **My documents** 中选择已批准简历，点击 **Back up approved PDF to cloud**，查看成功提示、展开备份列表并下载一次。备份只在用户主动操作时上传。S3 不可用时，本地 PDF/DOCX 下载和主流程仍可用。日常使用应配置仅能访问指定桶的应用身份；root 登录不是最小权限配置。桶、对象版本及访问日志会继续产生相应存储和请求费用。
+
+不展示 AWS 时，保持 `S3_BACKUP_BUCKET` 为空，只运行标准 `compose.yaml`。
+
+## 6. Canvas 往返核对与现场部署
+
+上传前确认候选 ZIP 的干净部署通过。上传后从 Canvas 再下载同一个 ZIP，核对 SHA-256，并从新目录再执行上述构建/启动流程。只有这一步才能证明 Canvas 上的包就是演练过的包。
+
+现场再次从 Canvas 下载，解压到新目录，独立恢复私有 `.env`，然后执行 `docker compose up -d --build --wait`。S3 登录和私有 API 配置留在演示电脑上，不交给源码 ZIP。保留下载记录、包校验值、构建/启动结果和已披露的 fixture/live 边界到对应 Jira 任务；实际上传和下载由提交人完成。

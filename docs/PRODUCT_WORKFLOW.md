@@ -10,7 +10,7 @@ A person without an existing resume or formal employment can discover usable exp
 1. **Direction:** target role/direction, career stage, location and working preferences. Unknown preferences remain optional. The user can refine direction in conversation.
 2. **Inventory:** paid work/internships, course projects, personal projects, volunteering and clubs. Keep category and dates explicit. Non-employment activities must not be presented as paid employment.
 3. **Explore:** choose one experience and retain the complete source story. Ask about situation, responsibility, personal action and result. Save incomplete drafts; an unknown outcome stays blank. Confirmation requires meaningful context and personal action, not an invented metric.
-4. **Confirm:** editable structured fields and source-linked facts. Applying a suggestion changes only a working form. Only explicit review/approval creates the next immutable profile version. Sharing permissions remain explicit.
+4. **Confirm:** editable structured fields and source-linked facts. Applying a suggestion changes only a working form. Only explicit review/approval creates the next immutable profile version. Starting a mission grants the career team access to the approved snapshot; profile and resume approvals remain separate explicit decisions.
 5. **Target:** career guidance, real/disclosed fixture jobs, evidence/requirement gaps and the user's target selection. Use deterministic structured fields and owned confirmed evidence; lexical retrieval precedes an embedding service.
 6. **Application:** select and order supported content, review expression separately from facts, approve a version tied to the job/profile/evidence, then export DOCX/PDF. Interview feedback can propose a draft learning/story update; it cannot automatically become a qualification.
 
@@ -44,7 +44,7 @@ Structured education and experience are canonical when present. Legacy free-text
 1. Create a disposable account and open My career profile. Answer the chat's direction question; consent to the configured model processing the supplied information.
 2. Describe education and one course/personal/volunteer/club experience. Answer one follow-up at a time about context, responsibility, personal action and outcome. Unknown outcomes stay unknown.
 3. Review Suggested profile update and choose Use these details in my draft. Later answers update the same experience. Grouped cards show the working draft. Edit profile details manually is an optional correction/failure path.
-4. Choose sharing permissions, then Review profile draft. Review the grouped snapshot and explicitly approve. Refresh and confirm the version persists.
+4. Choose Review profile draft. Review the grouped snapshot and explicitly approve. Refresh and confirm the version persists.
 5. Find jobs using this approved profile. Choose a disclosed fixture source for repeatable tests or a configured live source for live discovery. Inspect requirements, evidence and gaps before selecting a job.
 6. Select/order source statements, save, review and approve the resume. In Document library, review wording and save a separate edition; download DOCX/PDF.
 7. Save actual interview feedback as a draft learning memory. It does not establish new employment, skills or results.

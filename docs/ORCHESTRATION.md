@@ -42,8 +42,8 @@ The downstream context is built from the mission's pinned `Profile` row and its 
 4. Each workflow step rechecks the owner's current profile version before proceeding.
 5. Pending or discarded drafts are never exposed as downstream context.
 6. A profile replacement marks unfinished missions stale while preserving historical approved data.
-7. The four sharing switches are rechecked at the workflow boundary; a full mission requires the
-   downstream permissions needed for its complete journey.
+7. Starting a mission grants all five specialists access to its approved-profile snapshot. Legacy
+   sharing fields remain stored for compatibility; users do not need to toggle four specialist switches.
 
 ## UI and provider boundary
 

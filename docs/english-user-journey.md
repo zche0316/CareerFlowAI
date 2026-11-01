@@ -1,8 +1,8 @@
 # CareerFlow: Alex Chen's career journey
 
-Updated: 31 October 2026.
+Updated: 1 November 2026.
 
-Refresh the application after the account reset. Open **Build profile** and confirm that no previous conversation or approved profile is shown. Follow the five numbered stages in order. Send each message separately, wait for the agent, and review the proposed profile changes before continuing. Use **Accept change** for an accurate block or **Keep current** to decline it. Suggestions become part of the working draft only after acceptance; **Approve & save profile** is a separate final decision.
+Deploy the source downloaded from Canvas using the Docker steps in [the deployment playbook](WEEK13_DEPLOYMENT.md). Open the locally deployed app and create a new demonstration account for this fictional walkthrough. Open **Build profile** and confirm that no previous conversation or approved profile is shown. Follow the five numbered stages in order. Send each message separately, wait for the agent, and review the proposed profile changes before continuing. Use **Accept change** for an accurate block or **Keep current** to decline it. Suggestions become part of the working draft only after acceptance; **Approve & save profile** is a separate final decision.
 
 All messages and generated documents in this journey should be in English. The agent may vary its questions. Send the next relevant answer rather than pasting several answers at once. Repeated questions about facts already supplied are a problem to record, not a normal step to work around.
 
@@ -129,6 +129,16 @@ The approved main profile supplies resume facts. The agent searches conversation
 Changed wording stays highlighted in the resume until approval. Select a highlighted passage to compare **Before / After**, or choose **Keep original** to undo that change. The first change is brought into view automatically. If the visible wording does not change, the agent reports **No wording changes needed** and retains the current draft.
 
 **Checkpoint:** a job-specific resume is saved, the approved base profile is intact, and downloaded content matches the reviewed version.
+
+## Optional — Save and back up an approved resume
+
+Open **My documents**. Choose an approved version and use **Download** to save PDF/DOCX/TXT locally. The original and any separately approved wording editions remain distinct.
+
+If Docker has been configured with the optional AWS session and private S3 bucket, choose **Back up approved PDF to cloud**. Wait for the success message, expand **Cloud backups**, then choose **Download backup**. This action backs up the selected approved PDF; it does not upload unapproved profile drafts or submit a job application. The backup list belongs to the signed-in user. Each download authorizes a short-lived S3 link.
+
+If cloud backup is disabled or unavailable, continue with local downloads. A cloud failure does not revoke an approval or stop interview practice. The bucket can be provisioned before the demonstration; the app still needs a valid runtime AWS session and network access. See [S3 configuration](AWS_S3_BACKUPS.md).
+
+**Checkpoint:** the local PDF matches the approved version; if cloud backup is demonstrated, its success and download are observed from this deployed app.
 
 ## 05 — Interview practice
 

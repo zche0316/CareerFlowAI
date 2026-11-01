@@ -14,7 +14,16 @@ AWS_PROFILE=careerflow
 
 Authenticate through AWS browser login using the chosen profile. The AWS JavaScript SDK resolves credentials locally; credentials never go to the frontend or source repository. Use a limited IAM identity for the application, not a root/admin identity. The application needs `s3:ListBucket` limited to prefix `approved-resumes/*`, and `s3:PutObject`/`s3:GetObject` on that prefix's objects. No delete, public access or policy-management permissions are required by the app. The server's identity is trusted for all app users; application authentication and hashed user prefixes isolate users.
 
-Restart the application after changing settings. For Docker, pass these environment variables and a read-only mount of the selected AWS credential/config location; credentials are deliberately not baked into the image or committed to Compose. An IAM role is preferable on a hosted runtime.
+Restart the application after changing settings. For a standard Docker build/start, follow the repository README. To add the selected host AWS session to that already-built app:
+
+```sh
+aws login --profile careerflow --region ap-southeast-2
+python3 scripts/docker-aws-session.py --profile careerflow
+```
+
+The optional `compose.aws.yaml` passes temporary access credentials only at runtime. The helper captures the selected profile's export in memory, never prints credential values and never writes them into source or an image. It disables profile selection inside the container so the injected temporary credentials are used. No host AWS directory is mounted. The app container retains those credentials until recreated; once they expire, rerun the helper with a valid host session. For an isolated deployment, pass `--project-name <name>` and optionally `--env-file /path/to/private.env` matching the original Compose launch.
+
+The existing bucket can be reused after downloading a fresh source archive; do not create a new bucket for every demonstration. A fresh application database still requires a new account/profile/resume, and application ownership scopes its backup list. Network access and valid S3 permissions remain necessary. Storage, access-log and request charges continue to apply. An IAM role is preferable on a hosted runtime.
 
 ## User flow
 

@@ -1,0 +1,10 @@
+# Optional runtime-only credentials. Use scripts/docker-aws-session.py after building the app.
+services:
+  app:
+    environment:
+      S3_BACKUP_BUCKET: ${S3_BACKUP_BUCKET:?Set S3_BACKUP_BUCKET in the private .env file}
+      AWS_REGION: ${AWS_REGION:-ap-southeast-2}
+      AWS_PROFILE: ''
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:?Use scripts/docker-aws-session.py}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:?Use scripts/docker-aws-session.py}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:?Use scripts/docker-aws-session.py}
