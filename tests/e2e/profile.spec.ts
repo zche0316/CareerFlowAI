@@ -1,3 +1,4 @@
+import { fillProfileFixture } from './profile-fixture.js';
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { AGENTS, sampleProfile } from '../../packages/contracts/src/index.js';
 
@@ -83,8 +84,7 @@ test('a pending save locks the reviewed form and a failed save keeps it availabl
     await route.fulfill({ status: 500, json: { error: 'Injected save failure' } });
   });
   await openProfile(page);
-  await page.getByText('Demo test data', { exact: true }).click();
-  await page.getByRole('button', { name: 'Use fictional example' }).click();
+  await fillProfileFixture(page);
   await page.getByRole('button', { name: 'Review profile draft' }).click();
   const reviewed = page.getByLabel('I reviewed this exact draft');
   await reviewed.check();
@@ -114,8 +114,7 @@ test('failed discard keeps the exact reviewed draft available for retry', async 
     });
   });
   await openProfile(page);
-  await page.getByText('Demo test data', { exact: true }).click();
-  await page.getByRole('button', { name: 'Use fictional example' }).click();
+  await fillProfileFixture(page);
   await page.getByRole('button', { name: 'Review profile draft' }).click();
   const reviewed = page.getByLabel('I reviewed this exact draft');
   await reviewed.check();
@@ -150,8 +149,7 @@ test('field errors can be corrected and changed drafts require fresh review', as
     }
   });
   await openProfile(page);
-  await page.getByText('Demo test data', { exact: true }).click();
-  await page.getByRole('button', { name: 'Use fictional example' }).click();
+  await fillProfileFixture(page);
   await page.getByLabel('Experience start date (optional)', { exact: true }).fill('2026-02-02');
   await page.getByLabel('Experience end date (optional)', { exact: true }).fill('2026-01-01');
   await page.getByRole('button', { name: 'Review profile draft' }).click();

@@ -1,3 +1,4 @@
+import { fillProfileFixture } from './profile-fixture.js';
 import { test, expect, type Page } from '@playwright/test';
 
 async function createAccount(page: Page) {
@@ -17,8 +18,7 @@ async function openRankedJobs(page: Page) {
     .or(page.getByRole('button', { name: 'My profile', exact: true }))
     .first()
     .click();
-  await page.getByText('Demo test data', { exact: true }).click();
-  await page.getByRole('button', { name: 'Use fictional example' }).click();
+  await fillProfileFixture(page);
   await page.getByText('Edit profile details manually', { exact: true }).click();
   await page.getByRole('button', { name: 'Review profile draft' }).click();
   await page.getByLabel('I reviewed this exact draft').check();
@@ -66,8 +66,7 @@ test('a user must explicitly review a profile before v1 is persisted', async ({ 
     .or(page.getByRole('button', { name: 'My profile', exact: true }))
     .first()
     .click();
-  await page.getByText('Demo test data', { exact: true }).click();
-  await page.getByRole('button', { name: 'Use fictional example' }).click();
+  await fillProfileFixture(page);
   await page.getByText('Edit profile details manually', { exact: true }).click();
   await page.getByRole('button', { name: 'Review profile draft' }).click();
   const approve = page.getByRole('button', { name: 'Approve & save profile' });
@@ -271,7 +270,7 @@ test('a user answers every interview question and receives complete feedback', a
 test('mobile workspace stays usable without horizontal scrolling', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Open demo workspace' }).click();
+  await createAccount(page);
   await expect(page.getByRole('heading', { name: 'Build your profile' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,

@@ -41,7 +41,7 @@ npm run build
 npm start
 ```
 
-Open **http://localhost:8787**. Choose **Open demo workspace**, then **My career profile → Use fictional example → Review profile draft → confirm review → Approve & save profile**. Start a career mission, choose a job, review and approve the evidence-linked resume, save an interview answer and request feedback. After feedback, you may optionally practise one fictional salary negotiation and record your own final practice choice.
+Open **http://localhost:8787** and create your own account. Build your profile through conversation or the manual editor, review and approve it, then start a career mission. Choose a job, review and approve the resume, and practise interview answers. Demo sign-in and one-click sample profile filling have been removed; test fixtures are internal verification infrastructure.
 
 The local database helper uses only `.runtime/postgres`, port 55432 and database `careerflow`. It does not use the existing PostgreSQL instance on port 5432. Set `PG_BIN` if PostgreSQL binaries are not on PATH. The helper uses local trust authentication and loopback binding for development only.
 
@@ -140,7 +140,7 @@ Tavily is now an optional job source inside the existing mission workflow. See [
 
 Create a career mission and choose **Job source**, **Job country**, **State / region**, optional city and keywords. Matching retrieves vacancies in the existing Job Matching Agent workflow; selected jobs continue into resume tailoring and interview preparation. Greenhouse searches one company board (default `spaceship`), not all employers. Adzuna searches the selected country with optional region/city; results are limited to its first 30 listings. Eight countries are supported: AU, NZ, GB, US, CA, SG, DE, FR. Leaving region empty includes all regions covered by that source. No results is a valid outcome.
 
-Source failures use the existing failed mission/retry flow and never silently substitute sample jobs. Select **Fictional demo jobs** explicitly for an offline demonstration. AI fixture mode and live recruitment are independent; live recruitment needs network access. Extracted skills from unstructured descriptions are heuristic, low confidence; scores are suitability indicators, not hiring predictions.
+Source failures use the existing failed mission/retry flow and never silently substitute sample jobs. Offline listings are available only in the internal fixture verification environment. AI fixture mode and live recruitment are independent; live recruitment needs network access. Extracted skills from unstructured descriptions are heuristic, low confidence; scores are suitability indicators, not hiring predictions.
 
 After selecting a real job and approving the resume, **Prepare your real application** shows the exact approved document and official destination. Download the resume and open the listing to apply. Recording a completed submission requires explicit user confirmation and is labelled user-reported, never API-verified. Direct SEEK/Indeed search or submission is not implemented; partner authorization would be required. No credentials were transferred from any older project.
 

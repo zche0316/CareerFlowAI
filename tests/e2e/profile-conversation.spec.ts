@@ -1,3 +1,4 @@
+import { fillProfileFixture } from './profile-fixture.js';
 import { writeFile } from 'node:fs/promises';
 import { test, expect, type Page } from '@playwright/test';
 async function signup(page: Page) {
@@ -127,8 +128,7 @@ test('reviewed wording creates a downloadable edition and application answers st
   page,
 }) => {
   await signup(page);
-  await page.getByText('Demo test data', { exact: true }).click();
-  await page.getByRole('button', { name: 'Use fictional example', exact: true }).click();
+  await fillProfileFixture(page);
   await page.getByText('Edit profile details manually', { exact: true }).click();
   await page
     .getByLabel('Experience and projects or “none yet”', { exact: true })

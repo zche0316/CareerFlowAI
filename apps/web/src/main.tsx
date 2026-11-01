@@ -29,6 +29,7 @@ import {
   Check,
   ChevronRight,
   Compass,
+  Sparkles,
   Layers,
   FileCheck2,
   Activity,
@@ -351,7 +352,6 @@ function App() {
       key={mode}
       profile={workspace?.profile}
       userName={session.user.name}
-      sample={workspace?.sampleProfile}
       onMission={() => {
         setPhase(null);
         setTab('missions');
@@ -577,7 +577,7 @@ function App() {
             <summary>Service status</summary>
             <span className={`provider ${session.mode === 'fixture' ? 'fixture' : ''}`}>
               <i />
-              {session.mode === 'fixture' ? 'Demo mode' : 'Live AI enabled'}
+              {session.mode === 'fixture' ? 'Verification mode' : 'Live AI enabled'}
             </span>
           </details>
         </header>
@@ -924,6 +924,7 @@ function App() {
               adzunaConfigured={session?.recruitment?.adzunaConfigured}
               tavilyConfigured={session?.recruitment?.tavilyConfigured}
               tavilyAccessMode={session?.recruitment?.tavilyAccessMode}
+              internalFixtures={session?.mode === 'fixture'}
             />
             <p className="small muted">
               Search sends only keywords and selected location to the recruitment API, not your
@@ -1023,32 +1024,57 @@ function Login({
   return (
     <div className="login-page">
       <section className="login-brand">
-        <div className="brand">
+        <a href="/" className="brand" aria-label="CareerFlow home">
           <span className="brandmark">
-            <Compass />
+            <img src="/careerflow-logo.svg" alt="" />
           </span>
-          CareerFlow AI
-        </div>
-        <div>
+          CareerFlow
+        </a>
+        <div className="login-story">
           <span className="eyebrow">YOUR NEXT CHAPTER</span>
           <h1>
-            Big career goals.
-            <br />A team to get
+            Your experience.
             <br />
-            you there.
+            Your next move.
           </h1>
           <p>
-            Five specialist agents, one connected workspace.
+            A clearer direction, a stronger application.
             <br />
-            Built around your facts and your decisions.
+            Your career coach, with you at every step.
           </p>
+          <div className="career-personas" aria-label="Career paths for every stage">
+            <div className="career-persona persona-student">
+              <span className="persona-avatar">JL</span>
+              <span className="persona-stage">Finding a first role</span>
+              <strong>Jordan’s next chapter</strong>
+              <span>Business Analytics student</span>
+              <div className="persona-path">
+                <i />
+                Profile built<span>→</span>Graduate Analyst
+              </div>
+            </div>
+            <div className="career-persona persona-professional">
+              <span className="persona-avatar">AM</span>
+              <span className="persona-stage">Ready for a change</span>
+              <strong>Alex’s next chapter</strong>
+              <span>Operations → Business Analysis</span>
+              <div className="persona-path">
+                <i />
+                Experience connected<span>→</span>New possibilities
+              </div>
+            </div>
+            <div className="persona-coach">
+              <Sparkles size={18} />
+              <span>Your story. A plan to move forward.</span>
+            </div>
+          </div>
         </div>
-        <small>A private workspace for your professional future.</small>
+        <small>Your profile, applications and progress. In your own workspace.</small>
       </section>
       <section className="login-form">
         <div>
           <span className="eyebrow">WELCOME TO CAREERFLOW</span>
-          <h2>{register ? 'Create your workspace' : 'Your direction starts here.'}</h2>
+          <h2>{register ? 'Create your workspace' : 'Welcome back.'}</h2>
           <p>
             {register
               ? 'Keep your career context connected and under your control.'
@@ -1104,23 +1130,6 @@ function Login({
           <button className="text-button" onClick={() => setRegister(!register)}>
             {register ? 'Already have an account? Sign in' : 'New here? Create an account'}
           </button>
-          {session?.demoEnabled && (
-            <>
-              <div className="divider">OR EXPLORE FIRST</div>
-              <button
-                className="secondary full"
-                disabled={busy}
-                onClick={() => void submit('demo')}
-              >
-                Open demo workspace
-                <ArrowUpRight size={16} />
-              </button>
-              <p className="small muted">
-                Shared fictional candidate. Job sources are selected separately. Demo AI mode does
-                not make live AI calls.
-              </p>
-            </>
-          )}
         </div>
       </section>
     </div>
@@ -1179,7 +1188,6 @@ function Profile({
   initialPrompt,
   profile,
   userName,
-  sample,
   busy,
   onDraft,
   onApprove,
@@ -1193,7 +1201,6 @@ function Profile({
   onMission: () => void;
   onLibrary: () => void;
   userName: string;
-  sample: CareerProfile | undefined;
   busy: boolean;
   onDraft: (p: CareerProfile) => Promise<any>;
   onApprove: (id: string) => Promise<void>;
@@ -1206,7 +1213,6 @@ function Profile({
   const profileSurface = useRef<HTMLElement | null>(null);
   const approvedVersion = useRef<number | null>(profile?.version ?? null);
   useEffect(() => {
-    if (!sample) return;
     const nextVersion = profile?.version || 0;
     if (approvedVersion.current === null) {
       approvedVersion.current = nextVersion;
@@ -1220,7 +1226,7 @@ function Profile({
       return () => clearTimeout(timer);
     }
     approvedVersion.current = nextVersion;
-  }, [profile?.version, Boolean(sample)]);
+  }, [profile?.version]);
   const [skillInput, setSkillInput] = useState(''),
     [interestInput, setInterestInput] = useState('');
   const [form, setForm] = useState<CareerProfile | null>(null),
@@ -1253,7 +1259,6 @@ function Profile({
 
   useEffect(() => {
     // Reset only when the approved version changes, not on each workspace poll.
-    if (!profile?.data && !sample) return;
     if (profile?.data) {
       setForm(profile.data);
       setSkillInput(profile.data.skills.join(', '));
@@ -1268,7 +1273,7 @@ function Profile({
     setPreparing(false);
     setError('');
     setFields({});
-  }, [profile?.id, Boolean(sample)]);
+  }, [profile?.id]);
   if (!form) return <div className="loading">Loading your profile…</div>;
 
   const change = (key: keyof CareerProfile, value: any) => {
@@ -1612,22 +1617,6 @@ function Profile({
                   Find jobs using this approved profile
                 </button>
               )}
-              <details>
-                <summary>Demo test data</summary>
-                <p>Replaces the current unsaved draft with fictional sample information.</p>
-                <button
-                  className="text-button"
-                  disabled={!sample}
-                  onClick={() => {
-                    setForm(structuredClone(sample!));
-                    setSkillInput(sample!.skills.join(', '));
-                    setInterestInput(sample!.interests.join(', '));
-                    invalidateDraft();
-                  }}
-                >
-                  Use fictional example
-                </button>
-              </details>
             </section>
             {draft && (
               <section className="panel draft-preview">
@@ -1810,7 +1799,7 @@ function MissionDetail({
               ? phase < 5
                 ? `STEP ${String(phase + 1).padStart(2, '0')} OF 05`
                 : 'OPTIONAL CAREER TOOL'
-              : `CAREER MISSION · ${m.mode === 'fixture' ? 'DEMO' : 'LIVE'}`}
+              : `CAREER MISSION · ${m.mode === 'fixture' ? 'VERIFICATION' : 'LIVE'}`}
           </span>
           <h1>
             {phase === 0

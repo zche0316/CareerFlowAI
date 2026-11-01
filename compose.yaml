@@ -38,7 +38,6 @@ services:
       TAVILY_ACCESS_MODE: ${TAVILY_ACCESS_MODE:-api_key}
       JOB_SOURCE: ${JOB_SOURCE:-employers}
       ADZUNA_COUNTRY: ${ADZUNA_COUNTRY:-au}
-      ENABLE_DEMO_LOGIN: 'true'
       EMBEDDED_WORKER: 'true'
     ports:
       - '127.0.0.1:8787:8787'

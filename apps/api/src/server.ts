@@ -2,8 +2,6 @@ import 'dotenv/config';
 import { createApp } from './app.js';
 import { initQueue, closeQueue } from './queue.js';
 import { db } from './db.js';
-if (process.env.NODE_ENV === 'production' && process.env.ENABLE_DEMO_LOGIN === 'true')
-  throw Error('Disable the public demo login before production deployment.');
 await initQueue(process.env.EMBEDDED_WORKER !== 'false');
 
 const server = createApp().listen(

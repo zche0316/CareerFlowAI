@@ -1,3 +1,4 @@
+import { fillProfileFixture } from './profile-fixture.js';
 import { test, expect } from '@playwright/test';
 
 test('profile workbench approves and reloads a real saved profile without model calls', async ({
@@ -19,8 +20,7 @@ test('profile workbench approves and reloads a real saved profile without model 
   await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
   await expect(page.getByLabel('Profile document', { exact: true })).toBeVisible();
   await page.screenshot({ path: 'output/agent-native/build-empty.png' });
-  await page.getByText('Demo test data', { exact: true }).click();
-  await page.getByRole('button', { name: 'Use fictional example', exact: true }).click();
+  await fillProfileFixture(page);
   await page.getByRole('button', { name: 'Review profile draft', exact: true }).click();
   await page.getByLabel('I reviewed this exact draft').check();
   await page.getByRole('button', { name: 'Approve & save profile', exact: true }).click();
@@ -60,8 +60,7 @@ test('profile polish uses the configured provider and keeps suggestions separate
   await page.getByLabel('Email address').fill(`polish-${Date.now()}@careerflow.test`);
   await page.getByLabel('Password', { exact: true }).fill('Polish-disposable-QA-password');
   await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
-  await page.getByText('Demo test data', { exact: true }).click();
-  await page.getByRole('button', { name: 'Use fictional example', exact: true }).click();
+  await fillProfileFixture(page);
   await page.getByRole('button', { name: 'Review profile draft', exact: true }).click();
   await page.getByLabel('I reviewed this exact draft').check();
   await page.getByRole('button', { name: 'Approve & save profile', exact: true }).click();

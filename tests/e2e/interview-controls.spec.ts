@@ -1,3 +1,4 @@
+import { fillProfileFixture } from './profile-fixture.js';
 import { test, expect } from '@playwright/test';
 test('interview controls stop and skip without model calls, survive reload and lead to review without approval', async ({
   page,
@@ -12,8 +13,7 @@ test('interview controls stop and skip without model calls, survive reload and l
   await page.getByLabel('Email address').fill(`controls-${Date.now()}@careerflow.test`);
   await page.getByLabel('Password', { exact: true }).fill('Controls-QA-disposable-password');
   await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
-  await page.getByText('Demo test data', { exact: true }).click();
-  await page.getByRole('button', { name: 'Use fictional example', exact: true }).click();
+  await fillProfileFixture(page);
   await page.getByText('Edit profile details manually', { exact: true }).click();
   await page.getByRole('button', { name: 'Add Projects', exact: true }).click();
   await page.getByLabel('Projects 1 title', { exact: true }).fill('Alpha data project');

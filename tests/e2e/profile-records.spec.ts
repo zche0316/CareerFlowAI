@@ -1,3 +1,4 @@
+import { fillProfileFixture } from './profile-fixture.js';
 import { test, expect } from '@playwright/test';
 test('structured records and locally imported text remain separate from approval and survive reload', async ({
   page,
@@ -13,8 +14,7 @@ test('structured records and locally imported text remain separate from approval
     .or(page.getByRole('button', { name: 'My profile', exact: true }))
     .first()
     .click();
-  await page.getByText('Demo test data', { exact: true }).click();
-  await page.getByRole('button', { name: 'Use fictional example', exact: true }).click();
+  await fillProfileFixture(page);
   await page.getByText('Edit profile details manually', { exact: true }).click();
   await page.getByRole('button', { name: 'Add Work experience', exact: true }).click();
   await page

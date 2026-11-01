@@ -19,7 +19,7 @@ import { registerJobFit } from './job-fit.js';
 import { registerApplicationVersions } from './application-versions.js';
 import { routerSettings } from '../../../packages/agents/src/router.js';
 import { suggestJobSearch } from '../../../packages/contracts/src/job-search.js';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { fileURLToPath } from 'node:url';
@@ -52,7 +52,6 @@ import {
   decisionSchema,
   jobSearchSchema,
   answerSchema,
-  sampleProfile,
   AGENTS,
 } from '../../../packages/contracts/src/index.js';
 
@@ -107,7 +106,6 @@ export function createApp() {
       mode: configuredMode(),
       recruitment: recruitmentSettings(),
       router: routerSettings(),
-      demoEnabled: process.env.ENABLE_DEMO_LOGIN === 'true',
     }),
   );
 
@@ -148,24 +146,6 @@ export function createApp() {
     const csrf = await createSession(u.id, res);
     res.json({ user: { id: u.id, name: u.name, email: u.email }, csrf });
   });
-  app.post('/api/auth/demo', async (_req, res) => {
-    if (process.env.ENABLE_DEMO_LOGIN !== 'true')
-      throw new AppError(404, 'DEMO_DISABLED', 'Demo sign-in is disabled.');
-    const email = 'demo@careerflow.local';
-    const u = await db.user.upsert({
-      where: { email },
-      create: {
-        email,
-        name: 'Alex Morgan',
-        passwordHash: passwordHash(randomBytes(32).toString('hex')),
-      },
-      update: {},
-    });
-    res.json({
-      user: { id: u.id, name: u.name, email: u.email },
-      csrf: await createSession(u.id, res),
-    });
-  });
   app.post('/api/logout', needAuth, async (req, res) => {
     await db.session.deleteMany({ where: { id: req.session!.id } });
     res.setHeader('Set-Cookie', 'cf_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');
@@ -181,7 +161,7 @@ export function createApp() {
       db.mission.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 40 }),
       db.approvedResume.findMany({ where: { userId }, orderBy: { approvedAt: 'desc' }, take: 20 }),
     ]);
-    res.json({ profile, missions, resumes, sampleProfile, agents: AGENTS, mode: configuredMode() });
+    res.json({ profile, missions, resumes, agents: AGENTS, mode: configuredMode() });
   });
 
   app.get('/api/tools/dashboard', async (req, res) =>
@@ -338,7 +318,7 @@ export function createApp() {
           minScore,
           jobSearch: search,
           agentAccess: 'all-approved-profile',
-          simulateSourceFailure: process.env.ENABLE_DEMO_LOGIN === 'true' && simulateSourceFailure,
+          simulateSourceFailure: configuredMode() === 'fixture' && simulateSourceFailure,
           analysisFeedback,
           ...(sourceMissionId ? { refinedFromMissionId: sourceMissionId } : {}),
         }),
