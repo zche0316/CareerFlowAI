@@ -63,3 +63,12 @@ invocation, context filtering, structured validation, usage accounting and durab
 | Cancelled edit does not replace approved data   | `preserves approved profile versions while isolating, discarding and filtering drafts` |
 | Stale/cancelled late results are rejected       | stale-profile and cancellation-race integration tests                                  |
 | No duplicate provider logic in UI               | source boundary documented in `docs/API.md`                                            |
+
+
+## Live job requirement mapping
+
+Live missions use `packages/agents/src/job-mapping.ts`: a generic lexical shortlist (up to 12 jobs, two concurrent requests) is reviewed by the configured LLM. There is no skill vocabulary in this extraction path. Requirements retain exact job excerpts, required/preferred classification, category, evidence/partial/missing status, and approved fact IDs with exact quotations. Goals cannot establish qualifications; coursework cannot establish professional proficiency. Numeric years require an explicit source number, not an inference from a senior title. Semantic mapping remains advisory and its citations require user review.
+
+Code calculates the score: 50% required capability/responsibility/seniority, 10% preferred requirements, 20% experience expectations, 10% education, 10% location preference. Evidenced/partial/missing receives 1/0.5/0. Unknown categories are unscored and excluded from the denominator; coverage shows how much policy weight was assessed. No extracted requirements yields zero, not a positive location-only recommendation. Job minimum years can remain unknown while a stated qualitative experience requirement is still mapped to approved records; the default profile year field is not silently treated as a proven zero-year history.
+
+Mappings are cached by profile version and job content within the mission, and calls use the existing cancellation, budget and usage hooks. Provider or grounding failure stops the step; there is no silent dictionary or fixture replacement. Retrieval coverage discloses unreviewed jobs beyond the shortlist. Saved older results retain their original algorithm; new live missions use `llm-evidence-v1`. Deterministic fixture missions and the original matching package remain the disclosed rule-based regression baseline.

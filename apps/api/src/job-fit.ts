@@ -3,10 +3,44 @@ import { ownedMission } from './domain.js';
 import { AppError } from './errors.js';
 
 /** Literal overlap is an aid to review, never evidence of proficiency or an ATS verdict. */
-export function jobFitEvidence(selection: any, facts: any[]) {
+export function jobFitEvidence(
+  selection: any,
+  facts: any[],
+): {
+  job: { title: string; company: string; sourceUrl: string | null };
+  interpretation: string;
+  items: {
+    term: string;
+    excerpt: string;
+    evidence: { id: string; text: string; kind: string }[];
+    state: string;
+    reason?: string;
+  }[];
+  notice: string;
+} {
   const job = selection?.job;
   if (!job || typeof job.description !== 'string')
     throw new AppError(409, 'JOB_NOT_SELECTED', 'Select a job before reviewing its fit.');
+  if (selection.scoringVersion === 'llm-evidence-v1' && selection.mapping) {
+    const known = new Map(facts.map((f) => [f.id, f]));
+    return {
+      job: { title: job.title, company: job.company, sourceUrl: job.applicationUrl || null },
+      interpretation: 'llm-evidence-mapping',
+      items: selection.mapping.items.map((item: any) => ({
+        term: item.term,
+        excerpt: item.excerpt,
+        evidence: item.evidence.flatMap((e: any) =>
+          known.has(e.factId)
+            ? [{ id: e.factId, text: known.get(e.factId).text, kind: known.get(e.factId).kind }]
+            : [],
+        ),
+        state: item.status === 'evidenced' ? 'evidence_found' : item.status,
+        reason: item.reason,
+      })),
+      notice:
+        'LLM mapping of source requirements to approved facts. Partial evidence is not confirmed proficiency; verify the cited depth and scope.',
+    };
+  }
   const snapshotTerms = Array.isArray(selection.requirements?.required)
     ? [
         ...new Set<string>(

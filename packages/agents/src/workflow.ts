@@ -1,3 +1,4 @@
+import { mapJobRequirements, scoreJobMapping } from './job-mapping.js';
 import { JobRepository } from '../../recruitment/src/repository.js';
 import { Annotation, StateGraph, START, END, interrupt } from '@langchain/langgraph';
 import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
@@ -38,7 +39,7 @@ import {
 import { missionContext } from './mission-context.js';
 import { generate, type Mode } from './provider.js';
 import { matchingProfileView } from '../../contracts/src/career-evidence.js';
-import { compare } from '../../matching/domain.js';
+import { compare, vectorSimilarity } from '../../matching/domain.js';
 import { filterResumeEvidence } from './resume-evidence.js';
 
 // Checkpoints store a mission reference; approved evidence and results remain in domain tables.
@@ -208,8 +209,78 @@ export async function createWorkflow() {
       }
       const corpus = jobs.map((j: any) => j.title + ' ' + j.description);
       const legacy = matchingProfileView(c.p);
-      const matches = jobs
-        .map((j: any) => compare(legacy, j, corpus))
+      const preliminary = jobs
+        .map((job: any) =>
+          c.m.mode === 'fixture'
+            ? compare(legacy, job, corpus)
+            : {
+                job,
+                components: {
+                  semantic: vectorSimilarity(
+                    legacy.skills.join(' ') + ' ' + legacy.goals,
+                    job.title + ' ' + job.description,
+                    corpus,
+                  ),
+                },
+              },
+        )
+        .sort(
+          (a: any, b: any) =>
+            b.components.semantic - a.components.semantic || a.job.id.localeCompare(b.job.id),
+        );
+      let matches: any[];
+      if (c.m.mode === 'fixture') {
+        matches = preliminary;
+      } else {
+        // Bound live costs while screening by generic lexical overlap, not a skill whitelist.
+        const shortlist = preliminary.slice(0, 12);
+        jobRetrieval.llmReviewed = shortlist.length;
+        jobRetrieval.notLlmReviewed = Math.max(0, jobs.length - shortlist.length);
+        const saved = c.d.requirementMappings || {};
+        matches = [];
+        for (let offset = 0; offset < shortlist.length; offset += 2) {
+          const batch = await Promise.allSettled(
+            shortlist.slice(offset, offset + 2).map(async (item: any) => {
+              const job = item.job;
+              const mappingKey = digest({
+                jobId: job.id,
+                description: job.description,
+                profileId: c.m.profileId,
+              });
+              const mapping =
+                saved[mappingKey] ||
+                (await mapJobRequirements(
+                  job,
+                  c.facts,
+                  c.m.mode as Mode,
+                  {
+                    onCall: () => reserveCall(s.missionId, c.token),
+                    onTool: (name) =>
+                      patchRun(s.missionId, c.token, {}, 'Job Matcher', 'tool', name),
+                    onUsage: (a, b) => appendUsage(s.missionId, c.token, a, b),
+                  },
+                  c.signal,
+                ));
+              saved[mappingKey] = mapping;
+              await patchRun(
+                s.missionId,
+                c.token,
+                { requirementMappings: saved },
+                'Job Matcher',
+                'mapped',
+                `Mapped requirements for ${job.title} against approved facts.`,
+              );
+              return scoreJobMapping(job, mapping, c.facts, c.p);
+            }),
+          );
+          const failed = batch.find((result) => result.status === 'rejected');
+          if (failed?.status === 'rejected') throw failed.reason;
+          matches.push(
+            ...batch.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : [])),
+          );
+        }
+      }
+      matches = matches
         .filter((r: any) => r.score >= (c.d.minScore ?? 40))
         .sort((a: any, b: any) => b.score - a.score || a.job.id.localeCompare(b.job.id));
       await patchRun(

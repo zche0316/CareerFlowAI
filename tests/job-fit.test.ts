@@ -54,3 +54,28 @@ it('retains source-backed finance requirements even in an older empty matching s
   expect(result.items.every((i) => finance.description.includes(i.excerpt))).toBe(true);
   expect(result.items.every((i) => i.evidence.length === 0)).toBe(true);
 });
+
+it('reuses semantic mapping citations instead of rescanning a fixed vocabulary', () => {
+  const result = jobFitEvidence(
+    {
+      job,
+      scoringVersion: 'llm-evidence-v1',
+      mapping: {
+        items: [
+          {
+            term: 'Unseen enterprise capability',
+            excerpt: 'Experience with data analysis is helpful.',
+            status: 'partial',
+            reason: 'Transferable but limited evidence.',
+            evidence: [{ factId: 'exp-1', quote: 'I used SQL' }],
+          },
+        ],
+      },
+    },
+    [{ id: 'exp-1', kind: 'experience', text: 'I used SQL to reconcile records.' }],
+  );
+  expect(result.interpretation).toBe('llm-evidence-mapping');
+  expect(result.items[0].term).toBe('Unseen enterprise capability');
+  expect(result.items[0].evidence[0].id).toBe('exp-1');
+  expect(result.items[0].state).toBe('partial');
+});

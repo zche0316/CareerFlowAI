@@ -30,14 +30,23 @@ export function JobFit({
   if (error) return <div role="alert">Could not load job evidence: {error}</div>;
   if (!result) return <p role="status">Preparing your fit review…</p>;
   if (compact) {
-    const missing = result.items.filter((item: any) => !item.evidence.length);
+    const missing = result.items.filter(
+      (item: any) => !item.evidence.length || item.state === 'partial',
+    );
     return (
       <section className="job-gap-notice" aria-label="Job requirements to review">
         <strong>Role requirements to review</strong>
         {missing.length ? (
           <ul>
             {missing.slice(0, 3).map((item: any) => (
-              <li key={item.term}>{item.term} — no exact wording match in this profile</li>
+              <li key={item.term}>
+                {item.term} —{' '}
+                {result.interpretation === 'llm-evidence-mapping'
+                  ? item.state === 'partial'
+                    ? 'partial evidence — review required depth'
+                    : 'no approved evidence mapped'
+                  : 'no exact wording match in this profile'}
+              </li>
             ))}
           </ul>
         ) : (
@@ -92,13 +101,22 @@ export function JobFit({
           <div>
             <h3>{item.term}</h3>
             <span className={item.evidence.length ? 'fit-found' : 'fit-review'}>
-              {item.evidence.length ? 'Evidence to review' : 'No exact match found'}
+              {result.interpretation === 'llm-evidence-mapping'
+                ? item.state === 'partial'
+                  ? 'Partial evidence — check scope'
+                  : item.evidence.length
+                    ? 'Approved evidence mapped'
+                    : 'No approved evidence mapped'
+                : item.evidence.length
+                  ? 'Evidence to review'
+                  : 'No exact match found'}
             </span>
           </div>
           <div>
             <p>
               <strong>From the listing:</strong> {item.excerpt}
             </p>
+            {item.reason && <p>{item.reason}</p>}
             {item.evidence.length ? (
               <ul>
                 {item.evidence.map((fact: any) => (
