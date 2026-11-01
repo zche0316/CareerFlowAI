@@ -473,6 +473,7 @@ export function ProfileConversation({
                 <label>
                   Experience to organise
                   <select
+                    aria-label="Experience to organise"
                     value={selectedExperience}
                     onChange={(event) => setSelectedExperience(event.target.value)}
                   >
