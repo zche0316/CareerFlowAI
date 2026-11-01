@@ -185,7 +185,7 @@ test('reviewed wording creates a downloadable edition and application answers st
   await page.getByLabel('I reviewed the accepted wording.').check();
   await page.getByRole('button', { name: 'Create revised resume version', exact: true }).click();
   await page.locator('.download-formats summary').click();
-  await expect(page.getByRole('link', { name: 'Download PDF', exact: true })).toBeVisible();
+  await expect(page.locator('.wording-saved').getByRole('link', { name: 'Download PDF', exact: true })).toBeVisible();
   const session = await (await page.request.get('/api/session')).json();
   await writeFile(
     'output/conversational-profile-20261029/browser-account.json',
