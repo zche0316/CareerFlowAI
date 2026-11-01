@@ -44,7 +44,8 @@ test('score bounded and independently reproducible; missing evidence exposed', (
     r.score,
     Math.round(
       100 *
-        (0.45 * c.skill +
+        (0.4 * c.skill +
+          0.05 * c.preferred +
           0.15 * c.experience +
           0.1 * c.education +
           0.15 * c.preference +
