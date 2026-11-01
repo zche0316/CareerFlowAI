@@ -66,7 +66,7 @@ OPENAI_API_KEY=your-local-key
 OPENAI_MODEL=an-available-model-supporting-tools-and-structured-outputs
 ```
 
-Secrets stay server-side and `.env` is ignored. No model key is included. Fixture mode makes no external AI calls, and the UI labels it accordingly. Job sources are selected independently from AI mode: real Greenhouse company jobs, Adzuna country search (credentials required), or eight explicitly selected fictional offline jobs. Live AI mode does not silently switch to fixtures after an error. Previously approved profiles/documents and saved interview answers remain available. `PROVIDER_TIMEOUT_MS` controls the shared provider deadline and defaults to 25 seconds; it is validated within a maximum of 30 seconds.
+Secrets stay server-side and `.env` is ignored. No model key is included. Fixture mode makes no external AI calls, and the UI labels it accordingly. Job sources are selected independently from AI mode: real Greenhouse company jobs, Adzuna country search (credentials required), or eight explicitly selected fictional offline jobs. Live AI mode does not silently switch to fixtures after an error. Previously approved profiles/documents and saved interview answers remain available. `PROVIDER_TIMEOUT_MS` controls the shared provider deadline and defaults to 90 seconds for durable specialists; it is validated within a maximum of 120 seconds. Interactive profile tasks retain their separate `PROFILE_TIMEOUT_MS` deadline.
 
 ### Groq through the OpenAI-compatible API
 
