@@ -3,6 +3,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-cert
 WORKDIR /app
 COPY package*.json prisma.config.ts ./
 COPY prisma ./prisma
+COPY scripts/generate-client.mjs ./scripts/generate-client.mjs
 RUN DATABASE_URL=postgresql://build:build@localhost/build npm ci
 COPY . .
 RUN DATABASE_URL=postgresql://build:build@localhost/build npm run db:generate && npm run build
