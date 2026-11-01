@@ -244,3 +244,61 @@ it('switches to a uniquely named new role and asks STAR without closing or losin
     'business analyst intern',
   );
 });
+
+it('recognises explicit next/end choices while retaining narratives containing those words', () => {
+  expect(interviewIntent('add another experience')).toBe('next_experience');
+  expect(interviewIntent('end conversation')).toBe('finish_interview');
+  expect(interviewIntent('End conversation & review')).toBe('finish_interview');
+  expect(interviewIntent('Add another experience: I worked at Harbour Retail.')).toBeNull();
+  expect(interviewIntent('End interview after I explain my result.')).toBeNull();
+  expect(interviewIntent("Don't end conversation")).toBeNull();
+});
+
+it('repeated next choices do not close unrelated records and review cannot silently restart', () => {
+  const p = {
+    ...profile,
+    projects: [profile.projects[0], { ...profile.projects[0], title: 'Beta Project' }],
+  };
+  const initial = planInterview(p, interviewState([], p));
+  transitionInterview(initial.state, 'next_experience', p);
+  const inventory = planInterview(p, initial.state);
+  expect(inventory.state.closed).toHaveLength(1);
+  transitionInterview(inventory.state, 'next_experience', p);
+  expect(inventory.state.closed).toHaveLength(1);
+  transitionInterview(inventory.state, 'finish_interview', p);
+  const review = structuredClone(inventory.state);
+  for (const action of ['next_experience', 'finish_experience', 'skip_question'] as const) {
+    transitionInterview(inventory.state, action, p);
+    expect(inventory.state).toEqual(review);
+  }
+  transitionInterview(inventory.state, 'resume', p);
+  expect(inventory.state.phase).toBe('collecting');
+});
+
+it('uses a unique role title when two experiences share one employer', () => {
+  const p = {
+    ...sampleProfile,
+    projects: [],
+    workExperiences: [
+      {
+        title: 'Analyst Intern',
+        organisation: 'Example Company',
+        startMonth: '2025-01',
+        current: true,
+        details: ['I checked records.'],
+      },
+      {
+        title: 'Retail Assistant',
+        organisation: 'Example Company',
+        startMonth: '2024-01',
+        current: true,
+        details: ['I handled returns.'],
+      },
+    ],
+  };
+  const first = planInterview(p, interviewState([], p));
+  const next = planInterview(p, first.state, 'Analyst Intern at Example Company');
+  expect(next.state.active).toContain('analyst intern');
+  expect(planInterview(p, first.state, 'Example Company').state.active).toBe(first.state.active);
+  expect(interviewIntent("I haven't finished this experience")).toBeNull();
+});

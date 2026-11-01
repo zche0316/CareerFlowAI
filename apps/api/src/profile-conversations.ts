@@ -139,6 +139,15 @@ async function controlInterview(
       state = interviewState(t.messages as any[], p);
     if (input.recordKey && !experiences(p).some((r) => r.key === input.recordKey))
       throw new AppError(422, 'INVALID_RECORD', 'Choose an experience from this conversation.');
+    if (
+      state.phase === 'review' &&
+      !['resume', 'keep_current_draft', 'finish_interview'].includes(input.action)
+    )
+      throw new AppError(
+        409,
+        'INTERVIEW_FINISHED',
+        'Resume the interview before changing its questions.',
+      );
     transitionInterview(state, input.action, p, input.recordKey);
     const plan = planInterview(p, state);
     const messages = [
@@ -330,15 +339,6 @@ export function registerProfileConversations(app: Express) {
       /(?:don['’]?t|do not)\s+(?:change|edit|update|modify)\s+(?:anything|it|my profile)|just (?:asking|a question)|先别(?:改|修改)/i.test(
         input.text,
       );
-    if (
-      !discussionOnly &&
-      !input.retryMessageId &&
-      !input.recoverSavedAnswers &&
-      previousState.question
-    )
-      previousState.addressed = [
-        ...new Set([...previousState.addressed, previousState.question.key]),
-      ];
 
     if (
       !input.retryMessageId &&
@@ -860,23 +860,31 @@ export function registerProfileConversations(app: Express) {
           (key) => !unsupported.has(key.replace('profile:', '') as any),
         ),
       };
-      const plan = planInterview(
-        Object.assign(
-          {},
-          prepared.data,
-          ...(t.proposals as any[])
-            .filter(
-              (p) =>
-                p.status === 'PENDING' &&
-                fieldDigest(input.currentProfile[p.field as keyof typeof input.currentProfile]) ===
-                  fieldDigest(p.before),
-            )
-            .map((p) => ({ [p.field]: p.after })),
-          ...changes.map((p) => ({ [p.field]: p.after })),
-        ),
-        planState,
-        input.text,
+      const planProfile = Object.assign(
+        {},
+        prepared.data,
+        ...(t.proposals as any[])
+          .filter(
+            (p) =>
+              p.status === 'PENDING' &&
+              fieldDigest(input.currentProfile[p.field as keyof typeof input.currentProfile]) ===
+                fieldDigest(p.before),
+          )
+          .map((p) => ({ [p.field]: p.after })),
+        ...changes.map((p) => ({ [p.field]: p.after })),
       );
+      const focusedPlan = planInterview(planProfile, planState, input.text);
+      // A new experience is not an answer to the old experience's pending question.
+      if (
+        !discussionOnly &&
+        !input.retryMessageId &&
+        !input.recoverSavedAnswers &&
+        previousState.question &&
+        !unsupported.has(previousState.question.key.replace('profile:', '') as any) &&
+        (!previousState.active || focusedPlan.state.active === previousState.active)
+      )
+        planState.addressed = [...new Set([...planState.addressed, previousState.question.key])];
+      const plan = planInterview(planProfile, planState, input.text);
       if (discussionOnly) changes.splice(0);
       const questions =
         input.mode === 'edit' || discussionOnly

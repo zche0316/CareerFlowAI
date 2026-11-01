@@ -437,26 +437,24 @@ describe('Profile edit mode', () => {
     };
     const t = await c.request('/profile-threads', 'POST', { currentProfile: form });
     const text = 'That project was at the University of Sydney. March to June 2025.';
-    const spy = vi
-      .spyOn(provider, 'generate')
-      .mockResolvedValueOnce({
-        builder: { draft: {}, proposedChanges: [], followUpQuestions: [] },
-        records: [
-          {
-            section: 'projects',
-            title: 'Course discovery project',
-            organisation: 'University of Sydney',
-            location: '',
-            startMonth: '2025-03',
-            endMonth: '2025-06',
-            current: false,
-            details: [],
-            technologies: [],
-            url: '',
-            evidence: [{ page: 1, quote: text }],
-          },
-        ],
-      } as any);
+    const spy = vi.spyOn(provider, 'generate').mockResolvedValueOnce({
+      builder: { draft: {}, proposedChanges: [], followUpQuestions: [] },
+      records: [
+        {
+          section: 'projects',
+          title: 'Course discovery project',
+          organisation: 'University of Sydney',
+          location: '',
+          startMonth: '2025-03',
+          endMonth: '2025-06',
+          current: false,
+          details: [],
+          technologies: [],
+          url: '',
+          evidence: [{ page: 1, quote: text }],
+        },
+      ],
+    } as any);
     try {
       const sent = await c.request(`/profile-threads/${t.body.id}/messages`, 'POST', {
         currentProfile: form,
@@ -1487,4 +1485,69 @@ it('maps a complete labelled volunteer answer into its own project without a sec
     'personal actions',
   );
   vi.restoreAllMocks();
+});
+
+it('switches the pending STAR question to a new named role without consuming the old question', async () => {
+  const c = await client(true);
+  const role = {
+    id: 'old-intern',
+    title: 'Business Analyst Intern',
+    organisation: 'Northstar Logistics',
+    location: 'Sydney',
+    startMonth: '2025-11',
+    endMonth: '2026-02',
+    current: false,
+    details: ['I supported reporting using SQL.'],
+    technologies: ['SQL'],
+    url: '',
+    evidence: [],
+  };
+  const form = { ...sampleProfile, projects: [], workExperiences: [role] };
+  const started = await c.request('/profile-threads', 'POST', { currentProfile: form });
+  const oldQuestion = started.body.interview.question.key;
+  expect(oldQuestion).toContain(':story:situation');
+  const text =
+    'I worked as a Customer Operations Assistant at Harbour Retail in Sydney from July 2024 to October 2025. I handled returns and used Excel.';
+  const spy = vi.spyOn(provider, 'generate').mockResolvedValueOnce({
+    builder: { draft: {}, proposedChanges: [], followUpQuestions: [] },
+    records: [
+      {
+        ...role,
+        id: undefined,
+        section: 'workExperiences',
+        title: 'Customer Operations Assistant',
+        organisation: 'Harbour Retail',
+        startMonth: '2024-07',
+        endMonth: '2025-10',
+        details: [],
+        technologies: ['Excel'],
+        evidence: [{ page: 1, quote: text }],
+      },
+    ],
+  } as any);
+  try {
+    const next = await c.request(`/profile-threads/${started.body.id}/messages`, 'POST', {
+      currentProfile: form,
+      revision: started.body.revision,
+      consent: true,
+      text,
+    });
+    expect(next.status).toBe(200);
+    expect(next.body.messages.at(-1).failed).not.toBe(true);
+    expect(next.body.interview.active).toContain('customer operations assistant');
+    expect(next.body.interview.question.key).toContain(':story:situation');
+    expect(next.body.interview.addressed).not.toContain(oldQuestion);
+    const finished = await c.request(`/profile-threads/${started.body.id}/messages`, 'POST', {
+      currentProfile: form,
+      revision: next.body.revision,
+      consent: true,
+      text: 'end conversation',
+    });
+    expect(finished.body.interview.phase).toBe('review');
+    expect(finished.body.messages.at(-2).kind).toBe('interview-control');
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(await db.profile.count({ where: { userId: c.id } })).toBe(0);
+  } finally {
+    spy.mockRestore();
+  }
 });

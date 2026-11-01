@@ -44,7 +44,7 @@ test('interview controls stop and skip without model calls, survive reload and l
   await expect(page.getByRole('log').locator('article').last()).toContainText(
     'different experience',
   );
-  await page.getByRole('button', { name: 'Finish interview & review', exact: true }).click();
+  await page.getByRole('button', { name: 'End conversation & review', exact: true }).click();
   await expect(page.getByLabel('Your next profile message')).not.toBeVisible();
   await page.reload();
   await page
@@ -62,7 +62,7 @@ test('interview controls stop and skip without model calls, survive reload and l
   await expect(page.getByRole('log').locator('article').last()).toContainText(
     'end, or is it ongoing',
   );
-  await page.getByRole('button', { name: 'Finish interview & review', exact: true }).click();
+  await page.getByRole('button', { name: 'End conversation & review', exact: true }).click();
   await page.getByRole('button', { name: 'Review profile draft now', exact: true }).click();
   await expect(page.getByLabel('I reviewed this exact draft')).not.toBeChecked();
   await expect(page.getByText('Approved v1', { exact: true })).toHaveCount(0);
@@ -70,7 +70,7 @@ test('interview controls stop and skip without model calls, survive reload and l
   await page.screenshot({ path: 'output/interview-controls-20261029/review.png', fullPage: true });
 });
 
-test('finishing a pending new experience requests organisation before any draft adoption and surfaces failure', async ({
+test('finishing a pending experience retains suggestions without a hidden model call', async ({
   page,
 }) => {
   let requestBody: any;
@@ -107,14 +107,10 @@ test('finishing a pending new experience requests organisation before any draft 
     page.getByRole('button', { name: 'Use these details in my draft', exact: true }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Finish this experience', exact: true }).click();
-  await expect(
-    page
-      .getByRole('region', { name: 'Persistent Profile Builder', exact: true })
-      .getByRole('alert'),
-  ).toContainText('Test organiser unavailable');
-  expect(requestBody.recordSection).toBe('projects');
-  expect(requestBody.recordId).toBeTruthy();
-  expect(requestBody.currentProfile.projects || []).toHaveLength(0);
+  await expect(page.getByRole('log').locator('article').last()).toContainText(
+    'This experience is finished',
+  );
+  expect(requestBody).toBeUndefined();
   await expect(
     page.getByRole('button', { name: 'Use these details in my draft', exact: true }),
   ).toBeVisible();

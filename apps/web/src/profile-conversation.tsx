@@ -1,9 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { sameProfileField } from '../../../packages/contracts/src/profile-comparison.js';
-import {
-  closedExperience,
-  experiences,
-} from '../../../packages/contracts/src/profile-interview.js';
+import { closedExperience } from '../../../packages/contracts/src/profile-interview.js';
 import type { CareerProfile } from '../../../packages/contracts/src/index.js';
 import { createPortal } from 'react-dom';
 import { ProfileCanvas, profileFieldLabels, type ProfileProposal } from './profile-canvas.js';
@@ -189,22 +186,7 @@ export function ProfileConversation({
         revision: t.revision,
       });
       if (mounted.current) setThread(next);
-      if (consent && ['finish_experience', 'finish_interview'].includes(action)) {
-        const effective = Object.assign(
-          {},
-          latest.current,
-          ...t.proposals
-            .filter((p: any) => p.status === 'PENDING')
-            .map((p: any) => ({ [p.field]: p.after })),
-        );
-        const candidate = experiences(effective).find((r: any) => r.key === t.interview?.active);
-        if (candidate?.details.length)
-          await organise(
-            next,
-            candidate.id,
-            candidate.key.startsWith('workExperiences:') ? 'workExperiences' : 'projects',
-          );
-      }
+      // Choices only update interview state. AI organisation is a separate explicit action.
     });
   const retry = () =>
     run(async () => {
@@ -511,70 +493,9 @@ export function ProfileConversation({
               </div>
             </details>
           )}
-        {preparationNotice && (
-          <p role="status" aria-live="polite">
-            {preparationNotice}
-          </p>
-        )}
-        {!reviewStage && (
-          <label>
-            Your next profile message
-            <textarea
-              aria-label="Your next profile message"
-              placeholder={
-                mode === 'build'
-                  ? 'Tell me about yourself or a project…'
-                  : 'What should we change in your profile?'
-              }
-              onKeyDown={(e) => {
-                if (
-                  (e.metaKey || e.ctrlKey) &&
-                  e.key === 'Enter' &&
-                  !e.nativeEvent.isComposing &&
-                  consent &&
-                  message.trim() &&
-                  !busy
-                ) {
-                  e.preventDefault();
-                  void send();
-                }
-              }}
-              value={message}
-              maxLength={4000}
-              disabled={busy}
-              onChange={(e) => setMessage(e.target.value)}
-            />
-          </label>
-        )}
-        {(thread || !reviewStage) && (
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={consent}
-              aria-label="I allow the configured model to process this conversation, working form and retrieved confirmed evidence."
-              onChange={(e) => setConsent(e.target.checked)}
-            />
-            <span aria-hidden="true">
-              Allow AI to use this conversation, profile and confirmed evidence.
-            </span>
-          </label>
-        )}
-        {!reviewStage && (
-          <button
-            className="primary"
-            disabled={busy || !message.trim() || !consent}
-            onClick={() => void send()}
-          >
-            {busy ? 'Preparing a reply…' : 'Send profile message'}
-          </button>
-        )}
-        {thread?.messages.at(-1)?.failed && (
-          <button className="secondary" disabled={busy || !consent} onClick={() => void retry()}>
-            Retry saved answer
-          </button>
-        )}
         {mode === 'build' && thread && (
           <section className="interview-controls" aria-label="Interview progress">
+            <h4>What would you like to do next?</h4>
             <p role="status">
               {reviewStage
                 ? 'Interview finished — review your draft.'
@@ -645,7 +566,7 @@ export function ProfileConversation({
                   disabled={busy}
                   onClick={() => void control('finish_interview')}
                 >
-                  Finish interview & review
+                  End conversation & review
                 </button>
                 <button
                   className="text-button"
@@ -676,6 +597,68 @@ export function ProfileConversation({
               </details>
             )}
           </section>
+        )}
+        {preparationNotice && (
+          <p role="status" aria-live="polite">
+            {preparationNotice}
+          </p>
+        )}
+        {!reviewStage && (
+          <label>
+            Your next profile message
+            <textarea
+              aria-label="Your next profile message"
+              placeholder={
+                mode === 'build'
+                  ? 'Tell me about yourself or a project…'
+                  : 'What should we change in your profile?'
+              }
+              onKeyDown={(e) => {
+                if (
+                  (e.metaKey || e.ctrlKey) &&
+                  e.key === 'Enter' &&
+                  !e.nativeEvent.isComposing &&
+                  consent &&
+                  message.trim() &&
+                  !busy
+                ) {
+                  e.preventDefault();
+                  void send();
+                }
+              }}
+              value={message}
+              maxLength={4000}
+              disabled={busy}
+              onChange={(e) => setMessage(e.target.value)}
+            />
+          </label>
+        )}
+        {(thread || !reviewStage) && (
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={consent}
+              aria-label="I allow the configured model to process this conversation, working form and retrieved confirmed evidence."
+              onChange={(e) => setConsent(e.target.checked)}
+            />
+            <span aria-hidden="true">
+              Allow AI to use this conversation, profile and confirmed evidence.
+            </span>
+          </label>
+        )}
+        {!reviewStage && (
+          <button
+            className="primary"
+            disabled={busy || !message.trim() || !consent}
+            onClick={() => void send()}
+          >
+            {busy ? 'Preparing a reply…' : 'Send profile message'}
+          </button>
+        )}
+        {thread?.messages.at(-1)?.failed && (
+          <button className="secondary" disabled={busy || !consent} onClick={() => void retry()}>
+            Retry saved answer
+          </button>
         )}
         {mode === 'edit' && (
           <button

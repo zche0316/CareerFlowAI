@@ -72,7 +72,7 @@ If asked for a genuinely missing fact, use the relevant answer. Dates, location 
 - Availability: “I can start full-time work in December 2026.”
 - Unknown information: “I don't have a reliable figure for that. Please leave it unspecified.”
 
-Accept or decline each pending change. Choose **Finish interview & review**, then **Review profile draft now**. Check names, dates, study status, work versus course projects and source evidence. Complete **Approve & save profile**.
+Accept or decline each pending change. Choose **End conversation & review**, then **Review profile draft now**. Check names, dates, study status, work versus course projects and source evidence. Complete **Approve & save profile**.
 
 **Checkpoint:** the approved profile contains one education record, two work experiences and one course project. Unsupported outcomes and tools have not been added.
 
