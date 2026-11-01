@@ -203,7 +203,9 @@ test('a candidate with no resume or formal work builds a story, selects job cont
   await page.getByLabel('I reviewed the accepted wording.').check();
   await page.getByRole('button', { name: 'Create revised resume version', exact: true }).click();
   await page.locator('.download-formats summary').click();
-  const pdf = page.locator('.wording-saved').getByRole('link', { name: 'Download PDF', exact: true });
+  const pdf = page
+    .locator('.wording-saved')
+    .getByRole('link', { name: 'Download PDF', exact: true });
   await expect(pdf).toBeVisible();
   const response = await page.request.get((await pdf.getAttribute('href'))!);
   expect(response.status()).toBe(200);

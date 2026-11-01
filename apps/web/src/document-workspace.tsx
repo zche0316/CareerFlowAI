@@ -52,7 +52,14 @@ export function DocumentWorkspace({
             <h2>{resume.content.jobTitle}</h2>
             <span>Approved version · Profile v{resume.content.profileVersion}</span>
           </div>
-          <button className="secondary" aria-expanded={polish} onClick={() => setPolish(!polish)}>
+          <button
+            className="secondary"
+            aria-expanded={polish}
+            onClick={() => {
+              setSelected(resume.id);
+              setPolish(!polish);
+            }}
+          >
             <Sparkles size={15} />
             Polish wording
           </button>
