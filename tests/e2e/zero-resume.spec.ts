@@ -166,11 +166,32 @@ test('a candidate with no resume or formal work builds a story, selects job cont
       exact: true,
     }),
   ).toHaveCount(0);
+  // Delay the initial list until a new suggestion has already been saved.
+  let releaseInitial!: () => void;
+  let initialSeen!: () => void;
+  let initialReturned!: () => void;
+  const gate = new Promise<void>((resolve) => { releaseInitial = resolve; });
+  const seen = new Promise<void>((resolve) => { initialSeen = resolve; });
+  const returned = new Promise<void>((resolve) => { initialReturned = resolve; });
+  let initial = true;
+  await page.route('**/api/resumes/*/wording', async (route) => {
+    if (route.request().method() === 'GET' && initial) {
+      initial = false;
+      initialSeen();
+      await gate;
+      await route.fulfill({ json: [] });
+      initialReturned();
+    } else await route.continue();
+  });
   await page.getByRole('button', { name: 'My documents', exact: true }).click();
   await page.getByRole('button', { name: 'Polish wording', exact: true }).first().click();
+  await seen;
   await page.getByLabel('Resume bullet', { exact: true }).selectOption({ label: action });
   await page.getByLabel('Use AI to suggest a factual rewrite of this bullet.').check();
   await page.getByRole('button', { name: 'Suggest rewrite', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Use this wording', exact: true })).toBeVisible();
+  releaseInitial();
+  await returned;
   await expect(page.getByRole('button', { name: 'Use this wording', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Use this wording', exact: true }).click();
   await page.getByLabel('I reviewed the accepted wording.').check();

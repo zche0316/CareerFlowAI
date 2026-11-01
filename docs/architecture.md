@@ -38,9 +38,9 @@ The Operations/Activity views in this prototype cover the signed-in user's works
 
 ## Honest modes and proof boundaries
 
-`fixture` is a deterministic development provider, not a local LLM. Jobs and salary/growth data are labelled fictional. `openai` uses the Responses API, a controlled context tool and Zod structured outputs. Live mode never silently falls back to fixtures. Missing configuration or provider failures become recoverable mission failures and preserve approved data.
+`fixture` is a deterministic development provider, not a local LLM. Fixture jobs and their salary/growth data are labelled fictional; external jobs retain source and retrieval metadata. `openai` uses the Responses API, a controlled context tool and Zod structured outputs. Live mode never silently falls back to fixtures. Missing configuration or provider failures become recoverable mission failures and preserve approved data.
 
-No live vacancy integration, browser auto-application, email/calendar connector or hosted deployment is claimed by this implementation. Model choice is configured with `OPENAI_MODEL`; deterministic fixtures and locally exercised live-provider paths are kept separate.
+Live vacancy retrieval is implemented through supported official employer APIs and optional configured discovery/aggregator sources. Pasted listings remain unverified. Direct SEEK/Indeed API submission, browser auto-application, email/calendar connectors and hosted deployment are not claimed. See CURRENT_DELIVERY.md for the current evidence boundary. Model choice is configured with `OPENAI_MODEL`; deterministic fixtures and locally exercised live-provider paths are kept separate.
 
 ## Jira and ownership
 
@@ -51,3 +51,4 @@ CFS-34/35/36/37: contracts, persistence and orchestration. CFS-12–18: profile 
 Container services bind published ports to loopback for local demonstration. Docker Compose is supplied; verify it with a running Docker daemon before treating container deployment as tested. The native PostgreSQL helper is development-only and owns `.runtime/postgres` on port 55432. No existing course databases are modified.
 
 GitHub Enterprise Server installations may need an administrator-provided Actions runner and compatible versions of the checkout/setup-node/artifact actions. A committed workflow alone is not a successful CI run.
+

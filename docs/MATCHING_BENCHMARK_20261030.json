@@ -1,0 +1,27 @@
+{
+  "measuredAt": "2026-10-30T12:30:52.527Z",
+  "node": "v24.20.0",
+  "platform": "darwin",
+  "architecture": "arm64",
+  "algorithmSha256": "2ed30625720c671f662ae221e7f2f08fb4e7a68b185efa6d69d515edf7dbdf77",
+  "fixture": true,
+  "scope": "Warm in-process matching only; excludes network, database, LLM, exports and concurrent users. Repeated fictional jobs are not a representative relevance dataset. No before/after speedup is claimed.",
+  "results": [
+    {
+      "jobs": 8,
+      "repetitions": 30,
+      "warmups": 5,
+      "medianMs": 0.5192920000000001,
+      "p95Ms": 0.7347910000000013,
+      "maxMs": 0.8460000000000001
+    },
+    {
+      "jobs": 80,
+      "repetitions": 30,
+      "warmups": 5,
+      "medianMs": 29.068042000000105,
+      "p95Ms": 30.623874999999998,
+      "maxMs": 34.346749999999986
+    }
+  ]
+}

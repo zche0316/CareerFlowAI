@@ -1,3 +1,4 @@
+import { countries } from '../recruitment/src/geography.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -55,6 +56,46 @@ export function validateProfile(p) {
   return { ...p, skills: [...new Set(p.skills.map(canonical))] };
 }
 
+// Unknown is distinct from a stated zero-year requirement. Restrict numbers to experience phrases.
+export function experienceRequirement(text) {
+  const match = text.match(/(?:minimum\s+|at least\s+)?(\d+)(?:\s*[-–]\s*\d+|\+)?\s*years?\s+(?:of\s+)?(?:relevant\s+|professional\s+|commercial\s+)?experience/i);
+  return match ? Number(match[1]) : null;
+}
+
+function degreeLevel(text) {
+  const t = String(text).toLowerCase();
+  if (/\b(phd|doctorate|doctoral)\b/.test(t)) return 4;
+  if (/\bmaster(?:s|'s|’s)?\s+(?:degree|of)\b/.test(t)) return 3;
+  if (/\bbachelor(?:s|'s|’s)?\s+(?:degree|of)\b/.test(t)) return 2;
+  if (/\b(diploma|associate)\b/.test(t)) return 1;
+  return null;
+}
+
+export function educationMeets(evidence, requirement) {
+  const required = degreeLevel(requirement), supplied = degreeLevel(evidence);
+  // Compare an explicit level only; never infer subject equivalence or eligibility.
+  return required !== null && supplied !== null
+    ? supplied >= required
+    : String(evidence).toLowerCase().includes(String(requirement).toLowerCase());
+}
+
+const normalLocation = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+export function locationMatches(preference, location) {
+  const p = normalLocation(preference), j = normalLocation(location);
+  if (!p || !j) return false;
+  if (p === j || j === 'remote') return true;
+  if ((' ' + j + ' ').includes(' ' + p + ' ')) return true;
+  for (const country of countries) {
+    const aliases = [country.name, ...country.aliases].map(normalLocation);
+    const region = country.regions.find((r) => r.slice(0, 2).map(normalLocation).includes(p));
+    if (region && region.some((v) => (' ' + j + ' ').includes(' ' + normalLocation(v) + ' ')))
+      return true;
+    if (aliases.includes(p) && country.regions.some((r) => r.filter((v) => normalLocation(v).length > 3).some((v) =>
+      (' ' + j + ' ').includes(' ' + normalLocation(v) + ' ')))) return true;
+  }
+  return false;
+}
+
 // Prefer explicit advertisement sections; missing requirements remain visible to the caller.
 export function extractRequirements(job) {
   const d = job.description.toLowerCase();
@@ -68,8 +109,10 @@ export function extractRequirements(job) {
   return {
     required,
     preferred,
-    experienceYears: Number(d.match(/minimum (\d+) years? experience/)?.[1] || 0),
-    qualification: d.match(/qualification:\s*([^.]*)/)?.[1] || 'unspecified',
+    experienceYears: experienceRequirement(d),
+    qualification: d.match(/qualification:\s*([^.]*)/)?.[1]
+      || d.match(/\b(?:bachelor|master)(?:s|'s|’s)?\s+(?:degree|of\s+[a-z ]+)|\b(?:phd|doctorate|diploma)\b/)?.[0]
+      || 'unspecified',
     confidence: !inferred && required.length ? 'medium' : 'low',
     inferred,
     evidence: job.description,
@@ -123,17 +166,19 @@ export function compare(profile, job, corpus) {
   const matches = requirements.required.filter((s) => known.has(s)),
     gaps = requirements.required.filter((s) => !known.has(s));
   const skill = requirements.required.length ? matches.length / requirements.required.length : 0;
-  const experience = requirements.experienceYears
-    ? Math.min(1, profile.experienceYears / requirements.experienceYears)
-    : 1;
+  const experience = requirements.experienceYears === null
+    ? 0.5
+    : requirements.experienceYears === 0
+      ? 1
+      : Math.min(1, profile.experienceYears / requirements.experienceYears);
   const education =
     requirements.qualification === 'unspecified'
       ? 0.5
-      : profile.education.toLowerCase().includes(requirements.qualification.split(' ')[0])
+      : educationMeets(profile.education, requirements.qualification)
         ? 1
         : 0;
   const preference =
-    ((job.location === profile.location || job.location === 'Remote' ? 1 : 0) +
+    ((locationMatches(profile.location, job.location) ? 1 : 0) +
       (job.employmentType === profile.employmentType ? 1 : 0)) /
     2;
   const semantic = vectorSimilarity(
@@ -164,8 +209,12 @@ export function compare(profile, job, corpus) {
     limitations.push(
       'Low confidence: explicit skill requirements are missing; verify requirements before selecting.',
     );
+  if (requirements.experienceYears === null)
+    limitations.push('Experience requirement unknown; neutral half-credit is used, not a confirmed match.');
+  if (requirements.qualification === 'unspecified')
+    limitations.push('Qualification requirement unknown; neutral half-credit is used.');
   if (!education) gaps.push('Qualification evidence: ' + requirements.qualification);
-  if (experience < 1)
+  if (requirements.experienceYears !== null && experience < 1)
     gaps.push(
       `${requirements.experienceYears - profile.experienceYears} additional years of experience`,
     );
@@ -178,7 +227,7 @@ export function compare(profile, job, corpus) {
     components,
     score,
     confidence: requirements.confidence,
-    explanation: `${matches.length}/${requirements.required.length} required skills evidenced. Experience ${profile.experienceYears}/${requirements.experienceYears} years. Review gaps and score components before choosing.`,
+    explanation: `${matches.length}/${requirements.required.length} required skills evidenced. Experience ${profile.experienceYears}/${requirements.experienceYears ?? 'unknown'} years. Review gaps and score components before choosing.`,
     limitations,
   };
 }
@@ -332,3 +381,4 @@ export class AgentOrchestrator {
     };
   }
 }
+

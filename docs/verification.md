@@ -1,3 +1,5 @@
+> Historical verification record. Counts, capabilities and measurements below apply to their stated revision. For current capabilities and release checks, start with [CURRENT_DELIVERY.md](CURRENT_DELIVERY.md).
+
 # Local verification — 22 October 2026
 
 ## Verified implementation
@@ -31,3 +33,4 @@
 - Dependency auditing reported six package advisories in the container install output; assess these before public deployment.
 
 Deployment and independent review remain separate from these local checks.
+
