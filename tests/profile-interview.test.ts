@@ -191,3 +191,56 @@ it('offers a new experience rather than automatically reopening an unrelated exi
   };
   expect(planInterview(withNew, next.state).state.question?.text).toContain('Beta Project');
 });
+
+it('recognises the exact finish instruction shown by the UI without interpreting negation as consent', () => {
+  for (const text of ['finish this experience', 'Finish this experience.', 'finish this project'])
+    expect(interviewIntent(text)).toBe('finish_experience');
+  expect(interviewIntent('I am not finished with this experience')).toBeNull();
+  expect(interviewIntent('Before I finish this experience, I want to add a result.')).toBeNull();
+});
+
+it('switches to a uniquely named new role and asks STAR without closing or losing the previous story', () => {
+  const role = {
+    title: 'Business Analyst Intern',
+    organisation: 'Northstar Logistics',
+    startMonth: '2025-11',
+    endMonth: '2026-02',
+    current: false,
+    details: ['I supported reporting.'],
+    starStory: {
+      situation: 'Different labels.',
+      task: 'Standardise labels.',
+      action: 'Reviewed definitions.',
+      result: 'About one hour.',
+    },
+  };
+  const before = { ...sampleProfile, projects: [], workExperiences: [role] };
+  const previous = planInterview(before, interviewState([], before));
+  const nextRole = {
+    ...role,
+    title: 'Customer Operations Assistant',
+    organisation: 'Harbour Retail',
+    starStory: undefined,
+  };
+  const after = { ...before, workExperiences: [role, nextRole] };
+  const next = planInterview(
+    after,
+    previous.state,
+    'I also worked as a Customer Operations Assistant at Harbour Retail.',
+  );
+  expect(next.state.active).toContain('customer operations assistant');
+  expect(next.state.question?.key).toContain(':story:situation');
+  expect(next.state.question?.text).toContain('optional');
+  expect(next.state.closed).toEqual([]);
+  expect(before.workExperiences[0].starStory).toEqual(role.starStory);
+  expect(previous.state.active).toContain('business analyst intern');
+  transitionInterview(previous.state, interviewIntent('finish this experience')!, before);
+  const closed = planInterview(before, previous.state);
+  expect(closed.state.closed).toHaveLength(1);
+  expect(planInterview(after, closed.state, 'Harbour Retail').state.question?.key).toContain(
+    ':story:situation',
+  );
+  expect(planInterview(after, closed.state, 'Northstar Logistics').state.active).not.toContain(
+    'business analyst intern',
+  );
+});

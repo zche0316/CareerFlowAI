@@ -875,6 +875,7 @@ export function registerProfileConversations(app: Express) {
           ...changes.map((p) => ({ [p.field]: p.after })),
         ),
         planState,
+        input.text,
       );
       if (discussionOnly) changes.splice(0);
       const questions =

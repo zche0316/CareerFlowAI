@@ -47,6 +47,8 @@ export function interviewIntent(text: string): InterviewAction | null {
     )
   )
     return 'next_experience';
+  if (/^(?:please )?(?:finish|end|stop) (?:this|the) (?:experience|project)[.!]?$/i.test(s))
+    return 'finish_experience';
   if (
     /(?:content|information|details).*(?:enough|sufficient).*(?:project|experience)|(?:done|finished) (?:with )?(?:this|the) (?:project|experience)|(?:that's|that is) enough|(?:这个|这段)(?:项目|经历).*(?:够了|结束|说完)|先结束(?:这段|这个)?(?:经历|项目)/i.test(
       s,
@@ -146,7 +148,7 @@ export function transitionInterview(
   }
   s.question = null;
 }
-export function planInterview(p: any, current: InterviewState) {
+export function planInterview(p: any, current: InterviewState, latestText = '') {
   const state = structuredClone(current);
   const records = experiences(p).filter((r) => !closedExperience(state.closed, r.key));
   const questions: { key: string; text: string }[] = [];
@@ -159,7 +161,17 @@ export function planInterview(p: any, current: InterviewState) {
       hint: 'Interview finished. Review any pending suggestions, then review your profile. Nothing is approved automatically.',
     };
   if (state.active && !records.some((r) => r.key === state.active)) state.active = null;
+  // A uniquely named experience in the latest answer changes the interview focus.
+  // Keep the previous story open and preserve its answers; never reopen closed records.
+  const named = records.filter((r) => {
+    const text = careerTitle(latestText);
+    const title = careerTitle(r.title);
+    const organisation = careerTitle(r.organisation || '');
+    const mentions = (value: string) => value.length >= 3 && ` ${text} `.includes(` ${value} `);
+    return mentions(title) || mentions(organisation);
+  });
   const active =
+    (named.length === 1 ? named[0] : undefined) ||
     records.find((r) => r.key === state.active) ||
     (state.phase === 'inventory'
       ? records
