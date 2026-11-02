@@ -187,6 +187,47 @@ it('edits the preview from approved profile facts, searches memory only on deman
   expect(
     ((await db.mission.findUniqueOrThrow({ where: { id: m.id } })).data as any).resumeDraft.hash,
   ).toBe(restoredSkill.hash);
+  spy.mockResolvedValueOnce({
+    claims: [
+      {
+        factId: fact.id,
+        text: 'I assisted with reporting activities involving 2,000 orders, using SQL as the tool for this reporting work.',
+      },
+    ],
+  } as any);
+  const expandedResponse = await request(m.id, {
+    draftHash: restoredSkill.hash,
+    message: 'Expand this experience',
+  });
+  expect(expandedResponse.status).toBe(200);
+  const expanded = (await expandedResponse.json()).resumeDraft;
+  expect(expanded.claims[0].text.length).toBeGreaterThan(fact.text.length);
+  expect(expanded.claims.map((c: any) => c.factId)).toEqual(facts.map((f) => f.id));
+  spy.mockResolvedValueOnce({
+    claims: [{ factId: fact.id, text: 'Supported SQL reporting.' }],
+  } as any);
+  const compressedResponse = await request(m.id, {
+    draftHash: expanded.hash,
+    message: 'Make this more concise',
+  });
+  expect(compressedResponse.status).toBe(200);
+  const compressed = (await compressedResponse.json()).resumeDraft;
+  expect(compressed.claims[0].text).toBe('Supported SQL reporting.');
+  expect(compressed.claims.map((c: any) => c.factId)).toEqual(facts.map((f) => f.id));
+  spy.mockResolvedValueOnce({
+    claims: [],
+    message: 'Cannot add unsupported savings or leadership without evidence.',
+  } as any);
+  const declinedResponse = await request(m.id, {
+    draftHash: compressed.hash,
+    message: 'Add that I saved a million dollars',
+  });
+  expect(declinedResponse.status).toBe(200);
+  expect((await declinedResponse.json()).resumeDraft.hash).toBe(compressed.hash);
+  const declinedState = (await db.mission.findUniqueOrThrow({ where: { id: m.id } })).data as any;
+  expect(declinedState.resumeChat.at(-1).text).toContain(
+    'No changes were applied. Cannot add unsupported',
+  );
   expect((await db.profile.findUniqueOrThrow({ where: { id: p.id } })).facts).toEqual(facts);
   expect(
     (await request('another-account-mission', { draftHash: 'original', message: 'Edit' })).status,

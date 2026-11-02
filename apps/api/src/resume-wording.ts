@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { db } from './db.js';
 import { digest, json } from './domain.js';
 import { AppError, requireValue } from './errors.js';
-import { checkWording } from '../../../packages/contracts/src/career-evidence.js';
+import { checkResumeWording } from '../../../packages/contracts/src/resume-grounding.js';
 import { generate, configuredMode } from '../../../packages/agents/src/provider.js';
 import { modelRoute } from '../../../packages/agents/src/router.js';
 const owner = (userId: string, id: string) =>
@@ -58,7 +58,7 @@ export function registerResumeWording(app: Express) {
         configuredMode(),
         { onCall: async () => {}, onTool: async () => {}, onUsage: async () => {} },
       );
-      const invalid = checkWording(claim.factText || claim.text, result.text);
+      const invalid = checkResumeWording(claim.factText || claim.text, result.text);
       res.status(201).json(
         await db.resumeWording.update({
           where: { id: p.id },
@@ -113,7 +113,7 @@ export function registerResumeWording(app: Express) {
           throw new AppError(409, 'STALE_WORDING', 'Original approved content changed.');
         const after = input.after || p.after;
         const claim = (resume.content as any).claims.find((c: any) => c.factId === p.factId);
-        const invalid = checkWording(claim.factText || p.before, after);
+        const invalid = checkResumeWording(claim.factText || p.before, after);
         if (input.decision === 'accept' && invalid)
           throw new AppError(422, 'UNSUPPORTED_WORDING', invalid);
         if (input.decision === 'accept')
@@ -166,7 +166,7 @@ export function registerResumeWording(app: Express) {
           claims: base.claims.map((c: any) => {
             const p = accepted.find((p) => p.factId === c.factId);
             if (!p) return c;
-            const invalid = checkWording(c.factText || c.text, p.after);
+            const invalid = checkResumeWording(c.factText || c.text, p.after);
             if (invalid) throw new AppError(422, 'UNSUPPORTED_WORDING', invalid);
             return { ...c, factText: c.factText || c.text, text: p.after, wordingId: p.id };
           }),

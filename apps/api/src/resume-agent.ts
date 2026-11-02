@@ -6,7 +6,7 @@ import { digest, json, validateResumeClaims, includeRecordHeaders } from './doma
 import { applyResumeEdits, resumeEditSchema } from './resume-edits.js';
 import { resumeObjective } from '../../../packages/contracts/src/resume-layout.js';
 import { generate, type Mode } from '../../../packages/agents/src/provider.js';
-import { checkWording } from '../../../packages/contracts/src/career-evidence.js';
+import { checkResumeWording } from '../../../packages/contracts/src/resume-grounding.js';
 import type { Fact } from '../../../packages/contracts/src/index.js';
 import { searchProfileHistory } from './profile-context.js';
 import { memoryText } from '../../../packages/contracts/src/career-evidence.js';
@@ -169,7 +169,11 @@ export function registerResumeAgent(app: Express) {
         text:
           wordingChanges || selectionChanged
             ? `${wordingChanges ? `Refined wording in ${wordingChanges} ${wordingChanges === 1 ? 'item' : 'items'}. ` : ''}${selectionChanged ? 'Updated the selected resume content. ' : ''}Review the preview before saving.`
-            : 'No wording changes needed. The visible resume is unchanged.',
+            : /cannot|can't|unsupported|not supported|not in|no evidence|unverified|would invent|missing evidence/i.test(
+                  result.message,
+                )
+              ? `No changes were applied. ${result.message}`
+              : 'No wording changes needed. The visible resume is unchanged.',
       },
     ];
     await db.$transaction(async (tx) => {

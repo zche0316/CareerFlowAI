@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { Fact } from '../../../packages/contracts/src/index.js';
-import { checkWording } from '../../../packages/contracts/src/career-evidence.js';
+import { checkResumeWording } from '../../../packages/contracts/src/resume-grounding.js';
 import { AppError } from './errors.js';
 import { includeRecordHeaders, validateResumeClaims } from './domain.js';
 
@@ -41,7 +41,7 @@ export function applyResumeEdits(
   const updates = new Map(
     grounded.map((claim) => {
       const proposal = patch.claims.find((p) => p.factId === claim.factId)!;
-      const invalid = checkWording(claim.text, proposal.text);
+      const invalid = checkResumeWording(claim.text, proposal.text);
       if (invalid)
         throw new AppError(
           422,
