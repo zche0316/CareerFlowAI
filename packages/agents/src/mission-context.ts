@@ -25,6 +25,10 @@ export function missionContext(role: string, input: ProviderContext): ProviderCo
       ...(input.profileBase ? { profileBase: input.profileBase } : {}),
       ...(input.feedback ? { feedback: input.feedback } : {}),
     };
+  if (role === 'rewrite')
+    return { ...base, job, ...(input.feedback ? { feedback: input.feedback } : {}) };
+  if (role === 'critic')
+    return { ...base, job, draftClaims: input.draftClaims || [] };
   if (role === 'questions')
     return {
       ...base,

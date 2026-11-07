@@ -5877,3 +5877,71 @@ summary:focus-visible {
     align-items: stretch;
   }
 }
+
+/* Resume team review: critic report, handoff timeline and targeted return form. */
+.resume-team {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  margin-bottom: 14px;
+  border: 1px solid var(--cf-line, #eeece8);
+  border-radius: 8px;
+  background: var(--cf-surface, #fff);
+}
+.resume-team .section-heading h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.resume-team .tag {
+  gap: 4px;
+  align-items: center;
+}
+.resume-team .tag.success {
+  background: #e7f4ec;
+  color: #1d5c37;
+}
+.resume-team .tag.warning {
+  background: #fff1e8;
+  color: #8a3a12;
+}
+.resume-team-warning {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff1e8;
+  color: #8a3a12;
+}
+.resume-team-gaps {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+.resume-team-issues {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+.resume-team-timeline {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0 0 0 14px;
+  border-left: 2px solid var(--cf-line, #eeece8);
+  list-style: none;
+}
+.resume-team-timeline li {
+  display: grid;
+  gap: 2px;
+}
+.resume-team-timeline .handoff-route {
+  font-size: 12px;
+  font-weight: 600;
+}
+.resume-team-return {
+  display: grid;
+  gap: 8px;
+}
+.resume-team-return label {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}

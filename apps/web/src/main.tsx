@@ -12,6 +12,7 @@ import { ProfileRecords } from './profile-records.js';
 import { ProfileImport } from './profile-import.js';
 import { ResumeManualEdit } from './resume-manual-edit.js';
 import { ResumeAgent } from './resume-agent.js';
+import { ResumeTeamPanel } from './resume-team.js';
 import { ProfileConversation } from './profile-conversation.js';
 import { CareerMemoryPanel } from './career-memory.js';
 import { DocumentWorkspace } from './document-workspace.js';
@@ -2598,6 +2599,23 @@ function MissionDetail({
                   </ul>
                   <p>Tailoring improves relevance; it does not add missing qualifications.</p>
                 </div>
+              )}
+              {d.resumeTeam && (
+                <ResumeTeamPanel
+                  team={d.resumeTeam}
+                  busy={busy || manualDirty}
+                  canReturn={m.status === 'AWAITING_APPROVAL'}
+                  revisions={d.revisions || 0}
+                  onReturn={(target, feedback) =>
+                    onAction('decisions', {
+                      kind: 'resume',
+                      decision: 'reject',
+                      draftHash: d.resumeDraft.hash,
+                      target,
+                      feedback,
+                    })
+                  }
+                />
               )}
               <div className="section-heading">
                 <h2>{completed ? 'Saved resume' : 'Edit with your agent'}</h2>

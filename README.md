@@ -11,6 +11,7 @@ Progress, acceptance results, defects and delivery evidence are managed in [Jira
 - [Architecture](docs/architecture.md): components, agent workflow, ownership and persistence.
 - [API contract](docs/API.md): endpoints, schemas and repository boundaries.
 - [Orchestration](docs/ORCHESTRATION.md): durable missions, lifecycle and approved context handoff.
+- [Multi-agent plan](docs/MULTI_AGENT_PLAN.md): resume team, human review gates and the reverse job search roadmap.
 - [Deployment playbook](docs/WEEK13_DEPLOYMENT.md): source packaging, clean installation and course demonstration.
 - [Optional S3 backups](docs/AWS_S3_BACKUPS.md): private approved-PDF backup configuration and user flow.
 

@@ -436,7 +436,21 @@ export async function queueDecision(
     // Approval authorises this exact draft, not a later revision shown in another tab.
     if (decision.kind === 'resume' && d.resumeDraft?.hash !== decision.draftHash)
       throw new AppError(409, 'STALE_APPROVAL', 'The draft changed. Review the current version.');
-    if (decision.kind === 'resume' && decision.decision === 'revise' && (d.revisions || 0) >= 2)
+    if (
+      decision.kind === 'resume' &&
+      decision.decision === 'reject' &&
+      (!decision.target || !decision.feedback.trim())
+    )
+      throw new AppError(
+        422,
+        'RETURN_TARGET_REQUIRED',
+        'Choose a specialist and explain what should change before sending the draft back.',
+      );
+    if (
+      decision.kind === 'resume' &&
+      ['revise', 'reject'].includes(decision.decision) &&
+      (d.revisions || 0) >= 2
+    )
       throw new AppError(
         409,
         'REVISION_LIMIT',
