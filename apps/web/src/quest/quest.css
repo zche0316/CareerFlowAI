@@ -2019,3 +2019,240 @@ body:has(.quest) {
 .qj-add .panel > h2 {
   display: none;
 }
+
+/* ---------- Battle log ---------- */
+.agent-app.quest .content main .qm-log,
+.qm-log {
+  margin-left: auto;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 2px solid var(--q-ink);
+  background: var(--q-ink);
+  color: var(--q-lime);
+  font: 700 13px var(--q-body);
+  cursor: pointer;
+}
+.agent-app.quest .content main .qm-log.on,
+.qm-log.on {
+  background: #fff;
+  color: var(--q-ink);
+}
+.bl-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+.quest-tile.lime {
+  background: var(--q-lime);
+}
+.bl-stat {
+  gap: 6px;
+  padding: 20px;
+}
+.bl-stat > span {
+  font-size: 13px;
+  font-weight: 700;
+}
+.bl-stat small {
+  font-size: 13px;
+  color: var(--q-muted);
+}
+.bl-stat.coral small {
+  color: #6b2a12;
+}
+.bl-big {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.bl-big b,
+.bl-num {
+  font: 800 42px/1 var(--q-display);
+}
+.bl-big span {
+  font-weight: 700;
+}
+.bl-meter {
+  height: 12px;
+  border-radius: 6px;
+  background: #fff;
+  border: 2px solid var(--q-ink);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.bl-meter i {
+  display: block;
+  height: 100%;
+  background: var(--q-ink);
+}
+.bl-main {
+  align-items: flex-start;
+}
+.bl-log {
+  flex: 999 1 620px;
+}
+.bl-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.agent-app.quest .content main .bl-filter,
+.bl-filter {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 2px solid #3b3d47;
+  background: transparent;
+  color: #e4e5ec;
+  font: 500 13px var(--q-body);
+  cursor: pointer;
+}
+.agent-app.quest .content main .bl-filter.on,
+.bl-filter.on {
+  background: #fff;
+  border-color: #fff;
+  color: var(--q-ink);
+}
+.bl-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 640px;
+  overflow-y: auto;
+}
+.agent-app.quest .content main .bl-row,
+.bl-row {
+  display: grid;
+  grid-template-columns: 76px 30px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: #e4e5ec;
+  text-align: left;
+  font: 500 13px/1.4 ui-monospace, 'JetBrains Mono', monospace;
+  cursor: pointer;
+}
+.bl-row:hover,
+.bl-row.sel {
+  background: #1d1f2b;
+}
+.bl-row.guard {
+  background: #2a1c18;
+}
+.bl-row.guard.sel {
+  box-shadow: inset 0 0 0 2px var(--q-coral);
+}
+.bl-row.sel:not(.guard) {
+  box-shadow: inset 0 0 0 2px var(--q-lime);
+}
+.bl-time {
+  font-size: 12px;
+  color: #7d8094;
+}
+.bl-text strong {
+  color: #fff;
+}
+.bl-text em {
+  font-style: normal;
+  color: var(--q-lime);
+}
+.bl-tag {
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 6px;
+  padding: 2px 7px;
+  background: #262836;
+  color: #b9bbc8;
+  white-space: nowrap;
+}
+.bl-row.guard .bl-tag {
+  background: var(--q-coral);
+  color: var(--q-ink);
+}
+.bl-mini {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: 2px solid #fff;
+  box-sizing: border-box;
+}
+.bl-mini.you {
+  border-radius: 999px;
+  background: var(--q-amber);
+}
+.bl-mini.system {
+  background: #3b3d47;
+}
+.bl-empty {
+  margin: 0;
+  color: #b9bbc8;
+}
+.bl-empty.dark {
+  color: var(--q-muted);
+}
+.bl-detail {
+  flex: 1 1 340px;
+  max-width: 420px;
+  border: 2px solid var(--q-ink);
+}
+.bl-who {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.bl-who h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+}
+.bl-facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.bl-facts dt {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--q-muted);
+}
+.bl-facts dd {
+  margin: 0;
+  font-weight: 700;
+}
+.bl-detail-text {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--q-soft);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.bl-span {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--q-ink);
+  color: var(--q-lime);
+  font: 12px/1.6 ui-monospace, 'JetBrains Mono', monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 640px) {
+  .agent-app.quest .content main .bl-row,
+  .bl-row {
+    grid-template-columns: 30px minmax(0, 1fr);
+  }
+  .bl-time,
+  .bl-tag {
+    display: none;
+  }
+}

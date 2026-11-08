@@ -15,6 +15,7 @@ import { ResumeAgent } from './resume-agent.js';
 import { PartyDecision, PartyTrack } from './quest/party-review.js';
 import { QuestLog, QuestMissionHeader } from './quest/quest-log.js';
 import { QuestJobTable, RequirementChips } from './quest/job-board.js';
+import { QuestBattleLog } from './quest/battle-log.js';
 import { CharacterSheet } from './quest/character-sheet.js';
 import { progressFrom } from './quest/progress.js';
 import { QuestTopBar, type QuestNavId } from './quest/top-bar.js';
@@ -155,7 +156,7 @@ const readWorkspaceRoute = () => {
       ? value
       : fallback) as Tab,
     selected: query.get('mission'),
-    phase: step !== null && Number.isInteger(step) && step >= 0 && step <= 7 ? step : null,
+    phase: step !== null && Number.isInteger(step) && step >= 0 && step <= (classicView ? 7 : 8) ? step : null,
   };
 };
 // Own workspace navigation and refreshes here; the server remains the source of mission status.
@@ -1902,7 +1903,7 @@ function MissionDetail({
   }, [m.id, d.selectedJob?.job.id]);
 
   const completed = m.status === 'COMPLETE';
-  if (completed && (phase === null || phase > 4))
+  if (completed && (phase === null || (phase > 4 && phase !== 8)))
     return (
       <section aria-label="Completed journey results">
         <button className="back" onClick={onBack}>
@@ -2036,6 +2037,7 @@ function MissionDetail({
       </div>
       </>
       )}
+      {!classicView && phase === 8 && <QuestBattleLog mission={m} userName={userName} />}
       {phase === 0 && (
         <MissionProfile
           missionId={m.id}
