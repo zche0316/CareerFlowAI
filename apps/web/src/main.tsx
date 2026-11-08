@@ -13,6 +13,7 @@ import { ProfileImport } from './profile-import.js';
 import { ResumeManualEdit } from './resume-manual-edit.js';
 import { ResumeAgent } from './resume-agent.js';
 import { PartyDecision, PartyTrack } from './quest/party-review.js';
+import { QuestLog, QuestMissionHeader } from './quest/quest-log.js';
 import { CharacterSheet } from './quest/character-sheet.js';
 import { progressFrom } from './quest/progress.js';
 import { QuestTopBar, type QuestNavId } from './quest/top-bar.js';
@@ -702,7 +703,8 @@ function App() {
               </button>
             </div>
           )}
-          {(tab === 'profile' || (tab === 'missions' && (selected || phase !== null))) && (
+          {(tab === 'profile' ||
+            (classicView && tab === 'missions' && (selected || phase !== null))) && (
             <FlowNavigation
               current={
                 tab === 'profile'
@@ -879,6 +881,20 @@ function App() {
                     </button>
                   </section>
                 </>
+              ) : !classicView ? (
+                <QuestLog
+                  workspace={workspace}
+                  onOpen={(m, targetPhase) => {
+                    setSelected(m.id);
+                    setPhase(targetPhase);
+                    window.scrollTo({ top: 0, behavior: 'auto' });
+                  }}
+                  onNewQuest={() => setCreating(true)}
+                  onBuildProfile={() => {
+                    setTab('profile');
+                    setPhase(0);
+                  }}
+                />
               ) : (
                 <>
                   <WorkspaceHome
@@ -1941,9 +1957,14 @@ function MissionDetail({
     );
   return (
     <>
-      <button className="back" onClick={onBack}>
-        ← All missions
-      </button>
+      {!classicView && (
+        <QuestMissionHeader mission={m} phase={phase} onBack={onBack} onSelect={onNavigate} />
+      )}
+      {classicView && (
+        <button className="back" onClick={onBack}>
+          ← All missions
+        </button>
+      )}
       {completed && (
         <div className="info" role="note">
           <span>Saved journey · Read-only history</span>
@@ -1955,6 +1976,8 @@ function MissionDetail({
           </button>
         </div>
       )}
+      {classicView && (
+      <>
       <div className="mission-heading">
         <div>
           <span className="eyebrow">
@@ -2010,6 +2033,8 @@ function MissionDetail({
                   : nice(m.status)}
         </strong>
       </div>
+      </>
+      )}
       {phase === 0 && (
         <MissionProfile
           missionId={m.id}
@@ -2726,7 +2751,7 @@ function MissionDetail({
             <aside className="prototype-resume-controls">
               <p className="agent-context-caption">Target · {d.resumeDraft.jobTitle}</p>
               <JobFit missionId={m.id} api={api} compact />
-              {d.selectedJob?.gaps?.length > 0 && (
+              {d.selectedJob?.gaps?.length > 0 && (classicView || !d.resumeTeam) && (
                 <div className="job-gap-notice" role="note">
                   <strong>Gaps to keep in mind</strong>
                   <ul>
@@ -2763,12 +2788,15 @@ function MissionDetail({
                   }
                 />
               )}
-              <div className="section-heading">
-                <h2>{completed ? 'Saved resume' : 'Edit with your agent'}</h2>
-                <span className="tag">
-                  {d.approvedResumeId ? 'Approved & saved' : 'Review required'}
-                </span>
-              </div>
+              {(classicView || !d.resumeTeam || d.approvedResumeId) && (
+                <div className="section-heading">
+                  <h2>{completed ? 'Saved resume' : d.approvedResumeId ? 'Approved resume' : 'Edit with your agent'}</h2>
+                  <span className="tag">
+                    {d.approvedResumeId ? 'Approved & saved' : 'Review required'}
+                  </span>
+                </div>
+              )}
+              <QuestEditDrawer quest={!classicView && !!d.resumeTeam && m.status === 'AWAITING_APPROVAL'}>
               {m.status === 'AWAITING_APPROVAL' && (
                 <ResumeManualEdit
                   draft={d.resumeDraft}
@@ -2792,6 +2820,7 @@ function MissionDetail({
                   }
                 />
               )}
+              </QuestEditDrawer>
               {d.approvedResumeId && <ResumeDownloads id={d.approvedResumeId} />}
               {d.approvedResumeId && (
                 <a className="secondary" href={`/api/resumes/${d.approvedResumeId}/download`}>
@@ -3137,6 +3166,20 @@ function MissionDetail({
 }
 
 createRoot(document.getElementById('root')!).render(<App />);
+
+/** In the Quest UI, hand edits sit behind a drawer so the Critic report and decision lead. */
+function QuestEditDrawer({ quest, children }: { quest: boolean; children: React.ReactNode }) {
+  if (!quest) return <>{children}</>;
+  return (
+    <details className="quest-edit-drawer">
+      <summary>
+        <span>Edit it yourself</span>
+        <small>Change a line by hand or ask the resume agent. Edits are re-checked against your facts.</small>
+      </summary>
+      <div>{children}</div>
+    </details>
+  );
+}
 
 function ResumeDownloads({ id }: { id: string }) {
   return (

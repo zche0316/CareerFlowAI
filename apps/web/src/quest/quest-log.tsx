@@ -1,0 +1,299 @@
+import { ArrowRight, Check, Plus } from 'lucide-react';
+import { MISSION_MODEL_CALL_LIMIT } from '../../../../packages/contracts/src/mission-limits.js';
+import { nextMissionStep } from '../workspace-home.js';
+import { AgentAvatar, type AgentId } from './characters.js';
+import { XP_RULES } from './progress.js';
+
+export const questRoute = ['Profile', 'Analysis', 'Shortlist', 'Review', 'Practice'];
+
+const waitingStatus = ['AWAITING_JOB', 'AWAITING_APPROVAL', 'AWAITING_INTERVIEW'];
+const workingStatus = ['QUEUED', 'RUNNING'];
+
+/** The party member whose turn it is, so each quest card shows who holds the ball. */
+function holder(m: any): AgentId | 'you' {
+  if (waitingStatus.includes(m.status)) return 'you';
+  const step = nextMissionStep(m);
+  if (step <= 1) return 'coach';
+  if (step === 2) return 'matcher';
+  if (step === 3) return 'rewriter';
+  return 'interviewer';
+}
+
+export function questTitle(m: any) {
+  const job = m.data?.selectedJob?.job;
+  if (job) return job.title;
+  const role = m.data?.jobSearch?.keyword || m.goal.split(/[.!?\n]/)[0];
+  return role.length > 64 ? role.slice(0, 61) + '…' : role;
+}
+
+const nextText: Record<string, { text: string; cta: string; xp?: number }> = {
+  AWAITING_JOB: { text: 'Ranked roles are waiting for your pick.', cta: 'Choose a job' },
+  AWAITING_APPROVAL: {
+    text: 'A Critic-reviewed draft is waiting for your call.',
+    cta: 'Review the draft',
+    xp: XP_RULES.approvedResume,
+  },
+  AWAITING_INTERVIEW: {
+    text: 'Your interview panel is ready.',
+    cta: 'Start practice',
+    xp: XP_RULES.practiceAnswer,
+  },
+  QUEUED: { text: 'Queued. Your party starts shortly.', cta: 'Watch' },
+  RUNNING: { text: 'Your party is working. It will stop at the next decision.', cta: 'Watch' },
+  COMPLETE: { text: 'Quest complete. Documents and feedback are saved.', cta: 'Open results' },
+  FAILED: { text: 'A step failed. Your saved work is intact.', cta: 'Review and retry' },
+  NO_MATCHES: { text: 'No roles passed your threshold.', cta: 'Review the search' },
+  STALE: { text: 'Your profile changed after this quest started.', cta: 'View history' },
+  CANCELLED: { text: 'Cancelled. History is kept read-only.', cta: 'View history' },
+};
+
+function QuestCard({ m, onOpen }: { m: any; onOpen: (m: any, phase: number | null) => void }) {
+  const d = m.data || {};
+  const step = m.status === 'COMPLETE' ? questRoute.length : nextMissionStep(m);
+  const who = holder(m);
+  const copy = nextText[m.status] || { text: m.status, cta: 'Open' };
+  const rounds = d.resumeTeam?.critiques?.length || 0;
+  const job = d.selectedJob?.job;
+  const waiting = waitingStatus.includes(m.status);
+  return (
+    <li className={`ql-card${waiting ? ' waiting' : ''}`}>
+      <div className="ql-card-top">
+        {who === 'you' ? (
+          <span className="ql-you" aria-hidden="true">
+            You
+          </span>
+        ) : (
+          <AgentAvatar agent={who} size={44} label={false} />
+        )}
+        <div className="ql-card-title">
+          <h3>{questTitle(m)}</h3>
+          <span>
+            {[job?.company, job?.location].filter(Boolean).join(' · ') ||
+              `Started ${new Date(m.createdAt).toLocaleDateString()}`}
+          </span>
+        </div>
+        {copy.xp && waiting && <span className="quest-chip lime">+{copy.xp} XP</span>}
+      </div>
+      <ol className="ql-route" aria-label={`Progress: step ${Math.min(step + 1, 5)} of 5`}>
+        {questRoute.map((label, i) => (
+          <li key={label} className={i < step ? 'done' : i === step ? 'now' : ''} title={label}>
+            <span className="sr-only">
+              {label}
+              {i < step ? ' (done)' : i === step ? ' (current)' : ''}
+            </span>
+          </li>
+        ))}
+      </ol>
+      <p className="ql-next">{copy.text}</p>
+      <div className="ql-card-foot">
+        <span className="ql-meta">
+          {d.apiCalls || 0}/{MISSION_MODEL_CALL_LIMIT} mana
+          {rounds > 0 && ` · ${rounds} Critic round${rounds === 1 ? '' : 's'}`}
+        </span>
+        <button
+          type="button"
+          className={`quest-press${waiting ? ' lime' : ''} ql-go`}
+          onClick={() => onOpen(m, m.status === 'COMPLETE' ? null : nextMissionStep(m))}
+        >
+          {copy.cta}
+          <ArrowRight size={16} strokeWidth={2.6} />
+        </button>
+      </div>
+    </li>
+  );
+}
+
+/** Quests page: every mission grouped by who has to act next. */
+export function QuestLog({
+  workspace,
+  onOpen,
+  onNewQuest,
+  onBuildProfile,
+}: {
+  workspace: any;
+  onOpen: (m: any, phase: number | null) => void;
+  onNewQuest: () => void;
+  onBuildProfile: () => void;
+}) {
+  const missions: any[] = workspace?.missions || [];
+  const groups = [
+    {
+      id: 'waiting',
+      title: 'Waiting on you',
+      sub: 'Nothing moves until you decide.',
+      items: missions.filter((m) => waitingStatus.includes(m.status)),
+    },
+    {
+      id: 'working',
+      title: 'Party at work',
+      sub: 'Running on the server. You can leave this page.',
+      items: missions.filter((m) => workingStatus.includes(m.status)),
+    },
+    {
+      id: 'ended',
+      title: 'Finished and archived',
+      sub: 'Read-only history. New quests use your latest approved profile.',
+      items: missions.filter(
+        (m) => !waitingStatus.includes(m.status) && !workingStatus.includes(m.status),
+      ),
+    },
+  ];
+  const complete = missions.filter((m) => m.status === 'COMPLETE').length;
+  return (
+    <div className="quest-page ql">
+      <div className="ql-head">
+        <div>
+          <span className="quest-sub dark">
+            {missions.length} quest{missions.length === 1 ? '' : 's'} · {complete} complete
+          </span>
+          <h1 className="quest-display">Quest log</h1>
+          <p>Each quest is one target role: shortlist, tailored resume, then interview practice.</p>
+        </div>
+        <button
+          type="button"
+          className="quest-press lime"
+          onClick={workspace?.profile ? onNewQuest : onBuildProfile}
+        >
+          <Plus size={18} strokeWidth={2.8} />
+          {workspace?.profile ? 'Start a new quest' : 'Build my profile first'}
+        </button>
+      </div>
+      {missions.length === 0 ? (
+        <section className="quest-tile ql-empty">
+          <div className="ql-empty-party" aria-hidden="true">
+            {(['scout', 'coach', 'matcher', 'critic'] as const).map((id) => (
+              <AgentAvatar key={id} agent={id} size={52} label={false} />
+            ))}
+          </div>
+          <h2>No quests yet</h2>
+          <p>
+            Start one with a goal such as “graduate data analyst in Sydney”. Your party will analyse
+            your approved profile, rank real roles and wait for your decisions.
+          </p>
+        </section>
+      ) : (
+        groups
+          .filter((g) => g.items.length)
+          .map((g) => (
+            <section key={g.id} className={`ql-group ${g.id}`} aria-labelledby={`ql-${g.id}`}>
+              <div className="ql-group-head">
+                <h2 id={`ql-${g.id}`}>
+                  {g.title} <span className="ql-count">{g.items.length}</span>
+                </h2>
+                <span>{g.sub}</span>
+              </div>
+              <ul className="ql-grid">
+                {g.items.map((m) => (
+                  <QuestCard key={m.id} m={m} onOpen={onOpen} />
+                ))}
+              </ul>
+            </section>
+          ))
+      )}
+    </div>
+  );
+}
+
+const statusChip: Record<string, { label: string; tone: string }> = {
+  AWAITING_JOB: { label: 'Your call', tone: 'coral' },
+  AWAITING_APPROVAL: { label: 'Your call', tone: 'coral' },
+  AWAITING_INTERVIEW: { label: 'Your turn', tone: 'coral' },
+  QUEUED: { label: 'Queued', tone: 'lilac' },
+  RUNNING: { label: 'Party at work', tone: 'lilac' },
+  COMPLETE: { label: 'Complete', tone: 'lime' },
+};
+
+const headline = (m: any, phase: number | null) => {
+  if (phase === 0) return 'The profile this quest runs on.';
+  if (phase === 1)
+    return m.data?.analysis ? 'Coach read your profile.' : 'Coach is reading your profile.';
+  if (phase === 2)
+    return m.status === 'AWAITING_JOB'
+      ? 'Pick the job your party should chase.'
+      : m.data?.selectedJob
+        ? 'Target locked in.'
+        : 'Job Matcher is ranking roles.';
+  if (phase === 3)
+    return m.status === 'AWAITING_APPROVAL'
+      ? 'Your party built a draft. Now it’s your call.'
+      : m.data?.approvedResumeId
+        ? 'Resume approved and saved.'
+        : 'Your resume team is at work.';
+  if (phase === 4)
+    return m.status === 'COMPLETE' ? 'Interview practice, reviewed.' : 'Face the interview panel.';
+  if (phase === 7) return 'Prepare the application. You send it.';
+  return questTitle(m);
+};
+
+/** Mission header: where this quest stands, plus a clickable five-step route. */
+export function QuestMissionHeader({
+  mission: m,
+  phase,
+  onBack,
+  onSelect,
+}: {
+  mission: any;
+  phase: number | null;
+  onBack: () => void;
+  onSelect: (step: number) => void;
+}) {
+  const reached = m.status === 'COMPLETE' ? questRoute.length - 1 : nextMissionStep(m);
+  const chip = statusChip[m.status] || {
+    label: m.status.toLowerCase().replace(/_/g, ' '),
+    tone: '',
+  };
+  const job = m.data?.selectedJob?.job;
+  const xp =
+    m.status === 'AWAITING_APPROVAL' && phase === 3
+      ? XP_RULES.approvedResume
+      : m.status === 'AWAITING_INTERVIEW' && phase === 4
+        ? XP_RULES.practiceAnswer
+        : null;
+  return (
+    <header className="qm-head">
+      <div className="qm-top">
+        <button type="button" className="qm-back" onClick={onBack}>
+          ← Quest log
+        </button>
+        <span className="qm-crumb">
+          Main quest ·{' '}
+          {job ? `${job.title}${job.company ? ` at ${job.company}` : ''}` : questTitle(m)}
+        </span>
+      </div>
+      <div className="qm-title-row">
+        <h1 className="quest-display qm-title">{headline(m, phase)}</h1>
+        <div className="qm-chips">
+          <span className={`quest-chip ${chip.tone}`}>{chip.label}</span>
+          {m.mode === 'fixture' && <span className="quest-chip outline">Demo data</span>}
+          {xp && (
+            <span className="quest-chip lime">
+              +{xp} XP on {phase === 3 ? 'approval' : 'each answer'}
+            </span>
+          )}
+        </div>
+      </div>
+      <ol className="qm-route" aria-label="Quest route">
+        {questRoute.map((label, i) => {
+          const state =
+            i < reached || m.status === 'COMPLETE' ? 'done' : i === reached ? 'now' : 'todo';
+          return (
+            <li key={label}>
+              <button
+                type="button"
+                className={`qm-step ${state}${phase === i ? ' viewing' : ''}`}
+                aria-current={phase === i ? 'step' : undefined}
+                disabled={i > reached}
+                onClick={() => onSelect(i)}
+              >
+                <span className="qm-dot" aria-hidden="true">
+                  {state === 'done' ? <Check size={14} strokeWidth={3.2} /> : i + 1}
+                </span>
+                {label}
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+    </header>
+  );
+}
