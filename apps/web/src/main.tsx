@@ -12,7 +12,13 @@ import { ProfileRecords } from './profile-records.js';
 import { ProfileImport } from './profile-import.js';
 import { ResumeManualEdit } from './resume-manual-edit.js';
 import { ResumeAgent } from './resume-agent.js';
-import { ResumeTeamPanel } from './resume-team.js';
+import { PartyDecision, PartyTrack } from './quest/party-review.js';
+import { CharacterSheet } from './quest/character-sheet.js';
+import { progressFrom } from './quest/progress.js';
+import { QuestTopBar, type QuestNavId } from './quest/top-bar.js';
+import { QuestHome } from './quest/home.js';
+import { PartyRoster } from './quest/roster.js';
+import './quest/fonts.js';
 import { ProfileConversation } from './profile-conversation.js';
 import { CareerMemoryPanel } from './career-memory.js';
 import { DocumentWorkspace } from './document-workspace.js';
@@ -52,6 +58,7 @@ import {
 } from 'lucide-react';
 import { blankProfile, type CareerProfile } from '../../../packages/contracts/src/index.js';
 import './style.css';
+import './quest/quest.css';
 
 // The session endpoint supplies this token; all JSON mutations share the same request wrapper.
 let csrf = '';
@@ -110,7 +117,19 @@ const stagePresentation = [
   },
 ];
 type Tab =
-  'missions' | 'profile' | 'approved-profile' | 'approvals' | 'library' | 'activity' | 'tools';
+  | 'missions'
+  | 'profile'
+  | 'approved-profile'
+  | 'approvals'
+  | 'library'
+  | 'activity'
+  | 'tools'
+  | 'character'
+  | 'home'
+  | 'party';
+
+// ?classic=1 keeps the previous group interface available while the Quest UI replaces it.
+const classicView = new URLSearchParams(window.location.search).has('classic');
 
 const readWorkspaceRoute = () => {
   const query = new URLSearchParams(window.location.search);
@@ -122,11 +141,17 @@ const readWorkspaceRoute = () => {
     'library',
     'activity',
     'tools',
+    'character',
+    'home',
+    'party',
   ];
-  const value = query.get('view') || 'missions';
+  const fallback = classicView ? 'missions' : 'home';
+  const value = query.get('view') || fallback;
   const step = query.has('step') ? Number(query.get('step')) : null;
   return {
-    tab: (validTabs.includes(value) ? value : 'missions') as Tab,
+    tab: (validTabs.includes(value) && !(classicView && ['home', 'party'].includes(value))
+      ? value
+      : fallback) as Tab,
     selected: query.get('mission'),
     phase: step !== null && Number.isInteger(step) && step >= 0 && step <= 7 ? step : null,
   };
@@ -344,6 +369,62 @@ function App() {
         }}
       />
     );
+  const progress = progressFrom(workspace);
+  // Quest navigation reuses the same state transitions as the classic sidebar.
+  const questNavActive: QuestNavId | null =
+    tab === 'missions'
+      ? phase === 2
+        ? 'jobs'
+        : phase === 7
+          ? 'applications'
+          : 'quests'
+      : tab === 'profile'
+        ? 'approved-profile'
+        : (tab as QuestNavId);
+  const goQuest = (id: QuestNavId) => {
+    setError('');
+    if (id === 'classic') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('classic', '1');
+      url.searchParams.set('view', 'missions');
+      window.location.assign(url.toString());
+      return;
+    }
+    if (id === 'jobs') {
+      if (!workspace?.profile) {
+        setTab('profile');
+        setSelected(null);
+        setPhase(0);
+        return;
+      }
+      const candidate = mission || workspace?.missions[0];
+      const live =
+        candidate &&
+        ['QUEUED', 'RUNNING', 'AWAITING_JOB', 'AWAITING_APPROVAL', 'AWAITING_INTERVIEW'].includes(
+          candidate.status,
+        );
+      if (live) {
+        setSelected(candidate.id);
+        setTab('missions');
+        setPhase(candidate.data?.matches?.length ? 2 : nextMissionStep(candidate));
+      } else setCreating(true);
+      return;
+    }
+    if (id === 'applications') {
+      setTab('missions');
+      setPhase(7);
+      setSelected(
+        workspace?.missions.find((m: any) => m.data?.approvedResumeId)?.id ||
+          workspace?.missions[0]?.id ||
+          null,
+      );
+      return;
+    }
+    setTab(id === 'quests' ? 'missions' : (id as Tab));
+    setSelected(null);
+    setPhase(null);
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  };
   const renderProfile = (mode: 'build' | 'edit') => (
     <Profile
       mode={mode}
@@ -393,10 +474,30 @@ function App() {
     { id: 'tools', label: 'Optional tools', icon: Target },
   ];
   return (
-    <div className="shell agent-app">
+    <div className={classicView ? 'shell agent-app' : 'shell agent-app quest'}>
       <a className="skip-link" href="#main-content">
         Skip to workspace
       </a>
+      {!classicView && (
+        <QuestTopBar
+          active={questNavActive}
+          userName={session.user.name}
+          level={progress.level}
+          xp={progress.xp}
+          waiting={approvals.length}
+          fixture={session.mode === 'fixture'}
+          onNavigate={goQuest}
+          onSignOut={() =>
+            void act(async () => {
+              await api('/logout', 'POST', {});
+              csrf = '';
+              setSession({ ...session, user: null });
+              setWorkspace(null);
+            })
+          }
+        />
+      )}
+      {classicView && (
       <aside className="sidebar">
         <a className="brand" href="/" aria-label="CareerFlow home">
           <span className="brandmark" aria-hidden="true">
@@ -557,7 +658,9 @@ function App() {
           </button>
         </div>
       </aside>
+      )}
       <div className="content">
+        {classicView && (
         <header className="topbar">
           <div>
             <span className="breadcrumb">Workspace</span>
@@ -580,6 +683,7 @@ function App() {
             </span>
           </details>
         </header>
+        )}
         <main id="main-content" tabIndex={-1}>
           {error && (
             <div role="alert" className="error-banner global-error-toast">
@@ -650,6 +754,33 @@ function App() {
                 )}
               </div>
             </div>
+          ) : tab === 'home' ? (
+            <QuestHome
+              workspace={workspace}
+              userName={session.user.name}
+              onOpenMission={(id, step) => {
+                setSelected(id);
+                setTab('missions');
+                setPhase(step);
+                window.scrollTo({ top: 0, behavior: 'auto' });
+              }}
+              onNewQuest={() => goQuest('jobs')}
+              onBuildProfile={() => setTab('profile')}
+              onNavigate={goQuest}
+            />
+          ) : tab === 'party' ? (
+            <PartyRoster workspace={workspace} userName={session.user.name} />
+          ) : tab === 'character' ? (
+            <CharacterSheet
+              workspace={workspace}
+              userName={session.user.name}
+              onBuildProfile={() => setTab('profile')}
+              onOpenMission={(id) => {
+                setSelected(id);
+                setTab('missions');
+                setPhase(1);
+              }}
+            />
           ) : tab === 'tools' ? (
             <OptionalTools missions={workspace?.missions || []} request={api} onRefresh={refresh} />
           ) : tab === 'profile' ? (
@@ -658,6 +789,7 @@ function App() {
             <>
               {mission ? (
                 <MissionDetail
+                  userName={session.user.name}
                   key={mission.id}
                   mission={mission}
                   phase={phase}
@@ -1697,7 +1829,9 @@ function MissionDetail({
   onNegotiation,
   onNegotiationDecision,
   onRefineAnalysis,
+  userName = 'You',
 }: {
+  userName?: string;
   mission: any;
   phase: number | null;
   onNavigate: (phase: number | null) => void;
@@ -2539,7 +2673,10 @@ function MissionDetail({
         )}
       {(phase === null || phase === 3) && d.resumeDraft && (
         <section id="resume-tailoring" className="panel resume">
-          {m.status === 'AWAITING_APPROVAL' && (
+          {d.resumeTeam && (
+            <PartyTrack team={d.resumeTeam} waiting={m.status === 'AWAITING_APPROVAL'} />
+          )}
+          {m.status === 'AWAITING_APPROVAL' && !d.resumeTeam && (
             <div className="approval-controls resume-approval-bar">
               <label className="checkbox">
                 <input
@@ -2601,11 +2738,20 @@ function MissionDetail({
                 </div>
               )}
               {d.resumeTeam && (
-                <ResumeTeamPanel
+                <PartyDecision
                   team={d.resumeTeam}
-                  busy={busy || manualDirty}
-                  canReturn={m.status === 'AWAITING_APPROVAL'}
+                  userName={userName}
+                  waiting={m.status === 'AWAITING_APPROVAL'}
+                  busy={busy}
+                  approveBlocked={manualDirty}
                   revisions={d.revisions || 0}
+                  onApprove={() =>
+                    onAction('decisions', {
+                      kind: 'resume',
+                      decision: 'approve',
+                      draftHash: d.resumeDraft.hash,
+                    })
+                  }
                   onReturn={(target, feedback) =>
                     onAction('decisions', {
                       kind: 'resume',

@@ -1,0 +1,1448 @@
+/* Quest theme: bento blocks, ink + lime + violet + coral, pressable buttons.
+   Loaded after style.css; every rule is scoped to .quest so the older theme stays intact. */
+.quest {
+  --q-ink: #111218;
+  --q-ground: #e9eaf0;
+  --q-rail: #dfe0e8;
+  --q-surface: #fff;
+  --q-soft: #f4f4f8;
+  --q-muted: #5b5e6b;
+  --q-lime: #d4f55b;
+  --q-lime-deep: #8fae1f;
+  --q-violet: #7c5cff;
+  --q-violet-soft: #dcd5ff;
+  --q-lilac: #c4b8ff;
+  --q-coral: #ff8a6b;
+  --q-coral-soft: #ffd6c9;
+  --q-sky: #8fd3ff;
+  --q-amber: #ffc24b;
+  --q-display: 'Bricolage Grotesque Variable', 'DM Sans Variable', system-ui, sans-serif;
+  --q-body: 'DM Sans Variable', system-ui, sans-serif;
+  font-family: var(--q-body);
+  color: var(--q-ink);
+  background: var(--q-ground);
+  letter-spacing: 0;
+}
+body:has(.quest) {
+  background: #e9eaf0;
+}
+.quest h1,
+.quest h2,
+.quest h3,
+.quest .quest-display {
+  font-family: var(--q-display);
+  letter-spacing: -0.02em;
+}
+
+/* ---------- Shell: floating top bar ---------- */
+.shell.quest {
+  display: block;
+  min-height: 100vh;
+}
+.qt-bar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 14px;
+  padding: 14px clamp(16px, 3vw, 40px);
+  background: rgba(233, 234, 240, 0.9);
+  backdrop-filter: blur(10px);
+}
+.qt-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--q-ink);
+  font: 800 22px/1 var(--q-display);
+  letter-spacing: -0.03em;
+}
+.qt-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: var(--q-ink);
+}
+.qt-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--q-rail);
+}
+.qt-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #3b3d47;
+  font: 500 14px var(--q-body);
+}
+.qt-link:hover {
+  background: #fff;
+  color: var(--q-ink);
+}
+.qt-link[aria-current='page'] {
+  background: var(--q-ink);
+  color: #fff;
+}
+.qt-count {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--q-coral);
+  color: var(--q-ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+.qt-more {
+  position: relative;
+}
+.qt-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  min-width: 210px;
+  padding: 6px;
+  border: 2px solid var(--q-ink);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 4px 0 var(--q-ink);
+}
+.qt-menu button {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--q-ink);
+  font: 500 14px var(--q-body);
+  text-align: left;
+}
+.qt-menu button:hover {
+  background: var(--q-soft);
+}
+.qt-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.qt-mode {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--q-ink);
+  color: var(--q-lime);
+  font-size: 12px;
+  font-weight: 700;
+}
+.qt-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #3b3d47;
+}
+.qt-icon:hover {
+  background: #fff;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.quest-xp-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--q-ink);
+  font: 700 13px var(--q-body);
+  white-space: nowrap;
+}
+.quest-xp-pill i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--q-violet);
+  transform: rotate(45deg);
+}
+.quest-leader {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--q-ink);
+  border-radius: 999px;
+  background: var(--q-amber);
+  color: var(--q-ink);
+  font: 800 14px var(--q-display);
+  box-sizing: border-box;
+}
+.quest-leader {
+  font-size: clamp(9px, 40%, 34px);
+}
+
+/* ---------- Content frame ---------- */
+.quest > .content {
+  max-width: 1300px;
+  margin: 0 auto;
+  padding: 0 clamp(16px, 3vw, 40px) 48px;
+  background: transparent;
+}
+.quest > .content .topbar {
+  min-height: 0;
+  padding: 6px 4px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--q-muted);
+}
+.quest > .content main {
+  padding: 0;
+  background: transparent;
+}
+.quest > .content footer {
+  border: 0;
+  background: transparent;
+}
+.quest .page-heading h1,
+.quest .content main h1 {
+  font-family: var(--q-display);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+.quest .content main .eyebrow,
+.quest .eyebrow {
+  color: var(--q-ink);
+  font-weight: 700;
+}
+.quest .content main .eyebrow:before {
+  background: var(--q-violet);
+}
+
+/* ---------- Surfaces ---------- */
+.agent-app.quest .content main .panel,
+.agent-app.quest .content main .prototype-side-panel {
+  border: 0;
+  border-radius: 28px;
+  background: var(--q-surface);
+  box-shadow: none;
+}
+.quest .tag {
+  border-radius: 999px;
+  font-weight: 600;
+}
+.quest .status {
+  border-radius: 999px;
+  font-weight: 700;
+}
+.quest .status-awaiting_approval,
+.quest .status-awaiting_job,
+.quest .status-awaiting_interview {
+  background: var(--q-coral-soft);
+  color: #6b2a12;
+}
+
+/* ---------- Buttons: chunky and pressable ---------- */
+.agent-app.quest .content main .primary,
+.agent-app.quest button.primary,
+.quest .quest-press {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 20px;
+  border: 2px solid var(--q-ink);
+  border-radius: 14px;
+  background: var(--q-lime);
+  box-shadow: 0 4px 0 var(--q-ink);
+  color: var(--q-ink);
+  font: 700 15px var(--q-body);
+  transition:
+    transform 0.08s ease,
+    box-shadow 0.08s ease;
+}
+.agent-app.quest .content main .secondary,
+.quest .quest-press:not(.lime) {
+  border: 2px solid var(--q-ink);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 4px 0 var(--q-ink);
+  color: var(--q-ink);
+  font-weight: 700;
+}
+.agent-app.quest .content main .primary:hover:not(:disabled),
+.agent-app.quest .content main .secondary:hover:not(:disabled),
+.quest .quest-press:hover:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 0 3px 0 var(--q-ink);
+}
+.agent-app.quest .content main .primary:active:not(:disabled),
+.agent-app.quest .content main .secondary:active:not(:disabled),
+.quest .quest-press:active:not(:disabled) {
+  transform: translateY(4px);
+  box-shadow: 0 0 0 var(--q-ink);
+}
+.quest .quest-press:disabled,
+.agent-app.quest .content main .primary:disabled {
+  box-shadow: 0 4px 0 #b9bbc8;
+  border-color: #b9bbc8;
+  color: #5b5e6b;
+  background: var(--q-soft);
+  opacity: 1;
+}
+.quest :focus-visible {
+  outline: 3px solid var(--q-violet);
+  outline-offset: 3px;
+}
+
+/* ---------- Journey ruler ---------- */
+.quest .flow-ruler-ticks span.on,
+.quest .flow-vertical .flow-ruler-ticks span.on {
+  background: var(--q-ink);
+}
+.quest .flow-ruler-ticks span.current {
+  background: var(--q-violet);
+}
+.quest .flow-ruler-labels button[aria-current='step'] span:first-child {
+  color: var(--q-violet);
+}
+
+/* ---------- Overview hero ---------- */
+.quest .workspace-home .next-action {
+  border-radius: 28px;
+  background: var(--q-ink);
+  color: #fff;
+}
+.quest .workspace-home .next-action :is(h2, h1, p, span, small) {
+  color: inherit;
+}
+.quest .workspace-home .next-action .eyebrow {
+  color: var(--q-lime);
+}
+.agent-app.quest .workspace-home .next-action > button {
+  background: var(--q-lime);
+  border-color: var(--q-lime);
+  box-shadow: 0 4px 0 var(--q-lime-deep);
+}
+.quest .workspace-hero-art {
+  display: none;
+}
+.quest .prototype-progress-ring {
+  background: conic-gradient(var(--q-violet) var(--progress), var(--q-violet-soft) 0);
+}
+.quest .workspace-home .journey-overview .journey-current .step-badge,
+.quest .prototype-mini-steps button.current > span {
+  background: var(--q-violet);
+  color: #fff;
+}
+.quest .job-gap-notice {
+  border-left-color: var(--q-coral);
+  border-radius: 18px;
+  background: var(--q-coral-soft);
+}
+
+/* ---------- Shared quest blocks ---------- */
+.quest-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.quest-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  align-items: stretch;
+}
+.quest-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 24px;
+  border-radius: 28px;
+  background: var(--q-surface);
+  box-sizing: border-box;
+}
+.quest-tile.ink {
+  background: var(--q-ink);
+  color: #fff;
+}
+.quest-tile.violet {
+  background: var(--q-violet-soft);
+}
+.quest-tile.coral {
+  background: var(--q-coral-soft);
+}
+.quest-tile-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.quest-tile-head h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+}
+.quest-tile-head span,
+.quest-sub {
+  color: #b9bbc8;
+  font-size: 13px;
+}
+.quest-sub.dark,
+.quest-tile:not(.ink) .quest-tile-head span {
+  color: var(--q-muted);
+}
+.quest-display {
+  margin: 0;
+  font-size: clamp(28px, 3.4vw, 40px);
+  font-weight: 800;
+  line-height: 1;
+}
+.quest-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--q-soft);
+  color: var(--q-ink);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.quest-chip.lime {
+  background: var(--q-lime);
+}
+.quest-chip.coral {
+  background: var(--q-coral-soft);
+  color: #6b2a12;
+}
+.quest-chip.lilac {
+  background: var(--q-lilac);
+  color: #2b2160;
+}
+.quest-chip.outline {
+  background: #fff;
+  box-shadow: inset 0 0 0 2px var(--q-ink);
+}
+.quest-chip.ink {
+  background: var(--q-ink);
+  color: var(--q-lime);
+}
+.quest-chip.dark {
+  background: #262836;
+  color: var(--q-lime);
+}
+.quest-fine {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--q-muted);
+  font-size: 12px;
+}
+.quest-fine.dark {
+  color: #9a9dae;
+}
+.quest-empty {
+  align-items: flex-start;
+  max-width: 560px;
+}
+
+/* ---------- Party track (resume review) ---------- */
+.quest-track {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-bottom: 18px;
+  padding: 24px;
+  border-radius: 28px;
+  background: var(--q-ink);
+  color: #fff;
+}
+.quest-track-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+}
+.quest-track-head h2 {
+  margin: 0;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 800;
+}
+.quest-track-head span {
+  color: #9a9dae;
+  font-size: 13px;
+}
+.quest-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.quest-member {
+  display: flex;
+  flex: 1 1 160px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+.quest-member strong {
+  font-size: 15px;
+}
+.quest-runs {
+  color: var(--q-lime);
+}
+.quest-bubble {
+  padding: 10px 12px;
+  border-radius: 16px 16px 16px 4px;
+  background: #262836;
+  color: #e4e5ec;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.quest-bubble.lime {
+  background: var(--q-lime);
+  color: var(--q-ink);
+}
+.quest-bubble.light {
+  background: #fff;
+  color: var(--q-ink);
+}
+.quest-you {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border: 3px dashed var(--q-lime);
+  border-radius: 999px;
+  background: var(--q-amber);
+  color: var(--q-ink);
+  font: 800 14px var(--q-display);
+  box-sizing: border-box;
+}
+
+/* ---------- Scorecard + decision ---------- */
+.quest-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.quest-score,
+.quest-call {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  border-radius: 24px;
+}
+.quest-score {
+  background: var(--q-violet-soft);
+}
+.quest-call {
+  border: 2px solid var(--q-ink);
+  background: #fff;
+}
+.quest-score-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.quest-score h3,
+.quest-call h3 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 800;
+}
+.quest-score-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.quest-score-grid div {
+  display: flex;
+  flex-direction: column;
+}
+.quest-score-grid b {
+  font: 800 34px/1 var(--q-display);
+}
+.quest-score-grid span {
+  color: #2b2160;
+  font-size: 12px;
+}
+.quest-issues {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+.quest-note {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: #fff;
+  font-size: 13px;
+}
+.quest-note.coral {
+  background: var(--q-coral-soft);
+}
+.quest-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.quest-check input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--q-ink);
+}
+.quest-return {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.quest-return fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.quest-return legend {
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.quest-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.quest-pick {
+  position: relative;
+  display: flex;
+  flex: 1 1 84px;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 6px;
+  border: 2px solid #e2e3ea;
+  border-radius: 18px;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+}
+.quest-pick.on {
+  border-color: var(--q-ink);
+  background: var(--q-soft);
+}
+.quest-pick input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.quest-pick:has(input:focus-visible) {
+  outline: 3px solid var(--q-violet);
+  outline-offset: 2px;
+}
+.quest-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.quest-field textarea {
+  padding: 12px 14px;
+  border: 2px solid #e2e3ea;
+  border-radius: 14px;
+  font: 400 15px var(--q-body);
+  resize: vertical;
+}
+.quest-field textarea:focus {
+  border-color: var(--q-ink);
+}
+/* The resume paper sits on a soft tray, slightly tilted like a sheet on a desk. */
+.quest #resume-tailoring.panel {
+  background: transparent;
+  padding: 0;
+}
+.quest #resume-tailoring .prototype-resume-layout {
+  gap: 18px;
+}
+.quest #resume-tailoring .prototype-resume-paper {
+  border: 0;
+  border-radius: 8px;
+  box-shadow:
+    0 1px 0 rgba(17, 18, 24, 0.06),
+    0 18px 40px -18px rgba(17, 18, 24, 0.35);
+}
+.quest #resume-tailoring .prototype-resume-controls {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+/* ---------- Character sheet ---------- */
+.quest-hero-card {
+  gap: 16px;
+}
+.quest-who {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.quest-who > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.quest-who .quest-leader {
+  border-color: var(--q-lime);
+  border-width: 3px;
+  border-radius: 30px;
+  font-size: 34px;
+  transform: rotate(-4deg);
+}
+.quest-xp {
+  height: 14px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #262836;
+}
+.quest-xp span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--q-lime);
+}
+.quest-stats3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.quest-stats3 div {
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  border-radius: 18px;
+  background: #1d1f2b;
+}
+.quest-stats3 b {
+  font: 800 28px var(--q-display);
+}
+.quest-stats3 span {
+  color: #b9bbc8;
+  font-size: 12px;
+}
+.quest-attrs {
+  display: grid;
+  grid-template-columns: minmax(110px, 170px) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px 16px;
+}
+.quest-attr {
+  display: contents;
+}
+.quest-seg {
+  display: flex;
+  gap: 4px;
+}
+.quest-seg span {
+  flex: 1;
+  height: 14px;
+  border-radius: 5px;
+  background: #e2e3ea;
+}
+.quest-seg span.on {
+  background: var(--q-ink);
+}
+.quest-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.quest-skills {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 12px;
+}
+.quest-skill {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 112px;
+  padding: 16px;
+  border-radius: 20px;
+  box-sizing: border-box;
+}
+.quest-skill.unlocked {
+  background: var(--q-lime);
+}
+.quest-skill.partial {
+  background: #fff;
+  box-shadow: inset 0 0 0 2px var(--q-ink);
+}
+.quest-skill.locked {
+  background: var(--q-lilac);
+  color: #2b2160;
+}
+.quest-kicker {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.quest-skill-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 800 21px/1.1 var(--q-display);
+}
+.quest-card,
+.quest-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 20px;
+  background: #fff;
+}
+.quest-item {
+  background: var(--q-soft);
+}
+.quest-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.quest-inventory {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 760px) {
+  .qt-nav {
+    order: 3;
+    width: 100%;
+    border-radius: 22px;
+  }
+  .quest-attrs {
+    grid-template-columns: minmax(90px, 120px) minmax(0, 1fr) auto;
+  }
+  .quest-stats3 b {
+    font-size: 22px;
+  }
+}
+
+/* Headings on dark tiles must stay light even where older rules set main headings to ink. */
+.agent-app.quest .content main .quest-tile.ink :is(h1, h2, h3),
+.agent-app.quest .content main .quest-track :is(h1, h2, h3) {
+  color: #fff;
+}
+.quest .workspace-home .next-action {
+  position: relative;
+  overflow: hidden;
+}
+.quest .workspace-home .next-action > .quest-hero-party {
+  position: absolute;
+  top: auto;
+  left: auto;
+  z-index: 0;
+  right: 28px;
+  bottom: 28px;
+  display: grid;
+  grid-template-columns: repeat(3, 58px);
+  gap: 14px;
+  transform: rotate(-4deg);
+}
+.quest .workspace-home .next-action > div:not(.quest-hero-party) {
+  position: relative;
+  z-index: 1;
+  max-width: min(560px, 100% - 240px);
+}
+.quest-hero-party svg:nth-child(even) {
+  transform: translateY(14px);
+}
+@media (max-width: 900px) {
+  .quest .workspace-home .next-action > div:not(.quest-hero-party) {
+    max-width: none;
+  }
+  .quest .workspace-home .next-action > .quest-hero-party {
+    display: none;
+  }
+}
+.quest .prototype-mini-steps button.current,
+.quest .workspace-home .journey-overview .journey-current {
+  background: var(--q-violet-soft);
+}
+.quest .row-action {
+  color: #4b2fd0;
+}
+
+/* ---------- Home ---------- */
+.quest-tile.lime {
+  background: var(--q-lime);
+}
+.qh .quest-row > .quest-tile {
+  min-width: 0;
+}
+.qh-hero {
+  position: relative;
+  flex: 999 1 560px;
+  gap: 18px;
+  padding: 32px;
+  overflow: hidden;
+}
+.qh-ring {
+  position: absolute;
+  top: -70px;
+  right: -60px;
+  width: 260px;
+  height: 260px;
+  border: 36px solid #1f2130;
+  border-radius: 999px;
+}
+.qh-hero > :not(.qh-ring) {
+  position: relative;
+}
+.agent-app.quest .content main .qh-title {
+  max-width: 640px;
+  margin: 0;
+  color: #fff;
+  font: 800 clamp(30px, 4vw, 50px) / 1.02 var(--q-display);
+  letter-spacing: -0.03em;
+}
+.qh-text {
+  max-width: 540px;
+  margin: 0;
+  color: #b9bbc8;
+}
+.qh-route {
+  display: flex;
+  align-items: flex-start;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.qh-route li {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: #8e91a2;
+  font-size: 12px;
+}
+.qh-route li + li::before {
+  content: '';
+  position: absolute;
+  top: 14px;
+  right: 50%;
+  width: 100%;
+  border-top: 3px dashed #4a4d5e;
+}
+.qh-route li.done + li::before,
+.qh-route li.done::before {
+  border-top-style: solid;
+  border-color: var(--q-lime);
+}
+.qh-route li.now::before {
+  border-top-style: solid;
+  border-color: var(--q-lime);
+}
+.qh-dot {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: #262836;
+  color: #8e91a2;
+  font-size: 12px;
+  font-weight: 700;
+  box-sizing: border-box;
+}
+.qh-route li.done .qh-dot {
+  background: var(--q-lime);
+  color: var(--q-ink);
+}
+.qh-route li.done {
+  color: #b9bbc8;
+}
+.qh-route li.now .qh-dot {
+  border: 3px solid var(--q-lime);
+  background: var(--q-ink);
+  color: var(--q-lime);
+  box-shadow: 0 0 0 6px rgba(212, 245, 91, 0.18);
+}
+.qh-route li.now {
+  color: #fff;
+  font-weight: 700;
+}
+.qh-label {
+  text-align: center;
+}
+.qh-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  color: #b9bbc8;
+  font-size: 13px;
+}
+.qh-cta .quest-press.lime {
+  border-color: var(--q-lime);
+  box-shadow: 0 4px 0 var(--q-lime-deep);
+}
+.qh-level {
+  flex: 1 1 300px;
+}
+.agent-app.quest .content main .quest-tile-head h2 {
+  margin: 0;
+  color: inherit;
+}
+.qh-link {
+  border: 0;
+  background: #fff;
+  cursor: pointer;
+}
+.qh-level-body {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.qh-level-body p {
+  margin: 0;
+  color: #2b2160;
+  font-size: 14px;
+}
+.qh-ring-meter {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 112px;
+  height: 112px;
+  border-radius: 999px;
+  background: conic-gradient(#5b3df0 0 var(--p), var(--q-lilac) var(--p) 100%);
+}
+.qh-ring-meter > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 84px;
+  height: 84px;
+  border-radius: 999px;
+  background: var(--q-violet-soft);
+}
+.qh-ring-meter b {
+  font: 800 26px/1 var(--q-display);
+}
+.qh-ring-meter span {
+  color: #3d2e8f;
+  font-size: 11px;
+}
+.qh-sources {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+.qh-sources li {
+  display: flex;
+  justify-content: space-between;
+}
+.qh-quests {
+  flex: 2 1 420px;
+}
+.qh-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.qh-quest {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px;
+  border: 0;
+  border-radius: 18px;
+  background: var(--q-soft);
+  color: var(--q-ink);
+  text-align: left;
+  font: inherit;
+}
+.qh-quest:hover {
+  background: #ecedf3;
+}
+.qh-bullet {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--q-ink);
+  border-radius: 7px;
+  box-sizing: border-box;
+}
+.qh-quest-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.qh-quest-text span {
+  color: var(--q-muted);
+  font-size: 13px;
+}
+.qh-empty {
+  margin: 0;
+  color: var(--q-muted);
+}
+.qh-party {
+  flex: 1 1 320px;
+}
+.qh-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.qh-feed li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.qh-feed li svg {
+  flex: none;
+}
+.qh-feed p {
+  flex: 1;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: #fff;
+  font-size: 13px;
+}
+.qh-feed p.dark {
+  background: var(--q-ink);
+  color: #fff;
+}
+.qh-feed-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.qh-feed-empty > div {
+  display: flex;
+  gap: 8px;
+}
+.qh-feed-empty p {
+  margin: 0;
+}
+.qh-momentum {
+  flex: 1 1 260px;
+}
+.qh-big {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.qh-big b {
+  font: 800 56px/1 var(--q-display);
+}
+.qh-week {
+  display: flex;
+  gap: 6px;
+}
+.qh-week span {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  border: 2px dashed #6f8a12;
+  border-radius: 10px;
+  color: #2e3a05;
+  font-size: 11px;
+  font-weight: 700;
+  box-sizing: border-box;
+}
+.qh-week span.on {
+  border: 0;
+  background: var(--q-ink);
+  color: var(--q-lime);
+}
+.qh-week span.future {
+  border-style: dotted;
+  opacity: 0.6;
+}
+.qh-momentum p {
+  margin: 0;
+  color: #2e3a05;
+  font-size: 13px;
+}
+.qh-lesson {
+  flex: 1 1 340px;
+  flex-direction: row;
+  align-items: center;
+  gap: 18px;
+}
+.qh-lesson p {
+  margin: 4px 0 0;
+  color: #3b3d47;
+  font-size: 14px;
+}
+.qh-loot {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 84px;
+  height: 84px;
+  border-radius: 22px;
+  background: var(--q-ink);
+  transform: rotate(-6deg);
+}
+.qh-roles {
+  flex: 2 1 520px;
+}
+.qh-role-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.qh-role {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border: 0;
+  border-radius: 20px;
+  background: var(--q-soft);
+  color: var(--q-ink);
+  font: inherit;
+  text-align: left;
+}
+.qh-role:hover {
+  background: #ecedf3;
+}
+.qh-role > span:not(.qh-score):not(.quest-chip) {
+  color: var(--q-muted);
+  font-size: 13px;
+}
+.qh-score {
+  font: 800 34px/1 var(--q-display);
+}
+.qh-score small {
+  color: var(--q-muted);
+  font: 500 14px var(--q-body);
+}
+.qh-sign {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 0;
+  color: var(--q-muted);
+  font-size: 13px;
+}
+
+/* ---------- Party roster ---------- */
+.qr-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 4px 0;
+}
+.qr-head p {
+  max-width: 620px;
+  margin: 8px 0 0;
+  color: #3b3d47;
+}
+.qr-leader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 20px;
+  background: var(--q-ink);
+  color: #fff;
+}
+.qr-leader .quest-leader {
+  border: 2px dashed var(--q-lime);
+}
+.qr-leader div {
+  display: flex;
+  flex-direction: column;
+}
+.qr-leader div span {
+  color: #b9bbc8;
+  font-size: 13px;
+}
+.qr-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+.qr-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 22px;
+  border: 2.5px solid var(--q-ink);
+  border-radius: 28px;
+  box-shadow: 0 6px 0 var(--q-ink);
+}
+.qr-card.scout {
+  background: var(--q-lime);
+}
+.qr-card.matcher,
+.qr-card.selector {
+  background: var(--q-sky);
+}
+.qr-card.gap_analyzer {
+  background: var(--q-amber);
+}
+.qr-card.rewriter {
+  background: var(--q-coral);
+}
+.qr-card.critic {
+  background: var(--q-violet);
+  color: #fff;
+}
+.qr-card.coach {
+  background: #5ed6c4;
+}
+.qr-card.interviewer {
+  background: #3b3d47;
+  color: #fff;
+}
+.qr-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.agent-app.quest .content main .qr-card h2 {
+  margin: 0;
+  color: inherit;
+  font: 800 24px/1.05 var(--q-display);
+}
+.qr-quote {
+  font-size: 14px;
+  font-style: italic;
+}
+.qr-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.qr-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.qr-can {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--q-ink);
+  font: 500 12px var(--q-body);
+}
+.qr-cant {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--q-ink);
+  color: #fff;
+  font-size: 12px;
+}
+.qr-card.interviewer .qr-cant {
+  background: #111218;
+}
+.qr-stats {
+  display: grid;
+  gap: 6px;
+  margin: auto 0 0;
+  padding-top: 10px;
+  border-top: 2px solid rgba(17, 18, 24, 0.2);
+}
+.qr-card.critic .qr-stats,
+.qr-card.interviewer .qr-stats {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+.qr-stats div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+}
+.qr-stats dt {
+  font-weight: 500;
+}
+.qr-stats dd {
+  margin: 0;
+  font-weight: 700;
+  text-align: right;
+}
+
+/* Classic view keeps the original hero art. */
+.shell:not(.quest) .quest-hero-party {
+  display: none;
+}

@@ -1,5 +1,6 @@
 import { MISSION_MODEL_CALL_LIMIT } from '../../../packages/contracts/src/mission-limits.js';
 import React, { useState } from 'react';
+import { AgentAvatar } from './quest/characters.js';
 import {
   ArrowRight,
   BriefcaseBusiness,
@@ -143,6 +144,13 @@ export function WorkspaceHome({
         <div className="prototype-overview-main">
           <section className="next-action" aria-labelledby="next-action-title">
             <img className="workspace-hero-art" src="/careerflow-journey.svg" alt="" />
+            <div className="quest-hero-party" aria-hidden="true">
+              {(['scout', 'gap_analyzer', 'selector', 'rewriter', 'critic', 'coach'] as const).map(
+                (id) => (
+                  <AgentAvatar key={id} agent={id} size={58} outline="#fff" label={false} />
+                ),
+              )}
+            </div>
             <div>
               <span className="eyebrow">NEXT STEP</span>
               <h2 id="next-action-title">
