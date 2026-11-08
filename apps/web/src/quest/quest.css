@@ -1779,3 +1779,243 @@ body:has(.quest) {
   gap: 14px;
   padding: 0 20px 20px;
 }
+
+/* ---------- Jobs shortlist board ---------- */
+.quest .prototype-job-layout #job-matching.qj-section {
+  grid-column: 1 / -1;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.qj-layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  align-items: flex-start;
+}
+.qj-board {
+  flex: 999 1 560px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 22px;
+  border-radius: 28px;
+  background: #fff;
+  box-sizing: border-box;
+}
+.qj-board-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+.qj-board-head h2 {
+  margin: 0 0 2px;
+  font-size: 22px;
+  font-weight: 800;
+}
+.qj-board-head span {
+  color: var(--q-muted);
+  font-size: 13px;
+}
+.qj-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.agent-app.quest .content main .qj-filter,
+.qj-filter {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 2px solid #e2e3ea;
+  background: #fff;
+  color: #3b3d47;
+  font: 700 13px var(--q-body);
+  cursor: pointer;
+}
+.qj-filter:hover {
+  border-color: var(--q-ink);
+}
+.agent-app.quest .content main .qj-filter.on,
+.qj-filter.on {
+  background: var(--q-ink);
+  border-color: var(--q-ink);
+  color: var(--q-lime);
+}
+.qj-scroll {
+  overflow-x: auto;
+  margin: 0 -6px;
+}
+.quest .qj-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 4px;
+  font-size: 14px;
+}
+.quest .qj-table th {
+  padding: 4px 12px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--q-muted);
+  white-space: nowrap;
+  background: none;
+  border: 0;
+}
+.quest .qj-table td {
+  padding: 8px 12px;
+  white-space: nowrap;
+  vertical-align: middle;
+  background: var(--q-soft);
+  border: 0;
+}
+.quest .qj-table td:first-child {
+  border-radius: 16px 0 0 16px;
+  white-space: normal;
+  min-width: 220px;
+}
+.quest .qj-table td:last-child {
+  border-radius: 0 16px 16px 0;
+}
+.quest .qj-table tr.sel td {
+  background: var(--q-violet-soft);
+}
+.quest .qj-table tr:hover td {
+  background: #ebebf3;
+}
+.quest .qj-table tr.sel:hover td {
+  background: var(--q-violet-soft);
+}
+.agent-app.quest .content main .qj-role,
+.qj-role {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: var(--q-ink);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.qj-role > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.qj-role strong {
+  font-weight: 700;
+  line-height: 1.2;
+}
+.qj-role small {
+  color: var(--q-muted);
+  font-size: 12px;
+}
+.qj-score {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.qj-score b {
+  font: 800 18px var(--q-display);
+  min-width: 26px;
+}
+.qj-bar {
+  display: block;
+  width: 64px;
+  height: 10px;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: inset 0 0 0 2px var(--q-ink);
+  overflow: hidden;
+}
+.qj-bar i {
+  display: block;
+  height: 100%;
+  background: var(--q-ink);
+}
+.qj-muted,
+.quest .qj-table td.qj-muted {
+  color: var(--q-muted);
+}
+
+/* The selected job becomes the detail card beside the table. */
+.qj-layout > .jobs-grid {
+  flex: 1 1 340px;
+  max-width: 440px;
+  min-width: 0;
+  display: block;
+  margin: 0;
+}
+.quest .qj-layout .job-card,
+.quest .prototype-job-layout #job-matching .qj-layout .job-card {
+  margin: 0;
+  padding: 22px;
+  border: 2px solid var(--q-ink);
+  border-radius: 28px;
+  background: #fff;
+  box-shadow: 0 4px 0 var(--q-ink);
+}
+.quest .qj-layout .job-card h3 {
+  font: 800 24px/1.1 var(--q-display);
+}
+.qj-reqs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 6px 0;
+}
+.qj-reqs-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+.qj-reqs ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.qj-req {
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.qj-req small {
+  font-weight: 500;
+}
+.qj-req.evidenced {
+  background: var(--q-ink);
+  color: var(--q-lime);
+}
+.qj-req.partial {
+  background: var(--q-lilac);
+  color: #2b2160;
+}
+.qj-req.missing {
+  padding: 3px 9px;
+  background: #fff;
+  color: var(--q-muted);
+  border: 2px dashed #a9abb8;
+}
+.quest-edit-drawer.qj-add {
+  margin-bottom: 14px;
+}
+.agent-app.quest .content main .qj-add .panel {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.qj-add .panel > h2 {
+  display: none;
+}

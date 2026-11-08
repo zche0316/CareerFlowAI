@@ -14,6 +14,7 @@ import { ResumeManualEdit } from './resume-manual-edit.js';
 import { ResumeAgent } from './resume-agent.js';
 import { PartyDecision, PartyTrack } from './quest/party-review.js';
 import { QuestLog, QuestMissionHeader } from './quest/quest-log.js';
+import { QuestJobTable, RequirementChips } from './quest/job-board.js';
 import { CharacterSheet } from './quest/character-sheet.js';
 import { progressFrom } from './quest/progress.js';
 import { QuestTopBar, type QuestNavId } from './quest/top-bar.js';
@@ -2044,6 +2045,7 @@ function MissionDetail({
         />
       )}
       {phase === 2 && ['AWAITING_JOB', 'NO_MATCHES'].includes(m.status) && !d.selectedJob && (
+        <QuestAddLink quest={!classicView}>
         <section className="panel" aria-label="Read a job link">
           <h2>Have a job in mind?</h2>
           <div className="form-actions">
@@ -2071,10 +2073,14 @@ function MissionDetail({
             We’ll read the public listing. Review the job and its gaps before choosing it.
           </p>
         </section>
+        </QuestAddLink>
       )}
       {phase === 2 && !completed && !d.selectedJob && (
-        <button className="primary" onClick={onNewSearch}>
-          Search Australian jobs
+        <button
+          className={classicView || !d.matches?.length ? 'primary' : 'secondary'}
+          onClick={onNewSearch}
+        >
+          {classicView || !d.matches?.length ? 'Search Australian jobs' : 'Run a new search'}
         </button>
       )}
       {phase === 2 && d.selectedJob && !completed && (
@@ -2385,7 +2391,8 @@ function MissionDetail({
           </div>
         )}
         {(phase === null || phase === 2) && d.matches?.length > 0 && (
-          <section id="job-matching">
+          <section id="job-matching" className={classicView ? undefined : 'qj-section'}>
+            {(classicView || d.selectedJob) && (
             <div className="section-heading">
               <h2>
                 {d.selectedJob
@@ -2401,7 +2408,24 @@ function MissionDetail({
                 · heuristic scores
               </span>
             </div>
-            {!d.selectedJob && (
+            )}
+            <div className={classicView || d.selectedJob ? undefined : 'qj-layout'}>
+            {!classicView && !d.selectedJob && (
+              <QuestJobTable
+                matches={d.matches}
+                selectedId={viewJobId || d.matches[0]?.job.id}
+                compareIds={compareIds}
+                sourceLabel={
+                  d.jobRetrieval?.source === 'fixtures'
+                    ? 'sample jobs'
+                    : d.jobRetrieval?.source === 'manual'
+                      ? 'pasted listing'
+                      : 'live source snapshots'
+                }
+                onSelect={setViewJobId}
+              />
+            )}
+            {classicView && !d.selectedJob && (
               <nav className="job-choice-list" aria-label="Matched jobs">
                 {d.matches.map((r: any) => (
                   <button
@@ -2456,11 +2480,15 @@ function MissionDetail({
                       ? `${r.job.salary.currency} ${r.job.salary.min?.toLocaleString() ?? '?'}–${r.job.salary.max?.toLocaleString() ?? '?'} / year · ${r.job.salary.basis || 'source supplied'}`
                       : 'Unknown — not supplied by source'}
                   </p>
-                  <div className="pills">
-                    {r.matches.slice(0, 4).map((s: string) => (
-                      <span key={s}>{s}</span>
-                    ))}
-                  </div>
+                  {classicView ? (
+                    <div className="pills">
+                      {r.matches.slice(0, 4).map((s: string) => (
+                        <span key={s}>{s}</span>
+                      ))}
+                    </div>
+                  ) : (
+                    <RequirementChips r={r} />
+                  )}
                   <p>{r.explanation}</p>
                   {r.scoringVersion === 'matching-v2' && (
                     <p className="small muted">
@@ -2468,7 +2496,7 @@ function MissionDetail({
                       mapping.
                     </p>
                   )}
-                  {r.gaps?.length > 0 && (
+                  {classicView && r.gaps?.length > 0 && (
                     <div className="job-gap-notice" role="note">
                       <strong>Before you choose: evidence gaps</strong>
                       <ul>
@@ -2634,6 +2662,7 @@ function MissionDetail({
                   )}
                 </article>
               ))}
+            </div>
             </div>
             {compareIds.length >= 2 && (
               <div className="panel comparison">
@@ -3166,6 +3195,20 @@ function MissionDetail({
 }
 
 createRoot(document.getElementById('root')!).render(<App />);
+
+/** In the Quest UI, adding a job by link is a secondary action folded under the header. */
+function QuestAddLink({ quest, children }: { quest: boolean; children: React.ReactNode }) {
+  if (!quest) return <>{children}</>;
+  return (
+    <details className="quest-edit-drawer qj-add">
+      <summary>
+        <span>Add a job from a link</span>
+        <small>Paste a public listing. You still review its gaps before choosing it.</small>
+      </summary>
+      <div>{children}</div>
+    </details>
+  );
+}
 
 /** In the Quest UI, hand edits sit behind a drawer so the Critic report and decision lead. */
 function QuestEditDrawer({ quest, children }: { quest: boolean; children: React.ReactNode }) {
