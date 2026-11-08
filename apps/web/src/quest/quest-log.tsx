@@ -223,6 +223,7 @@ const headline = (m: any, phase: number | null) => {
     return m.status === 'COMPLETE' ? 'Interview practice, reviewed.' : 'Face the interview panel.';
   if (phase === 7) return 'Prepare the application. You send it.';
   if (phase === 8) return 'Battle log';
+  if (phase === 9) return 'Save points';
   return questTitle(m);
 };
 
@@ -260,14 +261,23 @@ export function QuestMissionHeader({
           Main quest ·{' '}
           {job ? `${job.title}${job.company ? ` at ${job.company}` : ''}` : questTitle(m)}
         </span>
-        <button
-          type="button"
-          className={`qm-log${phase === 8 ? ' on' : ''}`}
-          aria-pressed={phase === 8}
-          onClick={() => onSelect(phase === 8 ? reached : 8)}
-        >
-          {phase === 8 ? 'Back to the quest' : `Battle log · ${(m.events || []).length} events`}
-        </button>
+        <span className="qm-tools">
+          {phase !== null && phase >= 8 ? (
+            <button type="button" className="qm-log on" onClick={() => onSelect(reached)}>
+              Back to the quest
+            </button>
+          ) : null}
+          {phase !== 8 && (
+            <button type="button" className="qm-log" onClick={() => onSelect(8)}>
+              Battle log · {(m.events || []).length} events
+            </button>
+          )}
+          {phase !== 9 && (
+            <button type="button" className="qm-log" onClick={() => onSelect(9)}>
+              Save points
+            </button>
+          )}
+        </span>
       </div>
       <div className="qm-title-row">
         <h1 className="quest-display qm-title">{headline(m, phase)}</h1>

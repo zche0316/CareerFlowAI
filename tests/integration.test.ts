@@ -107,6 +107,42 @@ async function wait(c: Client, id: string, status: string) {
   throw Error('Timed out waiting for ' + status);
 }
 
+it('lists checkpoint save points and branches a quest from the shortlist without new model calls', async () => {
+  const c = await client();
+  await profile(c);
+  const made = await c.request('/missions', 'POST', { goal: 'Find a graduate analyst role.' });
+  expect(made.status).toBe(202);
+  const source = await wait(c, made.body.id, 'AWAITING_JOB');
+  const points = await c.request(`/missions/${source.id}/save-points`);
+  expect(points.status).toBe(200);
+  expect(points.body.branchable).toEqual({ analysis: true, shortlist: true });
+  expect(points.body.checkpoints.length).toBeGreaterThan(2);
+  expect(points.body.checkpoints.at(-1).next).toEqual(['select_job']);
+  expect(
+    points.body.checkpoints.some((p: any) => p.next.includes('job_matching')),
+  ).toBe(true);
+
+  const branch = await c.request(`/missions/${source.id}/branch`, 'POST', { from: 'shortlist' });
+  expect(branch.status).toBe(202);
+  const forked = await wait(c, branch.body.id, 'AWAITING_JOB');
+  expect(forked.data.branchedFrom).toMatchObject({ missionId: source.id, savePoint: 'shortlist' });
+  expect(forked.data.apiCalls).toBe(0);
+  expect(forked.data.matches.map((m: any) => m.job.id)).toEqual(
+    source.data.matches.map((m: any) => m.job.id),
+  );
+  const after = await c.request(`/missions/${source.id}`);
+  expect(after.body.status).toBe('AWAITING_JOB');
+  expect(after.body.data.matches).toEqual(source.data.matches);
+  const listed = await c.request(`/missions/${source.id}/save-points`);
+  expect(listed.body.branches.map((b: any) => b.id)).toEqual([forked.id]);
+
+  const stranger = await client();
+  expect((await stranger.request(`/missions/${source.id}/save-points`)).status).toBe(404);
+  expect(
+    (await stranger.request(`/missions/${source.id}/branch`, 'POST', { from: 'shortlist' })).status,
+  ).toBe(404);
+});
+
 async function prepareInterview(
   c: Client,
   goal = 'Prepare a factual interview for an analyst role.',

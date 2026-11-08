@@ -776,6 +776,25 @@ export async function createWorkflow() {
         leases.delete(id);
       }
     },
+    // Checkpoint history of the top-level mission graph, oldest first, with LangGraph's own next nodes.
+    async history(id: string) {
+      const out: {
+        checkpointId: string;
+        step: number;
+        at: string | null;
+        source: string | null;
+        next: string[];
+      }[] = [];
+      for await (const snapshot of graph.getStateHistory({ configurable: { thread_id: id } }))
+        out.push({
+          checkpointId: String(snapshot.config.configurable?.checkpoint_id ?? ''),
+          step: Number(snapshot.metadata?.step ?? -1),
+          at: snapshot.createdAt ?? null,
+          source: (snapshot.metadata?.source as string | undefined) ?? null,
+          next: [...snapshot.next],
+        });
+      return out.reverse();
+    },
     close: () => (portablePool ? Promise.resolve() : saver.end()),
   };
 }

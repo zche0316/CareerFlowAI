@@ -2021,9 +2021,14 @@ body:has(.quest) {
 }
 
 /* ---------- Battle log ---------- */
+.qm-tools {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
 .agent-app.quest .content main .qm-log,
 .qm-log {
-  margin-left: auto;
   min-height: 36px;
   padding: 0 14px;
   border-radius: 999px;
@@ -2255,4 +2260,160 @@ body:has(.quest) {
   .bl-tag {
     display: none;
   }
+}
+
+/* ---------- Save points ---------- */
+.sp-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.agent-app.quest .content main .sp-link,
+.sp-link {
+  border: 0;
+  cursor: pointer;
+  font: 700 12px var(--q-body);
+}
+.sp-main {
+  align-items: flex-start;
+}
+.sp-runs {
+  flex: 999 1 640px;
+}
+.sp-track {
+  list-style: none;
+  margin: 0;
+  padding: 6px 0 4px;
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+}
+.sp-track li {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+.sp-track li + li::before {
+  content: '';
+  width: 28px;
+  border-top: 3px solid var(--q-lime);
+}
+.agent-app.quest .content main .sp-slot,
+.sp-slot {
+  position: relative;
+  width: 170px;
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 14px;
+  border-radius: 20px;
+  border: 2.5px solid #3b3d47;
+  background: #1d1f2b;
+  color: #fff;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.sp-slot:hover {
+  border-color: var(--q-lime);
+}
+.agent-app.quest .content main .sp-slot.now,
+.sp-slot.now {
+  border-color: var(--q-lime);
+  background: #262836;
+}
+.agent-app.quest .content main .sp-slot.sel,
+.sp-slot.sel {
+  border-color: var(--q-amber);
+  box-shadow: 0 0 0 6px rgba(255, 194, 75, 0.18);
+}
+.sp-num {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #9a9dae;
+}
+.sp-slot.now .sp-num {
+  color: var(--q-lime);
+}
+.sp-slot.sel .sp-num {
+  color: var(--q-amber);
+}
+.sp-slot small {
+  font-size: 12px;
+  color: #9a9dae;
+}
+.sp-fork {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--q-sky);
+}
+.sp-branches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.agent-app.quest .content main .sp-branch,
+.sp-branch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--q-sky);
+  color: var(--q-ink);
+  font: 700 13px var(--q-body);
+  cursor: pointer;
+}
+.sp-foot {
+  margin: 0;
+  padding-top: 14px;
+  border-top: 1px solid #262836;
+  font-size: 13px;
+  color: #b9bbc8;
+}
+.sp-inspect {
+  flex: 1 1 340px;
+  max-width: 420px;
+  border: 2px solid var(--q-ink);
+}
+.sp-inspect h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+}
+.sp-if {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 18px;
+  background: var(--q-soft);
+  font-size: 14px;
+}
+.sp-if > span {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--q-muted);
+}
+.sp-if p {
+  margin: 0;
+  display: flex;
+  gap: 8px;
+}
+.sp-if b {
+  color: var(--q-violet);
+}
+.agent-app.quest .content main .quest-press.sky,
+.quest .quest-press.sky {
+  background: var(--q-sky);
 }

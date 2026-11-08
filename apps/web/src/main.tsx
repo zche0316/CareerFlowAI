@@ -16,6 +16,7 @@ import { PartyDecision, PartyTrack } from './quest/party-review.js';
 import { QuestLog, QuestMissionHeader } from './quest/quest-log.js';
 import { QuestJobTable, RequirementChips } from './quest/job-board.js';
 import { QuestBattleLog } from './quest/battle-log.js';
+import { QuestSavePoints } from './quest/save-points.js';
 import { CharacterSheet } from './quest/character-sheet.js';
 import { progressFrom } from './quest/progress.js';
 import { QuestTopBar, type QuestNavId } from './quest/top-bar.js';
@@ -156,7 +157,7 @@ const readWorkspaceRoute = () => {
       ? value
       : fallback) as Tab,
     selected: query.get('mission'),
-    phase: step !== null && Number.isInteger(step) && step >= 0 && step <= (classicView ? 7 : 8) ? step : null,
+    phase: step !== null && Number.isInteger(step) && step >= 0 && step <= (classicView ? 7 : 9) ? step : null,
   };
 };
 // Own workspace navigation and refreshes here; the server remains the source of mission status.
@@ -794,6 +795,16 @@ function App() {
               {mission ? (
                 <MissionDetail
                   userName={session.user.name}
+                  onOpenMission={(id) =>
+                    void act(async () => {
+                      const latest = (await refresh()).missions.find((x: any) => x.id === id);
+                      setSelected(id);
+                      setPhase(
+                        latest && latest.status !== 'COMPLETE' ? nextMissionStep(latest) : null,
+                      );
+                      window.scrollTo({ top: 0, behavior: 'auto' });
+                    })
+                  }
                   key={mission.id}
                   mission={mission}
                   phase={phase}
@@ -1847,9 +1858,11 @@ function MissionDetail({
   onNegotiation,
   onNegotiationDecision,
   onRefineAnalysis,
+  onOpenMission,
   userName = 'You',
 }: {
   userName?: string;
+  onOpenMission: (id: string) => void;
   mission: any;
   phase: number | null;
   onNavigate: (phase: number | null) => void;
@@ -1903,7 +1916,7 @@ function MissionDetail({
   }, [m.id, d.selectedJob?.job.id]);
 
   const completed = m.status === 'COMPLETE';
-  if (completed && (phase === null || (phase > 4 && phase !== 8)))
+  if (completed && (phase === null || (phase > 4 && phase !== 8 && phase !== 9)))
     return (
       <section aria-label="Completed journey results">
         <button className="back" onClick={onBack}>
@@ -2038,6 +2051,9 @@ function MissionDetail({
       </>
       )}
       {!classicView && phase === 8 && <QuestBattleLog mission={m} userName={userName} />}
+      {!classicView && phase === 9 && (
+        <QuestSavePoints mission={m} request={api} onOpenMission={onOpenMission} />
+      )}
       {phase === 0 && (
         <MissionProfile
           missionId={m.id}

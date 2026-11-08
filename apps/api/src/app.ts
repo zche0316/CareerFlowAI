@@ -17,6 +17,7 @@ import { registerResumeAgent } from './resume-agent.js';
 import { registerApplicationReadiness } from './application-readiness.js';
 import { registerJobLink } from './job-link.js';
 import { registerJobFit } from './job-fit.js';
+import { registerSavePoints } from './save-points.js';
 import { registerApplicationVersions } from './application-versions.js';
 import { routerSettings } from '../../../packages/agents/src/router.js';
 import { suggestJobSearch } from '../../../packages/contracts/src/job-search.js';
@@ -214,6 +215,7 @@ export function createApp() {
   registerResumeAgent(app);
   registerProfilePolish(app);
   registerJobFit(app);
+  registerSavePoints(app);
   registerJobLink(app);
   registerApplicationReadiness(app);
   registerApplicationVersions(app);
