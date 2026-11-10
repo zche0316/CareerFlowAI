@@ -15,7 +15,8 @@ export const WEB_LOGIN_WALLED = [
   'facebook.com',
 ];
 export const WEB_EXCLUDED_DOMAINS = [...WEB_LOGIN_WALLED, ...boards];
-const MIN_TEXT = 600;
+// Small employers post very short ads; below this a page is almost certainly a stub or error.
+const MIN_TEXT = 150;
 const MAX_TEXT = 60000;
 const MAX_DESCRIPTION = 20000;
 
@@ -36,8 +37,28 @@ const walled = new RegExp(
 const excludedHost = (host) =>
   walled.test(host) || WEB_EXCLUDED_DOMAINS.some((d) => host === d || host.endsWith('.' + d));
 
-// Cheap checks before any model call. A posting names its duties or requirements somewhere;
-// a listing or search page links to many roles with repeated "Apply"/"View job" buttons.
+const count = (text, pattern) => (text.match(pattern) || []).length;
+// Article furniture: bylines, read times, "related" blocks and share/subscribe prompts.
+const ARTICLE_SIGNS = [
+  /\bby (a|our) [a-z ]{0,30}(writer|reporter|editor|correspondent)\b/i,
+  /\b\d+[- ]minute read\b/i,
+  /\brelated (articles|coverage|stories|reading)\b/i,
+  /\bread next\b/i,
+  /\bshare this (article|story|post)\b/i,
+  /\bsubscribe to our newsletter\b/i,
+  /\b(this|our) guide\b/i,
+];
+const LISTING_HEADING =
+  /\b(open roles|open positions|current (vacancies|openings)|search results|jobs found|\d+ (new )?([a-z-]+ ){0,3}(jobs|roles|vacancies))\b/i;
+// "Apply now" is left out of the strong count: a single posting often repeats it in its header,
+// body and footer. Per-role links like "View job" or "Read more" are what a list repeats.
+const ROLE_LINKS = /\b(view job|view role|view details|see job|read more|learn more)\b/gi;
+const CLOSED =
+  /\b(job|role|position|vacancy|advert(isement)?) (is )?no longer (available|open|accepting)|\bhas (now )?(closed|been filled)\b|\bno longer accepting (applications|new)\b|\bapplications (for this (job|role) )?(have |are )?(now )?closed\b/i;
+
+// Cheap checks before any model call. They stop only pages that are clearly not one open
+// posting; anything uncertain goes to the model, which reads a page for a single call and is
+// what decides. A wrong stop here loses a real vacancy, so these lean towards letting pages in.
 function screen(url, text) {
   if (url.protocol !== 'https:' || url.username || url.password || url.port)
     return 'Not a public HTTPS page';
@@ -45,12 +66,20 @@ function screen(url, text) {
   if (!text) return 'Search returned no page text';
   if (text.length < MIN_TEXT) return 'Too little page text';
   if (text.length > MAX_TEXT) return 'Page text too long for one posting';
-  if (/^\/?$|\/(jobs|careers|search|job-search|vacancies)\/?$/i.test(url.pathname))
+  // A bare /jobs or /search path is a list; /careers is often a small employer's only vacancy.
+  if (/^\/?$|\/(jobs|search|job-search)\/?$/i.test(url.pathname))
     return 'Looks like a listing or home page';
-  if ((text.match(/\b(apply now|view job|view details|see job)\b/gi) || []).length >= 5)
-    return 'Looks like a listing page';
+  if (CLOSED.test(text)) return 'Posting has closed';
+  const roleLinks = count(text, ROLE_LINKS);
   if (
-    !/\b(responsibilities|requirements|qualifications|about the role|what you('|’)ll do|apply)\b/i.test(
+    roleLinks >= 5 ||
+    count(text, /\bapply now\b/gi) >= 8 ||
+    (LISTING_HEADING.test(text) && roleLinks + count(text, /\bapply now\b/gi) >= 3)
+  )
+    return 'Looks like a listing page';
+  if (ARTICLE_SIGNS.filter((sign) => sign.test(text)).length >= 2) return 'Looks like an article';
+  if (
+    !/\b(responsibilities|requirements|qualifications|about the (role|job)|the (role|job)|what you('|’)ll do|you('|’)ll (bring|need)|you bring|we('|’)re hiring|we are hiring|we('|’)re (looking for|after)|apply|full[- ]time|part[- ]time|casual|contract)\b/i.test(
       text,
     )
   )

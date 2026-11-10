@@ -113,7 +113,7 @@ it('rejects a page whose title quote is not on the page and drops an unquoted lo
 it('filters listing, short and excluded pages before any model call', async () => {
   const listing = 'Data Analyst Apply now. '.repeat(40) + ' Requirements vary.';
   const repo = repoWith([
-    page('https://jobs.example/careers', posting()),
+    page('https://jobs.example/jobs/', posting()),
     page('https://board.example/role/9', listing),
     page('https://short.example/job/1', 'Data Analyst. Apply today.'),
     page('https://au.indeed.com/viewjob', posting()),
@@ -126,6 +126,27 @@ it('filters listing, short and excluded pages before any model call', async () =
   expect(result.jobs).toEqual([]);
   expect(result.discovery.pagesRead).toBe(0);
   expect(result.discovery.rejected).toHaveLength(6);
+});
+
+it('stops articles and closed postings but lets a small employer careers page through', async () => {
+  const article =
+    'Career Advice How to become a data analyst By a staff writer 8 minute read. ' +
+    'Typical responsibilities include building reports.'.repeat(12) +
+    ' Related articles: interview tips.';
+  const closed = posting() + ' This position has now closed and has been filled.';
+  const repo = repoWith([
+    page('https://advice.example/blog/data-analyst', article),
+    page('https://acme.example/roles/old', closed),
+    page('https://www.smallco.example/careers', posting()),
+  ]);
+  const extractPage = vi.fn(async (p: { url: string; text: string }) => good(p.text));
+  const result: any = await repo.search(criteria, { extractPage });
+  expect(extractPage).toHaveBeenCalledTimes(1);
+  expect(extractPage.mock.calls[0][0].url).toBe('https://www.smallco.example/careers');
+  expect(result.discovery.rejected).toEqual([
+    { url: 'https://advice.example/blog/data-analyst', reason: 'Looks like an article' },
+    { url: 'https://acme.example/roles/old', reason: 'Posting has closed' },
+  ]);
 });
 
 it('reads at most the page limit and keeps search order', async () => {

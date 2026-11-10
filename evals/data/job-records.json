@@ -1,5 +1,5 @@
 {
-  "about": "Fictional job ads written for this evaluation. Gold labels say what a careful human reader would record from the ad. Conventions: a single salary figure is min = max; 'up to X' is min null, max X; 'from X' is min X, max null; monthly figures are annualised x12 (period year) because the record has no month period; bonuses, commission and super amounts are not salary; when an ad states several work-rights constraints the gold is the most restrictive one (clearance > citizen_or_pr > no_sponsorship > right_to_work) and a note says so; seniority is read from the whole ad, not only the title.",
+  "about": "Fictional job ads written for this evaluation. Gold labels say what a careful human reader would record from the ad. Conventions: a single salary figure is min = max; 'up to X' is min null, max X; 'from X' is min X, max null; monthly figures are recorded as stated with period month (relabelled 2026-11-11; before then they were annualised x12 because the record had no month period); bonuses, commission and super amounts are not salary; when an ad states several work-rights constraints the gold is the most restrictive one (clearance > citizen_or_pr > no_sponsorship > right_to_work) and a note says so; seniority is read from the whole ad, not only the title.",
   "items": [
     {
       "id": "r01",
@@ -82,9 +82,9 @@
         "workRights": "sponsorship_available",
         "arrangement": null,
         "seniority": null,
-        "salary": { "min": 96000, "max": 132000, "currency": "SGD", "period": "year" }
+        "salary": { "min": 8000, "max": 11000, "currency": "SGD", "period": "month" }
       },
-      "notes": "Salary stated monthly; gold annualised x12."
+      "notes": "Salary stated monthly. Relabelled 2026-11-11 from annualised x12 to the stated monthly figures once the record type gained a month period; the annual figure is derived, not stated."
     },
     {
       "id": "r06",
@@ -572,9 +572,9 @@
         "workRights": "citizen_or_pr",
         "arrangement": null,
         "seniority": "junior",
-        "salary": { "min": 54000, "max": 66000, "currency": "SGD", "period": "year" }
+        "salary": { "min": 4500, "max": 5500, "currency": "SGD", "period": "month" }
       },
-      "notes": "Monthly salary; gold annualised x12."
+      "notes": "Monthly salary. Relabelled 2026-11-11 from annualised x12 to the stated monthly figures once the record type gained a month period; the annual figure is derived, not stated."
     },
     {
       "id": "r38",

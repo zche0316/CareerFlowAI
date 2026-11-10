@@ -22,6 +22,9 @@ export const datasets = {
   records: () => load('job-records.json') as RecordItem[],
   pages: () => load('web-pages.json') as PageItem[],
   matching: () => (load('matching.json') as { profiles: MatchingProfile[] }).profiles,
+  // Written after the rule fixes of 2026-11-11 and never used to tune them.
+  recordsHoldout: () => load('job-records-holdout.json') as RecordItem[],
+  pagesHoldout: () => load('web-pages-holdout.json') as PageItem[],
 };
 
 type Salary = { min: number | null; max: number | null; currency: string; period: string } | null;
@@ -628,6 +631,21 @@ function summaryTable(report: any) {
     ['ranking.meanNdcg5', String(k.meanNdcg5)],
     ['ranking.meanPairwise', String(k.meanPairwise)],
   ];
+  const rh = report.suites['records-holdout'],
+    sh = report.suites['screening-holdout'];
+  if (rh)
+    rows.push(
+      ...FIELDS.map(
+        (f) => [`holdout.records.${f}.accuracy`, pct(rh.fields[f].accuracy)] as [string, string],
+      ),
+      ['holdout.records.overall', pct(rh.overallAccuracy)],
+      ['holdout.records.quoteValidity', pct(rh.quoteValidity)],
+    );
+  if (sh)
+    rows.push(
+      ['holdout.screening.postingRecall', pct(sh.postingRecall)],
+      ['holdout.screening.nonPostingsStopped', pct(sh.nonPostingsStopped)],
+    );
   const m = report.suites['mapping-live'];
   if (m)
     rows.push(
@@ -663,6 +681,8 @@ async function main(argv: string[]) {
     records: runRecordsSuite(),
     screening: await runScreeningSuite(),
     'ranking-baseline': runRankingBaselineSuite(),
+    'records-holdout': runRecordsSuite(datasets.recordsHoldout()),
+    'screening-holdout': await runScreeningSuite(datasets.pagesHoldout()),
   };
   if (live) {
     for (const [name, fn] of [
