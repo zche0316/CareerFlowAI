@@ -37,7 +37,7 @@ const officialRules: Record<string, { label: string; url: string }> = {
   fr: { label: 'France-Visas', url: 'https://france-visas.gouv.fr/' },
 };
 
-const rightsPattern =
+export const rightsPattern =
   /\b(citizen(ship)?|permanent resident(s|cy)?|right to work|work rights|work authori[sz]ation|visa sponsorship|sponsor(ship)?|security clearance)\b/i;
 
 const median = (values: number[]) => {
@@ -109,11 +109,13 @@ export function QuestWorld({
   realm,
   onTravel,
   onNewQuest,
+  onSeason,
 }: {
   workspace: any;
   realm: string;
   onTravel: (code: string) => void;
   onNewQuest: () => void;
+  onSeason: () => void;
 }) {
   const [picked, setPicked] = useState(realm);
   if (!workspace) return <p className="quest-fine dark">Loading the map…</p>;
@@ -247,6 +249,11 @@ export function QuestWorld({
             </p>
           </div>
           <div className="wm-actions">
+            {here && (
+              <button type="button" className="quest-press" onClick={onSeason}>
+                Season event
+              </button>
+            )}
             {here ? (
               <button type="button" className="quest-press lime" onClick={onNewQuest}>
                 Start a quest in {spec.name}

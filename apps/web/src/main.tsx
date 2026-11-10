@@ -19,6 +19,7 @@ import { QuestBattleLog } from './quest/battle-log.js';
 import { QuestSavePoints } from './quest/save-points.js';
 import { QuestBossBattle } from './quest/boss-battle.js';
 import { QuestWorld } from './quest/world.js';
+import { QuestSeason } from './quest/season.js';
 import { CharacterSheet } from './quest/character-sheet.js';
 import { progressFrom } from './quest/progress.js';
 import { QuestTopBar, type QuestNavId } from './quest/top-bar.js';
@@ -133,6 +134,7 @@ type Tab =
   | 'character'
   | 'home'
   | 'world'
+  | 'season'
   | 'party';
 
 // ?classic=1 keeps the previous group interface available while the Quest UI replaces it.
@@ -162,12 +164,13 @@ const readWorkspaceRoute = () => {
     'home',
     'party',
     'world',
+    'season',
   ];
   const fallback = classicView ? 'missions' : 'home';
   const value = query.get('view') || fallback;
   const step = query.has('step') ? Number(query.get('step')) : null;
   return {
-    tab: (validTabs.includes(value) && !(classicView && ['home', 'party', 'world'].includes(value))
+    tab: (validTabs.includes(value) && !(classicView && ['home', 'party', 'world', 'season'].includes(value))
       ? value
       : fallback) as Tab,
     selected: query.get('mission'),
@@ -804,6 +807,19 @@ function App() {
                 setNotice('Realm changed. Your next quest searches there.');
               }}
               onNewQuest={() => (workspace?.profile ? setCreating(true) : setTab('profile'))}
+              onSeason={() => goQuest('season')}
+            />
+          ) : tab === 'season' ? (
+            <QuestSeason
+              workspace={workspace}
+              realm={jobSearch.country}
+              onNavigate={goQuest}
+              onOpenMission={(id, step) => {
+                setSelected(id);
+                setTab('missions');
+                setPhase(step);
+                window.scrollTo({ top: 0, behavior: 'auto' });
+              }}
             />
           ) : tab === 'party' ? (
             <PartyRoster workspace={workspace} userName={session.user.name} />

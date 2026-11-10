@@ -6,6 +6,7 @@ export type QuestNavId =
   | 'home'
   | 'quests'
   | 'world'
+  | 'season'
   | 'jobs'
   | 'party'
   | 'character'
@@ -26,6 +27,7 @@ const primary: { id: QuestNavId; label: string }[] = [
   { id: 'character', label: 'Character' },
 ];
 const more: { id: QuestNavId; label: string }[] = [
+  { id: 'season', label: 'Season event' },
   { id: 'library', label: 'My documents' },
   { id: 'approved-profile', label: 'My profile' },
   { id: 'approvals', label: 'Decision inbox' },
