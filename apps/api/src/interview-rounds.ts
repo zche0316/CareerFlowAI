@@ -10,6 +10,7 @@ import {
   type RoundEvaluation,
 } from '../../../packages/contracts/src/index.js';
 import { generate, type Mode } from '../../../packages/agents/src/provider.js';
+import { spanHook } from './trace.js';
 
 export type InterviewRound = {
   questionId: string;
@@ -117,6 +118,7 @@ export async function playInterviewRound(userId: string, id: string, input: unkn
               outputTokens: (data.outputTokens || 0) + output,
             }),
           ),
+        onSpan: spanHook({ userId, missionId: id }),
       },
     );
 

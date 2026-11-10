@@ -5,6 +5,7 @@ import { db, databaseUrl, portablePool } from './db.js';
 import { json, type MissionData } from './domain.js';
 import { AppError, requireValue } from './errors.js';
 import { enqueue, queueClient } from './queue.js';
+import { spanHook, traceTotals } from './trace.js';
 import {
   jobSearchSchema,
   type CareerProfile,
@@ -156,6 +157,7 @@ const ports: ScoutGraphPorts = {
               onCall: async () => void (await patchSweep(sweepId, () => {}, { calls: 1 })),
               onTool: async () => {},
               onUsage: async () => {},
+              onSpan: spanHook({ userId: sweep.userId, sweepId, agent: 'Scout' }),
             });
     try {
       if (data.search.provider === 'fixtures') jobs = await readJobs();
@@ -258,6 +260,7 @@ const ports: ScoutGraphPorts = {
               onCall: async () => void (await patchSweep(sweepId, () => {}, { calls: 1 })),
               onTool: async () => {},
               onUsage: async () => {},
+              onSpan: spanHook({ userId: sweep.userId, sweepId, agent: 'Job Matcher' }),
             });
             return scoreJobMapping(job, mapping, facts, p);
           }),
@@ -451,6 +454,19 @@ async function overview(userId: string) {
     orderBy: { firstSeenAt: 'desc' },
     take: 40,
   });
+  // Per-sweep model work from the stored spans; sweeps before tracing simply show zeros.
+  const spans = await db.traceSpan.findMany({
+    where: { userId, sweepId: { in: sweeps.map((s) => s.id) } },
+    select: {
+      sweepId: true,
+      agent: true,
+      attempts: true,
+      inputTokens: true,
+      outputTokens: true,
+      durationMs: true,
+      status: true,
+    },
+  });
   return {
     setting: await scoutSetting(userId),
     schedule: { cron: SCOUT_CRON, timeZone: SCOUT_TZ },
@@ -470,6 +486,7 @@ async function overview(userId: string) {
         trigger: s.trigger,
         mode: s.mode,
         calls: s.calls,
+        trace: traceTotals(spans.filter((t) => t.sweepId === s.id)),
         createdAt: s.createdAt,
         finishedAt: d.finishedAt || null,
         search: d.search,

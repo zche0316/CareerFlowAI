@@ -13,6 +13,7 @@ Progress, acceptance results, defects and delivery evidence are managed in [Jira
 - [Orchestration](docs/ORCHESTRATION.md): durable missions, lifecycle and approved context handoff.
 - [Multi-agent plan](docs/MULTI_AGENT_PLAN.md): resume team, human review gates and the reverse job search roadmap.
 - [Deployment playbook](docs/WEEK13_DEPLOYMENT.md): source packaging, clean installation and course demonstration.
+- [Evaluation](docs/EVALUATION.md): labelled set, measured results and regression floors.
 - [Optional S3 backups](docs/AWS_S3_BACKUPS.md): private approved-PDF backup configuration and user flow.
 
 Member 3 matching-source provenance is retained in [NOTICE.md](packages/matching/NOTICE.md).

@@ -2114,7 +2114,9 @@ function MissionDetail({
       </div>
       </>
       )}
-      {!classicView && phase === 8 && <QuestBattleLog mission={m} userName={userName} />}
+      {!classicView && phase === 8 && (
+        <QuestBattleLog mission={m} userName={userName} request={api} />
+      )}
       {!classicView && phase === 9 && (
         <QuestSavePoints mission={m} request={api} onOpenMission={onOpenMission} />
       )}

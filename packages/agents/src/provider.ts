@@ -48,6 +48,22 @@ export type ProviderHooks = {
   onCall: () => Promise<void>;
   onTool: (name: string) => Promise<void>;
   onUsage: (input: number, output: number) => Promise<void>;
+  onSpan?: (span: ProviderSpan) => Promise<void>;
+};
+
+// One record per generate call. It holds timing, counts and a short failure class only:
+// never prompt, profile or job text, so traces are safe to keep and show.
+export type ProviderSpan = {
+  role: string;
+  model: string;
+  mode: Mode;
+  startedAt: string;
+  durationMs: number;
+  attempts: number;
+  inputTokens: number;
+  outputTokens: number;
+  status: 'ok' | 'error';
+  error?: string;
 };
 export function parseProviderJson(text: string) {
   const fenced = /^\s*```(?:json)?\s*\n([\s\S]*?)\n```\s*$/i.exec(text);
@@ -121,7 +137,88 @@ export function fixtureEvaluation(answer: string, isFollowUp: boolean) {
   };
 }
 
+type Role = Parameters<typeof generateOnce>[0];
+
+const roleRoute = (role: Role) =>
+  role === 'profile' || role === 'conversation' || role === 'matching' || role === 'job-page'
+    ? 'light'
+    : 'text';
+
+// Maps an error to a coarse class; provider messages can echo request content, so they are not kept.
+export function spanErrorClass(error: unknown): string {
+  const e = error as { name?: string; status?: number };
+  if (e?.name === 'ProviderTimeoutError' || e?.name === 'TimeoutError') return 'timeout';
+  if (e?.name === 'AbortError' || e?.name === 'APIUserAbortError') return 'aborted';
+  if (e?.name === 'ProviderOutputLimitError') return 'output_limit';
+  if (error instanceof z.ZodError || error instanceof SyntaxError) return 'schema';
+  if (e?.status === 429) return 'rate_limit';
+  if (e?.status === 401 || e?.status === 403) return 'auth';
+  if (typeof e?.status === 'number') return `http_${e.status}`;
+  return 'provider';
+}
+
+// Wraps every specialist call so exactly one span is emitted, whether it succeeds or fails.
 export async function generate<T>(
+  role: Role,
+  context: ProviderContext,
+  schema: z.ZodType<T>,
+  mode: Mode,
+  hooks: ProviderHooks,
+  signal?: AbortSignal,
+): Promise<T> {
+  if (!hooks.onSpan) return generateOnce(role, context, schema, mode, hooks, signal);
+  const started = Date.now();
+  let attempts = 0;
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let model = 'fixture';
+  if (mode !== 'fixture')
+    try {
+      model = modelRoute(roleRoute(role)).model || 'unconfigured';
+    } catch {
+      model = 'unconfigured';
+    }
+  const counted: ProviderHooks = {
+    ...hooks,
+    onCall: async () => {
+      attempts++;
+      await hooks.onCall();
+    },
+    onUsage: async (input, output) => {
+      inputTokens += input;
+      outputTokens += output;
+      await hooks.onUsage(input, output);
+    },
+  };
+  const emit = async (status: 'ok' | 'error', error?: unknown) => {
+    try {
+      await hooks.onSpan!({
+        role,
+        model,
+        mode,
+        startedAt: new Date(started).toISOString(),
+        durationMs: Date.now() - started,
+        attempts,
+        inputTokens,
+        outputTokens,
+        status,
+        ...(status === 'error' ? { error: spanErrorClass(error) } : {}),
+      });
+    } catch {
+      // Tracing is diagnostic only; it must never change the outcome of a model call.
+    }
+  };
+  try {
+    const result = await generateOnce(role, context, schema, mode, counted, signal);
+    await emit('ok');
+    return result;
+  } catch (error) {
+    await emit('error', error);
+    throw error;
+  }
+}
+
+async function generateOnce<T>(
   role:
     | 'profile'
     | 'conversation'
@@ -354,11 +451,7 @@ export async function generate<T>(
                                   };
     return schema.parse(result);
   }
-  const route = modelRoute(
-    role === 'profile' || role === 'conversation' || role === 'matching' || role === 'job-page'
-      ? 'light'
-      : 'text',
-  );
+  const route = modelRoute(roleRoute(role));
   const apiKey = route.apiKey;
   if (!apiKey || !route.model) {
     if (

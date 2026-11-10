@@ -5,7 +5,7 @@ Branch: `feat/multi-agent-resume-team`. This plan covers two product directions 
 - **Direction 1 – resume × job tailoring:** a team of specialists that analyses a job, selects approved evidence, rewords it for the role and reviews the result before the user approves it.
 - **Direction 4 – reverse job search:** a scheduled Scout that finds new public vacancies, shortlists them and prepares tailored application packages in parallel for one batch review.
 
-Milestone M1 (the resume team with Command routing and targeted human returns) is implemented in this branch, together with save points, per-question interview rounds and the Quest interface (section 6a). M2 (Scout sweeps with parallel tailoring) is implemented apart from outreach drafts. M3–M6 are designed here and have typed scaffolding where noted; they are not wired into the running mission.
+Milestone M1 (the resume team with Command routing and targeted human returns) is implemented in this branch, together with save points, per-question interview rounds and the Quest interface (section 6a). M2 (Scout sweeps with parallel tailoring) is implemented apart from outreach drafts. M6 (per-call tracing and an evaluation set) is implemented; see [EVALUATION.md](EVALUATION.md). M3–M5 are designed here and have typed scaffolding where noted; they are not wired into the running mission.
 
 ## 1. Starting point
 
@@ -162,7 +162,7 @@ Scout (collect) -> Job Matcher (rank) -> Send per shortlisted job -> tailor_job 
 - **M3 – Supervisor.** `nextTeam(view)` in `orchestration/supervisor.ts` decides the next team from mission state (e.g. weak coverage → coach before tailoring). Later, a model planner proposes a plan that the user approves at the plan gate; the rule function executes it.
 - **M4 – `ask_human`.** `askHuman()` in `orchestration/ask-human.ts` is an agent-initiated interrupt (`kind: 'clarification'`). Needs a queue status, a decision schema entry and a UI card.
 - **M5 – Live timeline.** Stream `graph.stream(..., { streamMode: ['updates', 'custom'], subgraphs: true })` from the worker through SSE so the UI shows the active specialist and each handoff as it happens.
-- **M6 – Observability and evaluation.** LangSmith (or OpenTelemetry) traces per mission. Evaluation set of fictional profiles × public job ads with expected requirement links. Report: requirement coverage and keyword coverage before/after the team, critic pass rate by round, blocked-rewrite rate, human return rate and model calls per approved resume.
+- **M6 – Observability and evaluation (implemented).** Every model call records one span (`TraceSpan`: agent, role, model, duration, requests, tokens, error class; never prompt or profile text) for missions and sweeps; `GET /api/missions/:id/trace` feeds the Battle log's cost-by-teammate table. LangGraph's own LangSmith tracing can be switched on by environment variable and is untested here. `npm run eval` measures record extraction, page screening and baseline ranking on a small fictional labelled set with regression floors in `tests/eval.test.ts`; `npm run eval:live` adds model-backed mapping, ranking and page reading. Not built: before/after resume-team metrics, critic pass rate and human return rate across runs. Original scope: Evaluation set of fictional profiles × public job ads with expected requirement links. Report: requirement coverage and keyword coverage before/after the team, critic pass rate by round, blocked-rewrite rate, human return rate and model calls per approved resume.
 
 ## 6a. Implemented beyond M1
 
@@ -170,7 +170,7 @@ Scout (collect) -> Job Matcher (rank) -> Send per shortlisted job -> tailor_job 
 - **Interview rounds with an Evaluator.** `apps/api/src/interview-rounds.ts` scores each practice answer on the four STAR parts and asks at most one follow-up per question on the weakest part. It runs outside the graph on the locked mission row while the mission waits at `conduct_interview`; the Interview Coach still writes the final feedback. Fixture mode scores with labelled keyword rules. The live Evaluator has not been exercised on a real mission yet.
 - **Quest interface.** `apps/web/src/quest/` is the default UI: Home, Quest log, mission header, job board, Party at work (resume review), Battle log, Save points, Boss battle, Character sheet, Party roster, World map and Season event. Every number is derived from stored records; values without a source are shown as planned or left out. The group interface remains at `?classic=1`.
 
-Not yet built from the design: source quotes and a work-rights column on the quest job board (the Scout page has them), per-step tokens and latency in the Battle log (needs M6 tracing), a run comparison on Save points, realm rule packs on the World map, and the v1 requirement × evidence heatmap.
+Not yet built from the design: source quotes and a work-rights column on the quest job board (the Scout page has them), a run comparison on Save points, realm rule packs on the World map, and the v1 requirement × evidence heatmap.
 
 ## 7. Evaluation and claims
 
@@ -186,7 +186,7 @@ Metrics are computed by `reviewDraft` on every round and stored with each critiq
 | M3  | Supervisor routing and plan gate                                                     | Routing table tests; plan edits change the executed steps                                                                | Scaffolding + tests                                   |
 | M4  | `ask_human` clarification pauses                                                     | Low-confidence step pauses with a question; answer resumes the same node                                                 | Scaffolding                                           |
 | M5  | Streaming timeline                                                                   | Handoffs appear live during a mission                                                                                    | Planned                                               |
-| M6  | Traces and evaluation report                                                         | Report generated from the evaluation set                                                                                 | Planned                                               |
+| M6  | Per-call traces and evaluation report | Trace endpoint and Battle log cost table; report generated from the evaluation set with regression floors | Implemented; resume-team before/after metrics not built |
 
 ## 9. Tests
 

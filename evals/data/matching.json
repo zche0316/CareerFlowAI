@@ -1,0 +1,427 @@
+{
+  "about": "Three fictional candidates, eight fictional ads each. Grades are a recruiter's judgement of how worth shortlisting the candidate is for the ad: 3 strong fit, 2 reasonable fit with gaps, 1 weak or stretch, 0 not relevant. goldSupported lists requirements the profile clearly evidences; goldUnsupported lists requirements it clearly does not.",
+  "profiles": [
+    {
+      "id": "p1",
+      "profile": {
+        "name": "Priya Natarajan (fictional)",
+        "goals": "Start a graduate or junior data analyst role in Sydney, building reporting and SQL skills in a commercial team.",
+        "careerStage": "graduate",
+        "skills": ["SQL", "Python", "Tableau", "Excel", "Statistics"],
+        "interests": ["data analysis", "retail analytics"],
+        "education": "Bachelor of Commerce (Business Analytics), University of Eastgate (fictional), completed 2025",
+        "experience": "",
+        "workExperiences": [
+          {
+            "id": "intern-saltbush",
+            "title": "Data Analyst Intern",
+            "organisation": "Saltbush Retail Group (fictional)",
+            "location": "Sydney NSW",
+            "startMonth": "2025-01",
+            "endMonth": "2025-06",
+            "experienceType": "work",
+            "details": [
+              "Wrote SQL queries to extract weekly store sales and stock data.",
+              "Built a Tableau dashboard of sell-through by category used by three buyers.",
+              "Cleaned promotion data in Python with pandas before analysis."
+            ],
+            "technologies": ["SQL", "Tableau", "Python", "pandas"]
+          }
+        ],
+        "projects": [
+          {
+            "id": "capstone-churn",
+            "title": "Customer churn analysis capstone",
+            "organisation": "University of Eastgate (fictional)",
+            "startMonth": "2025-07",
+            "endMonth": "2025-11",
+            "experienceType": "course",
+            "details": [
+              "Fitted a logistic regression in Python to predict subscription churn and presented results to a panel."
+            ],
+            "technologies": ["Python", "scikit-learn"]
+          }
+        ],
+        "experienceYears": 0.5,
+        "location": "Sydney",
+        "employmentType": "Full-time",
+        "sharing": { "coach": true, "matching": true, "resume": true, "interview": true }
+      },
+      "jobs": [
+        {
+          "grade": 3,
+          "job": {
+            "id": "p1-j1",
+            "title": "Graduate Data Analyst",
+            "company": "Harbourline Energy",
+            "location": "Sydney NSW",
+            "employmentType": "Full-time",
+            "description": "Join our analytics team as a Graduate Data Analyst. You will build dashboards and weekly reports for operations. Requirements: a degree in commerce, statistics or a related field; SQL; Python or R; experience with a visualisation tool such as Tableau or Power BI. Nice to have: experience with energy or retail data."
+          },
+          "goldSupported": [
+            "degree in commerce, statistics or a related field",
+            "SQL",
+            "Python",
+            "visualisation tool such as Tableau"
+          ],
+          "goldUnsupported": ["experience with energy data"]
+        },
+        {
+          "grade": 2,
+          "job": {
+            "id": "p1-j2",
+            "title": "Junior BI Analyst",
+            "company": "Larkspur Freight",
+            "location": "Parramatta NSW",
+            "employmentType": "Full-time",
+            "description": "Maintain Power BI reports for our freight operations. Requirements: 1+ years of reporting experience, Power BI and DAX, SQL, strong Excel. Logistics industry exposure preferred."
+          }
+        },
+        {
+          "grade": 0,
+          "job": {
+            "id": "p1-j3",
+            "title": "Senior Data Scientist",
+            "company": "Hudson Ledger",
+            "location": "Sydney NSW",
+            "employmentType": "Full-time",
+            "description": "Lead the design of credit risk models. Requirements: PhD or Masters in a quantitative field, 7+ years of experience building production machine learning models, deep expertise in Python, Spark and MLOps. Experience leading a team of data scientists."
+          }
+        },
+        {
+          "grade": 1,
+          "job": {
+            "id": "p1-j4",
+            "title": "Data Analyst",
+            "company": "Wattle Mutual",
+            "location": "Melbourne VIC",
+            "employmentType": "Full-time",
+            "description": "Analyse member behaviour for our superannuation products. Requirements: 3+ years of experience as a data analyst, SQL, Python, financial services background. Must be based in Melbourne."
+          }
+        },
+        {
+          "grade": 1,
+          "job": {
+            "id": "p1-j5",
+            "title": "Graduate Software Engineer",
+            "company": "Quillon Systems",
+            "location": "Sydney NSW",
+            "employmentType": "Full-time",
+            "description": "Build backend services in Java and TypeScript. Requirements: a computer science or software engineering degree, Java, Git, understanding of data structures and algorithms."
+          }
+        },
+        {
+          "grade": 0,
+          "job": {
+            "id": "p1-j6",
+            "title": "Marketing Coordinator",
+            "company": "Fernhill Wines",
+            "location": "McLaren Vale SA",
+            "employmentType": "Full-time",
+            "description": "Coordinate events, write newsletters and manage social media. Requirements: marketing degree, copywriting, Canva and Instagram experience."
+          }
+        },
+        {
+          "grade": 3,
+          "job": {
+            "id": "p1-j7",
+            "title": "Graduate Insights Analyst",
+            "company": "Saltbush Retail Group",
+            "location": "Ultimo NSW",
+            "employmentType": "Full-time",
+            "description": "Help our buying team understand what sells. Requirements: recent graduate in business analytics, statistics or similar; SQL; Tableau; Excel; clear communication. Retail internship experience is a plus."
+          }
+        },
+        {
+          "grade": 1,
+          "job": {
+            "id": "p1-j8",
+            "title": "Data Engineer",
+            "company": "Ostrander Freight",
+            "location": "Sydney NSW",
+            "employmentType": "Full-time",
+            "description": "Build data pipelines for shipment tracking. Requirements: 3+ years of data engineering, Spark, Airflow, Kafka, Python, SQL, experience with AWS."
+          },
+          "goldSupported": ["Python", "SQL"],
+          "goldUnsupported": ["3+ years of data engineering", "Spark", "Airflow", "Kafka", "AWS"]
+        }
+      ]
+    },
+    {
+      "id": "p2",
+      "profile": {
+        "name": "Tom Okafor (fictional)",
+        "goals": "Move into a senior backend engineering role in Melbourne working on Java services in the cloud.",
+        "careerStage": "experienced",
+        "skills": ["Java", "Spring Boot", "PostgreSQL", "AWS", "Docker", "Kubernetes", "REST APIs"],
+        "interests": ["distributed systems", "fintech"],
+        "education": "Bachelor of Software Engineering, Northgate University (fictional), completed 2020",
+        "experience": "",
+        "workExperiences": [
+          {
+            "id": "tallow-backend",
+            "title": "Backend Engineer",
+            "organisation": "Pellbridge Insurance (fictional)",
+            "location": "Melbourne VIC",
+            "startMonth": "2021-02",
+            "current": true,
+            "experienceType": "work",
+            "details": [
+              "Built and operated Java Spring Boot services for policy quotes on AWS (ECS, RDS PostgreSQL).",
+              "Containerised four legacy services with Docker and moved them to Kubernetes.",
+              "Designed REST APIs used by the broker portal and mentored two graduate engineers."
+            ],
+            "technologies": ["Java", "Spring Boot", "AWS", "PostgreSQL", "Docker", "Kubernetes"]
+          }
+        ],
+        "experienceYears": 5,
+        "location": "Melbourne",
+        "employmentType": "Full-time",
+        "sharing": { "coach": true, "matching": true, "resume": true, "interview": true }
+      },
+      "jobs": [
+        {
+          "grade": 3,
+          "job": {
+            "id": "p2-k1",
+            "title": "Senior Java Engineer",
+            "company": "Tallow Bank",
+            "location": "Melbourne VIC",
+            "employmentType": "Full-time",
+            "description": "Design and run payment services. Requirements: 5+ years of backend development, Java, Spring Boot, AWS, PostgreSQL, REST API design. Experience mentoring engineers. Nice to have: Kafka and payments domain knowledge."
+          },
+          "goldSupported": [
+            "5+ years of backend development",
+            "Java",
+            "Spring Boot",
+            "AWS",
+            "PostgreSQL",
+            "REST API design",
+            "mentoring engineers"
+          ],
+          "goldUnsupported": ["Kafka", "payments domain knowledge"]
+        },
+        {
+          "grade": 2,
+          "job": {
+            "id": "p2-k2",
+            "title": "Backend Engineer (Go)",
+            "company": "Quokka Labs",
+            "location": "Melbourne VIC",
+            "employmentType": "Full-time",
+            "description": "Build our scheduling API. Requirements: 3+ years of backend development, Go, PostgreSQL, Kubernetes, Docker. Willingness to learn Go is fine for strong engineers from other languages."
+          }
+        },
+        {
+          "grade": 2,
+          "job": {
+            "id": "p2-k3",
+            "title": "Platform Engineer",
+            "company": "Antares Cloud Partners",
+            "location": "Melbourne VIC",
+            "employmentType": "Full-time",
+            "description": "Run the Kubernetes platform for our product teams. Requirements: Kubernetes, Docker, AWS, Terraform, CI/CD pipelines, 4+ years of experience. Experience with Prometheus and Grafana preferred."
+          },
+          "goldSupported": ["Kubernetes", "Docker", "AWS", "4+ years of experience"],
+          "goldUnsupported": ["Terraform", "Prometheus and Grafana"]
+        },
+        {
+          "grade": 1,
+          "job": {
+            "id": "p2-k4",
+            "title": "Graduate Software Engineer",
+            "company": "Quillon Systems",
+            "location": "Melbourne VIC",
+            "employmentType": "Full-time",
+            "description": "Our graduate program for recent computer science graduates. Requirements: graduated within the last two years, Java or Python, Git."
+          }
+        },
+        {
+          "grade": 1,
+          "job": {
+            "id": "p2-k5",
+            "title": "Frontend Engineer",
+            "company": "Paperbark Studio",
+            "location": "Melbourne VIC",
+            "employmentType": "Full-time",
+            "description": "Build accessible interfaces. Requirements: 3+ years of React, TypeScript, CSS, accessibility testing, design systems."
+          }
+        },
+        {
+          "grade": 1,
+          "job": {
+            "id": "p2-k6",
+            "title": "Principal Solutions Architect",
+            "company": "Brolga Consulting",
+            "location": "Melbourne VIC",
+            "employmentType": "Full-time",
+            "description": "Lead enterprise architecture engagements. Requirements: 15+ years in software, TOGAF certification, Java or .NET background, experience presenting to executive boards."
+          }
+        },
+        {
+          "grade": 0,
+          "job": {
+            "id": "p2-k7",
+            "title": "Sales Executive",
+            "company": "Orbit Telco",
+            "location": "Melbourne VIC",
+            "employmentType": "Full-time",
+            "description": "Sell business phone and internet plans. Requirements: 2+ years of B2B sales, CRM experience, driver's licence."
+          }
+        },
+        {
+          "grade": 0,
+          "job": {
+            "id": "p2-k8",
+            "title": "Payroll Officer",
+            "company": "Banksia Aged Care",
+            "location": "Melbourne VIC",
+            "employmentType": "Full-time",
+            "description": "Run fortnightly payroll. Requirements: payroll experience, award interpretation, Excel, attention to detail."
+          }
+        }
+      ]
+    },
+    {
+      "id": "p3",
+      "profile": {
+        "name": "Mei Lin Tan (fictional)",
+        "goals": "Move from bedside nursing into clinical informatics or EMR training in Brisbane.",
+        "careerStage": "career-change",
+        "skills": [
+          "Registered Nurse (AHPRA)",
+          "Epic EMR",
+          "Clinical documentation",
+          "Staff training",
+          "Excel"
+        ],
+        "interests": ["health informatics", "digital health"],
+        "education": "Bachelor of Nursing, Riverbend University (fictional), completed 2018",
+        "experience": "",
+        "workExperiences": [
+          {
+            "id": "rn-surgical",
+            "title": "Registered Nurse, Surgical Ward",
+            "organisation": "Metro South Hospital (fictional)",
+            "location": "Brisbane QLD",
+            "startMonth": "2019-02",
+            "current": true,
+            "experienceType": "work",
+            "details": [
+              "Six years of acute surgical nursing with daily use of the Epic electronic medical record.",
+              "Super-user for the Epic go-live on my ward: trained 35 nurses on clinical documentation workflows.",
+              "Built an Excel roster tracker used by the nurse unit manager."
+            ],
+            "technologies": ["Epic EMR", "Excel"]
+          }
+        ],
+        "experienceYears": 6,
+        "location": "Brisbane",
+        "employmentType": "Full-time",
+        "sharing": { "coach": true, "matching": true, "resume": true, "interview": true }
+      },
+      "jobs": [
+        {
+          "grade": 3,
+          "job": {
+            "id": "p3-m1",
+            "title": "Clinical Informatics Nurse",
+            "company": "Marlow Health",
+            "location": "Brisbane QLD",
+            "employmentType": "Full-time",
+            "description": "Support clinicians using our electronic medical record. Requirements: current AHPRA registration as a Registered Nurse, 3+ years of clinical experience, experience with Epic or a similar EMR, experience training staff. Desirable: a postgraduate qualification in health informatics and SQL reporting skills."
+          },
+          "goldSupported": [
+            "AHPRA registration as a Registered Nurse",
+            "3+ years of clinical experience",
+            "experience with Epic",
+            "experience training staff"
+          ],
+          "goldUnsupported": [
+            "postgraduate qualification in health informatics",
+            "SQL reporting skills"
+          ]
+        },
+        {
+          "grade": 2,
+          "job": {
+            "id": "p3-m2",
+            "title": "Registered Nurse – ICU",
+            "company": "Top End Health Service",
+            "location": "Brisbane QLD",
+            "employmentType": "Full-time",
+            "description": "Join our intensive care unit. Requirements: AHPRA registration, 2+ years of acute care nursing, ICU experience or a critical care postgraduate certificate, advanced life support."
+          }
+        },
+        {
+          "grade": 1,
+          "job": {
+            "id": "p3-m3",
+            "title": "Health Data Analyst",
+            "company": "Coralline Health",
+            "location": "Brisbane QLD",
+            "employmentType": "Full-time",
+            "description": "Analyse patient flow data. Requirements: 3+ years of data analysis, SQL, Python or R, Power BI, understanding of hospital data. Clinical background is a plus."
+          },
+          "goldSupported": ["clinical background", "understanding of hospital data"],
+          "goldUnsupported": ["3+ years of data analysis", "SQL", "Python or R", "Power BI"]
+        },
+        {
+          "grade": 3,
+          "job": {
+            "id": "p3-m4",
+            "title": "EMR Trainer",
+            "company": "Metro North Digital Health (fictional)",
+            "location": "Brisbane QLD",
+            "employmentType": "Full-time",
+            "description": "Deliver Epic training to clinical staff during our rollout. Requirements: clinical background, hands-on Epic experience, experience delivering training to adults, strong communication."
+          }
+        },
+        {
+          "grade": 0,
+          "job": {
+            "id": "p3-m5",
+            "title": "Software Engineer (Java)",
+            "company": "Quillon Systems",
+            "location": "Brisbane QLD",
+            "employmentType": "Full-time",
+            "description": "Build backend services. Requirements: computer science degree, 3+ years of Java, Spring Boot, AWS."
+          }
+        },
+        {
+          "grade": 2,
+          "job": {
+            "id": "p3-m6",
+            "title": "Clinical Nurse Educator",
+            "company": "Metro South Hospital (fictional)",
+            "location": "Brisbane QLD",
+            "employmentType": "Full-time",
+            "description": "Educate nursing staff on the surgical wards. Requirements: AHPRA registration, 5+ years of acute nursing, experience in staff education, postgraduate qualification in education preferred."
+          }
+        },
+        {
+          "grade": 0,
+          "job": {
+            "id": "p3-m7",
+            "title": "Pharmacy Assistant",
+            "company": "Gumtree Chemists (fictional)",
+            "location": "Brisbane QLD",
+            "employmentType": "Part-time",
+            "description": "Serve customers and stock shelves. Requirements: retail experience, Certificate III in Community Pharmacy preferred, weekend availability."
+          }
+        },
+        {
+          "grade": 2,
+          "job": {
+            "id": "p3-m8",
+            "title": "Health Informatics Project Officer",
+            "company": "Coralline Health",
+            "location": "Sydney NSW",
+            "employmentType": "Full-time",
+            "description": "Coordinate EMR optimisation projects. Requirements: clinical or health background, project coordination experience, EMR knowledge, a health informatics qualification or equivalent experience. Based in Sydney."
+          }
+        }
+      ]
+    }
+  ]
+}

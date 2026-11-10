@@ -50,6 +50,7 @@ import { applyRewrites, isRewritable, type DraftClaim } from './resume-team/rewr
 import { critiqueSchema, rewriteSchema } from './resume-team/schemas.js';
 import type { Critique, TeamFeedback } from './resume-team/types.js';
 import { agentLabels, appendHandoffs } from './orchestration/handoff.js';
+import { spanHook } from '../../../apps/api/src/trace.js';
 
 // Checkpoints store a mission reference; approved evidence and results remain in domain tables.
 const State = Annotation.Root({ missionId: Annotation<string>() });
@@ -157,6 +158,7 @@ export async function createWorkflow() {
         onCall: () => reserveCall(id, c.token),
         onTool: (name) => patchRun(id, c.token, {}, role, 'tool', name),
         onUsage: (a, b) => appendUsage(id, c.token, a, b),
+        onSpan: spanHook({ userId: c.m.userId, missionId: id }),
       },
       c.signal,
     );
@@ -614,6 +616,11 @@ export async function createWorkflow() {
                     onTool: (name) =>
                       patchRun(s.missionId, c.token, {}, 'Job Matcher', 'tool', name),
                     onUsage: (a, b) => appendUsage(s.missionId, c.token, a, b),
+                    onSpan: spanHook({
+                      userId: c.m.userId,
+                      missionId: s.missionId,
+                      agent: 'Job Matcher',
+                    }),
                   },
                   c.signal,
                 ));

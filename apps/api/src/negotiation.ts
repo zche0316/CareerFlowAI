@@ -10,6 +10,7 @@ import {
   type Fact,
 } from '../../../packages/contracts/src/index.js';
 import { generate, type Mode } from '../../../packages/agents/src/provider.js';
+import { spanHook } from './trace.js';
 
 async function negotiationMission(userId: string, id: string) {
   const mission = requireValue(
@@ -169,6 +170,7 @@ export async function runNegotiationPractice(userId: string, id: string, input: 
         onTool: async () => {},
         onUsage: (inputTokens, outputTokens) =>
           appendNegotiationUsage(userId, id, inputTokens, outputTokens),
+        onSpan: spanHook({ userId, missionId: id }),
       },
     );
 

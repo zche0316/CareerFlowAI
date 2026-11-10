@@ -1,8 +1,36 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { MISSION_MODEL_CALL_LIMIT } from '../../../../packages/contracts/src/mission-limits.js';
 import { AgentAvatar, LeaderBadge, type AgentId } from './characters.js';
 
 type Event = { at: string; agent: string; action: string; detail: string };
+type Span = {
+  id: string;
+  agent: string;
+  role: string;
+  model: string;
+  mode: string;
+  startedAt: string;
+  durationMs: number;
+  attempts: number;
+  inputTokens: number;
+  outputTokens: number;
+  status: 'ok' | 'error';
+  error: string | null;
+};
+type AgentCost = {
+  agent: string;
+  calls: number;
+  attempts: number;
+  inputTokens: number;
+  outputTokens: number;
+  durationMs: number;
+  errors: number;
+};
+type Trace = {
+  spans: Span[];
+  totals: Omit<AgentCost, 'agent' | 'attempts'>;
+  byAgent: AgentCost[];
+};
 
 const agentIds: Record<string, AgentId> = {
   'Career Coach': 'coach',
@@ -70,6 +98,11 @@ function duration(ms: number) {
   return `${Math.floor(m / 60)}h ${m % 60}m`;
 }
 
+// Sub-second model calls are common, so trace times keep one decimal below a minute.
+const spanTime = (ms: number) => (ms < 60000 ? `${(ms / 1000).toFixed(1)}s` : duration(ms));
+const modelName = (s: Span) => (s.mode === 'fixture' ? 'demo (no AI call)' : s.model);
+const tokens = (n: number) => (n < 1000 ? String(n) : `${(n / 1000).toFixed(1)}k`);
+
 function Mini({ e }: { e: Event }) {
   if (isYou(e)) return <span className="bl-mini you" aria-hidden="true" />;
   const id = agentIds[e.agent];
@@ -78,8 +111,32 @@ function Mini({ e }: { e: Event }) {
 }
 
 /** Battle log: the mission's event trail with usage totals and guard interventions. */
-export function QuestBattleLog({ mission: m, userName }: { mission: any; userName: string }) {
+export function QuestBattleLog({
+  mission: m,
+  userName,
+  request,
+}: {
+  mission: any;
+  userName: string;
+  request: (path: string) => Promise<any>;
+}) {
   const d = m.data || {};
+  const eventCount = (m.events || []).length;
+  const [trace, setTrace] = useState<Trace | null>(null);
+  const [traceError, setTraceError] = useState('');
+  useEffect(() => {
+    let live = true;
+    request(`/missions/${m.id}/trace`)
+      .then((t) => {
+        if (!live) return;
+        setTrace(t);
+        setTraceError('');
+      })
+      .catch((e) => live && setTraceError(e.message || 'The trace is unavailable.'));
+    return () => {
+      live = false;
+    };
+  }, [m.id, m.status, eventCount]);
   // Tool and context events record the model role key; show the party member instead.
   const events: Event[] = ((m.events || []) as Event[]).map((e) => ({
     ...e,
@@ -239,8 +296,8 @@ export function QuestBattleLog({ mission: m, userName }: { mission: any; userNam
                 {`event: ${pick.agent.toLowerCase().replace(/\s+/g, '_')}.${pick.action}\nat: ${pick.at}\nmission: ${m.id.slice(0, 8)}…`}
               </pre>
               <p className="quest-fine">
-                Totals come from the mission’s usage counter. Per-step tokens and latency need
-                tracing, which is planned (M6).
+                Each model call is recorded as a span from now on; quests run before tracing was
+                added show totals only.
               </p>
             </>
           ) : (
@@ -248,6 +305,103 @@ export function QuestBattleLog({ mission: m, userName }: { mission: any; userNam
           )}
         </aside>
       </div>
+
+      <TraceCost trace={trace} error={traceError} demo={m.mode === 'fixture'} />
     </div>
+  );
+}
+
+/** Per-teammate cost and the slowest steps, from the mission's stored model-call spans. */
+function TraceCost({ trace, error, demo }: { trace: Trace | null; error: string; demo: boolean }) {
+  const slowest = [...(trace?.spans || [])].sort((a, b) => b.durationMs - a.durationMs).slice(0, 5);
+  return (
+    <section className="quest-tile bl-cost" aria-labelledby="bl-cost-title">
+      <div className="quest-tile-head">
+        <h2 id="bl-cost-title">Cost by teammate</h2>
+        {demo && trace?.spans.length ? (
+          <span className="quest-chip lilac">Demo quest · no AI calls, so 0 tokens</span>
+        ) : null}
+      </div>
+      {error ? (
+        <p className="quest-note coral">{error}</p>
+      ) : !trace ? (
+        <p className="quest-fine dark">Loading the trace…</p>
+      ) : !trace.spans.length ? (
+        <p className="quest-fine dark">
+          No per-call spans for this quest yet. Quests run before tracing was added show totals
+          only, in the tiles above.
+        </p>
+      ) : (
+        <>
+          <div className="bl-table">
+            <table>
+              <caption className="sr-only">Model work per teammate on this quest</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Teammate</th>
+                  <th scope="col">Calls</th>
+                  <th scope="col">Model requests</th>
+                  <th scope="col">Tokens in</th>
+                  <th scope="col">Tokens out</th>
+                  <th scope="col">Total time</th>
+                  <th scope="col">Failed calls</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trace.byAgent.map((a) => (
+                  <tr key={a.agent}>
+                    <th scope="row">
+                      <span className="bl-agent">
+                        {agentIds[a.agent] ? (
+                          <AgentAvatar agent={agentIds[a.agent]} size={28} label={false} />
+                        ) : (
+                          <span className="bl-mini system" aria-hidden="true" />
+                        )}
+                        {a.agent}
+                      </span>
+                    </th>
+                    <td>{a.calls}</td>
+                    <td>{a.attempts}</td>
+                    <td>{tokens(a.inputTokens)}</td>
+                    <td>{tokens(a.outputTokens)}</td>
+                    <td>{spanTime(a.durationMs)}</td>
+                    <td>{a.errors ? `${a.errors} failed` : 'none'}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th scope="row">All teammates</th>
+                  <td>{trace.totals.calls}</td>
+                  <td>{trace.byAgent.reduce((n, a) => n + a.attempts, 0)}</td>
+                  <td>{tokens(trace.totals.inputTokens)}</td>
+                  <td>{tokens(trace.totals.outputTokens)}</td>
+                  <td>{spanTime(trace.totals.durationMs)}</td>
+                  <td>{trace.totals.errors ? `${trace.totals.errors} failed` : 'none'}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <h3 className="bl-sub">Slowest steps</h3>
+          <ol className="bl-slow">
+            {slowest.map((s) => (
+              <li key={s.id}>
+                <strong>{s.agent}</strong>
+                <span className="bl-role">{s.role}</span>
+                <span>{spanTime(s.durationMs)}</span>
+                <span>
+                  {s.mode === 'fixture'
+                    ? modelName(s)
+                    : `${tokens(s.inputTokens)} in · ${tokens(s.outputTokens)} out · ${modelName(s)}`}
+                </span>
+                {s.status === 'error' ? (
+                  <span className="quest-chip coral">failed: {s.error || 'provider'}</span>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
+    </section>
   );
 }

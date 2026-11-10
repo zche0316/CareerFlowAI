@@ -114,6 +114,7 @@ it('a sweep records new roles, tailors the shortlist in parallel and never repea
     fetched: 8,
     fresh: 8,
     calls: 0,
+    trace: { calls: 0, errors: 0 }, // fixture sweeps read no web pages and map no roles by model
   });
   expect(sweep.packages).toHaveLength(2);
   expect(sweep.packages[0].score).toBeGreaterThanOrEqual(sweep.packages[1].score);
@@ -142,6 +143,17 @@ it('a sweep records new roles, tailors the shortlist in parallel and never repea
   }
   const ready = (await c('/scout')).body.sweeps[0].packages;
   expect(ready.map((p: any) => p.status)).toEqual(['AWAITING_APPROVAL', 'AWAITING_APPROVAL']);
+
+  // Every specialist call leaves one span; fixture calls cost nothing and name no model.
+  const trace = await c(`/missions/${ready[0].missionId}/trace`);
+  expect(trace.status).toBe(200);
+  expect(trace.body.totals.calls).toBeGreaterThan(0);
+  expect(trace.body.totals).toMatchObject({ inputTokens: 0, outputTokens: 0, errors: 0 });
+  expect(trace.body.byAgent.map((a: any) => a.agent)).toContain('Evidence Selector');
+  expect(
+    trace.body.spans.every((s: any) => s.model === 'fixture' && s.status === 'ok' && !s.attempts),
+  ).toBe(true);
+  expect((await stranger(`/missions/${ready[0].missionId}/trace`)).status).toBe(404);
 
   // Only the user approves; the approved package continues to interview preparation.
   const one = (await c('/missions/' + ready[0].missionId)).body;

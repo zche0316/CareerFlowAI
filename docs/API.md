@@ -434,6 +434,7 @@ See [PRODUCT_WORKFLOW.md](PRODUCT_WORKFLOW.md) for the profile, source and appli
 - `POST /api/scout/sweeps`: starts a sweep (`202`). `409` without an approved profile or while a sweep is running; `429` after six sweeps in 24 hours. Packages are ordinary missions: review, return and cancel them through the mission endpoints.
 - `GET /api/missions/:id/save-points`: returns `{checkpoints,branchable,branchedFrom,branches}` from the mission's LangGraph checkpoint history. Read-only.
 - `POST /api/missions/:id/branch`: `{from:'analysis'|'shortlist'}` creates a new owned mission that reuses saved results up to that save point (`202`). The source mission, approved facts and approved resumes are unchanged; a newer approved profile version returns `409`.
+- `GET /api/missions/:id/trace`: returns `{spans,totals,byAgent}` for an owned mission: one span per model call (agent, role, model, mode, start, duration, model requests, tokens, `ok`/`error` with a short failure class). Spans never contain prompt, profile or job text. Missions run before tracing have no spans. Another user's mission returns `404`.
 - `POST /api/missions/:id/feedback-memory`: `{saveAsDraft:true}` retains actual interview feedback as a draft learning note. Feedback cannot become a qualification through grounding.
 
 See [PRODUCT_WORKFLOW.md](PRODUCT_WORKFLOW.md) for the source/profile/application separation and the six-stage user outcome.

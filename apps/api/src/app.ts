@@ -18,6 +18,7 @@ import { registerApplicationReadiness } from './application-readiness.js';
 import { registerJobLink } from './job-link.js';
 import { registerJobFit } from './job-fit.js';
 import { registerSavePoints } from './save-points.js';
+import { registerTrace } from './trace.js';
 import { registerScout } from './scout.js';
 import { registerInterviewRounds } from './interview-rounds.js';
 import { registerApplicationVersions } from './application-versions.js';
@@ -218,6 +219,7 @@ export function createApp() {
   registerProfilePolish(app);
   registerJobFit(app);
   registerSavePoints(app);
+  registerTrace(app);
   registerScout(app);
   registerInterviewRounds(app);
   registerJobLink(app);

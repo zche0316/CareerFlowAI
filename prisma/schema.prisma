@@ -23,6 +23,7 @@ model User {
   scoutSetting ScoutSetting?
   scoutSweeps ScoutSweep[]
   trackedJobs TrackedJob[]
+  traceSpans TraceSpan[]
 }
 model Session {
   id String @id @default(uuid())
@@ -191,4 +192,27 @@ model TrackedJob {
   lastSeenAt DateTime @default(now())
   @@unique([userId, fingerprint])
   @@index([userId, firstSeenAt])
+}
+
+// One row per model call. Mission and sweep ids are plain columns so spans outlive either.
+model TraceSpan {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  missionId String?
+  sweepId String?
+  agent String
+  role String
+  model String
+  mode String
+  startedAt DateTime
+  durationMs Int
+  attempts Int
+  inputTokens Int
+  outputTokens Int
+  status String
+  error String?
+  createdAt DateTime @default(now())
+  @@index([missionId, startedAt])
+  @@index([sweepId, startedAt])
 }
