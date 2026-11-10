@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { nextTeam } from '../packages/agents/src/orchestration/supervisor.js';
-import { jobFingerprint, runScoutSweep, type ScoutJob } from '../packages/agents/src/scout/scout.js';
+import { freshJobs, jobFingerprint, type ScoutJob } from '../packages/agents/src/scout/scout.js';
 import { fanOutTailoring } from '../packages/agents/src/scout/fan-out.js';
-import { appendHandoffs, handoff, MAX_HANDOFFS } from '../packages/agents/src/orchestration/handoff.js';
+import {
+  appendHandoffs,
+  handoff,
+  MAX_HANDOFFS,
+} from '../packages/agents/src/orchestration/handoff.js';
 
 const job = (id: string, title: string, company = 'Acme'): ScoutJob => ({
   id,
@@ -14,38 +18,33 @@ const job = (id: string, title: string, company = 'Acme'): ScoutJob => ({
 
 describe('orchestration scaffolding', () => {
   it('supervisor routes weakly supported jobs to the coach before tailoring', () => {
-    const base = { hasAnalysis: true, matches: 4, selectedJob: true, approvedResume: false, interviewComplete: false };
+    const base = {
+      hasAnalysis: true,
+      matches: 4,
+      selectedJob: true,
+      approvedResume: false,
+      interviewComplete: false,
+    };
     expect(nextTeam(base).team).toBe('resume_team');
     expect(nextTeam({ ...base, weakCoverage: true }).team).toBe('career_coach');
     expect(nextTeam({ ...base, matches: null, scoutShortlist: 2 }).team).toBe('select_job');
   });
 
-  it('scout drops jobs seen before and duplicates across boards, and survives a failing source', async () => {
+  it('scout drops jobs seen before and duplicates across boards', () => {
     const seen = new Set([jobFingerprint(job('old', 'Data Analyst'))]);
-    const saved: any[] = [];
-    const sweep = await runScoutSweep('u1', {
-      savedSearches: async () => [{ provider: 'greenhouse' }, { provider: 'adzuna' }, { provider: 'lever' }],
-      fetch: async (q) => {
-        if (q.provider === 'lever') throw Error('rate limited');
-        return q.provider === 'greenhouse'
-          ? [job('g1', 'Data Analyst'), job('g2', 'Graduate Engineer')]
-          : [job('a9', 'Graduate  Engineer')];
-      },
-      seenFingerprints: async () => seen,
-      score: async (_, jobs) => jobs.map((j) => ({ job: j, score: 80 })),
-      saveSweep: async (_, s) => void saved.push(s),
-    });
-    expect(sweep.fetched).toBe(3);
-    expect(sweep.fresh).toBe(1);
-    expect(sweep.shortlist.map((s) => s.job.id)).toEqual(['g2']);
-    expect(sweep.failures).toEqual([{ provider: 'lever', message: 'rate limited' }]);
-    expect(saved).toHaveLength(1);
+    const sorted = freshJobs(
+      [job('g1', 'Data Analyst'), job('g2', 'Graduate Engineer'), job('a9', 'Graduate  Engineer')],
+      seen,
+    );
+    expect(sorted.fresh.map((j) => j.id)).toEqual(['g2']);
+    expect(sorted.seenAgain).toEqual([...seen]);
+    expect(sorted.duplicates).toBe(1);
   });
 
   it('fans out one tailoring branch per shortlisted job, bounded', () => {
-    const sends = fanOutTailoring('m1', ['a', 'b', 'c', 'd'].map((id) => ({ job: { id } })));
+    const sends = fanOutTailoring('s1', ['a', 'b', 'c', 'd']);
     expect(sends).toHaveLength(3);
-    expect(sends[0]).toMatchObject({ node: 'tailor_job', args: { missionId: 'm1', jobId: 'a' } });
+    expect(sends[0]).toMatchObject({ node: 'tailor_job', args: { sweepId: 's1', jobId: 'a' } });
   });
 
   it('keeps a bounded handoff history', () => {

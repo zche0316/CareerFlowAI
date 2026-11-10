@@ -20,6 +20,9 @@ model User {
   profileThreads ProfileThread[]
   careerMemories CareerMemory[]
   wordings ResumeWording[]
+  scoutSetting ScoutSetting?
+  scoutSweeps ScoutSweep[]
+  trackedJobs TrackedJob[]
 }
 model Session {
   id String @id @default(uuid())
@@ -151,4 +154,41 @@ model ResumeWording {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([userId, resumeId])
+}
+
+model ScoutSetting {
+  userId String @id
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  enabled Boolean @default(false)
+  topK Int @default(3)
+  minScore Int @default(50)
+  search Json
+  updatedAt DateTime @updatedAt
+}
+
+model ScoutSweep {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status String @default("QUEUED")
+  trigger String
+  mode String
+  data Json
+  calls Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([userId, createdAt])
+}
+
+model TrackedJob {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fingerprint String
+  sweepId String?
+  record Json
+  firstSeenAt DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  @@unique([userId, fingerprint])
+  @@index([userId, firstSeenAt])
 }

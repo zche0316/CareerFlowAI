@@ -49,6 +49,11 @@ export async function checkpointHistory(missionId: string) {
   return workflow.history(missionId);
 }
 
+export function queueClient() {
+  if (!boss) throw Error('Queue not initialised');
+  return boss;
+}
+
 export async function enqueue(missionId: string) {
   if (!boss) throw Error('Queue not initialised');
   await boss.send(QUEUE, { missionId }, { singletonKey: missionId, singletonSeconds: 1 });

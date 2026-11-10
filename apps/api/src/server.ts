@@ -2,7 +2,9 @@ import 'dotenv/config';
 import { createApp } from './app.js';
 import { initQueue, closeQueue } from './queue.js';
 import { db } from './db.js';
+import { initScout, closeScout } from './scout.js';
 await initQueue(process.env.EMBEDDED_WORKER !== 'false');
+await initScout(process.env.EMBEDDED_WORKER !== 'false');
 
 const server = createApp().listen(
   Number(process.env.PORT || 8787),
@@ -15,6 +17,7 @@ const server = createApp().listen(
 
 async function stop() {
   server.close();
+  await closeScout();
   await closeQueue();
   await db.$disconnect();
   process.exit(0);
