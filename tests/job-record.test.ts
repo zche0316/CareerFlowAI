@@ -77,4 +77,13 @@ describe('job record', () => {
     const k = buildJobRecord(job('Base salary £40k to £50k.'));
     expect(k.salary).toMatchObject({ min: 40000, max: 50000, currency: 'GBP' });
   });
+
+  it('marks only web pages as unverified vacancies', () => {
+    const board = buildJobRecord(job('Great role.', { source: { provider: 'greenhouse' } }));
+    expect(board).toMatchObject({ source: 'greenhouse', verified: true });
+    const web = buildJobRecord(
+      job('Great role.', { source: { provider: 'web', verified: false, fictional: false } }),
+    );
+    expect(web).toMatchObject({ source: 'web', verified: false, fictional: false });
+  });
 });

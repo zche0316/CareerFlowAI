@@ -32,6 +32,12 @@ type Sweep = {
   notReviewed: number | null;
   failures: { provider: string; message: string }[];
   limitations: string[];
+  webDiscovery: {
+    pagesFound: number;
+    pagesRead: number;
+    accepted: number;
+    rejected: { url: string; reason: string }[];
+  } | null;
   handoffs: { at: string; from: string; to: string; reason: string }[];
   error: string | null;
   packages: Package[];
@@ -66,6 +72,15 @@ const when = (iso: string) =>
   });
 
 const busyStatus = (s: string | null) => s === 'QUEUED' || s === 'RUNNING';
+
+// Scout's own source choices; any other saved provider still shows under its raw name.
+const sources: [string, string][] = [
+  ['auto', 'Official boards + web pages'],
+  ['employers', 'Official employer boards only'],
+  ['web', 'Web pages only'],
+];
+const sourceLabel = (r: JobRecord) =>
+  r.fictional ? 'demo role' : r.source === 'web' ? 'web page · unverified vacancy' : r.source;
 
 // What a package's quest status means for the person reviewing the batch.
 function packageState(p: Package): { label: string; tone: string } {
@@ -199,9 +214,16 @@ export function QuestScout({
             Scout finds the roles. You make the calls.
           </h1>
           <p>
-            Each sweep reads {live_ ? 'public job boards' : 'the labelled demo roles'}, skips
-            anything you have already seen, and hands the best new matches to a resume team each.
-            Nothing is sent anywhere, and no draft is approved without you.
+            Each sweep reads{' '}
+            {!live_
+              ? 'the labelled demo roles'
+              : data.setting.search.provider === 'employers'
+                ? 'official employer job boards'
+                : data.setting.search.provider === 'web'
+                  ? 'public web pages found by search'
+                  : 'public job boards'}
+            , skips anything you have already seen, and hands the best new matches to a resume team
+            each. Nothing is sent anywhere, and no draft is approved without you.
           </p>
           <div className="sc-hero-actions">
             <button
@@ -271,6 +293,7 @@ export function QuestScout({
                       <strong>{p.title}</strong>
                       <span>
                         {p.company} · {p.location}
+                        {p.record.source === 'web' && ` · ${sourceLabel(p.record)}`}
                       </span>
                     </div>
                     <span className={`quest-chip ${state.tone}`}>{state.label}</span>
@@ -387,6 +410,12 @@ export function QuestScout({
                     {s.mode !== 'fixture' && ` · ${s.calls} model calls`}
                   </p>
                 )}
+                {s.webDiscovery && (
+                  <p className="sc-counts">
+                    Web: read {s.webDiscovery.pagesRead} of {s.webDiscovery.pagesFound} pages ·{' '}
+                    {s.webDiscovery.accepted} accepted · {s.webDiscovery.rejected.length} rejected
+                  </p>
+                )}
                 {s.error && <p className="quest-note coral">{s.error}</p>}
                 {s.failures.map((f, i) => (
                   <p key={i} className="quest-note coral">
@@ -451,6 +480,32 @@ export function QuestScout({
                 onChange={(e) => setForm({ ...form, enabled: e.target.checked })}
               />
               Sweep every day at 07:00 ({data.schedule.timeZone})
+            </label>
+            <label className="quest-field">
+              Sources
+              <select
+                value={form.search.provider}
+                onChange={(e) =>
+                  setForm({ ...form, search: { ...form.search, provider: e.target.value } })
+                }
+              >
+                {form.search.provider === 'fixtures' ? (
+                  <option value="fixtures" disabled>
+                    Demo roles (fixture mode)
+                  </option>
+                ) : (
+                  <>
+                    {sources.map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                    {!sources.some(([value]) => value === form.search.provider) && (
+                      <option value={form.search.provider}>{form.search.provider}</option>
+                    )}
+                  </>
+                )}
+              </select>
             </label>
             <label className="quest-field">
               Role keywords
@@ -562,7 +617,7 @@ export function QuestScout({
                         {r.title}
                         <small>
                           {r.company}
-                          {r.fictional ? ' · demo role' : ` · ${r.source}`}
+                          {` · ${sourceLabel(r)}`}
                         </small>
                       </th>
                       <td>{when(t.firstSeenAt)}</td>

@@ -15,6 +15,8 @@ export type JobRecord = {
   employmentType: string | null;
   url: string | null;
   source: string;
+  // False for a page found by web search: nothing confirmed the vacancy through an employer API.
+  verified: boolean;
   fictional: boolean;
   postedAt: string | null;
   workRights: Quoted<WorkRights> | null;
@@ -181,6 +183,7 @@ export function buildJobRecord(job: any, fallbackCurrency = 'AUD'): JobRecord {
       job.employmentType && job.employmentType !== 'Unspecified' ? job.employmentType : null,
     url: job.applicationUrl || (/^https?:/.test(job.url || '') ? job.url : null),
     source: job.source?.provider || job.source?.name || 'unknown',
+    verified: job.source?.provider !== 'web' && job.source?.verified !== false,
     fictional:
       Boolean(job.source?.fictional) ||
       job.source?.type === 'disclosed-fixture' ||

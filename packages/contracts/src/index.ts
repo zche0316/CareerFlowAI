@@ -354,7 +354,7 @@ export const AGENTS = [
 
 export const jobSearchSchema = z.object({
   provider: z
-    .enum(['auto', 'employers', 'greenhouse', 'tavily', 'adzuna', 'fixtures', 'manual'])
+    .enum(['auto', 'employers', 'greenhouse', 'tavily', 'web', 'adzuna', 'fixtures', 'manual'])
     .default('auto'),
   board: z
     .string()

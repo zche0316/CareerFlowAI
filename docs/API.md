@@ -143,11 +143,15 @@ cannot replace another version.
 Mission statuses include `QUEUED`, `RUNNING`, `AWAITING_JOB`, `AWAITING_APPROVAL`,
 `AWAITING_INTERVIEW`, `COMPLETE`, `FAILED`, `STALE`, `CANCELLED` and `NO_MATCHES`.
 
-`jobSearchSchema` accepts `provider` (`employers`, `greenhouse`, `adzuna`, `fixtures` or `manual`),
-`board`, `country`, `region`, `location` and `keyword`. A `manual` search also accepts a `listing`
+`jobSearchSchema` accepts `provider` (`auto`, `employers`, `greenhouse`, `tavily`, `web`, `adzuna`,
+`fixtures` or `manual`), `board`, `country`, `region`, `location` and `keyword`. A `manual` search also accepts a `listing`
 object with `url`, `title`, `company`, `location` and `description`. Search criteria are editable and
 are sent to a job source without the approved profile, user identity or career evidence. Missing
-Adzuna credentials produce a configuration error instead of fixture substitution.
+Adzuna credentials produce a configuration error instead of fixture substitution. `web` reads public
+pages from one Tavily search (at most eight, login-walled sites excluded) with one model call per
+page; it needs Tavily and a live model, so only Scout sweeps in live mode use it. Title, company and
+location must be quoted from the page, the description is the page text, and the vacancy is marked
+unverified (`source.verified: false`).
 
 ### Optional tools and reminders
 

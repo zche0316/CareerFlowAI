@@ -21,6 +21,7 @@ import { countrySpec } from '../../../packages/recruitment/src/geography.js';
 import { compare, vectorSimilarity } from '../../../packages/matching/domain.js';
 import { configuredMode, type Mode } from '../../../packages/agents/src/provider.js';
 import { mapJobRequirements, scoreJobMapping } from '../../../packages/agents/src/job-mapping.js';
+import { extractJobPage } from '../../../packages/agents/src/job-page.js';
 import { readJobs } from '../../../packages/agents/src/workflow.js';
 import { buildScoutGraph, type ScoutGraphPorts } from '../../../packages/agents/src/scout/graph.js';
 import { freshJobs, jobFingerprint } from '../../../packages/agents/src/scout/scout.js';
@@ -46,6 +47,12 @@ type SweepData = {
   duplicates?: number;
   failures?: { provider: string; message: string }[];
   limitations?: string[];
+  webDiscovery?: {
+    pagesFound: number;
+    pagesRead: number;
+    accepted: number;
+    rejected: { url: string; reason: string }[];
+  } | null;
   candidates?: any[];
   reviewed?: number;
   notReviewed?: number;
@@ -139,12 +146,26 @@ const ports: ScoutGraphPorts = {
     let jobs: any[] = [];
     const failures: SweepData['failures'] = [];
     let limitations: string[] = [];
+    let webDiscovery: SweepData['webDiscovery'] = null;
+    // Live mode reads web pages with one counted model call each; fixture mode never does.
+    const extractPage =
+      sweep.mode === 'fixture'
+        ? undefined
+        : (page: { url: string; text: string }) =>
+            extractJobPage(page, sweep.mode as Mode, {
+              onCall: async () => void (await patchSweep(sweepId, () => {}, { calls: 1 })),
+              onTool: async () => {},
+              onUsage: async () => {},
+            });
     try {
       if (data.search.provider === 'fixtures') jobs = await readJobs();
       else {
-        const fetched = await new JobRepository().search(data.search);
+        const fetched: any = await new JobRepository().search(data.search, { extractPage });
         jobs = fetched.jobs;
         limitations = fetched.limitations || [];
+        webDiscovery =
+          fetched.webDiscovery ||
+          (fetched.discovery?.provider === 'web' ? fetched.discovery : null);
         for (const s of fetched.sources || [])
           if (s.status === 'unavailable')
             failures.push({ provider: s.board || s.provider, message: 'Source unavailable' });
@@ -184,6 +205,16 @@ const ports: ScoutGraphPorts = {
         duplicates: sorted.duplicates,
         failures,
         limitations,
+        ...(webDiscovery
+          ? {
+              webDiscovery: {
+                pagesFound: webDiscovery.pagesFound,
+                pagesRead: webDiscovery.pagesRead,
+                accepted: webDiscovery.accepted,
+                rejected: webDiscovery.rejected,
+              },
+            }
+          : {}),
         candidates,
       }),
       { status: 'RUNNING' },
@@ -450,6 +481,7 @@ async function overview(userId: string) {
         notReviewed: d.notReviewed ?? null,
         failures: d.failures || [],
         limitations: d.limitations || [],
+        webDiscovery: d.webDiscovery || null,
         handoffs: d.handoffs || [],
         error: d.error || null,
         packages: (d.shortlist || []).map((match) => {

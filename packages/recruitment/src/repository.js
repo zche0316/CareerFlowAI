@@ -2,6 +2,7 @@ import { JobSourceError } from './source-error.js';
 export { JobSourceError } from './source-error.js';
 import { discoverTavily, postingIdentity, tavilyAccess, verifyPosting } from './tavily.js';
 import { countries, countrySpec, filterGeography } from './geography.js';
+import { discoverWeb } from './web-discovery.js';
 export const employerBoards = [
   { board: 'spaceship', company: 'Spaceship', hosts: [] },
   { board: 'vgw', company: 'VGW', hosts: [] },
@@ -218,9 +219,20 @@ export class JobRepository {
       },
       applicationUrl: j.url,
       availability: {
-        status: source.provider === 'adzuna' ? 'listed_at_retrieval' : 'published_at_retrieval',
+        // A web page was seen online; nothing confirms the vacancy is still open.
+        status:
+          source.provider === 'adzuna'
+            ? 'listed_at_retrieval'
+            : source.provider === 'web'
+              ? 'seen_on_web_at_retrieval'
+              : 'published_at_retrieval',
         checkedAt: new Date().toISOString(),
-        method: source.provider === 'adzuna' ? 'aggregator-search-api' : 'official-job-board-api',
+        method:
+          source.provider === 'adzuna'
+            ? 'aggregator-search-api'
+            : source.provider === 'web'
+              ? 'web-search-page'
+              : 'official-job-board-api',
       },
       liveListing: true,
     };
@@ -288,7 +300,7 @@ export class JobRepository {
       throw e;
     }
   }
-  async search(b, { signal } = {}) {
+  async search(b, { signal, extractPage } = {}) {
     if (
       typeof b.keyword !== 'string' ||
       b.keyword.length > 150 ||
@@ -312,14 +324,17 @@ export class JobRepository {
         limitations: ['User-provided content; availability and accuracy have not been verified.'],
       };
     if (b.provider === 'tavily') return discoverTavily(this, b, signal);
+    if (b.provider === 'web') return discoverWeb(this, b, { signal, extractPage });
     if (b.provider === 'auto') {
+      // Web pages need a model reader, so they join only when the caller supplies one.
       const providers = [
         'employers',
         ...(tavilyAccess().configured ? ['tavily'] : []),
+        ...(tavilyAccess().configured && extractPage ? ['web'] : []),
         ...(this.adzunaId && this.adzunaKey ? ['adzuna'] : []),
       ];
       const outcomes = await Promise.allSettled(
-        providers.map((provider) => this.search({ ...b, provider }, { signal })),
+        providers.map((provider) => this.search({ ...b, provider }, { signal, extractPage })),
       );
       signal?.throwIfAborted();
       if (outcomes.every((r) => r.status === 'rejected'))
@@ -339,7 +354,9 @@ export class JobRepository {
               : [{ provider: providers[i], status: 'retrieved', count: r.value.jobs.length }]
             : [{ provider: providers[i], status: 'unavailable', count: 0 }],
         ),
-        discovery: batches.find((r) => r.discovery)?.discovery || null,
+        discovery:
+          batches.find((r) => r.discovery && r.discovery.provider !== 'web')?.discovery || null,
+        webDiscovery: batches.find((r) => r.discovery?.provider === 'web')?.discovery || null,
         limitations: [
           ...new Set([
             'All configured live sources searched; coverage is not the entire job market.',
