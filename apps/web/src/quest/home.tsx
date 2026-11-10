@@ -8,6 +8,7 @@ import { prettyTerm } from './character-sheet.js';
 const eventAgent: Record<string, AgentId> = {
   'Career Coach': 'coach',
   'Job Matcher': 'matcher',
+  Scout: 'scout',
   'Gap Analyzer': 'gap_analyzer',
   'Evidence Selector': 'selector',
   'Resume Tailor': 'selector',

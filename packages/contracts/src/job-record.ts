@@ -49,7 +49,10 @@ export const quoteInSource = (source: string, quote: string) =>
 
 const sentences = (text: string) =>
   squash(text)
-    .split(/(?<=[.!?;])\s+|\s+[•·▪*]\s+/)
+    // Listings often arrive as flattened HTML: also break on dash bullets and ALL-CAPS headings.
+    .split(
+      /(?<=[.!?;])\s+|\s+[•·▪*]\s+|(?<!\d)\s+[-–—]\s+(?=[A-Za-z])|\s+(?=(?:[A-Z][A-Z&']+\s+){1,5}[A-Z][A-Z&']+\b)/,
+    )
     .map((s) => s.trim())
     .filter(Boolean);
 
@@ -83,7 +86,11 @@ const rightsRules: [RegExp, WorkRights][] = [
 ];
 
 const arrangementRules: [RegExp, 'remote' | 'hybrid' | 'on-site'][] = [
-  [/\bhybrid\b/i, 'hybrid'],
+  // "Hybrid role covering strategy and operations" is not a working arrangement.
+  [
+    /\bhybrid\b[^.]{0,25}\b(work|working|arrangement|model|schedule|policy|office)\b|\b(work|working)\b[^.]{0,25}\bhybrid\b/i,
+    'hybrid',
+  ],
   [
     /\b(fully remote|remote[- ]first|work(ing)? remotely|remote (role|position|work)|100% remote)\b/i,
     'remote',
@@ -180,7 +187,15 @@ export function buildJobRecord(job: any, fallbackCurrency = 'AUD'): JobRecord {
       job.source?.liveVacancy === false,
     postedAt: job.source?.postedAt || null,
     workRights: first(parts, rightsRules),
-    arrangement: first([location, ...parts], arrangementRules),
+    // A location field that just says "Remote" or "Hybrid" is itself the statement.
+    arrangement:
+      first(
+        [location],
+        [
+          [/\bhybrid\b/i, 'hybrid'],
+          [/\bremote\b/i, 'remote'],
+        ],
+      ) || first(parts, arrangementRules),
     // Seniority comes from the title only; body text mentions other people's seniority too often.
     seniority: first([title], seniorityRules),
     salary: provider

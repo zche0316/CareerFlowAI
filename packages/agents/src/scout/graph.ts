@@ -7,7 +7,7 @@ import { fanOutTailoring, MAX_PARALLEL_TAILORING, type TailorTask } from './fan-
 // team per shortlisted job starts in parallel (Send fan-out). Graph state holds routing data only:
 // jobs, scores and packages are stored by the ports, never in checkpoints.
 
-export type ScoutPackage = { jobId: string; missionId: string };
+export type ScoutPackage = { jobId: string; missionId: string; title?: string };
 
 export interface ScoutGraphPorts {
   /** Fetch the saved search, drop roles seen before, store the new job records. */
@@ -65,7 +65,11 @@ export function buildScoutGraph(ports: ScoutGraphPorts, checkpointer?: BaseCheck
       const pack = await ports.tailor(sweepId, jobId);
       return {
         packages: [pack],
-        handoffs: handoff('resume_team', 'human_review', `Package started for job ${jobId}`),
+        handoffs: handoff(
+          'resume_team',
+          'human_review',
+          `Draft under way for ${pack.title || 'job ' + jobId}`,
+        ),
       };
     })
     .addNode('report', async (s) => {

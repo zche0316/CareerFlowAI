@@ -3095,3 +3095,246 @@ body:has(.quest) {
     height: 64px;
   }
 }
+
+/* Scout: sweeps, batch review and job records. */
+.sc-hero {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.sc-hero-copy {
+  display: flex;
+  flex: 1 1 420px;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.sc-hero-copy p {
+  margin: 0;
+  max-width: 60ch;
+  color: #d5d6e0;
+}
+.sc-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+.sc-hero-side {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.sc-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+}
+.sc-stats dt {
+  color: #b9bbc8;
+  font-size: 12px;
+}
+.sc-stats dd {
+  margin: 0;
+  color: var(--q-lime);
+  font: 800 32px/1 var(--q-display);
+}
+.sc-packs,
+.sc-sweeps,
+.sc-handoffs {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sc-packs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+.sc-pack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 18px;
+  border-radius: 22px;
+  background: var(--q-soft);
+}
+.sc-pack-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.sc-score {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: var(--q-violet);
+  color: #fff;
+  font: 800 18px/1 var(--q-display);
+}
+.sc-pack-title {
+  display: flex;
+  flex: 1 1 160px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.sc-pack-title span {
+  color: var(--q-muted);
+  font-size: 13px;
+}
+.sc-quote {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #fff;
+  color: #3c3f4d;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.sc-pack-actions,
+.sc-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.sc-confirm {
+  font-size: 13px;
+}
+.quest .sc-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--q-ink);
+  font: 700 13px var(--q-body);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.sc-cols {
+  display: grid;
+  align-items: start;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 18px;
+}
+.sc-sweep {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: var(--q-soft);
+}
+.sc-sweep-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.sc-counts {
+  margin: 0;
+  color: #3c3f4d;
+  font-size: 13px;
+}
+.sc-handoffs {
+  gap: 6px;
+}
+.sc-handoffs li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: #3c3f4d;
+  font-size: 13px;
+}
+.sc-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.sc-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.quest .sc-form input[type='text'],
+.quest .sc-form input[type='number'],
+.quest .sc-form select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 2px solid #c9c2f5;
+  border-radius: 14px;
+  background: #fff;
+  color: var(--q-ink);
+  font: 400 15px var(--q-body);
+}
+.quest .sc-form input:focus,
+.quest .sc-form select:focus {
+  border-color: var(--q-ink);
+  outline: none;
+}
+.sc-table {
+  overflow-x: auto;
+  border-radius: 18px;
+  background: var(--q-soft);
+}
+.quest .sc-table table {
+  width: 100%;
+  min-width: 860px;
+  border-collapse: collapse;
+}
+.quest .sc-table th,
+.quest .sc-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e2e3ea;
+  text-align: left;
+  vertical-align: top;
+  font-size: 13px;
+}
+.quest .sc-table thead th {
+  color: var(--q-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+.quest .sc-table tbody th {
+  font-weight: 700;
+}
+.quest .sc-table small {
+  display: block;
+  max-width: 34ch;
+  margin-top: 3px;
+  color: var(--q-muted);
+  font-size: 12px;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+.sc-empty {
+  color: #6f7280;
+}
+@media (max-width: 900px) {
+  .sc-cols {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 640px) {
+  .sc-form-row {
+    grid-template-columns: 1fr;
+  }
+  .sc-hero-side {
+    width: 100%;
+  }
+}

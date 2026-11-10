@@ -267,7 +267,8 @@ const ports: ScoutGraphPorts = {
     // Reuse the latest career analysis for this profile version instead of paying for it per package.
     const analysed = (
       await db.mission.findMany({
-        where: { userId: sweep.userId, profileId: profile.id },
+        // Same provider mode only: a demo analysis must not seed a live quest.
+        where: { userId: sweep.userId, profileId: profile.id, mode: sweep.mode },
         orderBy: { createdAt: 'desc' },
         select: { data: true },
         take: 20,
@@ -308,7 +309,7 @@ const ports: ScoutGraphPorts = {
       packages: { ...(d.packages || {}), [jobId]: { missionId: mission.id } },
     }));
     await enqueue(mission.id);
-    return { jobId, missionId: mission.id };
+    return { jobId, missionId: mission.id, title: match.job.title };
   },
 
   async report(sweepId, _packages, handoffs) {
@@ -465,7 +466,12 @@ async function overview(userId: string) {
             missionId,
             status: m?.status || null,
             approved: Boolean(md.approvedResumeId),
-            critic: md.resumeTeam?.critiques?.at(-1)?.verdict || null,
+            critic:
+              typeof md.resumeTeam?.critiques?.at(-1)?.pass === 'boolean'
+                ? md.resumeTeam.critiques.at(-1).pass
+                  ? 'passed'
+                  : 'open issues'
+                : null,
             record: buildJobRecord(match.job),
           };
         }),

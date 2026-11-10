@@ -147,6 +147,7 @@ test('quest pages render from real records at desktop and phone width', async ({
     ['party', 'Meet your party.'],
     ['world', 'Every country plays by different rules.'],
     ['season', 'Graduate Season'],
+    ['scout', 'Scout finds the roles. You make the calls.'],
   ];
   for (const size of [
     { width: 1440, height: 1000 },
@@ -173,4 +174,45 @@ test('the classic interface stays reachable from the More menu', async ({ page }
   await expect(page.locator('.shell')).toBeVisible();
   await expect(page.locator('.shell.quest')).toHaveCount(0);
   await expect(page.getByRole('navigation', { name: 'Main', exact: true })).toHaveCount(0);
+});
+
+test('a Scout sweep fills the batch review and each package opens at its draft review', async ({
+  page,
+}) => {
+  const api = await signUp(page);
+  await approveProfile(api);
+  await page.goto('/?view=scout');
+  await expect(
+    page.getByRole('heading', { name: 'Scout finds the roles. You make the calls.' }),
+  ).toBeVisible();
+  await expect(page.getByText('No packages yet', { exact: true })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Send Scout out now', exact: true }).click();
+  const ready = page.getByRole('button', { name: 'Review the draft' });
+  await expect(ready).toHaveCount(3, { timeout: 45000 });
+  await expect(page.getByText(/8 fetched · 8 new · 0 seen before/)).toBeVisible();
+  await expect(page.getByText(/Job Matcher → Resume team/)).toBeVisible();
+  await expect(page.getByRole('table')).toContainText('demo role');
+  expect(await noSidewaysScroll(page)).toBe(true);
+
+  // Discarding one package cancels only that quest.
+  await page.getByRole('button', { name: 'Discard' }).first().click();
+  await page.getByRole('button', { name: 'Yes, discard', exact: true }).click();
+  await expect(ready).toHaveCount(2);
+
+  await ready.first().click();
+  await expect(page).toHaveURL(/step=3/);
+  await expect(
+    page.getByRole('heading', { name: 'Your party built a draft. Now it’s your call.' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Approve this draft', exact: true }),
+  ).toBeDisabled();
+
+  const scout = await api('/scout');
+  expect(scout.sweeps[0].packages.map((p: any) => p.status).sort()).toEqual([
+    'AWAITING_APPROVAL',
+    'AWAITING_APPROVAL',
+    'CANCELLED',
+  ]);
 });

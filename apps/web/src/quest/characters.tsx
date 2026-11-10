@@ -19,8 +19,8 @@ export const agentProfiles: Record<
     name: 'Scout',
     color: '#D4F55B',
     quote: 'Reads forty pages before breakfast.',
-    can: ['public job boards (planned)'],
-    cannot: ['apply for you', 'log in anywhere'],
+    can: ['official job boards and search APIs', 'your saved search'],
+    cannot: ['apply or send anything', 'approve a draft', 'read your profile text'],
   },
   matcher: {
     name: 'Job Matcher',

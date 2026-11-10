@@ -5,7 +5,7 @@ Branch: `feat/multi-agent-resume-team`. This plan covers two product directions 
 - **Direction 1 – resume × job tailoring:** a team of specialists that analyses a job, selects approved evidence, rewords it for the role and reviews the result before the user approves it.
 - **Direction 4 – reverse job search:** a scheduled Scout that finds new public vacancies, shortlists them and prepares tailored application packages in parallel for one batch review.
 
-Milestone M1 (the resume team with Command routing and targeted human returns) is implemented in this branch, together with save points, per-question interview rounds and the Quest interface (section 6a). M2–M6 are designed here and have typed scaffolding where noted; they are not wired into the running mission.
+Milestone M1 (the resume team with Command routing and targeted human returns) is implemented in this branch, together with save points, per-question interview rounds and the Quest interface (section 6a). M2 (Scout sweeps with parallel tailoring) is implemented apart from outreach drafts. M3–M6 are designed here and have typed scaffolding where noted; they are not wired into the running mission.
 
 ## 1. Starting point
 
@@ -19,15 +19,15 @@ Strengths kept as-is: pg-boss worker with leases, versioned profile approvals, e
 
 Gaps this plan addresses:
 
-| Gap | Effect | Addressed by |
-|---|---|---|
-| Specialists run in a fixed order and never hand work to each other | Looks like a pipeline, not collaboration | M1 resume team, M3 supervisor |
-| Graph state holds only `missionId`; no record of why work moved | Collaboration is invisible to the user and in a demo | M1 handoff log |
-| Resume revision is one generic "revise" back to the start | Human feedback is coarse; the whole draft is rebuilt | M1 targeted returns |
-| No automatic review before the human sees a draft | User does the quality control alone | M1 Critic loop |
-| Missions start only when the user asks | No proactive job search | M2 Scout + fan-out |
-| Pauses are fixed in code | Agents guess instead of asking | M4 `ask_human` |
-| No traces or measured quality | Hard to demonstrate or improve | M5 timeline, M6 evaluation |
+| Gap                                                                | Effect                                               | Addressed by                  |
+| ------------------------------------------------------------------ | ---------------------------------------------------- | ----------------------------- |
+| Specialists run in a fixed order and never hand work to each other | Looks like a pipeline, not collaboration             | M1 resume team, M3 supervisor |
+| Graph state holds only `missionId`; no record of why work moved    | Collaboration is invisible to the user and in a demo | M1 handoff log                |
+| Resume revision is one generic "revise" back to the start          | Human feedback is coarse; the whole draft is rebuilt | M1 targeted returns           |
+| No automatic review before the human sees a draft                  | User does the quality control alone                  | M1 Critic loop                |
+| Missions start only when the user asks                             | No proactive job search                              | M2 Scout + fan-out            |
+| Pauses are fixed in code                                           | Agents guess instead of asking                       | M4 `ask_human`                |
+| No traces or measured quality                                      | Hard to demonstrate or improve                       | M5 timeline, M6 evaluation    |
 
 ## 2. Target architecture
 
@@ -73,13 +73,13 @@ Design rules that every milestone follows:
 
 ### Specialists
 
-| Specialist | Reads | Writes | Guard |
-|---|---|---|---|
-| **Gap Analyzer** | Selected job, approved facts, user focus note | `resumeTeam.gaps`: requirement → supporting fact IDs, gaps, priority facts | Reuses the Job Matcher's source-quoted mapping in live mode; lexical whole-term match in fixture mode. Unknown fact IDs are dropped. |
-| **Evidence Selector** | Approved facts, job, notes from Critic/user | `resumeDraft` (new hash) | Original Resume Tailor selection. Critic/user-requested facts are added deterministically, only if eligible. `validateResumeClaims` rejects unknown or duplicate claims. |
-| **Rewriter** | Contribution claims in the draft, job, notes | `resumeDraft` with `text` + `factText`, `resumeTeam.rewrites` | Every proposal must pass `checkWording(fact, text)`: same numbers, qualifiers and source terms. Blocked wording keeps the verbatim fact. Headers, skills and education are never reworded. |
-| **Critic** | Draft, facts, gap report | `resumeTeam.critiques[]` with issues and metrics | Rule checks first (grounding, wording drift, omitted supported evidence). One model review per human cycle, only after the rules pass; model issues must reference real fact IDs. |
-| **Human review** | Draft, critique, handoff log | Approval or a return to one specialist | Decision bound to the exact draft hash; two returns per mission. |
+| Specialist            | Reads                                         | Writes                                                                     | Guard                                                                                                                                                                                      |
+| --------------------- | --------------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Gap Analyzer**      | Selected job, approved facts, user focus note | `resumeTeam.gaps`: requirement → supporting fact IDs, gaps, priority facts | Reuses the Job Matcher's source-quoted mapping in live mode; lexical whole-term match in fixture mode. Unknown fact IDs are dropped.                                                       |
+| **Evidence Selector** | Approved facts, job, notes from Critic/user   | `resumeDraft` (new hash)                                                   | Original Resume Tailor selection. Critic/user-requested facts are added deterministically, only if eligible. `validateResumeClaims` rejects unknown or duplicate claims.                   |
+| **Rewriter**          | Contribution claims in the draft, job, notes  | `resumeDraft` with `text` + `factText`, `resumeTeam.rewrites`              | Every proposal must pass `checkWording(fact, text)`: same numbers, qualifiers and source terms. Blocked wording keeps the verbatim fact. Headers, skills and education are never reworded. |
+| **Critic**            | Draft, facts, gap report                      | `resumeTeam.critiques[]` with issues and metrics                           | Rule checks first (grounding, wording drift, omitted supported evidence). One model review per human cycle, only after the rules pass; model issues must reference real fact IDs.          |
+| **Human review**      | Draft, critique, handoff log                  | Approval or a return to one specialist                                     | Decision bound to the exact draft hash; two returns per mission.                                                                                                                           |
 
 ### Routing
 
@@ -124,28 +124,35 @@ The parent graph replaces `resume_tailoring` and `approve_resume` with a single 
 
 ## 4. Human-in-the-loop policy
 
-| Gate | When | User sees | User can | Status |
-|---|---|---|---|---|
-| Profile approval | Before any mission | Proposed facts with source quotes | Approve, edit, reject | Existing |
-| Plan approval | Supervisor proposes which teams/jobs to run and the call budget | Plan and estimated calls | Edit or drop steps | M3 |
-| Job choice | After matching or a Scout sweep | Score, quoted requirements, missing data | Choose, compare, ask Scout to re-search | Existing / M2 |
-| Draft review | After the Critic passes or escalates | Draft, wording diff, critique, handoffs | Approve exact draft, edit, return to a named specialist | **M1** |
-| Batch review | After parallel tailoring | One package per job | Approve, return or discard each | M2 |
-| Clarification | A specialist lacks information or confidence | The question and why it matters | Answer, or skip | M4 |
-| Outbound action | Before any message or application leaves the app | The exact text and recipient | Send manually / copy; never auto-sent | M2 |
+| Gate             | When                                                            | User sees                                | User can                                                | Status        |
+| ---------------- | --------------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------- | ------------- |
+| Profile approval | Before any mission                                              | Proposed facts with source quotes        | Approve, edit, reject                                   | Existing      |
+| Plan approval    | Supervisor proposes which teams/jobs to run and the call budget | Plan and estimated calls                 | Edit or drop steps                                      | M3            |
+| Job choice       | After matching or a Scout sweep                                 | Score, quoted requirements, missing data | Choose, compare, ask Scout to re-search                 | Existing / M2 |
+| Draft review     | After the Critic passes or escalates                            | Draft, wording diff, critique, handoffs  | Approve exact draft, edit, return to a named specialist | **M1**        |
+| Batch review     | After parallel tailoring                                        | One package per job                      | Approve, return or discard each                         | M2            |
+| Clarification    | A specialist lacks information or confidence                    | The question and why it matters          | Answer, or skip                                         | M4            |
+| Outbound action  | Before any message or application leaves the app                | The exact text and recipient             | Send manually / copy; never auto-sent                   | M2            |
 
 Risk rule: anything that creates a candidate claim, leaves the app, or spends beyond the plan needs a human decision. Low-risk internal steps (ranking, rewording within the guard) run automatically but stay visible in the handoff log.
 
-## 5. M2 – Scout and reverse job search
+## 5. M2 – Scout and reverse job search (implemented, except outreach drafts)
 
-- **Schedule:** pg-boss `schedule('scout-sweep', cron, { userId }, { tz: 'Australia/Sydney' })`, opt-in per user, at most daily.
-- **Sources:** the existing `JobRepository` (Greenhouse/Lever/Ashby official boards, Adzuna, optional Tavily discovery). No SEEK/LinkedIn scraping.
-- **Dedupe:** `jobFingerprint` (normalised company | title | location) against fingerprints already shown to the user, and across boards in the same sweep.
-- **Scoring:** the Job Matcher mapping and score; shortlist top K (default 3) above a minimum score. One failing source is reported, not fatal.
-- **Fan-out:** `fanOutTailoring` returns one `Send('tailor_job', { missionId, jobId })` per shortlisted job; each branch runs the resume team keyed by job, writing to a reducer channel keyed by `jobId`.
-- **Batch review:** one interrupt listing every package; per-job approve/return/discard.
-- **Outreach drafts:** cover letter and referral message drafted from approved claims only, shown for copy/send by the user.
-- Scaffolding: `packages/agents/src/scout/scout.ts` (sweep logic, ports), `packages/agents/src/scout/fan-out.ts`.
+A sweep is its own checkpointed LangGraph (`packages/agents/src/scout/graph.ts`, thread `scout:<sweepId>`), separate from the mission graph:
+
+```
+Scout (collect) -> Job Matcher (rank) -> Send per shortlisted job -> tailor_job x K (parallel) -> report
+```
+
+- **Schedule:** one pg-boss schedule (`0 7 * * *`, `Australia/Sydney`) starts a sweep for every user who switched the daily sweep on. A sweep can also be started from the Scout page; at most six sweeps per user per day and one at a time.
+- **Sources:** the saved search runs through the existing `JobRepository` (Greenhouse/Lever/Ashby official boards, Adzuna, optional Tavily discovery). No SEEK/LinkedIn scraping. A failed source is listed in the sweep and never replaced with demo roles.
+- **Dedupe:** `jobFingerprint` (normalised company | title | location) against the user's tracked roles and every role already shown in a quest shortlist, and across boards within the sweep.
+- **Job records:** each new role is stored once in `TrackedJob` as a normalised record (`packages/contracts/src/job-record.ts`): work rights, working arrangement, level and salary converted to a yearly figure. Extraction is rule-based (no model call). Every field carries the sentence it came from; a field whose quote is not literally in the listing is dropped.
+- **Scoring:** fixture mode uses the original matching baseline. Live mode screens by lexical overlap, then the Job Matcher maps requirements for at most six roles (`SCOUT_REVIEW_LIMIT`). A role whose mapping fails is left out and reported.
+- **Fan-out:** `fanOutTailoring` returns one `Send('tailor_job', { sweepId, jobId })` per shortlisted role (top K, at most 3). Each branch starts a quest with that role already selected, so the resume teams run in parallel through the existing worker with their own leases, budgets and checkpoints. Branches write to a reducer channel and the port is idempotent per (sweep, job), so a retried sweep starts nothing twice.
+- **Batch review:** the Scout page lists every package with its match score, quoted work-rights statement and state. A package quest skips the job choice and stops at the normal draft review: approve the exact draft, return it to a named specialist, or discard the package. Nothing is approved or sent automatically.
+- **State boundary:** graph state holds the sweep ID, shortlisted job IDs, started packages and handoffs. Jobs, scores and records live in `ScoutSweep` and `TrackedJob`.
+- **Not built yet:** outreach drafts (cover letter and referral message), model-based extraction for fields the rules cannot find, and re-checking tracked roles for removal or changes.
 
 ## 6. M3–M6
 
@@ -160,7 +167,7 @@ Risk rule: anything that creates a candidate claim, leaves the app, or spends be
 - **Interview rounds with an Evaluator.** `apps/api/src/interview-rounds.ts` scores each practice answer on the four STAR parts and asks at most one follow-up per question on the weakest part. It runs outside the graph on the locked mission row while the mission waits at `conduct_interview`; the Interview Coach still writes the final feedback. Fixture mode scores with labelled keyword rules. The live Evaluator has not been exercised on a real mission yet.
 - **Quest interface.** `apps/web/src/quest/` is the default UI: Home, Quest log, mission header, job board, Party at work (resume review), Battle log, Save points, Boss battle, Character sheet, Party roster, World map and Season event. Every number is derived from stored records; values without a source are shown as planned or left out. The group interface remains at `?classic=1`.
 
-Not yet built from the design: source quotes beside job fields and a work-rights column (needs the M2 job-record extraction), per-step tokens and latency in the Battle log (needs M6 tracing), a run comparison on Save points, realm rule packs on the World map, and the v1 requirement × evidence heatmap.
+Not yet built from the design: source quotes and a work-rights column on the quest job board (the Scout page has them), per-step tokens and latency in the Battle log (needs M6 tracing), a run comparison on Save points, realm rule packs on the World map, and the v1 requirement × evidence heatmap.
 
 ## 7. Evaluation and claims
 
@@ -168,20 +175,23 @@ Metrics are computed by `reviewDraft` on every round and stored with each critiq
 
 ## 8. Milestones
 
-| ID | Scope | Acceptance | Status |
-|---|---|---|---|
-| M1 | Resume team subgraph, Command routing, Critic loop, targeted human returns, UI panel | Unit tests for routing, specialists and guards pass; typecheck passes; fixture mission reaches review with a handoff log | Implemented on this branch |
-| M1+ | Save points with branching, per-question interview rounds, Quest interface | Integration tests for branching and rounds; browser tests for the Quest pages | Implemented on this branch |
-| M2 | Scout schedule, dedupe, fan-out, batch review, outreach drafts | Sweep tests; one batch review covers three jobs; nothing is sent automatically | Scaffolding + tests |
-| M3 | Supervisor routing and plan gate | Routing table tests; plan edits change the executed steps | Scaffolding + tests |
-| M4 | `ask_human` clarification pauses | Low-confidence step pauses with a question; answer resumes the same node | Scaffolding |
-| M5 | Streaming timeline | Handoffs appear live during a mission | Planned |
-| M6 | Traces and evaluation report | Report generated from the evaluation set | Planned |
+| ID  | Scope                                                                                | Acceptance                                                                                                               | Status                                                |
+| --- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
+| M1  | Resume team subgraph, Command routing, Critic loop, targeted human returns, UI panel | Unit tests for routing, specialists and guards pass; typecheck passes; fixture mission reaches review with a handoff log | Implemented on this branch                            |
+| M1+ | Save points with branching, per-question interview rounds, Quest interface           | Integration tests for branching and rounds; browser tests for the Quest pages                                            | Implemented on this branch                            |
+| M2  | Scout schedule, dedupe, job records, fan-out, batch review                           | Graph and integration tests; one batch review covers the shortlisted jobs; nothing is sent automatically                 | Implemented on this branch; outreach drafts not built |
+| M3  | Supervisor routing and plan gate                                                     | Routing table tests; plan edits change the executed steps                                                                | Scaffolding + tests                                   |
+| M4  | `ask_human` clarification pauses                                                     | Low-confidence step pauses with a question; answer resumes the same node                                                 | Scaffolding                                           |
+| M5  | Streaming timeline                                                                   | Handoffs appear live during a mission                                                                                    | Planned                                               |
+| M6  | Traces and evaluation report                                                         | Report generated from the evaluation set                                                                                 | Planned                                               |
 
 ## 9. Tests
 
 - `tests/resume-team.test.ts` – the real LangGraph runtime with fake ports: Critic → selector loop, rewriter-only routing, round-limit escalation, human return to a named specialist, gap-analyzer focus forwarding, interrupt payload and resume; plus gap analysis, critic rules and rewrite guard.
-- `tests/orchestration-scaffold.test.ts` – supervisor rules, Scout dedupe and source-failure handling, bounded fan-out, handoff history.
+- `tests/orchestration-scaffold.test.ts` – supervisor rules, Scout dedupe, bounded fan-out, handoff history.
+- `tests/scout-graph.test.ts` – the Scout graph on the real LangGraph runtime with fake ports: parallel `Send` branches, the reducer channel and the empty-shortlist route.
+- `tests/scout.integration.test.ts` – a fixture-mode sweep end to end: records, parallel packages that stop at draft review, approval, and a second sweep that finds nothing new.
+- `tests/job-record.test.ts` – quoted extraction, empty fields and salary conversion.
 
 - `tests/integration.test.ts` – save-point listing and branching, interview rounds and follow-ups against the real graph in fixture mode.
 - `tests/e2e/` – Playwright project `classic` runs the group-interface specs at `?classic=1`; project `quest` covers the Quest pages.

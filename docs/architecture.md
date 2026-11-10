@@ -28,6 +28,10 @@ Human returns route to the named specialist (gap analysis, evidence selection or
 
 Domain rows hold factual source versions and human approvals; checkpoints hold graph continuation state. PostgreSQL row locks, worker leases, current-version checks and task-state checks guard side effects. Cancelling or superseding a mission prevents late results from committing. Worker recovery re-enqueues queued work and expired leases. Generation/checkpoint recovery is idempotent at the business layer; this is not a claim that remote LLM billing is exactly once after an abrupt process crash.
 
+## Scout sweeps
+
+A sweep runs as a separate checkpointed graph: Scout collects new public roles for the saved search and stores quoted job records, Job Matcher ranks them, and one resume team per shortlisted role starts in parallel as its own mission that stops at the draft review. Sweeps run daily for users who opt in, or on request. See [MULTI_AGENT_PLAN.md](MULTI_AGENT_PLAN.md) section 5.
+
 ## Authentication and privacy
 
 Passwords use salted scrypt hashes. Sessions use random HTTP-only, SameSite=Strict cookies with hashed tokens stored in PostgreSQL. Mutations require the session CSRF token and validate supplied browser origins. All candidate data queries are scoped to the authenticated user. Models receive task context without login credentials or account email. Starting a mission grants the career team access to the owned approved-profile snapshot. Legacy sharing fields remain in stored profiles for compatibility; the interface does not require four specialist-sharing switches.
@@ -49,4 +53,3 @@ CFS-34/35/36/37: contracts, persistence and orchestration. CFS-12–18: profile 
 Container services bind published ports to loopback for local demonstration. Docker Compose is supplied; verify it with a running Docker daemon before treating container deployment as tested. The native PostgreSQL helper is development-only and owns `.runtime/postgres` on port 55432. No existing course databases are modified.
 
 GitHub Enterprise Server installations may need an administrator-provided Actions runner and compatible versions of the checkout/setup-node/artifact actions. A committed workflow alone is not a successful CI run.
-

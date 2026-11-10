@@ -19,7 +19,17 @@ function teamStats(workspace: any) {
   const selections = missions.reduce((n, m) => n + (m.data?.resumeDraft?.claims?.length || 0), 0);
   const ranked = missions.reduce((n, m) => n + (m.data?.matches?.length || 0), 0);
   const analyses = missions.filter((m) => m.data?.analysis).length;
-  return { critiques: critiques.length, returned, rewrites, gaps, selections, ranked, analyses };
+  const scouted = missions.filter((m) => m.data?.scout).length;
+  return {
+    critiques: critiques.length,
+    returned,
+    rewrites,
+    gaps,
+    selections,
+    ranked,
+    analyses,
+    scouted,
+  };
 }
 
 export function PartyRoster({ workspace, userName }: { workspace: any; userName: string }) {
@@ -27,8 +37,8 @@ export function PartyRoster({ workspace, userName }: { workspace: any; userName:
   const cards: Card[] = [
     {
       id: 'scout',
-      status: 'coming',
-      stats: [{ label: 'Status', value: 'Scheduled sweeps arrive in a later update' }],
+      status: 'active',
+      stats: [{ label: 'Quests started from sweeps', value: String(s.scouted) }],
     },
     {
       id: 'matcher',
@@ -95,7 +105,11 @@ export function PartyRoster({ workspace, userName }: { workspace: any; userName:
         {cards.map((card) => {
           const p = agentProfiles[card.id];
           return (
-            <article key={card.id} className={`qr-card ${card.id}`} aria-labelledby={`qr-${card.id}`}>
+            <article
+              key={card.id}
+              className={`qr-card ${card.id}`}
+              aria-labelledby={`qr-${card.id}`}
+            >
               <div className="qr-top">
                 <AgentAvatar agent={card.id} size={72} />
                 <div>

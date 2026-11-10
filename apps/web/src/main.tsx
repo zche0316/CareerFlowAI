@@ -20,6 +20,7 @@ import { QuestSavePoints } from './quest/save-points.js';
 import { QuestBossBattle } from './quest/boss-battle.js';
 import { QuestWorld } from './quest/world.js';
 import { QuestSeason } from './quest/season.js';
+import { QuestScout } from './quest/scout.js';
 import { CharacterSheet } from './quest/character-sheet.js';
 import { progressFrom } from './quest/progress.js';
 import { QuestTopBar, type QuestNavId } from './quest/top-bar.js';
@@ -135,6 +136,7 @@ type Tab =
   | 'home'
   | 'world'
   | 'season'
+  | 'scout'
   | 'party';
 
 // ?classic=1 keeps the previous group interface available while the Quest UI replaces it.
@@ -165,12 +167,13 @@ const readWorkspaceRoute = () => {
     'party',
     'world',
     'season',
+    'scout',
   ];
   const fallback = classicView ? 'missions' : 'home';
   const value = query.get('view') || fallback;
   const step = query.has('step') ? Number(query.get('step')) : null;
   return {
-    tab: (validTabs.includes(value) && !(classicView && ['home', 'party', 'world', 'season'].includes(value))
+    tab: (validTabs.includes(value) && !(classicView && ['home', 'party', 'world', 'season', 'scout'].includes(value))
       ? value
       : fallback) as Tab,
     selected: query.get('mission'),
@@ -814,6 +817,19 @@ function App() {
               workspace={workspace}
               realm={jobSearch.country}
               onNavigate={goQuest}
+              onOpenMission={(id, step) => {
+                setSelected(id);
+                setTab('missions');
+                setPhase(step);
+                window.scrollTo({ top: 0, behavior: 'auto' });
+              }}
+            />
+          ) : tab === 'scout' ? (
+            <QuestScout
+              hasProfile={Boolean(workspace?.profile)}
+              request={api}
+              onBuildProfile={() => setTab('profile')}
+              onChanged={() => void refresh()}
               onOpenMission={(id, step) => {
                 setSelected(id);
                 setTab('missions');

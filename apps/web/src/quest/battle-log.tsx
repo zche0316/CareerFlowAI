@@ -7,6 +7,7 @@ type Event = { at: string; agent: string; action: string; detail: string };
 const agentIds: Record<string, AgentId> = {
   'Career Coach': 'coach',
   'Job Matcher': 'matcher',
+  Scout: 'scout',
   'Gap Analyzer': 'gap_analyzer',
   'Evidence Selector': 'selector',
   'Resume Tailor': 'selector',

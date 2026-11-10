@@ -56,6 +56,24 @@ describe('job record', () => {
     const hourly = buildJobRecord(job('Pay is $45 per hour. We do not offer visa sponsorship.'));
     expect(hourly.salary).toMatchObject({ min: 45, period: 'hour', annualMin: 88920 });
     expect(hourly.workRights?.value).toBe('no_sponsorship');
+    expect(buildJobRecord(job('Great role.', { location: 'Remote' })).arrangement).toEqual({
+      value: 'remote',
+      quote: 'Remote',
+    });
+    const flattened = buildJobRecord(
+      job(
+        'This is a hybrid role covering deal strategy and deal operations. Harvey does not currently offer visa sponsorship for this role WHAT WE OFFER - Structured hybrid working arrangement: 3 days in our Sydney office - Health Coverage: fully covered',
+        { location: 'Sydney' },
+      ),
+    );
+    expect(flattened.workRights).toEqual({
+      value: 'no_sponsorship',
+      quote: 'Harvey does not currently offer visa sponsorship for this role',
+    });
+    expect(flattened.arrangement).toEqual({
+      value: 'hybrid',
+      quote: 'Structured hybrid working arrangement: 3 days in our Sydney office',
+    });
     const k = buildJobRecord(job('Base salary £40k to £50k.'));
     expect(k.salary).toMatchObject({ min: 40000, max: 50000, currency: 'GBP' });
   });

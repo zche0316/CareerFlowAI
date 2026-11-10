@@ -8,8 +8,12 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const dataDir = fileURLToPath(new URL('../.runtime/pglite-e2e', import.meta.url));
 await rm(dataDir, { recursive: true, force: true });
 
+// PORT and LOCAL_DB_PORT move the test app off the defaults when another instance holds them.
+const origin = `http://localhost:${process.env.PORT || 8787}`;
 const env = {
   ...process.env,
+  APP_ORIGIN: origin,
+  PLAYWRIGHT_BASE_URL: origin,
   LOCAL_DB_DIR: dataDir,
   PROVIDER_MODE: 'fixture',
   JOB_SOURCE: 'fixtures',
@@ -37,7 +41,7 @@ async function ready() {
   for (let i = 0; i < 240; i++) {
     if (appExited) throw Error('The app stopped before it became ready.');
     try {
-      const r = await fetch('http://localhost:8787/api/health');
+      const r = await fetch(origin + '/api/health');
       if (r.ok && (await r.json()).mode === 'fixture') return;
     } catch {}
     await new Promise((r) => setTimeout(r, 500));
