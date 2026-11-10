@@ -1,6 +1,6 @@
 import { fillProfileFixture } from './profile-fixture.js';
 import { writeFile } from 'node:fs/promises';
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './classic.js';
 async function signup(page: Page) {
   await page.goto('/');
   await page.getByRole('button', { name: 'New here? Create an account' }).click();
@@ -132,7 +132,7 @@ test('reviewed wording creates a downloadable edition and application answers st
   await page.getByText('Edit profile details manually', { exact: true }).click();
   await page
     .getByLabel('Experience and projects or “none yet”', { exact: true })
-    .fill('I used SQL to clean 120 records.');
+    .fill('I was responsible for cleaning 120 records with SQL.');
   await page.getByRole('button', { name: 'Review profile draft', exact: true }).click();
   await page.getByLabel('I reviewed this exact draft').check();
   await page.getByRole('button', { name: 'Approve & save profile', exact: true }).click();
@@ -165,9 +165,9 @@ test('reviewed wording creates a downloadable edition and application answers st
     timeout: 30000,
   });
   await page.getByRole('button', { name: 'Select this opportunity' }).first().click();
-  await expect(page.getByLabel('I reviewed this resume')).toBeVisible({ timeout: 30000 });
-  await page.getByLabel('I reviewed this resume').check();
-  await page.getByRole('button', { name: 'Approve & save resume', exact: true }).click();
+  await expect(page.getByLabel('I read this exact draft.')).toBeVisible({ timeout: 30000 });
+  await page.getByLabel('I read this exact draft.').check();
+  await page.getByRole('button', { name: 'Approve this draft', exact: true }).click();
   await expect(page.getByLabel('Your response', { exact: true })).toBeVisible({ timeout: 30000 });
   await page.getByText('More', { exact: true }).click();
   await page.getByRole('button', { name: 'Applications', exact: true }).click();
@@ -179,7 +179,7 @@ test('reviewed wording creates a downloadable edition and application answers st
   await page.getByLabel('Use AI to suggest a factual rewrite of this bullet.').check();
   await page.getByRole('button', { name: 'Suggest rewrite', exact: true }).click();
   await expect(page.getByLabel('Suggested wording', { exact: true })).toHaveValue(
-    'used SQL to clean 120 records.',
+    'Cleaning 120 records with SQL.',
   );
   await page.getByRole('button', { name: 'Use this wording', exact: true }).click();
   await page.getByLabel('I reviewed the accepted wording.').check();

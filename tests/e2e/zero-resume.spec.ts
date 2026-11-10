@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './classic.js';
 import { blankProfile } from '../../packages/contracts/src/index.js';
 test('a candidate with no resume or formal work builds a story, selects job content, exports and reviews saved feedback', async ({
   page,
@@ -150,9 +150,9 @@ test('a candidate with no resume or formal work builds a story, selects job cont
   await expect(page.getByRole('log')).toContainText(
     /Review the preview before saving\.|No wording changes needed\. The visible resume is unchanged\./,
   );
-  await expect(page.getByLabel('I reviewed this resume', { exact: false })).not.toBeChecked();
-  await page.getByLabel('I reviewed this resume', { exact: false }).check();
-  await page.getByRole('button', { name: 'Approve & save resume', exact: true }).click();
+  await expect(page.getByLabel('I read this exact draft.')).not.toBeChecked();
+  await page.getByLabel('I read this exact draft.').check();
+  await page.getByRole('button', { name: 'Approve this draft', exact: true }).click();
   await expect(page.getByLabel('Your response', { exact: true })).toBeVisible({ timeout: 30000 });
   await page.getByLabel('Your response', { exact: true }).fill(action);
   await page.getByRole('button', { name: 'Save response', exact: true }).click();
@@ -192,7 +192,10 @@ test('a candidate with no resume or formal work builds a story, selects job cont
   await page.getByRole('button', { name: 'My documents', exact: true }).click();
   await page.getByRole('button', { name: 'Polish wording', exact: true }).first().click();
   await seen;
-  await page.getByLabel('Resume bullet', { exact: true }).selectOption({ label: action });
+  // The resume team's Rewriter already dropped the leading "I"; this bullet still has a filler lead-in.
+  await page
+    .getByLabel('Resume bullet', { exact: true })
+    .selectOption({ label: 'Was responsible for checking the data quality.' });
   await page.getByLabel('Use AI to suggest a factual rewrite of this bullet.').check();
   await page.getByRole('button', { name: 'Suggest rewrite', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Use this wording', exact: true })).toBeVisible();

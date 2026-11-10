@@ -185,12 +185,16 @@ export async function generate<T>(
               ? { builder: { draft: {}, proposedChanges: [], followUpQuestions: [] }, records: [] }
               : role === 'wording'
                 ? {
+                    // Two offline rules: drop a leading "I", then a "was responsible for" lead-in.
                     text: (context.sourceText || '')
                       .replace(/^I\s+/i, '')
+                      .replace(/^(?:was|were)\s+responsible\s+for\s+(\S)/i, (_, c) =>
+                        c.toUpperCase(),
+                      )
                       .replace(/\s+/g, ' ')
                       .trim(),
                     reason:
-                      'Remove first-person phrasing while retaining the supplied facts. Offline rule-based suggestion.',
+                      'Remove first-person phrasing and filler lead-ins while retaining the supplied facts. Offline rule-based suggestion.',
                   }
                 : role === 'profile'
                   ? {

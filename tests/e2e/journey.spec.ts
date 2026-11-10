@@ -1,5 +1,5 @@
 import { fillProfileFixture } from './profile-fixture.js';
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './classic.js';
 
 async function createAccount(page: Page) {
   await page.goto('/');
@@ -50,9 +50,9 @@ async function openInterview(page: Page) {
     timeout: 30000,
   });
   await page.getByRole('button', { name: '04 · Resume tailoring', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Approve & save resume' })).toBeDisabled();
-  await page.getByLabel('I reviewed this resume').check();
-  await page.getByRole('button', { name: 'Approve & save resume' }).click();
+  await expect(page.getByRole('button', { name: 'Approve this draft' })).toBeDisabled();
+  await page.getByLabel('I read this exact draft.').check();
+  await page.getByRole('button', { name: 'Approve this draft' }).click();
   await expect(
     page.getByRole('heading', { name: 'Get ready for the conversation', exact: true }),
   ).toBeVisible();

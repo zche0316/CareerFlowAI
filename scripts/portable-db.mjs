@@ -3,6 +3,7 @@ import { useSocketProtocol } from './portable-protocol.mjs';
 import { PGLiteSocketServer } from '@electric-sql/pglite-socket';
 import { createConnection } from 'node:net';
 import { mkdir } from 'node:fs/promises';
+import { resolve as resolvePath } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export async function startLocalDatabase() {
@@ -24,7 +25,10 @@ export async function startLocalDatabase() {
     throw Error(
       `Local database port ${port} is already in use. Stop the existing database/app before starting another portable instance, or use native PostgreSQL with npm start.`,
     );
-  const dataDir = fileURLToPath(new URL('../.runtime/pglite', import.meta.url));
+  // LOCAL_DB_DIR selects a separate data directory, e.g. a disposable one for browser tests.
+  const dataDir = process.env.LOCAL_DB_DIR
+    ? resolvePath(process.env.LOCAL_DB_DIR)
+    : fileURLToPath(new URL('../.runtime/pglite', import.meta.url));
   await mkdir(dataDir, { recursive: true });
   const db = useSocketProtocol(await PGlite.create({ dataDir }));
 

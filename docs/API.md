@@ -424,6 +424,9 @@ See [PRODUCT_WORKFLOW.md](PRODUCT_WORKFLOW.md) for the profile, source and appli
 - STAR drafts accept incomplete stories. Confirmation requires situation, task and personal action; an unknown result remains empty. Confirming a correction retires the preceding draft chain and its last confirmed source atomically.
 - Optional `careerStage` and `useConfirmedMemories` belong to the approved profile. Memory context is opt-in; retrieval never authorises new resume claims.
 - `POST /api/missions/:id/resume-selection`: `{draftHash,orderedFactIds}` selects/orders approved facts for the current awaiting-approval draft. Required record headers are included. The new hash invalidates the previous approval; source profiles remain unchanged.
+- `POST /api/missions/:id/interview/rounds`: `interviewRoundInputSchema` `{questionId,answer,followUp}` scores one practice answer on the four STAR parts (`roundEvaluationSchema`) while the mission is `AWAITING_INTERVIEW`, saves the answer and may return one follow-up per question. Counts against the mission model-call limit in live mode; fixture mode uses labelled rule-based scoring. Practice answers never become profile facts.
+- `GET /api/missions/:id/save-points`: returns `{checkpoints,branchable,branchedFrom,branches}` from the mission's LangGraph checkpoint history. Read-only.
+- `POST /api/missions/:id/branch`: `{from:'analysis'|'shortlist'}` creates a new owned mission that reuses saved results up to that save point (`202`). The source mission, approved facts and approved resumes are unchanged; a newer approved profile version returns `409`.
 - `POST /api/missions/:id/feedback-memory`: `{saveAsDraft:true}` retains actual interview feedback as a draft learning note. Feedback cannot become a qualification through grounding.
 
 See [PRODUCT_WORKFLOW.md](PRODUCT_WORKFLOW.md) for the source/profile/application separation and the six-stage user outcome.

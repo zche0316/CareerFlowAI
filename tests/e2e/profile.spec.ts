@@ -1,5 +1,5 @@
 import { fillProfileFixture } from './profile-fixture.js';
-import { test, expect, type Page, type Route } from '@playwright/test';
+import { test, expect, type Page, type Route } from './classic.js';
 import { AGENTS, sampleProfile } from '../../packages/contracts/src/index.js';
 
 // These browser checks inject API timing/failures deliberately. The database

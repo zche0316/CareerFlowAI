@@ -134,6 +134,13 @@ export function WordingStudio({
                   </p>
                 </div>
               );
+            if (proposal.status === 'NO_CHANGE')
+              return (
+                <div className="wording-withheld" key={proposal.id}>
+                  <strong>No change suggested</strong>
+                  <p>This bullet already reads clearly. Your resume has not changed.</p>
+                </div>
+              );
             return (
               <article className="wording-comparison" key={proposal.id}>
                 <div className="wording-original">

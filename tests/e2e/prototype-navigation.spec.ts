@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './classic.js';
 
 test('prototype navigation keeps profile, memory and existing tools reachable', async ({
   page,

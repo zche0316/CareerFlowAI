@@ -5,7 +5,7 @@ Branch: `feat/multi-agent-resume-team`. This plan covers two product directions 
 - **Direction 1 – resume × job tailoring:** a team of specialists that analyses a job, selects approved evidence, rewords it for the role and reviews the result before the user approves it.
 - **Direction 4 – reverse job search:** a scheduled Scout that finds new public vacancies, shortlists them and prepares tailored application packages in parallel for one batch review.
 
-Milestone M1 (the resume team with Command routing and targeted human returns) is implemented in this branch. M2–M6 are designed here and have typed scaffolding where noted; they are not wired into the running mission.
+Milestone M1 (the resume team with Command routing and targeted human returns) is implemented in this branch, together with save points, per-question interview rounds and the Quest interface (section 6a). M2–M6 are designed here and have typed scaffolding where noted; they are not wired into the running mission.
 
 ## 1. Starting point
 
@@ -154,6 +154,14 @@ Risk rule: anything that creates a candidate claim, leaves the app, or spends be
 - **M5 – Live timeline.** Stream `graph.stream(..., { streamMode: ['updates', 'custom'], subgraphs: true })` from the worker through SSE so the UI shows the active specialist and each handoff as it happens.
 - **M6 – Observability and evaluation.** LangSmith (or OpenTelemetry) traces per mission. Evaluation set of fictional profiles × public job ads with expected requirement links. Report: requirement coverage and keyword coverage before/after the team, critic pass rate by round, blocked-rewrite rate, human return rate and model calls per approved resume.
 
+## 6a. Implemented beyond M1
+
+- **Save points and branching.** `apps/api/src/save-points.ts` lists a mission's top-level checkpoints through LangGraph `getStateHistory` and can branch a new mission from two points: after the analysis (Job Matcher searches again) or before the job choice (same shortlist, different job). Saved results are copied into the new mission, so completed nodes skip on replay and no model call is repeated. Later checkpoints are not branchable because that would replay a human approval. A newer approved profile version blocks branching.
+- **Interview rounds with an Evaluator.** `apps/api/src/interview-rounds.ts` scores each practice answer on the four STAR parts and asks at most one follow-up per question on the weakest part. It runs outside the graph on the locked mission row while the mission waits at `conduct_interview`; the Interview Coach still writes the final feedback. Fixture mode scores with labelled keyword rules. The live Evaluator has not been exercised on a real mission yet.
+- **Quest interface.** `apps/web/src/quest/` is the default UI: Home, Quest log, mission header, job board, Party at work (resume review), Battle log, Save points, Boss battle, Character sheet, Party roster, World map and Season event. Every number is derived from stored records; values without a source are shown as planned or left out. The group interface remains at `?classic=1`.
+
+Not yet built from the design: source quotes beside job fields and a work-rights column (needs the M2 job-record extraction), per-step tokens and latency in the Battle log (needs M6 tracing), a run comparison on Save points, realm rule packs on the World map, and the v1 requirement × evidence heatmap.
+
 ## 7. Evaluation and claims
 
 Metrics are computed by `reviewDraft` on every round and stored with each critique, so before/after numbers come from real runs. Only quote numbers in a resume or demo after running the evaluation set; the fixture provider is deterministic and does not measure model quality.
@@ -163,6 +171,7 @@ Metrics are computed by `reviewDraft` on every round and stored with each critiq
 | ID | Scope | Acceptance | Status |
 |---|---|---|---|
 | M1 | Resume team subgraph, Command routing, Critic loop, targeted human returns, UI panel | Unit tests for routing, specialists and guards pass; typecheck passes; fixture mission reaches review with a handoff log | Implemented on this branch |
+| M1+ | Save points with branching, per-question interview rounds, Quest interface | Integration tests for branching and rounds; browser tests for the Quest pages | Implemented on this branch |
 | M2 | Scout schedule, dedupe, fan-out, batch review, outreach drafts | Sweep tests; one batch review covers three jobs; nothing is sent automatically | Scaffolding + tests |
 | M3 | Supervisor routing and plan gate | Routing table tests; plan edits change the executed steps | Scaffolding + tests |
 | M4 | `ask_human` clarification pauses | Low-confidence step pauses with a question; answer resumes the same node | Scaffolding |
@@ -174,7 +183,10 @@ Metrics are computed by `reviewDraft` on every round and stored with each critiq
 - `tests/resume-team.test.ts` – the real LangGraph runtime with fake ports: Critic → selector loop, rewriter-only routing, round-limit escalation, human return to a named specialist, gap-analyzer focus forwarding, interrupt payload and resume; plus gap analysis, critic rules and rewrite guard.
 - `tests/orchestration-scaffold.test.ts` – supervisor rules, Scout dedupe and source-failure handling, bounded fan-out, handoff history.
 
-Run with `npx vitest run tests/resume-team.test.ts tests/orchestration-scaffold.test.ts`. The full `npm run verify:local` also needs the portable database.
+- `tests/integration.test.ts` – save-point listing and branching, interview rounds and follow-ups against the real graph in fixture mode.
+- `tests/e2e/` – Playwright project `classic` runs the group-interface specs at `?classic=1`; project `quest` covers the Quest pages.
+
+Run with `npx vitest run tests/resume-team.test.ts tests/orchestration-scaffold.test.ts`. The full `npm run verify:local` also needs the portable database; `npm run test:e2e:local` runs the browser tests on a disposable database.
 
 ## 10. Known limits
 

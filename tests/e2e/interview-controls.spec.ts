@@ -1,5 +1,5 @@
 import { fillProfileFixture } from './profile-fixture.js';
-import { test, expect } from '@playwright/test';
+import { test, expect } from './classic.js';
 test('interview controls stop and skip without model calls, survive reload and lead to review without approval', async ({
   page,
 }) => {

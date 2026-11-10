@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './classic.js';
 import { sampleProfile } from '../../packages/contracts/src/index.js';
 
 test('background completion preserves deliberate earlier-stage review and blocks future routes', async ({
