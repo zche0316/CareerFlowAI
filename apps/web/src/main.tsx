@@ -18,6 +18,7 @@ import { QuestJobTable, RequirementChips } from './quest/job-board.js';
 import { QuestBattleLog } from './quest/battle-log.js';
 import { QuestSavePoints } from './quest/save-points.js';
 import { QuestBossBattle } from './quest/boss-battle.js';
+import { QuestWorld } from './quest/world.js';
 import { CharacterSheet } from './quest/character-sheet.js';
 import { progressFrom } from './quest/progress.js';
 import { QuestTopBar, type QuestNavId } from './quest/top-bar.js';
@@ -131,10 +132,21 @@ type Tab =
   | 'tools'
   | 'character'
   | 'home'
+  | 'world'
   | 'party';
 
 // ?classic=1 keeps the previous group interface available while the Quest UI replaces it.
 const classicView = new URLSearchParams(window.location.search).has('classic');
+
+const realmCodes = ['au', 'nz', 'gb', 'us', 'ca', 'sg', 'de', 'fr'];
+const savedRealm = () => {
+  try {
+    const v = localStorage.getItem('cf-realm');
+    return v && realmCodes.includes(v) ? v : null;
+  } catch {
+    return null;
+  }
+};
 
 const readWorkspaceRoute = () => {
   const query = new URLSearchParams(window.location.search);
@@ -149,12 +161,13 @@ const readWorkspaceRoute = () => {
     'character',
     'home',
     'party',
+    'world',
   ];
   const fallback = classicView ? 'missions' : 'home';
   const value = query.get('view') || fallback;
   const step = query.has('step') ? Number(query.get('step')) : null;
   return {
-    tab: (validTabs.includes(value) && !(classicView && ['home', 'party'].includes(value))
+    tab: (validTabs.includes(value) && !(classicView && ['home', 'party', 'world'].includes(value))
       ? value
       : fallback) as Tab,
     selected: query.get('mission'),
@@ -215,7 +228,12 @@ function App() {
         csrf = s.csrf || '';
         setSession(s);
         if (s.recruitment?.defaults)
-          setJobSearch({ ...defaultJobSearch, ...s.recruitment.defaults });
+          setJobSearch({
+            ...defaultJobSearch,
+            ...s.recruitment.defaults,
+            // The realm chosen on the World map is a per-viewer default for new quests.
+            ...(savedRealm() ? { country: savedRealm() } : {}),
+          });
         if (s.user)
           void refresh().then((w) => {
             if (!w.profile) setTab('profile');
@@ -773,6 +791,19 @@ function App() {
               onNewQuest={() => goQuest('jobs')}
               onBuildProfile={() => setTab('profile')}
               onNavigate={goQuest}
+            />
+          ) : tab === 'world' ? (
+            <QuestWorld
+              workspace={workspace}
+              realm={jobSearch.country}
+              onTravel={(country) => {
+                setJobSearch((j: any) => ({ ...j, country, region: '', location: '' }));
+                try {
+                  localStorage.setItem('cf-realm', country);
+                } catch {}
+                setNotice('Realm changed. Your next quest searches there.');
+              }}
+              onNewQuest={() => (workspace?.profile ? setCreating(true) : setTab('profile'))}
             />
           ) : tab === 'party' ? (
             <PartyRoster workspace={workspace} userName={session.user.name} />

@@ -5,6 +5,7 @@ import { LeaderBadge } from './characters.js';
 export type QuestNavId =
   | 'home'
   | 'quests'
+  | 'world'
   | 'jobs'
   | 'party'
   | 'character'
@@ -20,6 +21,7 @@ const primary: { id: QuestNavId; label: string }[] = [
   { id: 'home', label: 'Home' },
   { id: 'quests', label: 'Quests' },
   { id: 'jobs', label: 'Jobs' },
+  { id: 'world', label: 'World' },
   { id: 'party', label: 'Party' },
   { id: 'character', label: 'Character' },
 ];
@@ -58,7 +60,11 @@ export function QuestTopBar({
   useEffect(() => {
     if (!open) return;
     const close = (event: MouseEvent | KeyboardEvent) => {
-      if (event instanceof KeyboardEvent ? event.key === 'Escape' : !menu.current?.contains(event.target as Node))
+      if (
+        event instanceof KeyboardEvent
+          ? event.key === 'Escape'
+          : !menu.current?.contains(event.target as Node)
+      )
         setOpen(false);
     };
     document.addEventListener('mousedown', close);
@@ -83,7 +89,16 @@ export function QuestTopBar({
         }}
       >
         <span className="qt-mark" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D4F55B" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#D4F55B"
+            strokeWidth="2.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <path d="M4 18c4 0 4-8 8-8s4 8 8 8" />
             <circle cx="12" cy="6" r="2" />
           </svg>

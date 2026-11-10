@@ -81,6 +81,8 @@ export function QuestHome({
   onBuildProfile: () => void;
   onNavigate: (id: 'character' | 'party' | 'jobs' | 'quests') => void;
 }) {
+  // Until the workspace loads, render nothing that would claim the profile is missing.
+  if (!workspace) return <p className="quest-fine dark">Loading your quests…</p>;
   const missions: any[] = workspace?.missions || [];
   const active = missions[0];
   const hasProfile = Boolean(workspace?.profile);
