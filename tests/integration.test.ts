@@ -107,6 +107,80 @@ async function wait(c: Client, id: string, status: string) {
   throw Error('Timed out waiting for ' + status);
 }
 
+it('scores interview rounds with STAR, asks one follow-up and still completes with feedback', async () => {
+  const c = await client();
+  const { id, interview } = await prepareInterview(c);
+  const q = interview.data.questions[0];
+  const first = await c.request(`/missions/${id}/interview/rounds`, 'POST', {
+    questionId: q.id,
+    answer: 'We worked on a dashboard as a group.',
+  });
+  expect(first.status).toBe(200);
+  expect(first.body.data.rounds).toHaveLength(1);
+  const round = first.body.data.rounds[0];
+  expect(round).toMatchObject({ questionId: q.id, kind: 'answer', reviewer: 'rules' });
+  expect(round.evaluation.star.result).toBe('miss');
+  expect(round.evaluation.followUp).not.toBe('');
+  expect(first.body.data.answers).toEqual([
+    { questionId: q.id, answer: 'We worked on a dashboard as a group.' },
+  ]);
+  expect(first.body.events.at(-1)).toMatchObject({ agent: 'Interview Coach', action: 'evaluated' });
+
+  const follow = await c.request(`/missions/${id}/interview/rounds`, 'POST', {
+    questionId: q.id,
+    answer: 'At my internship I built 3 SQL reports, which reduced manual exports by 2 hours a week.',
+    followUp: true,
+  });
+  expect(follow.status).toBe(200);
+  expect(follow.body.data.rounds.map((r: any) => r.kind)).toEqual(['answer', 'follow_up']);
+  expect(follow.body.data.rounds[1].prompt).toBe(round.evaluation.followUp);
+  expect(follow.body.data.rounds[1].evaluation.followUp).toBe('');
+  expect(follow.body.data.rounds[1].evaluation.star.action).toBe('critical');
+  expect(follow.body.data.answers).toHaveLength(1);
+  expect(
+    (
+      await c.request(`/missions/${id}/interview/rounds`, 'POST', {
+        questionId: q.id,
+        answer: 'Again.',
+        followUp: true,
+      })
+    ).status,
+  ).toBe(409);
+  expect(
+    (
+      await c.request(`/missions/${id}/interview/rounds`, 'POST', {
+        questionId: 'not-a-question',
+        answer: 'Anything.',
+      })
+    ).status,
+  ).toBe(422);
+  const stranger = await client();
+  expect(
+    (
+      await stranger.request(`/missions/${id}/interview/rounds`, 'POST', {
+        questionId: q.id,
+        answer: 'Not mine.',
+      })
+    ).status,
+  ).toBe(404);
+
+  expect(
+    (await c.request(`/missions/${id}/decisions`, 'POST', { kind: 'interview', endedEarly: true }))
+      .status,
+  ).toBe(202);
+  const done = await wait(c, id, 'COMPLETE');
+  expect(done.data.feedback.strengths.length).toBeGreaterThan(0);
+  expect(done.data.rounds).toHaveLength(2);
+  expect(
+    (
+      await c.request(`/missions/${id}/interview/rounds`, 'POST', {
+        questionId: q.id,
+        answer: 'Too late.',
+      })
+    ).status,
+  ).toBe(409);
+});
+
 it('lists checkpoint save points and branches a quest from the shortlist without new model calls', async () => {
   const c = await client();
   await profile(c);

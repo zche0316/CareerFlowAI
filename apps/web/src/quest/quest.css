@@ -2417,3 +2417,213 @@ body:has(.quest) {
 .quest .quest-press.sky {
   background: var(--q-sky);
 }
+
+/* ---------- Boss battle (interview practice) ---------- */
+.boss-arena {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 28px;
+  align-items: center;
+  padding: 28px;
+}
+.boss-foe,
+.boss-ask {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.boss-foe {
+  flex: 1 1 320px;
+}
+.boss-foe svg {
+  max-width: 100%;
+  height: auto;
+}
+.boss-ask {
+  flex: 1 1 380px;
+}
+.boss-hp-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 700;
+}
+.boss-hp {
+  display: flex;
+  gap: 5px;
+}
+.boss-hp span {
+  flex: 1;
+  height: 18px;
+  border-radius: 6px;
+  background: var(--q-coral);
+  border: 2px solid var(--q-ink);
+  box-shadow: 0 0 0 2px #fff;
+}
+.boss-hp span.gone {
+  background: #262836;
+  border-color: #3b3d47;
+  box-shadow: none;
+}
+.boss-traits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.boss-traits .quest-chip.dark {
+  color: #ffb59e;
+}
+.boss-fine {
+  font-size: 12px;
+  color: #9a9dae;
+}
+.boss-qtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.agent-app.quest .content main .boss-qtab,
+.boss-qtab {
+  min-width: 44px;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 2px solid #3b3d47;
+  background: transparent;
+  color: #e4e5ec;
+  font: 700 13px var(--q-body);
+  cursor: pointer;
+}
+.agent-app.quest .content main .boss-qtab.done,
+.boss-qtab.done {
+  border-color: var(--q-lime);
+  color: var(--q-lime);
+}
+.agent-app.quest .content main .boss-qtab.on,
+.boss-qtab.on {
+  background: #fff;
+  border-color: #fff;
+  color: var(--q-ink);
+}
+.boss-bubble {
+  margin: 0;
+  padding: 22px 24px;
+  border-radius: 26px 26px 26px 6px;
+  background: #fff;
+  color: var(--q-ink);
+  font: 700 clamp(20px, 2.2vw, 28px) / 1.2 var(--q-display);
+}
+.boss-row {
+  align-items: flex-start;
+}
+.boss-turn {
+  flex: 3 1 480px;
+}
+.boss-turn h2 {
+  margin: 0;
+}
+.boss-turn textarea {
+  font: 16px/1.5 var(--q-body);
+  border: 2px solid var(--q-ink);
+  border-radius: 18px;
+  padding: 16px;
+  resize: vertical;
+}
+.boss-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.boss-items > span {
+  font-size: 13px;
+  font-weight: 700;
+}
+.boss-items > div {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+.agent-app.quest .content main .boss-item,
+.boss-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: var(--q-soft);
+  border: 2px solid transparent;
+  color: var(--q-ink);
+  font: 500 13px var(--q-body);
+  text-align: left;
+  cursor: pointer;
+}
+.boss-item:hover {
+  border-color: var(--q-ink);
+}
+.boss-item.lesson {
+  cursor: default;
+}
+.boss-item.lesson:hover {
+  border-color: transparent;
+}
+.boss-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.boss-last {
+  flex: 2 1 360px;
+}
+.boss-dmg {
+  font: 800 30px var(--q-display);
+}
+.boss-star {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.boss-mark {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 2px solid var(--q-ink);
+  background: #fff;
+}
+.boss-mark span {
+  font-size: 12px;
+  font-weight: 700;
+}
+.boss-mark.critical {
+  background: var(--q-ink);
+  color: #fff;
+}
+.boss-mark.partial {
+  background: var(--q-violet-soft);
+}
+.boss-mark.miss {
+  background: var(--q-coral-soft);
+}
+.boss-note {
+  margin: 0;
+}
+.boss-counter {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 18px;
+  background: #fff;
+}
+.boss-counter span {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--q-muted);
+}
+.boss-last small {
+  font-size: 13px;
+  color: #2e3a05;
+}

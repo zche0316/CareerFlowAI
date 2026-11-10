@@ -17,6 +17,7 @@ import { QuestLog, QuestMissionHeader } from './quest/quest-log.js';
 import { QuestJobTable, RequirementChips } from './quest/job-board.js';
 import { QuestBattleLog } from './quest/battle-log.js';
 import { QuestSavePoints } from './quest/save-points.js';
+import { QuestBossBattle } from './quest/boss-battle.js';
 import { CharacterSheet } from './quest/character-sheet.js';
 import { progressFrom } from './quest/progress.js';
 import { QuestTopBar, type QuestNavId } from './quest/top-bar.js';
@@ -2898,7 +2899,17 @@ function MissionDetail({
           </section>
         )}
 
-      {(phase === null || phase === 4) && questions.length > 0 && (
+      {!classicView && phase === 4 && questions.length > 0 && (
+        <QuestBossBattle
+          mission={m}
+          busy={busy}
+          onRound={(body) => onAction('interview/rounds', body)}
+          onFinish={(endedEarly) => onAction('decisions', { kind: 'interview', endedEarly })}
+        />
+      )}
+      {(phase === null || phase === 4) &&
+        questions.length > 0 &&
+        (classicView || phase === null || d.feedback) && (
         <div className="prototype-interview-layout">
           <section className="panel interview">
             <div className="section-heading">
