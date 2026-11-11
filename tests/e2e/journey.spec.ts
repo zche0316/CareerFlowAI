@@ -50,6 +50,11 @@ async function openInterview(page: Page) {
     timeout: 30000,
   });
   await page.getByRole('button', { name: '04 · Resume tailoring', exact: true }).click();
+  // The resume team (selector, rewriter, critic rounds) runs in the worker after the stage
+  // opens; on a slow CI runner the draft can take well over the default 5 s to appear.
+  await expect(page.getByRole('button', { name: 'Approve this draft' })).toBeVisible({
+    timeout: 45000,
+  });
   await expect(page.getByRole('button', { name: 'Approve this draft' })).toBeDisabled();
   await page.getByLabel('I read this exact draft.').check();
   await page.getByRole('button', { name: 'Approve this draft' }).click();
