@@ -4790,3 +4790,24 @@ summary:focus-visible {
   gap: 4px;
   font-size: 13px;
 }
+
+/* Recruiter view (CFS-116). */
+.recruiter-view .rv-scores {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+.recruiter-view .rv-scores div {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.04);
+}
+.recruiter-view dt {
+  font-size: 12px;
+}
+.recruiter-view dd {
+  margin: 2px 0 0;
+  font-weight: 800;
+  font-size: 18px;
+}

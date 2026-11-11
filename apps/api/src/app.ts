@@ -17,6 +17,7 @@ import {
 } from './applications.js';
 import { registerCoach, reusableAnalysis } from './coach.js';
 import { registerCapabilities } from './capability.js';
+import { registerRecruiterCheck } from './recruiter-check.js';
 import { registerProfilePolish } from './profile-polish.js';
 import { registerResumeWording } from './resume-wording.js';
 import { registerResumeAgent } from './resume-agent.js';
@@ -210,6 +211,7 @@ export function createApp() {
   registerApplications(app);
   registerCoach(app);
   registerCapabilities(app);
+  registerRecruiterCheck(app);
   registerResumeWording(app);
   registerResumeAgent(app);
   registerProfilePolish(app);

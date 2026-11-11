@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { FileText, Download, Sparkles } from 'lucide-react';
 import { ResumePreview } from './resume-preview.js';
 import { WordingStudio } from './resume-wording.js';
+import { RecruiterView } from './recruiter-view.js';
 import type { Request } from './profile-conversation.js';
 export function DocumentWorkspace({
   resumes,
@@ -13,7 +14,8 @@ export function DocumentWorkspace({
   onSaved: () => Promise<unknown>;
 }) {
   const [selected, setSelected] = useState(''),
-    [polish, setPolish] = useState(false);
+    [polish, setPolish] = useState(false),
+    [recruiter, setRecruiter] = useState(false);
   const resume = resumes.find((r) => r.id === selected) || resumes[0];
   if (!resume)
     return (
@@ -63,6 +65,14 @@ export function DocumentWorkspace({
             <Sparkles size={15} />
             Polish wording
           </button>
+          <button
+            type="button"
+            className="secondary"
+            aria-pressed={recruiter}
+            onClick={() => setRecruiter(!recruiter)}
+          >
+            Recruiter view
+          </button>
           <details className="download-formats">
             <summary>
               <Download size={15} />
@@ -85,6 +95,7 @@ export function DocumentWorkspace({
             onClose={() => setPolish(false)}
           />
         )}
+        {recruiter && <RecruiterView id={resume.id} api={api} />}
         <ResumePreview content={resume.content} />
       </section>
     </div>

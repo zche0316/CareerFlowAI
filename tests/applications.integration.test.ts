@@ -273,6 +273,17 @@ it('adds roles directly, practises with an approved resume and removes only unto
   );
   expect(ready.data.questions.length).toBeGreaterThan(0);
 
+  // The recruiter view re-reads the approved PDF and checks terms, knock-outs and levels.
+  const resumeId = (await call(`/missions/${run.id}`)).body.data.approvedResumeId;
+  const view = await call(`/resumes/${resumeId}/recruiter-check`);
+  expect(view.status).toBe(200);
+  expect(view.body.scores.parse).toBe(100);
+  expect(view.body.parse.checks.every((c: any) => c.ok)).toBe(true);
+  expect(view.body.knockouts.map((k: any) => k.kind)).toContain('Location');
+  expect(Array.isArray(view.body.keywords.rows)).toBe(true);
+  const { call: stranger } = await client();
+  expect((await stranger(`/resumes/${resumeId}/recruiter-check`)).status).toBe(404);
+
   // A role with runs is closed, not removed; an untouched role can be removed.
   expect((await call(`/applications/${added.body.id}`, 'DELETE')).body.code).toBe('ROLE_HAS_RUNS');
   expect((await call(`/applications/${spare.id}`, 'DELETE')).status).toBe(200);

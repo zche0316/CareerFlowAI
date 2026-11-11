@@ -164,3 +164,14 @@ three years show one level lower. Role requirements are read as skill plus requi
 (years, "strong", "familiarity" wording), and the gap drives role cards, the Coach and the
 Character page. The Evidence Selector sees facts from records with a stated result first. There
 is no overall score and no hiring prediction.
+
+## Recruiter view (CFS-116)
+
+`GET /api/resumes/:id/recruiter-check` (My documents → Recruiter view) reads an approved resume
+the way screening systems and recruiters do: it re-reads the exported PDF (contact, sections,
+dates, lines), checks required and preferred terms literally and by known synonym and whether they
+appear in experience lines or only in the skills list, reads knock-out conditions (work rights,
+location, years, degree) and shows level gaps. Results are a checklist with sub-scores, not a
+pass probability. The employer's exact term is suggested only where an approved line already
+names the same skill. Open-source references: Resume-Matcher (Apache-2.0) for keyword-gap ideas;
+OpenResume's parser (AGPL-3.0) only as an outside readability reference, no code copied.
