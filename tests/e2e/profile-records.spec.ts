@@ -1,5 +1,5 @@
 import { fillProfileFixture } from './profile-fixture.js';
-import { test, expect } from '@playwright/test';
+import { test, expect } from './classic.js';
 test('structured records and locally imported text remain separate from approval and survive reload', async ({
   page,
 }) => {

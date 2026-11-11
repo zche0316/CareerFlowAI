@@ -143,11 +143,15 @@ cannot replace another version.
 Mission statuses include `QUEUED`, `RUNNING`, `AWAITING_JOB`, `AWAITING_APPROVAL`,
 `AWAITING_INTERVIEW`, `COMPLETE`, `FAILED`, `STALE`, `CANCELLED` and `NO_MATCHES`.
 
-`jobSearchSchema` accepts `provider` (`employers`, `greenhouse`, `adzuna`, `fixtures` or `manual`),
-`board`, `country`, `region`, `location` and `keyword`. A `manual` search also accepts a `listing`
+`jobSearchSchema` accepts `provider` (`auto`, `employers`, `greenhouse`, `tavily`, `web`, `adzuna`,
+`fixtures` or `manual`), `board`, `country`, `region`, `location` and `keyword`. A `manual` search also accepts a `listing`
 object with `url`, `title`, `company`, `location` and `description`. Search criteria are editable and
 are sent to a job source without the approved profile, user identity or career evidence. Missing
-Adzuna credentials produce a configuration error instead of fixture substitution.
+Adzuna credentials produce a configuration error instead of fixture substitution. `web` reads public
+pages from one Tavily search (at most eight, login-walled sites excluded) with one model call per
+page; it needs Tavily and a live model, so only Scout sweeps in live mode use it. Title, company and
+location must be quoted from the page, the description is the page text, and the vacancy is marked
+unverified (`source.verified: false`).
 
 ### Optional tools and reminders
 
@@ -424,6 +428,13 @@ See [PRODUCT_WORKFLOW.md](PRODUCT_WORKFLOW.md) for the profile, source and appli
 - STAR drafts accept incomplete stories. Confirmation requires situation, task and personal action; an unknown result remains empty. Confirming a correction retires the preceding draft chain and its last confirmed source atomically.
 - Optional `careerStage` and `useConfirmedMemories` belong to the approved profile. Memory context is opt-in; retrieval never authorises new resume claims.
 - `POST /api/missions/:id/resume-selection`: `{draftHash,orderedFactIds}` selects/orders approved facts for the current awaiting-approval draft. Required record headers are included. The new hash invalidates the previous approval; source profiles remain unchanged.
+- `POST /api/missions/:id/interview/rounds`: `interviewRoundInputSchema` `{questionId,answer,followUp}` scores one practice answer on the four STAR parts (`roundEvaluationSchema`) while the mission is `AWAITING_INTERVIEW`, saves the answer and may return one follow-up per question. Counts against the mission model-call limit in live mode; fixture mode uses labelled rule-based scoring. Practice answers never become profile facts.
+- `GET /api/scout`: the signed-in user's Scout setting, schedule, limits, last five sweeps (counts, failed sources, handoffs, packages with quest status) and the latest tracked job records.
+- `PUT /api/scout/settings`: `{enabled,topK(1-3),minScore(0-100),search}` saves the daily-sweep switch and search; `search` uses `jobSearchSchema` without a pasted listing.
+- `POST /api/scout/sweeps`: starts a sweep (`202`). `409` without an approved profile or while a sweep is running; `429` after six sweeps in 24 hours. Packages are ordinary missions: review, return and cancel them through the mission endpoints.
+- `GET /api/missions/:id/save-points`: returns `{checkpoints,branchable,branchedFrom,branches}` from the mission's LangGraph checkpoint history. Read-only.
+- `POST /api/missions/:id/branch`: `{from:'analysis'|'shortlist'}` creates a new owned mission that reuses saved results up to that save point (`202`). The source mission, approved facts and approved resumes are unchanged; a newer approved profile version returns `409`.
+- `GET /api/missions/:id/trace`: returns `{spans,totals,byAgent}` for an owned mission: one span per model call (agent, role, model, mode, start, duration, model requests, tokens, `ok`/`error` with a short failure class). Spans never contain prompt, profile or job text. Missions run before tracing have no spans. Another user's mission returns `404`.
 - `POST /api/missions/:id/feedback-memory`: `{saveAsDraft:true}` retains actual interview feedback as a draft learning note. Feedback cannot become a qualification through grounding.
 
 See [PRODUCT_WORKFLOW.md](PRODUCT_WORKFLOW.md) for the source/profile/application separation and the six-stage user outcome.

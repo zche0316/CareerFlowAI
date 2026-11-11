@@ -22,11 +22,15 @@ Request IDs, lifecycle transitions and the approved-profile handoff are specifie
 
 ## Agent workflow
 
-Approved profile -> Career Coach -> Job Matcher -> interrupt for job selection -> Resume Tailor -> interrupt for exact-draft approval -> Interview Coach questions -> interrupt for saved responses -> Interview Coach feedback. A completed interview may then run an optional, single-round salary negotiation practice.
+Approved profile -> Career Coach -> Job Matcher -> interrupt for job selection -> resume team subgraph (Gap Analyzer -> Evidence Selector -> Rewriter -> Critic, with Command handoffs and a bounded Critic loop) -> interrupt for exact-draft approval or a return to a named specialist -> Interview Coach questions -> interrupt for saved responses -> Interview Coach feedback. See [MULTI_AGENT_PLAN.md](MULTI_AGENT_PLAN.md). A completed interview may then run an optional, single-round salary negotiation practice.
 
-Resume revision branches back to selection/ordering of supported evidence, limited to two revisions. Provider work is capped at 60 model calls per mission. Live generation makes one authorised, argument-validated context tool call followed by a structured response; the complete specialist call has a shared 90-second default timeout, configurable up to 120 seconds. No arbitrary web/terminal tools are exposed to the model.
+Human returns route to the named specialist (gap analysis, evidence selection or wording), limited to two per mission; the Critic may return work at most twice per review cycle before escalating to the user. Provider work is capped at 60 model calls per mission. Live generation makes one authorised, argument-validated context tool call followed by a structured response; the complete specialist call has a shared 90-second default timeout, configurable up to 120 seconds. No arbitrary web/terminal tools are exposed to the model.
 
 Domain rows hold factual source versions and human approvals; checkpoints hold graph continuation state. PostgreSQL row locks, worker leases, current-version checks and task-state checks guard side effects. Cancelling or superseding a mission prevents late results from committing. Worker recovery re-enqueues queued work and expired leases. Generation/checkpoint recovery is idempotent at the business layer; this is not a claim that remote LLM billing is exactly once after an abrupt process crash.
+
+## Scout sweeps
+
+A sweep runs as a separate checkpointed graph: Scout collects new public roles for the saved search and stores quoted job records, Job Matcher ranks them, and one resume team per shortlisted role starts in parallel as its own mission that stops at the draft review. Sweeps run daily for users who opt in, or on request. See [MULTI_AGENT_PLAN.md](MULTI_AGENT_PLAN.md) section 5.
 
 ## Authentication and privacy
 
@@ -49,4 +53,3 @@ CFS-34/35/36/37: contracts, persistence and orchestration. CFS-12–18: profile 
 Container services bind published ports to loopback for local demonstration. Docker Compose is supplied; verify it with a running Docker daemon before treating container deployment as tested. The native PostgreSQL helper is development-only and owns `.runtime/postgres` on port 55432. No existing course databases are modified.
 
 GitHub Enterprise Server installations may need an administrator-provided Actions runner and compatible versions of the checkout/setup-node/artifact actions. A committed workflow alone is not a successful CI run.
-

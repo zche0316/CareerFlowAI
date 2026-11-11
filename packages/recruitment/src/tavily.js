@@ -1,7 +1,8 @@
 import { JobSourceError } from './source-error.js';
 import { countrySpec, filterGeography } from './geography.js';
 
-const boards = [
+// Exported so the web source can exclude hosts this source already confirms through ATS APIs.
+export const boards = [
   'job-boards.greenhouse.io',
   'boards.greenhouse.io',
   'jobs.lever.co',
@@ -130,7 +131,7 @@ export async function verifyPosting(repo, identity, signal, boardCache = new Map
   );
 }
 
-export async function discoverTavily(repo, criteria, signal) {
+export function requireTavily() {
   const access = tavilyAccess();
   if (!['api_key', 'keyless'].includes(access.mode) || !access.configured)
     throw new JobSourceError(
@@ -138,6 +139,66 @@ export async function discoverTavily(repo, criteria, signal) {
       'Configure TAVILY_API_KEY or explicitly select TAVILY_ACCESS_MODE=keyless on the server.',
       422,
     );
+  return access;
+}
+
+// One Tavily search call with the shared access headers and error mapping.
+export async function tavilyRequest(
+  repo,
+  access,
+  body,
+  deadline,
+  signal,
+  maxBytes = 2000000,
+  endpoint = 'search',
+) {
+  let response;
+  try {
+    response = await repo.fetcher(`https://api.tavily.com/${endpoint}`, {
+      method: 'POST',
+      redirect: 'error',
+      signal: deadline,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(access.mode === 'keyless'
+          ? { 'X-Tavily-Access-Mode': 'keyless' }
+          : { Authorization: `Bearer ${access.key}` }),
+      },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    signal?.throwIfAborted();
+    throw new JobSourceError(
+      'UNAVAILABLE',
+      'Tavily search unavailable or timed out. Retry; no sample data was substituted.',
+    );
+  }
+  if (!response.ok)
+    throw new JobSourceError(
+      response.status === 429
+        ? 'RATE_LIMITED'
+        : [401, 403].includes(response.status)
+          ? 'AUTH_REQUIRED'
+          : 'HTTP_ERROR',
+      `Tavily search rejected the request (HTTP ${response.status}). Check access/credits and retry. No credential-mode fallback was attempted.`,
+      response.status,
+    );
+  const raw = await response.text();
+  if (raw.length > maxBytes)
+    throw new JobSourceError('INVALID_RESPONSE', 'Tavily response was too large.');
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    throw new JobSourceError('INVALID_RESPONSE', 'Tavily returned invalid JSON.');
+  }
+  if (!Array.isArray(data.results))
+    throw new JobSourceError('INVALID_RESPONSE', 'Tavily returned no valid result list.');
+  return data;
+}
+
+export async function discoverTavily(repo, criteria, signal) {
+  const access = requireTavily();
   const country = countrySpec(criteria.country || 'au');
   const keyword = criteria.keyword || 'graduate analyst business operations software data';
   const alternatives = {
@@ -160,58 +221,23 @@ export async function discoverTavily(repo, criteria, signal) {
     ? AbortSignal.any([signal, AbortSignal.timeout(25000)])
     : AbortSignal.timeout(25000);
   const search = async (query) => {
-    let response;
-    try {
-      response = await repo.fetcher('https://api.tavily.com/search', {
-        method: 'POST',
-        redirect: 'error',
-        signal: deadline,
-        headers: {
-          'Content-Type': 'application/json',
-          ...(access.mode === 'keyless'
-            ? { 'X-Tavily-Access-Mode': 'keyless' }
-            : { Authorization: `Bearer ${access.key}` }),
-        },
-        body: JSON.stringify({
-          query,
-          topic: 'general',
-          search_depth: 'basic',
-          max_results: resultLimit,
-          include_domains: boards,
-          include_answer: false,
-          include_raw_content: false,
-          include_usage: true,
-          auto_parameters: false,
-        }),
-      });
-    } catch {
-      signal?.throwIfAborted();
-      throw new JobSourceError(
-        'UNAVAILABLE',
-        'Tavily search unavailable or timed out. Retry; no sample data was substituted.',
-      );
-    }
-    if (!response.ok)
-      throw new JobSourceError(
-        response.status === 429
-          ? 'RATE_LIMITED'
-          : [401, 403].includes(response.status)
-            ? 'AUTH_REQUIRED'
-            : 'HTTP_ERROR',
-        `Tavily search rejected the request (HTTP ${response.status}). Check access/credits and retry. No credential-mode fallback was attempted.`,
-        response.status,
-      );
-    const raw = await response.text();
-    if (raw.length > 2000000)
-      throw new JobSourceError('INVALID_RESPONSE', 'Tavily response was too large.');
-    let data;
-    try {
-      data = JSON.parse(raw);
-    } catch {
-      throw new JobSourceError('INVALID_RESPONSE', 'Tavily returned invalid JSON.');
-    }
-    if (!Array.isArray(data.results))
-      throw new JobSourceError('INVALID_RESPONSE', 'Tavily returned no valid result list.');
+    const data = await tavilyRequest(
+      repo,
+      access,
+      {
+        query,
+        topic: 'general',
+        search_depth: 'basic',
+        max_results: resultLimit,
+        include_domains: boards,
+        include_answer: false,
+        include_raw_content: false,
+        include_usage: true,
+        auto_parameters: false,
+      },
+      deadline,
+      signal,
+    );
     return { ...data, results: data.results.slice(0, resultLimit) };
   };
   const outcomes = await Promise.allSettled(queries.map(search));

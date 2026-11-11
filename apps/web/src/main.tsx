@@ -12,6 +12,21 @@ import { ProfileRecords } from './profile-records.js';
 import { ProfileImport } from './profile-import.js';
 import { ResumeManualEdit } from './resume-manual-edit.js';
 import { ResumeAgent } from './resume-agent.js';
+import { PartyDecision, PartyTrack } from './quest/party-review.js';
+import { QuestLog, QuestMissionHeader } from './quest/quest-log.js';
+import { QuestJobTable, RequirementChips } from './quest/job-board.js';
+import { QuestBattleLog } from './quest/battle-log.js';
+import { QuestSavePoints } from './quest/save-points.js';
+import { QuestBossBattle } from './quest/boss-battle.js';
+import { QuestWorld } from './quest/world.js';
+import { QuestSeason } from './quest/season.js';
+import { QuestScout } from './quest/scout.js';
+import { CharacterSheet } from './quest/character-sheet.js';
+import { progressFrom } from './quest/progress.js';
+import { QuestTopBar, type QuestNavId } from './quest/top-bar.js';
+import { QuestHome } from './quest/home.js';
+import { PartyRoster } from './quest/roster.js';
+import './quest/fonts.js';
 import { ProfileConversation } from './profile-conversation.js';
 import { CareerMemoryPanel } from './career-memory.js';
 import { DocumentWorkspace } from './document-workspace.js';
@@ -51,6 +66,7 @@ import {
 } from 'lucide-react';
 import { blankProfile, type CareerProfile } from '../../../packages/contracts/src/index.js';
 import './style.css';
+import './quest/quest.css';
 
 // The session endpoint supplies this token; all JSON mutations share the same request wrapper.
 let csrf = '';
@@ -109,7 +125,32 @@ const stagePresentation = [
   },
 ];
 type Tab =
-  'missions' | 'profile' | 'approved-profile' | 'approvals' | 'library' | 'activity' | 'tools';
+  | 'missions'
+  | 'profile'
+  | 'approved-profile'
+  | 'approvals'
+  | 'library'
+  | 'activity'
+  | 'tools'
+  | 'character'
+  | 'home'
+  | 'world'
+  | 'season'
+  | 'scout'
+  | 'party';
+
+// ?classic=1 keeps the previous group interface available while the Quest UI replaces it.
+const classicView = new URLSearchParams(window.location.search).has('classic');
+
+const realmCodes = ['au', 'nz', 'gb', 'us', 'ca', 'sg', 'de', 'fr'];
+const savedRealm = () => {
+  try {
+    const v = localStorage.getItem('cf-realm');
+    return v && realmCodes.includes(v) ? v : null;
+  } catch {
+    return null;
+  }
+};
 
 const readWorkspaceRoute = () => {
   const query = new URLSearchParams(window.location.search);
@@ -121,13 +162,22 @@ const readWorkspaceRoute = () => {
     'library',
     'activity',
     'tools',
+    'character',
+    'home',
+    'party',
+    'world',
+    'season',
+    'scout',
   ];
-  const value = query.get('view') || 'missions';
+  const fallback = classicView ? 'missions' : 'home';
+  const value = query.get('view') || fallback;
   const step = query.has('step') ? Number(query.get('step')) : null;
   return {
-    tab: (validTabs.includes(value) ? value : 'missions') as Tab,
+    tab: (validTabs.includes(value) && !(classicView && ['home', 'party', 'world', 'season', 'scout'].includes(value))
+      ? value
+      : fallback) as Tab,
     selected: query.get('mission'),
-    phase: step !== null && Number.isInteger(step) && step >= 0 && step <= 7 ? step : null,
+    phase: step !== null && Number.isInteger(step) && step >= 0 && step <= (classicView ? 7 : 9) ? step : null,
   };
 };
 // Own workspace navigation and refreshes here; the server remains the source of mission status.
@@ -184,7 +234,12 @@ function App() {
         csrf = s.csrf || '';
         setSession(s);
         if (s.recruitment?.defaults)
-          setJobSearch({ ...defaultJobSearch, ...s.recruitment.defaults });
+          setJobSearch({
+            ...defaultJobSearch,
+            ...s.recruitment.defaults,
+            // The realm chosen on the World map is a per-viewer default for new quests.
+            ...(savedRealm() ? { country: savedRealm() } : {}),
+          });
         if (s.user)
           void refresh().then((w) => {
             if (!w.profile) setTab('profile');
@@ -343,6 +398,62 @@ function App() {
         }}
       />
     );
+  const progress = progressFrom(workspace);
+  // Quest navigation reuses the same state transitions as the classic sidebar.
+  const questNavActive: QuestNavId | null =
+    tab === 'missions'
+      ? phase === 2
+        ? 'jobs'
+        : phase === 7
+          ? 'applications'
+          : 'quests'
+      : tab === 'profile'
+        ? 'approved-profile'
+        : (tab as QuestNavId);
+  const goQuest = (id: QuestNavId) => {
+    setError('');
+    if (id === 'classic') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('classic', '1');
+      url.searchParams.set('view', 'missions');
+      window.location.assign(url.toString());
+      return;
+    }
+    if (id === 'jobs') {
+      if (!workspace?.profile) {
+        setTab('profile');
+        setSelected(null);
+        setPhase(0);
+        return;
+      }
+      const candidate = mission || workspace?.missions[0];
+      const live =
+        candidate &&
+        ['QUEUED', 'RUNNING', 'AWAITING_JOB', 'AWAITING_APPROVAL', 'AWAITING_INTERVIEW'].includes(
+          candidate.status,
+        );
+      if (live) {
+        setSelected(candidate.id);
+        setTab('missions');
+        setPhase(candidate.data?.matches?.length ? 2 : nextMissionStep(candidate));
+      } else setCreating(true);
+      return;
+    }
+    if (id === 'applications') {
+      setTab('missions');
+      setPhase(7);
+      setSelected(
+        workspace?.missions.find((m: any) => m.data?.approvedResumeId)?.id ||
+          workspace?.missions[0]?.id ||
+          null,
+      );
+      return;
+    }
+    setTab(id === 'quests' ? 'missions' : (id as Tab));
+    setSelected(null);
+    setPhase(null);
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  };
   const renderProfile = (mode: 'build' | 'edit') => (
     <Profile
       mode={mode}
@@ -392,10 +503,30 @@ function App() {
     { id: 'tools', label: 'Optional tools', icon: Target },
   ];
   return (
-    <div className="shell agent-app">
+    <div className={classicView ? 'shell agent-app' : 'shell agent-app quest'}>
       <a className="skip-link" href="#main-content">
         Skip to workspace
       </a>
+      {!classicView && (
+        <QuestTopBar
+          active={questNavActive}
+          userName={session.user.name}
+          level={progress.level}
+          xp={progress.xp}
+          waiting={approvals.length}
+          fixture={session.mode === 'fixture'}
+          onNavigate={goQuest}
+          onSignOut={() =>
+            void act(async () => {
+              await api('/logout', 'POST', {});
+              csrf = '';
+              setSession({ ...session, user: null });
+              setWorkspace(null);
+            })
+          }
+        />
+      )}
+      {classicView && (
       <aside className="sidebar">
         <a className="brand" href="/" aria-label="CareerFlow home">
           <span className="brandmark" aria-hidden="true">
@@ -556,7 +687,9 @@ function App() {
           </button>
         </div>
       </aside>
+      )}
       <div className="content">
+        {classicView && (
         <header className="topbar">
           <div>
             <span className="breadcrumb">Workspace</span>
@@ -579,6 +712,7 @@ function App() {
             </span>
           </details>
         </header>
+        )}
         <main id="main-content" tabIndex={-1}>
           {error && (
             <div role="alert" className="error-banner global-error-toast">
@@ -597,7 +731,8 @@ function App() {
               </button>
             </div>
           )}
-          {(tab === 'profile' || (tab === 'missions' && (selected || phase !== null))) && (
+          {(tab === 'profile' ||
+            (classicView && tab === 'missions' && (selected || phase !== null))) && (
             <FlowNavigation
               current={
                 tab === 'profile'
@@ -649,6 +784,72 @@ function App() {
                 )}
               </div>
             </div>
+          ) : tab === 'home' ? (
+            <QuestHome
+              workspace={workspace}
+              userName={session.user.name}
+              onOpenMission={(id, step) => {
+                setSelected(id);
+                setTab('missions');
+                setPhase(step);
+                window.scrollTo({ top: 0, behavior: 'auto' });
+              }}
+              onNewQuest={() => goQuest('jobs')}
+              onBuildProfile={() => setTab('profile')}
+              onNavigate={goQuest}
+            />
+          ) : tab === 'world' ? (
+            <QuestWorld
+              workspace={workspace}
+              realm={jobSearch.country}
+              onTravel={(country) => {
+                setJobSearch((j: any) => ({ ...j, country, region: '', location: '' }));
+                try {
+                  localStorage.setItem('cf-realm', country);
+                } catch {}
+                setNotice('Realm changed. Your next quest searches there.');
+              }}
+              onNewQuest={() => (workspace?.profile ? setCreating(true) : setTab('profile'))}
+              onSeason={() => goQuest('season')}
+            />
+          ) : tab === 'season' ? (
+            <QuestSeason
+              workspace={workspace}
+              realm={jobSearch.country}
+              onNavigate={goQuest}
+              onOpenMission={(id, step) => {
+                setSelected(id);
+                setTab('missions');
+                setPhase(step);
+                window.scrollTo({ top: 0, behavior: 'auto' });
+              }}
+            />
+          ) : tab === 'scout' ? (
+            <QuestScout
+              hasProfile={Boolean(workspace?.profile)}
+              request={api}
+              onBuildProfile={() => setTab('profile')}
+              onChanged={() => void refresh()}
+              onOpenMission={(id, step) => {
+                setSelected(id);
+                setTab('missions');
+                setPhase(step);
+                window.scrollTo({ top: 0, behavior: 'auto' });
+              }}
+            />
+          ) : tab === 'party' ? (
+            <PartyRoster workspace={workspace} userName={session.user.name} />
+          ) : tab === 'character' ? (
+            <CharacterSheet
+              workspace={workspace}
+              userName={session.user.name}
+              onBuildProfile={() => setTab('profile')}
+              onOpenMission={(id) => {
+                setSelected(id);
+                setTab('missions');
+                setPhase(1);
+              }}
+            />
           ) : tab === 'tools' ? (
             <OptionalTools missions={workspace?.missions || []} request={api} onRefresh={refresh} />
           ) : tab === 'profile' ? (
@@ -657,6 +858,17 @@ function App() {
             <>
               {mission ? (
                 <MissionDetail
+                  userName={session.user.name}
+                  onOpenMission={(id) =>
+                    void act(async () => {
+                      const latest = (await refresh()).missions.find((x: any) => x.id === id);
+                      setSelected(id);
+                      setPhase(
+                        latest && latest.status !== 'COMPLETE' ? nextMissionStep(latest) : null,
+                      );
+                      window.scrollTo({ top: 0, behavior: 'auto' });
+                    })
+                  }
                   key={mission.id}
                   mission={mission}
                   phase={phase}
@@ -746,6 +958,20 @@ function App() {
                     </button>
                   </section>
                 </>
+              ) : !classicView ? (
+                <QuestLog
+                  workspace={workspace}
+                  onOpen={(m, targetPhase) => {
+                    setSelected(m.id);
+                    setPhase(targetPhase);
+                    window.scrollTo({ top: 0, behavior: 'auto' });
+                  }}
+                  onNewQuest={() => setCreating(true)}
+                  onBuildProfile={() => {
+                    setTab('profile');
+                    setPhase(0);
+                  }}
+                />
               ) : (
                 <>
                   <WorkspaceHome
@@ -1696,7 +1922,11 @@ function MissionDetail({
   onNegotiation,
   onNegotiationDecision,
   onRefineAnalysis,
+  onOpenMission,
+  userName = 'You',
 }: {
+  userName?: string;
+  onOpenMission: (id: string) => void;
   mission: any;
   phase: number | null;
   onNavigate: (phase: number | null) => void;
@@ -1750,7 +1980,7 @@ function MissionDetail({
   }, [m.id, d.selectedJob?.job.id]);
 
   const completed = m.status === 'COMPLETE';
-  if (completed && (phase === null || phase > 4))
+  if (completed && (phase === null || (phase > 4 && phase !== 8 && phase !== 9)))
     return (
       <section aria-label="Completed journey results">
         <button className="back" onClick={onBack}>
@@ -1806,9 +2036,14 @@ function MissionDetail({
     );
   return (
     <>
-      <button className="back" onClick={onBack}>
-        ← All missions
-      </button>
+      {!classicView && (
+        <QuestMissionHeader mission={m} phase={phase} onBack={onBack} onSelect={onNavigate} />
+      )}
+      {classicView && (
+        <button className="back" onClick={onBack}>
+          ← All missions
+        </button>
+      )}
       {completed && (
         <div className="info" role="note">
           <span>Saved journey · Read-only history</span>
@@ -1820,6 +2055,8 @@ function MissionDetail({
           </button>
         </div>
       )}
+      {classicView && (
+      <>
       <div className="mission-heading">
         <div>
           <span className="eyebrow">
@@ -1875,6 +2112,14 @@ function MissionDetail({
                   : nice(m.status)}
         </strong>
       </div>
+      </>
+      )}
+      {!classicView && phase === 8 && (
+        <QuestBattleLog mission={m} userName={userName} request={api} />
+      )}
+      {!classicView && phase === 9 && (
+        <QuestSavePoints mission={m} request={api} onOpenMission={onOpenMission} />
+      )}
       {phase === 0 && (
         <MissionProfile
           missionId={m.id}
@@ -1884,6 +2129,7 @@ function MissionDetail({
         />
       )}
       {phase === 2 && ['AWAITING_JOB', 'NO_MATCHES'].includes(m.status) && !d.selectedJob && (
+        <QuestAddLink quest={!classicView}>
         <section className="panel" aria-label="Read a job link">
           <h2>Have a job in mind?</h2>
           <div className="form-actions">
@@ -1911,10 +2157,14 @@ function MissionDetail({
             We’ll read the public listing. Review the job and its gaps before choosing it.
           </p>
         </section>
+        </QuestAddLink>
       )}
       {phase === 2 && !completed && !d.selectedJob && (
-        <button className="primary" onClick={onNewSearch}>
-          Search Australian jobs
+        <button
+          className={classicView || !d.matches?.length ? 'primary' : 'secondary'}
+          onClick={onNewSearch}
+        >
+          {classicView || !d.matches?.length ? 'Search Australian jobs' : 'Run a new search'}
         </button>
       )}
       {phase === 2 && d.selectedJob && !completed && (
@@ -2225,7 +2475,8 @@ function MissionDetail({
           </div>
         )}
         {(phase === null || phase === 2) && d.matches?.length > 0 && (
-          <section id="job-matching">
+          <section id="job-matching" className={classicView ? undefined : 'qj-section'}>
+            {(classicView || d.selectedJob) && (
             <div className="section-heading">
               <h2>
                 {d.selectedJob
@@ -2241,7 +2492,24 @@ function MissionDetail({
                 · heuristic scores
               </span>
             </div>
-            {!d.selectedJob && (
+            )}
+            <div className={classicView || d.selectedJob ? undefined : 'qj-layout'}>
+            {!classicView && !d.selectedJob && (
+              <QuestJobTable
+                matches={d.matches}
+                selectedId={viewJobId || d.matches[0]?.job.id}
+                compareIds={compareIds}
+                sourceLabel={
+                  d.jobRetrieval?.source === 'fixtures'
+                    ? 'sample jobs'
+                    : d.jobRetrieval?.source === 'manual'
+                      ? 'pasted listing'
+                      : 'live source snapshots'
+                }
+                onSelect={setViewJobId}
+              />
+            )}
+            {classicView && !d.selectedJob && (
               <nav className="job-choice-list" aria-label="Matched jobs">
                 {d.matches.map((r: any) => (
                   <button
@@ -2296,11 +2564,15 @@ function MissionDetail({
                       ? `${r.job.salary.currency} ${r.job.salary.min?.toLocaleString() ?? '?'}–${r.job.salary.max?.toLocaleString() ?? '?'} / year · ${r.job.salary.basis || 'source supplied'}`
                       : 'Unknown — not supplied by source'}
                   </p>
-                  <div className="pills">
-                    {r.matches.slice(0, 4).map((s: string) => (
-                      <span key={s}>{s}</span>
-                    ))}
-                  </div>
+                  {classicView ? (
+                    <div className="pills">
+                      {r.matches.slice(0, 4).map((s: string) => (
+                        <span key={s}>{s}</span>
+                      ))}
+                    </div>
+                  ) : (
+                    <RequirementChips r={r} />
+                  )}
                   <p>{r.explanation}</p>
                   {r.scoringVersion === 'matching-v2' && (
                     <p className="small muted">
@@ -2308,7 +2580,7 @@ function MissionDetail({
                       mapping.
                     </p>
                   )}
-                  {r.gaps?.length > 0 && (
+                  {classicView && r.gaps?.length > 0 && (
                     <div className="job-gap-notice" role="note">
                       <strong>Before you choose: evidence gaps</strong>
                       <ul>
@@ -2475,6 +2747,7 @@ function MissionDetail({
                 </article>
               ))}
             </div>
+            </div>
             {compareIds.length >= 2 && (
               <div className="panel comparison">
                 <h3>Compare selected opportunities</h3>
@@ -2538,7 +2811,10 @@ function MissionDetail({
         )}
       {(phase === null || phase === 3) && d.resumeDraft && (
         <section id="resume-tailoring" className="panel resume">
-          {m.status === 'AWAITING_APPROVAL' && (
+          {d.resumeTeam && (
+            <PartyTrack team={d.resumeTeam} waiting={m.status === 'AWAITING_APPROVAL'} />
+          )}
+          {m.status === 'AWAITING_APPROVAL' && !d.resumeTeam && (
             <div className="approval-controls resume-approval-bar">
               <label className="checkbox">
                 <input
@@ -2588,7 +2864,7 @@ function MissionDetail({
             <aside className="prototype-resume-controls">
               <p className="agent-context-caption">Target · {d.resumeDraft.jobTitle}</p>
               <JobFit missionId={m.id} api={api} compact />
-              {d.selectedJob?.gaps?.length > 0 && (
+              {d.selectedJob?.gaps?.length > 0 && (classicView || !d.resumeTeam) && (
                 <div className="job-gap-notice" role="note">
                   <strong>Gaps to keep in mind</strong>
                   <ul>
@@ -2599,12 +2875,41 @@ function MissionDetail({
                   <p>Tailoring improves relevance; it does not add missing qualifications.</p>
                 </div>
               )}
-              <div className="section-heading">
-                <h2>{completed ? 'Saved resume' : 'Edit with your agent'}</h2>
-                <span className="tag">
-                  {d.approvedResumeId ? 'Approved & saved' : 'Review required'}
-                </span>
-              </div>
+              {d.resumeTeam && (
+                <PartyDecision
+                  team={d.resumeTeam}
+                  userName={userName}
+                  waiting={m.status === 'AWAITING_APPROVAL'}
+                  busy={busy}
+                  approveBlocked={manualDirty}
+                  revisions={d.revisions || 0}
+                  onApprove={() =>
+                    onAction('decisions', {
+                      kind: 'resume',
+                      decision: 'approve',
+                      draftHash: d.resumeDraft.hash,
+                    })
+                  }
+                  onReturn={(target, feedback) =>
+                    onAction('decisions', {
+                      kind: 'resume',
+                      decision: 'reject',
+                      draftHash: d.resumeDraft.hash,
+                      target,
+                      feedback,
+                    })
+                  }
+                />
+              )}
+              {(classicView || !d.resumeTeam || d.approvedResumeId) && (
+                <div className="section-heading">
+                  <h2>{completed ? 'Saved resume' : d.approvedResumeId ? 'Approved resume' : 'Edit with your agent'}</h2>
+                  <span className="tag">
+                    {d.approvedResumeId ? 'Approved & saved' : 'Review required'}
+                  </span>
+                </div>
+              )}
+              <QuestEditDrawer quest={!classicView && !!d.resumeTeam && m.status === 'AWAITING_APPROVAL'}>
               {m.status === 'AWAITING_APPROVAL' && (
                 <ResumeManualEdit
                   draft={d.resumeDraft}
@@ -2628,6 +2933,7 @@ function MissionDetail({
                   }
                 />
               )}
+              </QuestEditDrawer>
               {d.approvedResumeId && <ResumeDownloads id={d.approvedResumeId} />}
               {d.approvedResumeId && (
                 <a className="secondary" href={`/api/resumes/${d.approvedResumeId}/download`}>
@@ -2658,7 +2964,17 @@ function MissionDetail({
           </section>
         )}
 
-      {(phase === null || phase === 4) && questions.length > 0 && (
+      {!classicView && phase === 4 && questions.length > 0 && (
+        <QuestBossBattle
+          mission={m}
+          busy={busy}
+          onRound={(body) => onAction('interview/rounds', body)}
+          onFinish={(endedEarly) => onAction('decisions', { kind: 'interview', endedEarly })}
+        />
+      )}
+      {(phase === null || phase === 4) &&
+        questions.length > 0 &&
+        (classicView || phase === null || d.feedback) && (
         <div className="prototype-interview-layout">
           <section className="panel interview">
             <div className="section-heading">
@@ -2973,6 +3289,34 @@ function MissionDetail({
 }
 
 createRoot(document.getElementById('root')!).render(<App />);
+
+/** In the Quest UI, adding a job by link is a secondary action folded under the header. */
+function QuestAddLink({ quest, children }: { quest: boolean; children: React.ReactNode }) {
+  if (!quest) return <>{children}</>;
+  return (
+    <details className="quest-edit-drawer qj-add">
+      <summary>
+        <span>Add a job from a link</span>
+        <small>Paste a public listing. You still review its gaps before choosing it.</small>
+      </summary>
+      <div>{children}</div>
+    </details>
+  );
+}
+
+/** In the Quest UI, hand edits sit behind a drawer so the Critic report and decision lead. */
+function QuestEditDrawer({ quest, children }: { quest: boolean; children: React.ReactNode }) {
+  if (!quest) return <>{children}</>;
+  return (
+    <details className="quest-edit-drawer">
+      <summary>
+        <span>Edit it yourself</span>
+        <small>Change a line by hand or ask the resume agent. Edits are re-checked against your facts.</small>
+      </summary>
+      <div>{children}</div>
+    </details>
+  );
+}
 
 function ResumeDownloads({ id }: { id: string }) {
   return (

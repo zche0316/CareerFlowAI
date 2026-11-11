@@ -1,5 +1,5 @@
 import { fillProfileFixture } from './profile-fixture.js';
-import { test, expect } from '@playwright/test';
+import { test, expect } from './classic.js';
 
 test('profile workbench approves and reloads a real saved profile without model calls', async ({
   page,

@@ -1,5 +1,5 @@
 import { fillProfileFixture } from './profile-fixture.js';
-import { test, expect } from '@playwright/test';
+import { test, expect } from './classic.js';
 
 test('five-step journey automatically hands off and preserves decisions across reloads', async ({
   page,
@@ -45,17 +45,17 @@ test('five-step journey automatically hands off and preserves decisions across r
   ).toBeVisible();
   await page.getByRole('button', { name: 'Select this opportunity' }).first().click();
   await expect(
-    page.getByRole('button', { name: 'Approve & save resume', exact: true }),
+    page.getByRole('button', { name: 'Approve this draft', exact: true }),
   ).toBeVisible({ timeout: 45000 });
   await expect(page).toHaveURL(/step=3/);
   await expect(
-    page.getByRole('button', { name: 'Approve & save resume', exact: true }),
+    page.getByRole('button', { name: 'Approve this draft', exact: true }),
   ).toBeDisabled();
   await expect(page.getByRole('region', { name: 'Job requirements to review' })).toBeVisible();
   await page.reload();
   expect(new URL(page.url()).searchParams.get('mission')).toBe(missionId);
-  await page.getByLabel('I reviewed this resume and am ready to save it.').check();
-  await page.getByRole('button', { name: 'Approve & save resume', exact: true }).click();
+  await page.getByLabel('I read this exact draft.').check();
+  await page.getByRole('button', { name: 'Approve this draft', exact: true }).click();
   await expect(page.getByLabel('Your response', { exact: true })).toBeVisible({ timeout: 45000 });
   await expect(page).toHaveURL(/step=4/);
   await page

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './classic.js';
 import { AGENTS, sampleProfile } from '../../packages/contracts/src/index.js';
 // Controlled transport verifies view state independently of PDF parsing/model quality.
 test('new imports clear previous pages and consent; organization uses explicitly selected source pages', async ({

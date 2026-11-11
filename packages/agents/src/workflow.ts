@@ -29,6 +29,8 @@ import {
   feedbackSchema,
   type Fact,
   type CareerProfile,
+  type ResumeReturnTarget,
+  resumeReturnTargets,
 } from '../../contracts/src/index.js';
 import { composeSelection } from '../../../apps/api/src/resume-composition.js';
 import {
@@ -41,6 +43,14 @@ import { generate, type Mode } from './provider.js';
 import { matchingProfileView } from '../../contracts/src/career-evidence.js';
 import { compare, vectorSimilarity } from '../../matching/domain.js';
 import { filterResumeEvidence } from './resume-evidence.js';
+import { buildResumeTeamGraph, type ResumeTeamPorts } from './resume-team/graph.js';
+import { analyseGaps } from './resume-team/gap-analysis.js';
+import { reviewDraft } from './resume-team/critic.js';
+import { applyRewrites, isRewritable, type DraftClaim } from './resume-team/rewrite.js';
+import { critiqueSchema, rewriteSchema } from './resume-team/schemas.js';
+import type { Critique, TeamFeedback } from './resume-team/types.js';
+import { agentLabels, appendHandoffs } from './orchestration/handoff.js';
+import { spanHook } from '../../../apps/api/src/trace.js';
 
 // Checkpoints store a mission reference; approved evidence and results remain in domain tables.
 const State = Annotation.Root({ missionId: Annotation<string>() });
@@ -111,7 +121,14 @@ export async function createWorkflow() {
       missionContext(role, {
         goal: c.m.goal,
         facts:
-          role === 'questions' && c.d.resumeDraft?.claims?.length
+          role === 'rewrite' || role === 'critic'
+            ? c.facts.filter((f) =>
+                (c.d.resumeDraft?.claims || []).some(
+                  (claim: DraftClaim) =>
+                    claim.factId === f.id && (role === 'critic' || isRewritable(claim)),
+                ),
+              )
+            : role === 'questions' && c.d.resumeDraft?.claims?.length
             ? c.facts.filter((f) =>
                 c.d.resumeDraft.claims.some((claim: any) => claim.factId === f.id),
               )
@@ -125,7 +142,14 @@ export async function createWorkflow() {
         job: c.d.selectedJob?.job,
         questions: c.d.questions,
         answers: c.d.answers,
-        feedback: c.d.resumeFeedback,
+        feedback: role === 'rewrite' ? c.d.resumeTeam?.rewriterNotes : c.d.resumeFeedback,
+        draftClaims:
+          role === 'critic'
+            ? (c.d.resumeDraft?.claims || []).map((claim: DraftClaim) => ({
+                factId: claim.factId,
+                text: claim.text,
+              }))
+            : undefined,
         priorFeedback: c.d.priorFeedback,
       }),
       schema,
@@ -134,11 +158,345 @@ export async function createWorkflow() {
         onCall: () => reserveCall(id, c.token),
         onTool: (name) => patchRun(id, c.token, {}, role, 'tool', name),
         onUsage: (a, b) => appendUsage(id, c.token, a, b),
+        onSpan: spanHook({ userId: c.m.userId, missionId: id }),
       },
       c.signal,
     );
     return result;
   };
+
+  // ---- Resume team ports: database and provider work behind the subgraph's routing ----
+  const eligibleResumeFacts = (facts: Fact[]) =>
+    facts.filter(
+      (fact) =>
+        ['skill', 'education', 'experience'].includes(fact.kind) &&
+        (!fact.recordId || fact.kind !== 'experience' || isResumeContribution(fact)) &&
+        !/^none yet$/i.test(fact.text),
+    );
+  const notesText = (feedback: TeamFeedback[]) =>
+    feedback.map((f) => `${f.from === 'human' ? 'User' : 'Critic'}: ${f.message}`).join('\n');
+
+  // Team progress is mirrored into mission data so the review screen and Activity log show it.
+  const patchTeam = (
+    id: string,
+    lease: string,
+    update: (team: Record<string, any>) => Record<string, any>,
+    agent: string,
+    action: string,
+    detail: string,
+    extra: MissionData = {},
+  ) =>
+    mutateRun(id, lease, async (tx, m) => {
+      const data = m.data as MissionData;
+      await tx.mission.update({
+        where: { id },
+        data: {
+          data: json({ ...data, ...extra, resumeTeam: update(data.resumeTeam || {}) }),
+          events: json([
+            ...(m.events as any[]),
+            { at: new Date().toISOString(), agent, action, detail },
+          ]),
+        },
+      });
+    });
+
+  const resumePorts: ResumeTeamPorts = {
+    async analyseGaps(id, feedback) {
+      const c = await context(id, 'resume');
+      const gaps = analyseGaps(
+        c.d.selectedJob,
+        c.facts,
+        feedback
+          .filter((f) => f.from === 'human')
+          .map((f) => f.message)
+          .join(' '),
+      );
+      const supported = gaps.requirements.length - gaps.gaps.length;
+      const summary =
+        `${supported} of ${gaps.requirements.length} job requirements have approved evidence; ` +
+        `${gaps.gaps.length} stay as gaps` +
+        (gaps.userFocus.length ? `; your focus: ${gaps.userFocus.join(', ')}.` : '.');
+      await patchTeam(id, c.token, (t) => ({ ...t, gaps }), 'Gap Analyzer', 'completed', summary);
+      return { summary };
+    },
+
+    // Evidence Selector: the original Resume Tailor selection, now steered by team notes.
+    async selectEvidence(id, feedback) {
+      const c = await context(id, 'resume');
+      const eligible = new Set(eligibleResumeFacts(c.facts).map((f) => f.id));
+      if (!eligible.size)
+        throw new AppError(
+          422,
+          'EVIDENCE_REQUIRED',
+          'Approve at least one skill, education or experience fact before tailoring a resume.',
+        );
+      const notes = notesText(feedback);
+      if (notes || c.d.resumeFeedback)
+        await patchRun(
+          id,
+          c.token,
+          { resumeFeedback: notes },
+          'Evidence Selector',
+          'context',
+          notes
+            ? `Received ${feedback.length} note(s) for re-selection.`
+            : 'Cleared notes from the previous review cycle.',
+        );
+      const groundedResumeSchema = z.object({
+        claims: z
+          .array(
+            z.object({
+              factId: z.string().min(1).max(100),
+              reason: z.string().trim().min(1).max(1000),
+            }),
+          )
+          .min(1)
+          .max(20),
+      });
+      const plan = await model(id, 'resume', 'resume', groundedResumeSchema);
+      const selection = filterResumeEvidence(plan.claims, eligible);
+      // Critic and user-focus requests are applied deterministically, not left to the model.
+      const gaps = c.d.resumeTeam?.gaps;
+      const requested = [
+        ...feedback.flatMap((f) => (f.factId ? [f.factId] : [])),
+        ...(gaps?.requirements || [])
+          .filter((r: any) => gaps?.userFocus?.includes(r.term))
+          .flatMap((r: any) => r.factIds as string[]),
+      ].filter(
+        (factId, index, all) =>
+          eligible.has(factId) &&
+          all.indexOf(factId) === index &&
+          !selection.accepted.some((a) => a.factId === factId),
+      );
+      const accepted = [
+        ...selection.accepted,
+        ...requested.map((factId) => ({
+          factId,
+          reason: 'Requested by the Critic or your note to cover a job requirement.',
+        })),
+      ];
+      if (!accepted.length)
+        throw new AppError(
+          422,
+          'EVIDENCE_REQUIRED',
+          'No eligible approved facts were selected. Retry the step or review your profile.',
+        );
+      const claims = validateResumeClaims(
+        composeSelection(accepted, c.facts, c.d.selectedJob.job.description),
+        c.facts,
+      );
+      const draft = {
+        missionId: id,
+        jobTitle: c.d.selectedJob.job.title,
+        name: c.p.name,
+        ...(c.p.contact ? { contact: c.p.contact } : {}),
+        profileVersion: c.m.profile.version,
+        records: resumeRecordIndex(c.p),
+        summary: resumeObjective(c.d.selectedJob.job.title, claims),
+        claims,
+        ...(selection.rejectedCount ? { excludedSuggestions: selection.rejectedCount } : {}),
+        omittedFacts: c.facts.filter(
+          (f) =>
+            ['skill', 'education', 'experience'].includes(f.kind) &&
+            !claims.some((claim) => claim.factId === f.id),
+        ),
+        revision: c.d.revisions || 0,
+      };
+      const summary =
+        `Selected ${claims.length} approved claims` +
+        (requested.length ? `, including ${requested.length} requested by the team.` : '.');
+      await patchRun(
+        id,
+        c.token,
+        { resumeDraft: { ...draft, hash: digest(draft) } },
+        'Evidence Selector',
+        'completed',
+        summary,
+      );
+      return { summary };
+    },
+
+    // Rewriter: job-targeted wording, accepted only when the evidence wording guard passes.
+    async rewrite(id, feedback) {
+      const c = await context(id, 'resume');
+      const draft = c.d.resumeDraft;
+      if (!draft) throw new AppError(409, 'DRAFT_REQUIRED', 'No resume draft is available to reword.');
+      if (!draft.claims.some((claim: DraftClaim) => isRewritable(claim))) {
+        const summary = 'No personal contribution statements to reword; claims stay verbatim.';
+        await patchTeam(
+          id,
+          c.token,
+          (t) => ({ ...t, rewrites: { accepted: 0, blocked: [] } }),
+          'Rewriter',
+          'skipped',
+          summary,
+        );
+        return { summary };
+      }
+      const notes = notesText(feedback);
+      if (notes || c.d.resumeTeam?.rewriterNotes)
+        await patchTeam(
+          id,
+          c.token,
+          (t) => ({ ...t, rewriterNotes: notes }),
+          'Rewriter',
+          'context',
+          notes ? `Received ${feedback.length} note(s).` : 'Cleared notes from the previous cycle.',
+        );
+      const result = await model(id, 'resume', 'rewrite', rewriteSchema);
+      const { claims, accepted, blocked } = applyRewrites(draft.claims, result.rewrites, c.facts);
+      const { hash: _, ...rest } = draft;
+      const next = { ...rest, claims };
+      const summary =
+        `Reworded ${accepted} claim(s)` +
+        (blocked.length
+          ? `; kept ${blocked.length} verbatim because the wording changed facts.`
+          : '.');
+      await patchTeam(
+        id,
+        c.token,
+        (t) => ({ ...t, rewrites: { accepted, blocked } }),
+        'Rewriter',
+        'completed',
+        summary,
+        { resumeDraft: { ...next, hash: digest(next) } },
+      );
+      return { summary };
+    },
+
+    // Critic: rule checks first; one bounded model review per human cycle once rules pass.
+    async critique(id, round) {
+      const c = await context(id, 'resume');
+      const draft = c.d.resumeDraft;
+      const team = c.d.resumeTeam || {};
+      const eligible = new Set(eligibleResumeFacts(c.facts).map((f) => f.id));
+      let critique: Critique = reviewDraft({
+        round,
+        claims: draft.claims,
+        facts: c.facts,
+        gaps: team.gaps ?? null,
+        eligibleFactIds: eligible,
+        rewrites: team.rewrites,
+      });
+      const cycle = c.d.revisions || 0;
+      const modelReview = critique.pass && team.modelReviewedCycle !== cycle;
+      if (modelReview) {
+        const review = await model(id, 'resume', 'critic', critiqueSchema);
+        const inDraft = new Set(draft.claims.map((claim: DraftClaim) => claim.factId));
+        const issues = review.issues
+          .filter(
+            (i) =>
+              i.factId === null ||
+              (i.target === 'rewriter' ? inDraft.has(i.factId) : eligible.has(i.factId)),
+          )
+          .slice(0, 3)
+          .map((i) => ({ ...i, code: 'REVIEWER_NOTE' as const }));
+        critique = { ...critique, pass: issues.length === 0, issues, reviewer: 'rules+model' };
+      }
+      await patchTeam(
+        id,
+        c.token,
+        (t) => ({
+          ...t,
+          critiques: [...(t.critiques || []), critique].slice(-12),
+          ...(modelReview ? { modelReviewedCycle: cycle } : {}),
+        }),
+        'Critic',
+        critique.pass ? 'passed' : 'returned',
+        critique.pass
+          ? `Round ${round + 1} passed (${critique.reviewer}).`
+          : `Round ${round + 1}: ${critique.issues.length} issue(s) — ${critique.issues[0].message}`,
+      );
+      return critique;
+    },
+
+    async reviewRequest(id) {
+      const c = await context(id, 'resume');
+      return {
+        draftHash: c.d.resumeDraft.hash,
+        critique: c.d.resumeTeam?.critiques?.at(-1) ?? null,
+      };
+    },
+
+    // Runs after interrupt(): approval persists the exact draft; a return names a specialist.
+    async applyHumanDecision(id, raw) {
+      const c = await context(id, 'resume');
+      const decision = raw as {
+        kind: string;
+        decision: string;
+        draftHash: string;
+        feedback?: string;
+        target?: ResumeReturnTarget;
+      };
+      if (decision.kind !== 'resume' || decision.draftHash !== c.d.resumeDraft.hash)
+        throw new AppError(409, 'STALE_APPROVAL', 'Review the current resume draft.');
+      if (decision.decision === 'revise' || decision.decision === 'reject') {
+        if ((c.d.revisions || 0) >= 2) throw Error('Revision limit reached.');
+        const target = decision.decision === 'revise' ? 'selector' : decision.target;
+        if (!target || !resumeReturnTargets.includes(target))
+          throw new AppError(
+            422,
+            'RETURN_TARGET_REQUIRED',
+            'Choose which specialist should revise the draft.',
+          );
+        const message = decision.feedback?.trim() || 'Re-emphasise supported evidence only.';
+        await patchTeam(
+          id,
+          c.token,
+          (t) => ({ ...t, humanReturns: (t.humanReturns || 0) + 1 }),
+          'Job Seeker',
+          'returned',
+          `Returned the draft to ${agentLabels[target]}: ${message.slice(0, 200)}`,
+          { revisions: (c.d.revisions || 0) + 1 },
+        );
+        return { type: 'returned', target, message };
+      }
+      if (decision.decision !== 'approve') throw Error('Invalid approval decision.');
+      await mutateRun(id, c.token, async (tx, m) => {
+        // A checkpoint replay must not create another approved copy of the same draft.
+        const saved = await tx.approvedResume.upsert({
+          where: { draftHash: c.d.resumeDraft.hash },
+          create: {
+            userId: m.userId,
+            missionId: m.id,
+            draftHash: c.d.resumeDraft.hash,
+            content: json(c.d.resumeDraft),
+          },
+          update: {},
+        });
+        await tx.mission.update({
+          where: { id: m.id },
+          data: {
+            data: json({ ...(m.data as MissionData), approvedResumeId: saved.id }),
+            events: json([
+              ...(m.events as any[]),
+              {
+                at: new Date().toISOString(),
+                agent: 'Job Seeker',
+                action: 'approved',
+                detail: 'Explicitly approved and persisted this exact resume version.',
+              },
+            ]),
+          },
+        });
+      });
+      return { type: 'approved' };
+    },
+
+    async recordHandoff(id, h) {
+      const current = leases.get(id);
+      if (!current) throw Error('Worker lease unavailable.');
+      await patchTeam(
+        id,
+        current.token,
+        (t) => ({ ...t, handoffs: appendHandoffs(t.handoffs || [], h) }),
+        'Orchestrator',
+        'handoff',
+        `${agentLabels[h.from] || h.from} → ${agentLabels[h.to] || h.to}: ${h.reason}`,
+      );
+    },
+  };
+  const resumeTeam = buildResumeTeamGraph(resumePorts).compile();
 
   // Profile approval happens before mission creation. This graph coordinates the downstream roles.
   const graph = new StateGraph(State)
@@ -258,6 +616,11 @@ export async function createWorkflow() {
                     onTool: (name) =>
                       patchRun(s.missionId, c.token, {}, 'Job Matcher', 'tool', name),
                     onUsage: (a, b) => appendUsage(s.missionId, c.token, a, b),
+                    onSpan: spanHook({
+                      userId: c.m.userId,
+                      missionId: s.missionId,
+                      agent: 'Job Matcher',
+                    }),
                   },
                   c.signal,
                 ));
@@ -303,6 +666,8 @@ export async function createWorkflow() {
     // Interrupt nodes replay on resume: keep decision-dependent writes after interrupt().
     .addNode('select_job', async (s) => {
       const c = await context(s.missionId, 'matching');
+      // A Scout package arrives with its job already shortlisted; the human gate is the draft review.
+      if (c.d.scout && c.d.selectedJob) return {};
       const choice = interrupt({
         kind: 'job',
         message: 'Choose a target job from this mission’s ranked results.',
@@ -321,134 +686,9 @@ export async function createWorkflow() {
       return {};
     })
 
-    // Resume generation chooses approved evidence and binds the rendered draft to a content hash.
-    .addNode('resume_tailoring', async (s) => {
-      const c = await context(s.missionId, 'resume');
-      if (c.d.resumeDraft) return {};
-      const eligibleFacts = new Map(
-        c.facts
-          .filter(
-            (fact) =>
-              ['skill', 'education', 'experience'].includes(fact.kind) &&
-              (!fact.recordId || fact.kind !== 'experience' || isResumeContribution(fact)) &&
-              !/^none yet$/i.test(fact.text),
-          )
-          .map((fact) => [fact.id, fact]),
-      );
-      const eligibleFactIds = [...eligibleFacts.keys()];
-      if (!eligibleFactIds.length)
-        throw new AppError(
-          422,
-          'EVIDENCE_REQUIRED',
-          'Approve at least one skill, education or experience fact before tailoring a resume.',
-        );
-      const groundedResumeSchema = z.object({
-        claims: z
-          .array(
-            z.object({
-              factId: z.string().min(1).max(100),
-              reason: z.string().trim().min(1).max(1000),
-            }),
-          )
-          .min(1)
-          .max(20),
-      });
-      const plan = await model(s.missionId, 'resume', 'resume', groundedResumeSchema);
-      const selection = filterResumeEvidence(plan.claims, new Set(eligibleFactIds));
-      if (!selection.accepted.length)
-        throw new AppError(
-          422,
-          'EVIDENCE_REQUIRED',
-          'No eligible approved facts were selected. Retry the step or review your profile.',
-        );
-      const claims = validateResumeClaims(
-        composeSelection(selection.accepted, c.facts, c.d.selectedJob.job.description),
-        c.facts,
-      );
-      const draft = {
-        missionId: s.missionId,
-        jobTitle: c.d.selectedJob.job.title,
-        name: c.p.name,
-        ...(c.p.contact ? { contact: c.p.contact } : {}),
-        profileVersion: c.m.profile.version,
-        records: resumeRecordIndex(c.p),
-        summary: resumeObjective(c.d.selectedJob.job.title, claims),
-        claims,
-        ...(selection.rejectedCount ? { excludedSuggestions: selection.rejectedCount } : {}),
-        omittedFacts: c.facts.filter(
-          (f) =>
-            ['skill', 'education', 'experience'].includes(f.kind) &&
-            !claims.some((claim) => claim.factId === f.id),
-        ),
-        revision: c.d.revisions || 0,
-      };
-      await patchRun(
-        s.missionId,
-        c.token,
-        { resumeDraft: { ...draft, hash: digest(draft) } },
-        'Resume Tailor',
-        'completed',
-        'Built an extractive draft. Every candidate claim is verbatim approved evidence; no unsupported candidate claims can be inserted.',
-      );
-      return {};
-    })
-    .addNode('approve_resume', async (s) => {
-      const c = await context(s.missionId, 'resume');
-      const decision = interrupt({
-        kind: 'resume',
-        draftHash: c.d.resumeDraft.hash,
-        message:
-          'Review the proposed resume and evidence. Approve, request emphasis changes, or cancel.',
-      }) as { kind: string; decision: string; draftHash: string; feedback: string };
-      if (decision.kind !== 'resume' || decision.draftHash !== c.d.resumeDraft.hash)
-        throw new AppError(409, 'STALE_APPROVAL', 'Review the current resume draft.');
-      if (decision.decision === 'revise') {
-        if ((c.d.revisions || 0) >= 2) throw Error('Revision limit reached.');
-        await patchRun(
-          s.missionId,
-          c.token,
-          {
-            resumeDraft: null,
-            resumeFeedback: decision.feedback,
-            revisions: (c.d.revisions || 0) + 1,
-          },
-          'Job Seeker',
-          'revision_requested',
-          'Draft not approved. Reorder or re-emphasise supported evidence only.',
-        );
-        return {};
-      }
-      if (decision.decision !== 'approve') throw Error('Invalid approval decision.');
-      await mutateRun(s.missionId, c.token, async (tx, m) => {
-        // A checkpoint replay must not create another approved copy of the same draft.
-        const saved = await tx.approvedResume.upsert({
-          where: { draftHash: c.d.resumeDraft.hash },
-          create: {
-            userId: m.userId,
-            missionId: m.id,
-            draftHash: c.d.resumeDraft.hash,
-            content: json(c.d.resumeDraft),
-          },
-          update: {},
-        });
-        await tx.mission.update({
-          where: { id: m.id },
-          data: {
-            data: json({ ...(m.data as MissionData), approvedResumeId: saved.id }),
-            events: json([
-              ...(m.events as any[]),
-              {
-                at: new Date().toISOString(),
-                agent: 'Job Seeker',
-                action: 'approved',
-                detail: 'Explicitly approved and persisted this exact resume version.',
-              },
-            ]),
-          },
-        });
-      });
-      return {};
-    })
+    // Resume team subgraph: Gap Analyzer -> Evidence Selector -> Rewriter -> Critic -> human.
+    // Routing between specialists is decided inside the subgraph with Command handoffs.
+    .addNode('resume_team', resumeTeam)
 
     // Questions and saved answers survive retries independently of provider execution.
     .addNode('interview_questions', async (s) => {
@@ -507,7 +747,7 @@ export async function createWorkflow() {
       return {};
     })
 
-    // Empty rankings finish early; revision requests loop back before interview preparation.
+    // Empty rankings finish early; resume revision loops are owned by the resume team.
     .addEdge(START, 'career_coach')
     .addEdge('career_coach', 'job_matching')
     .addConditionalEdges(
@@ -518,16 +758,9 @@ export async function createWorkflow() {
       },
       ['select_job', END],
     )
-    .addEdge('select_job', 'resume_tailoring')
-    .addEdge('resume_tailoring', 'approve_resume')
-    .addConditionalEdges(
-      'approve_resume',
-      async (s) => {
-        const m = await freshMission(s.missionId);
-        return (m.data as MissionData).resumeDraft ? 'interview_questions' : 'resume_tailoring';
-      },
-      ['interview_questions', 'resume_tailoring'],
-    )
+    // The resume team ends only after explicit approval of an exact draft.
+    .addEdge('select_job', 'resume_team')
+    .addEdge('resume_team', 'interview_questions')
     .addEdge('interview_questions', 'conduct_interview')
     .addEdge('conduct_interview', 'interview_feedback')
     .addEdge('interview_feedback', END)
@@ -551,6 +784,25 @@ export async function createWorkflow() {
       } finally {
         leases.delete(id);
       }
+    },
+    // Checkpoint history of the top-level mission graph, oldest first, with LangGraph's own next nodes.
+    async history(id: string) {
+      const out: {
+        checkpointId: string;
+        step: number;
+        at: string | null;
+        source: string | null;
+        next: string[];
+      }[] = [];
+      for await (const snapshot of graph.getStateHistory({ configurable: { thread_id: id } }))
+        out.push({
+          checkpointId: String(snapshot.config.configurable?.checkpoint_id ?? ''),
+          step: Number(snapshot.metadata?.step ?? -1),
+          at: snapshot.createdAt ?? null,
+          source: (snapshot.metadata?.source as string | undefined) ?? null,
+          next: [...snapshot.next],
+        });
+      return out.reverse();
     },
     close: () => (portablePool ? Promise.resolve() : saver.end()),
   };

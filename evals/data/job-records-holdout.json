@@ -1,0 +1,397 @@
+{
+  "about": "Held-out fictional job ads, written on 2026-11-11 after the rule fixes and never used to tune them. Same gold conventions as job-records.json. The author had seen the rules, so this set is less independent than one written by someone else; it still shows how far the fixes generalise beyond the misses they were written for.",
+  "items": [
+    {
+      "id": "h01",
+      "job": {
+        "id": "h01",
+        "title": "Graduate Software Engineer",
+        "company": "Banksia Systems",
+        "location": "Melbourne VIC",
+        "description": "Our 2027 graduate intake starts in February. You'll rotate across platform and product squads. We offer a hybrid model with two days a week in our Docklands office. Starting salary $78,000 plus 11.5% superannuation. You must have full working rights in Australia."
+      },
+      "gold": {
+        "workRights": "right_to_work",
+        "arrangement": "hybrid",
+        "seniority": "graduate",
+        "salary": { "min": 78000, "max": 78000, "currency": "AUD", "period": "year" }
+      }
+    },
+    {
+      "id": "h02",
+      "job": {
+        "id": "h02",
+        "title": "Data Engineer",
+        "company": "Corella Health",
+        "location": "Remote (Australia)",
+        "description": "Build dbt models and Airflow pipelines for our clinical data platform. Salary range $130k - $150k + super depending on experience."
+      },
+      "gold": {
+        "workRights": null,
+        "arrangement": "remote",
+        "seniority": null,
+        "salary": { "min": 130000, "max": 150000, "currency": "AUD", "period": "year" }
+      }
+    },
+    {
+      "id": "h03",
+      "job": {
+        "id": "h03",
+        "title": "Intelligence Analyst",
+        "company": "Fictional Defence Agency",
+        "location": "Canberra ACT",
+        "description": "Applicants must be Australian citizens and able to obtain and maintain an NV2 clearance. This position is located in our Russell office and cannot be performed remotely. APS6 $103,421 – $114,536 per annum."
+      },
+      "gold": {
+        "workRights": "clearance",
+        "arrangement": "on-site",
+        "seniority": null,
+        "salary": { "min": 103421, "max": 114536, "currency": "AUD", "period": "year" }
+      },
+      "notes": "'cannot be performed remotely' is on-site."
+    },
+    {
+      "id": "h04",
+      "job": {
+        "id": "h04",
+        "title": "Frontend Developer",
+        "company": "Gannet Studio",
+        "location": "Auckland, New Zealand",
+        "description": "Work on React and TypeScript apps for retail clients. We're remote-friendly but most of the team is in the office Monday to Wednesday. $95,000 to $110,000 depending on experience. Sponsorship is not available for this role."
+      },
+      "gold": {
+        "workRights": "no_sponsorship",
+        "arrangement": "hybrid",
+        "seniority": null,
+        "salary": { "min": 95000, "max": 110000, "currency": "NZD", "period": "year" }
+      }
+    },
+    {
+      "id": "h05",
+      "job": {
+        "id": "h05",
+        "title": "Staff Accountant",
+        "company": "Pelican Freight",
+        "location": "Houston, TX",
+        "description": "Reconcile intercompany accounts and support month-end close. This is an in-office position five days per week. Pay range: $62,000-$70,000 annually."
+      },
+      "gold": {
+        "workRights": null,
+        "arrangement": "on-site",
+        "seniority": null,
+        "salary": { "min": 62000, "max": 70000, "currency": "USD", "period": "year" }
+      },
+      "notes": "'Staff Accountant' is not a staff-level (lead) role."
+    },
+    {
+      "id": "h06",
+      "job": {
+        "id": "h06",
+        "title": "Principal Cloud Engineer",
+        "company": "Wombat Networks",
+        "location": "Sydney NSW",
+        "description": "Set the AWS landing zone strategy for 40 product teams. Flexible working with WFH Mondays and Fridays. Package $230,000 - $260,000 including super."
+      },
+      "gold": {
+        "workRights": null,
+        "arrangement": "hybrid",
+        "seniority": "lead",
+        "salary": { "min": 230000, "max": 260000, "currency": "AUD", "period": "year" }
+      }
+    },
+    {
+      "id": "h07",
+      "job": {
+        "id": "h07",
+        "title": "Customer Support Specialist",
+        "company": "Lyrebird Apps",
+        "location": "Brisbane QLD",
+        "description": "Help small businesses get the most out of our invoicing app over chat and phone. $28 - $32 per hour. Casual, 20 to 30 hours a week."
+      },
+      "gold": {
+        "workRights": null,
+        "arrangement": null,
+        "seniority": null,
+        "salary": { "min": 28, "max": 32, "currency": "AUD", "period": "hour" }
+      }
+    },
+    {
+      "id": "h08",
+      "job": {
+        "id": "h08",
+        "title": "Solutions Architect",
+        "company": "Kestrel Bank",
+        "location": "Melbourne VIC",
+        "description": "Design integration patterns for our payments modernisation. You will need to hold or be willing to obtain a Baseline clearance. Daily rate $1,200 - $1,350 inc super, 12-month contract."
+      },
+      "gold": {
+        "workRights": "clearance",
+        "arrangement": null,
+        "seniority": null,
+        "salary": { "min": 1200, "max": 1350, "currency": "AUD", "period": "day" }
+      }
+    },
+    {
+      "id": "h09",
+      "job": {
+        "id": "h09",
+        "title": "Marketing Coordinator",
+        "company": "Paperbark Wines",
+        "location": "Margaret River WA",
+        "description": "Coordinate cellar-door events and our social channels. Salary from $65,000 plus super and a generous wine allowance."
+      },
+      "gold": {
+        "workRights": null,
+        "arrangement": null,
+        "seniority": null,
+        "salary": { "min": 65000, "max": null, "currency": "AUD", "period": "year" }
+      }
+    },
+    {
+      "id": "h10",
+      "job": {
+        "id": "h10",
+        "title": "Machine Learning Researcher",
+        "company": "Heron AI",
+        "location": "London, UK",
+        "description": "Publish and ship research on retrieval models. We sponsor Skilled Worker visas for this role. Salary £85,000 - £110,000 plus equity. Hybrid: 3 days a week in our King's Cross office."
+      },
+      "gold": {
+        "workRights": "sponsorship_available",
+        "arrangement": "hybrid",
+        "seniority": null,
+        "salary": { "min": 85000, "max": 110000, "currency": "GBP", "period": "year" }
+      }
+    },
+    {
+      "id": "h11",
+      "job": {
+        "id": "h11",
+        "title": "Junior Data Analyst",
+        "company": "Quandong Retail",
+        "location": "Adelaide SA",
+        "description": "Support the merchandise team with weekly sales reporting in SQL and Excel. This role is based in our Adelaide support office. Australian citizens or permanent residents only. $70k + super."
+      },
+      "gold": {
+        "workRights": "citizen_or_pr",
+        "arrangement": "on-site",
+        "seniority": "junior",
+        "salary": { "min": 70000, "max": 70000, "currency": "AUD", "period": "year" }
+      },
+      "notes": "'This role is based in our ... office' is on-site."
+    },
+    {
+      "id": "h12",
+      "job": {
+        "id": "h12",
+        "title": "Engineering Manager, Platform",
+        "company": "Tallow Bank",
+        "location": "Melbourne VIC or remote in Australia",
+        "description": "Lead two platform teams of six engineers. Remote working is available anywhere in Australia, with travel to Melbourne once a quarter. Base salary $210,000 – $235,000."
+      },
+      "gold": {
+        "workRights": null,
+        "arrangement": "remote",
+        "seniority": "lead",
+        "salary": { "min": 210000, "max": 235000, "currency": "AUD", "period": "year" }
+      },
+      "notes": "Location says remote; the gold reads remote rather than hybrid because remote is offered outright."
+    },
+    {
+      "id": "h13",
+      "job": {
+        "id": "h13",
+        "title": "Summer Vacation Program – Actuarial",
+        "company": "Wattle Mutual",
+        "location": "Sydney NSW",
+        "description": "A paid ten-week vacation program for penultimate-year students. You'll join our pricing team in the office. Open to Australian citizens and permanent residents."
+      },
+      "gold": {
+        "workRights": "citizen_or_pr",
+        "arrangement": null,
+        "seniority": "intern",
+        "salary": null
+      },
+      "notes": "'join our pricing team in the office' is not a firm on-site statement; left empty."
+    },
+    {
+      "id": "h14",
+      "job": {
+        "id": "h14",
+        "title": "Site Reliability Engineer",
+        "company": "Orbit Telco",
+        "location": "Perth WA",
+        "description": "Run our Kubernetes fleet and own incident response. On-call one week in five. Our team works hybrid. Remuneration: $150,000 to $170,000 + super + on-call allowance."
+      },
+      "gold": {
+        "workRights": null,
+        "arrangement": "hybrid",
+        "seniority": null,
+        "salary": { "min": 150000, "max": 170000, "currency": "AUD", "period": "year" }
+      }
+    },
+    {
+      "id": "h15",
+      "job": {
+        "id": "h15",
+        "title": "Business Development Manager",
+        "company": "Saltbush Logistics",
+        "location": "Brisbane QLD",
+        "description": "Grow our freight accounts across South East Queensland. Base $110,000 + super, OTE $160,000 with uncapped commission. Car allowance provided."
+      },
+      "gold": {
+        "workRights": null,
+        "arrangement": null,
+        "seniority": null,
+        "salary": { "min": 110000, "max": 110000, "currency": "AUD", "period": "year" }
+      },
+      "notes": "OTE includes commission and is not salary."
+    },
+    {
+      "id": "h16",
+      "job": {
+        "id": "h16",
+        "title": "Software Developer",
+        "company": "Northgate Council",
+        "location": "Geelong VIC",
+        "description": "Maintain the council's planning permit system in C# and SQL Server. Applicants must be eligible to work in Australia. Band 6: $92,500 – $101,300 p.a. plus 12% super. A hybrid working arrangement is available after probation."
+      },
+      "gold": {
+        "workRights": "right_to_work",
+        "arrangement": "hybrid",
+        "seniority": null,
+        "salary": { "min": 92500, "max": 101300, "currency": "AUD", "period": "year" }
+      }
+    },
+    {
+      "id": "h17",
+      "job": {
+        "id": "h17",
+        "title": "Product Analyst",
+        "company": "Kookaburra Insurance",
+        "location": "Sydney NSW",
+        "description": "Turn claims journey data into product decisions. We operate a citizenship-neutral hiring policy and welcome all applicants with valid work rights. This is a work from home role with occasional team days."
+      },
+      "gold": {
+        "workRights": "right_to_work",
+        "arrangement": "remote",
+        "seniority": null,
+        "salary": null
+      },
+      "notes": "'citizenship-neutral' is not a citizenship requirement."
+    },
+    {
+      "id": "h18",
+      "job": {
+        "id": "h18",
+        "title": "Graduate Electrical Engineer",
+        "company": "Larkspur Energy",
+        "location": "Mackay QLD",
+        "description": "Join our two-year graduate program working across substations and solar farms. This role is fly-in fly-out on a 2/1 roster. $80,000 base + super + site allowances."
+      },
+      "gold": {
+        "workRights": null,
+        "arrangement": "on-site",
+        "seniority": "graduate",
+        "salary": { "min": 80000, "max": 80000, "currency": "AUD", "period": "year" }
+      }
+    },
+    {
+      "id": "h19",
+      "job": {
+        "id": "h19",
+        "title": "Backend Engineer (Go)",
+        "company": "Ibis Payments",
+        "location": "Singapore",
+        "description": "Build the ledger services behind our merchant wallet. Hybrid working with 2 office days. Monthly base S$7,000 - S$9,500. Employment Pass sponsorship available for strong candidates."
+      },
+      "gold": {
+        "workRights": "sponsorship_available",
+        "arrangement": "hybrid",
+        "seniority": null,
+        "salary": { "min": 7000, "max": 9500, "currency": "SGD", "period": "month" }
+      }
+    },
+    {
+      "id": "h20",
+      "job": {
+        "id": "h20",
+        "title": "Senior UX Researcher",
+        "company": "Fernhill Analytics",
+        "location": "Melbourne VIC",
+        "description": "Plan and run research for our banking clients. You'll mentor two junior researchers. Up to $165k + super. No visa sponsorship is offered."
+      },
+      "gold": {
+        "workRights": "no_sponsorship",
+        "arrangement": null,
+        "seniority": "senior",
+        "salary": { "min": null, "max": 165000, "currency": "AUD", "period": "year" }
+      }
+    },
+    {
+      "id": "h21",
+      "job": {
+        "id": "h21",
+        "title": "Warehouse Team Leader",
+        "company": "MegaRetail",
+        "location": "Dandenong VIC",
+        "description": "Lead a pick-and-pack team of 12 on afternoon shift. This is an onsite role at our Dandenong distribution centre. $34.80/hr plus shift penalties."
+      },
+      "gold": {
+        "workRights": null,
+        "arrangement": "on-site",
+        "seniority": "lead",
+        "salary": { "min": 34.8, "max": 34.8, "currency": "AUD", "period": "hour" }
+      }
+    },
+    {
+      "id": "h22",
+      "job": {
+        "id": "h22",
+        "title": "Policy Officer",
+        "company": "Fictional Department of Housing",
+        "location": "Hobart TAS",
+        "description": "Draft briefings on social housing supply. Flexible work options including working from home part of the week. Salary $88,000 – $96,000 per annum. Applicants must hold Australian citizenship."
+      },
+      "gold": {
+        "workRights": "citizen_or_pr",
+        "arrangement": "hybrid",
+        "seniority": null,
+        "salary": { "min": 88000, "max": 96000, "currency": "AUD", "period": "year" }
+      }
+    },
+    {
+      "id": "h23",
+      "job": {
+        "id": "h23",
+        "title": "Associate Consultant",
+        "company": "Brolga Consulting",
+        "location": "Brisbane QLD",
+        "description": "Support ERP implementation projects for public-sector clients. Some client work requires Australian citizenship. Competitive salary and a structured training plan."
+      },
+      "gold": {
+        "workRights": "citizen_or_pr",
+        "arrangement": null,
+        "seniority": "junior",
+        "salary": null
+      },
+      "notes": "Ambiguous: only some client work requires citizenship. Gold follows the stated requirement."
+    },
+    {
+      "id": "h24",
+      "job": {
+        "id": "h24",
+        "title": "Data Scientist",
+        "company": "Antares Cloud Partners",
+        "location": "Toronto, ON",
+        "description": "Build forecasting models for retail clients. Salary: $105,000 - $125,000 CAD. Hybrid, two days a week in our downtown office. Candidates must be legally eligible to work in Canada."
+      },
+      "gold": {
+        "workRights": "right_to_work",
+        "arrangement": "hybrid",
+        "seniority": null,
+        "salary": { "min": 105000, "max": 125000, "currency": "CAD", "period": "year" }
+      }
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './classic.js';
 import { sampleProfile } from '../../packages/contracts/src/index.js';
 
 async function workbench(
