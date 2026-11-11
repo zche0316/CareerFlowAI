@@ -866,7 +866,7 @@ function App() {
               <PageTitle
                 eyebrow="VISIBLE EVERY STEP OF THE WAY"
                 title="Activity timeline"
-                text="See completed actions, tool use and the decisions that moved your missions forward."
+                text="See completed actions, tool use and the decisions that moved your runs forward."
               />
               {workspace?.missions
                 .flatMap((m: any) =>
@@ -898,7 +898,7 @@ function App() {
                 <div className="empty-state">
                   <Activity size={30} />
                   <h3>Your story will unfold here.</h3>
-                  <p>Start a mission to see your team in action.</p>
+                  <p>Find roles to see your party in action.</p>
                 </div>
               )}
             </>
@@ -938,7 +938,7 @@ function App() {
           >
             <button
               className="modal-close"
-              aria-label="Close mission form"
+              aria-label="Close Find roles form"
               onClick={() => setCreating(false)}
             >
               <X />
@@ -1605,7 +1605,7 @@ function Profile({
                 </div>
               </details>
               <p className="small muted">
-                Your career team uses approved profile facts when you start a mission. Profile
+                Your party uses approved profile facts in every run. Profile
                 changes and resume versions still require your approval.
               </p>
               <div className="form-actions">
@@ -1851,7 +1851,7 @@ function MissionDetail({
           <AlertCircle size={18} />
           <span>
             {budgetExhausted && m.status === 'FAILED'
-              ? 'This mission has reached its AI usage limit. Start a new mission to continue. Your saved results are still available.'
+              ? 'This run has reached its AI usage limit. Find roles again or tailor the role again from the Quest log. Your saved results are still available.'
               : m.error}
           </span>
         </div>
@@ -1859,7 +1859,7 @@ function MissionDetail({
       <div className="mission-actions">
         {m.status === 'FAILED' && budgetExhausted && (
           <button className="primary" disabled={busy} onClick={onNewSearch}>
-            Start a new mission
+            Find roles again
             <ArrowRight size={15} />
           </button>
         )}
@@ -1949,21 +1949,21 @@ function MissionDetail({
             <p>
               {phase === 3
                 ? d.selectedJob
-                  ? `Target: ${d.selectedJob.job.title}. ${isWorking ? 'Your resume is being prepared.' : 'Your resume is not ready yet. Continue after resolving the mission status above.'}`
+                  ? `Target: ${d.selectedJob.job.title}. ${isWorking ? 'Your resume is being prepared.' : 'Your resume is not ready yet. Continue after resolving the run status above.'}`
                   : 'Target: Select a target in Job matching first.'
                 : phase === 4
                   ? d.approvedResumeId
                     ? isWorking
                       ? 'Your approved resume is saved. Interview questions are being prepared.'
-                      : 'Your approved resume is saved. Continue after resolving the mission status above.'
+                      : 'Your approved resume is saved. Continue after resolving the run status above.'
                     : 'Approve your evidence-based resume before starting interview practice.'
                   : phase === 7
                     ? d.selectedJob && d.approvedResumeId
                       ? 'This role has no application link, so there is nothing to apply to. Demo roles never have one; choose a live or pasted listing to prepare an application.'
                       : 'Select a real target job and approve your resume before preparing an application.'
                     : isWorking
-                      ? 'Your career team is preparing this step. Results are saved with this mission.'
-                      : 'This step has no results yet. Check the mission status above to continue.'}
+                      ? 'Your career team is preparing this step. Results are saved with this run.'
+                      : 'This step has no results yet. Check the run status above to continue.'}
             </p>
             {(phase === 3 || phase === 7) && (
               <>

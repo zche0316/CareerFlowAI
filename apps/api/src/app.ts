@@ -267,7 +267,7 @@ export function createApp() {
       const source = await db.mission.findFirst({
         where: { id: sourceMissionId, userId: req.actor!.id },
       });
-      if (!source) throw new AppError(404, 'NOT_FOUND', 'Source mission unavailable.');
+      if (!source) throw new AppError(404, 'NOT_FOUND', 'That run is unavailable.');
       if (!(source.data as MissionData).analysis)
         throw new AppError(
           422,
@@ -278,7 +278,7 @@ export function createApp() {
         throw new AppError(
           409,
           'STALE_PROFILE',
-          'The source mission used a different profile version. Start a new mission.',
+          'That run used an older profile. Find roles again with your current profile.',
         );
       if (analysisFeedback.length < 3)
         throw new AppError(
@@ -331,7 +331,7 @@ export function createApp() {
             action: 'queued',
             detail: sourceMissionId
               ? `Refinement mission queued from ${sourceMissionId} using approved profile v${profile.version}`
-              : 'Mission queued using approved profile v' + profile.version,
+              : 'Run queued using approved profile v' + profile.version,
           },
         ]),
       },
@@ -422,7 +422,7 @@ export function createApp() {
       throw new AppError(
         409,
         'STALE_PROFILE',
-        'Start a new mission with your current approved profile.',
+        'Your profile changed. Tailor this role again from the Quest log.',
       );
     const changed = await db.mission.updateMany({
       where: { id: m.id, status: 'FAILED' },

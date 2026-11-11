@@ -88,7 +88,7 @@ export function CharacterSheet({
             </div>
             <div>
               <b>{workspace.missions?.length || 0}</b>
-              <span>missions</span>
+              <span>runs</span>
             </div>
           </div>
           <p className="quest-fine dark">
@@ -179,7 +179,7 @@ export function CharacterSheet({
           )}
           {latest && (
             <button type="button" className="quest-press" onClick={() => onOpenMission(latest.id)}>
-              Open the mission
+              Open the run
             </button>
           )}
         </section>

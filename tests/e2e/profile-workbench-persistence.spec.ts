@@ -26,7 +26,7 @@ test('profile workbench approves and reloads a real saved profile without model 
   await page.getByLabel('I reviewed this exact draft').check();
   await page.getByRole('button', { name: 'Approve & save profile', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Send the party out', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Close mission form', exact: true }).click();
+  await page.getByRole('button', { name: 'Close Find roles form', exact: true }).click();
   await openProfile(page);
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
   const saved = await (await page.request.get('/api/workspace')).json();
@@ -56,7 +56,7 @@ test('profile polish uses the configured provider and keeps suggestions separate
   await page.getByLabel('I reviewed this exact draft').check();
   await page.getByRole('button', { name: 'Approve & save profile', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Send the party out', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Close mission form', exact: true }).click();
+  await page.getByRole('button', { name: 'Close Find roles form', exact: true }).click();
   await openProfile(page);
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
   await go(page, 'My profile');

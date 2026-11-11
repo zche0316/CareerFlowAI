@@ -148,8 +148,15 @@ export function applicationStage(
   return 'saved';
 }
 
+// New runs are linked when they are created, so older missions need the backfill only once per
+// user per server process, not on every workspace poll.
+const backfilled = new Set<string>();
+
 export async function listApplications(userId: string) {
-  await backfillApplications(userId);
+  if (!backfilled.has(userId)) {
+    await backfillApplications(userId);
+    backfilled.add(userId);
+  }
   // Demo roles and live roles keep separate boards; rows not yet given a mode show in both.
   const applications = await db.application.findMany({
     where: { userId, OR: [{ mode: configuredMode() }, { mode: null }] },
