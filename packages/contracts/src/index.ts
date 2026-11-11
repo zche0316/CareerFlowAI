@@ -234,17 +234,6 @@ export const feedbackSchema = z.object({
   nextSteps: z.array(z.string().trim().min(1).max(1000)).min(1).max(5),
 });
 
-export const negotiationInputSchema = z.object({
-  offerSalary: z.number().positive().max(100_000_000),
-  targetSalary: z.number().positive().max(100_000_000),
-  currency: z
-    .string()
-    .trim()
-    .toUpperCase()
-    .regex(/^[A-Z]{3}$/),
-  candidateMessage: z.string().trim().min(10).max(4000),
-});
-
 // Evaluator verdict for one practice answer: STAR coverage plus at most one follow-up question.
 export const starMarks = ['critical', 'hit', 'partial', 'miss'] as const;
 export const roundEvaluationSchema = z.object({
@@ -263,15 +252,6 @@ export const interviewRoundInputSchema = z.object({
   questionId: z.string().max(100),
   answer: z.string().trim().min(1).max(6000),
   followUp: z.boolean().default(false),
-});
-
-export const negotiationOutputSchema = z.object({
-  recruiterReply: z.string().trim().min(10).max(2000),
-  feedback: feedbackSchema,
-});
-
-export const negotiationDecisionSchema = z.object({
-  decision: z.enum(['accept', 'decline']),
 });
 
 export const answerSchema = z.object({

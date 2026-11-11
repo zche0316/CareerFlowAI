@@ -76,7 +76,7 @@ Ordered by demo risk. Each gap has a "done when" check.
 | G3  | **Done 2026-11-11.** `npm run demo:account` creates a fresh account through the app's API with the fictional graduate Jordan Ellis approved as profile v1 and three confirmed career memories. No model calls; existing accounts are untouched.                                                         | Met. Each run makes a new account; sign-in details go to `.runtime/demo-account.json`.                                                |
 | G4  | **Done 2026-11-11.** One live pass of the whole route with the demo account; numbers in [READINESS.md](READINESS.md). It found the Critic loop below (fixed).                                                                                                                                           | Met. Repeat the day before a demo.                                                                                                    |
 | G5  | **Partly open.** Live Scout with model search returned only SEEK and LinkedIn leads for "data analyst", so nothing was checked or packaged; two leads were senior roles. The low-cost search found 2 roles. Job Matcher mapping did not fail in this run.                                               | For the demo, use a quest with the low-cost search, or a pasted lead. Still open: filter leads by level; retry a failed mapping once. |
-| G6  | **Partly checked.** Battle log cost table: works with live data. Not checked: the daily schedule (needs a 07:00 run), LangSmith (no key configured), S3 backup (no AWS settings), reminders and negotiation.                                                                                            | Hide or skip the unchecked ones in the demo.                                                                                          |
+| G6  | **Partly checked.** Battle log cost table: works with live data. Not checked: the daily schedule (needs a 07:00 run), LangSmith (no key configured). S3 backup, reminders and negotiation were removed in CFS-108.                                                                                      | Hide or skip the unchecked ones in the demo.                                                                                          |
 | G7  | **Checked with every key blank.** A quest stops with "Live AI requires either the compatible-provider key/model settings or the native OpenAI override settings" and keeps saved data. Scout used to report "0 fetched" with no reason; it now says web pages are skipped because no Tavily key is set. | Met for quests and Scout. The quest message is still technical wording.                                                               |
 
 G1–G4 are done; G5–G7 are partly open, as listed.
@@ -172,18 +172,15 @@ How to read the columns:
 
 ### Interview, output and follow-up
 
-| Feature                                           | Quest page     | Auto                                                                 | Fixture | Live |
-| ------------------------------------------------- | -------------- | -------------------------------------------------------------------- | ------- | ---- |
-| Interview: answer all questions, receive feedback | quest page     | Q journey; Q quest page (opens only)                                 | [ ]     | [ ]  |
-| Interview: stop, skip, finish early               | quest page     | Q interview-controls, journey; D                                     | [ ]     | [ ]  |
-| Multiple interview rounds                         | quest page     | I integration                                                        | [ ]     | [ ]  |
-| Export PDF and DOCX                               | My documents   | Q zero-resume; D                                                     | [ ]     | [ ]  |
-| S3 cloud backup of an approved PDF (needs AWS)    | My documents   | I cloud-backups                                                      | n/a     | [ ]  |
-| Applications: record and track                    | Optional tools | D (status only; needs a live listing link to prepare an application) | [ ]     | [ ]  |
-| Negotiation helper                                | Optional tools | I negotiation, tools                                                 | [ ]     | [ ]  |
-| Reminders and calendar file                       | Optional tools | I tools                                                              | [ ]     | [ ]  |
-| Activity timeline                                 | Activity       | none                                                                 | [ ]     | [ ]  |
-| Season event page                                 | Season         | Q page render                                                        | [ ]     | [ ]  |
+| Feature                                           | Quest page   | Auto                                                                 | Fixture | Live |
+| ------------------------------------------------- | ------------ | -------------------------------------------------------------------- | ------- | ---- |
+| Interview: answer all questions, receive feedback | quest page   | Q journey; Q quest page (opens only)                                 | [ ]     | [ ]  |
+| Interview: stop, skip, finish early               | quest page   | Q interview-controls, journey; D                                     | [ ]     | [ ]  |
+| Multiple interview rounds                         | quest page   | I integration                                                        | [ ]     | [ ]  |
+| Export PDF and DOCX                               | My documents | Q zero-resume; D                                                     | [ ]     | [ ]  |
+| Applications: record and track                    | Quests       | D (status only; needs a live listing link to prepare an application) | [ ]     | [ ]  |
+| Activity timeline                                 | Activity     | none                                                                 | [ ]     | [ ]  |
+| Season event page                                 | Season       | Q page render                                                        | [ ]     | [ ]  |
 
 ### Recovery and safety
 

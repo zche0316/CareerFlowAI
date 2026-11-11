@@ -68,7 +68,7 @@ Quest interface. Detailed status per step is in [LOCAL_DEMO.md](LOCAL_DEMO.md).
 | Resume team            | 10 of 14 requirements evidenced. Before the fix: 3 Critic rounds, then escalated to the user, about 70 s     |
 | User return            | Rewriter return, another 3 Critic rounds, escalated again                                                    |
 | Interview              | 1 question (live generated only one), one answer scored by the Evaluator with a follow-up, feedback written  |
-| Export and application | PDF 200 (34 kB); "applied" recorded in Optional tools                                                        |
+| Export and application | PDF 200 (34 kB); "applied" recorded (then in Optional tools, now on the role board)                                                        |
 | Whole quest            | 20 calls (42 model requests of the 60 budget), 49.0k input and 23.2k output tokens, 4 min 32 s of model time |
 
 Found and fixed in this run: the Evidence Selector re-picked the resume from scratch after each

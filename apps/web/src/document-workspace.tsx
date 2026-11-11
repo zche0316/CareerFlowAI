@@ -1,4 +1,3 @@
-import { CloudBackups } from './cloud-backups.js';
 import { useState } from 'react';
 import { FileText, Download, Sparkles } from 'lucide-react';
 import { ResumePreview } from './resume-preview.js';
@@ -78,7 +77,6 @@ export function DocumentWorkspace({
             </div>
           </details>
         </header>
-        <CloudBackups key={resume.id} id={resume.id} api={api} />
         {polish && (
           <WordingStudio
             api={api}

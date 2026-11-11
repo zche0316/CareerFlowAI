@@ -1,9 +1,7 @@
-import { registerCloudBackups } from './cloud-backups.js';
 import {
   JobRepository,
   recruitmentSettings,
 } from '../../../packages/recruitment/src/repository.js';
-import { toolsDashboard, runTool, toolCommand, exportReminder } from './tools.js';
 import { prepareApplication, recordApplication, applicationRecordSchema } from './recruitment.js';
 import express from 'express';
 import { resumeText, resumeDocx, resumePdf } from '../../../packages/documents/src/resume.js';
@@ -57,7 +55,6 @@ import { AppError, requireValue } from './errors.js';
 import { enqueue, abortRun } from './queue.js';
 import { configuredMode } from '../../../packages/agents/src/provider.js';
 import { prepareProfileBuilderDraft } from './profile-builder.js';
-import { decideNegotiationPractice, runNegotiationPractice } from './negotiation.js';
 import {
   decisionSchema,
   jobSearchSchema,
@@ -175,22 +172,6 @@ export function createApp() {
     res.json({ profile, missions, resumes, applications, agents: AGENTS, mode: configuredMode() });
   });
 
-  app.get('/api/tools/dashboard', async (req, res) =>
-    res.json(await toolsDashboard(req.actor!.id)),
-  );
-  app.post('/api/missions/:id/tools', async (req, res) => {
-    const input = toolCommand.parse(req.body);
-    const result = await runTool(req.actor!.id, String(req.params.id), input);
-    if (input.kind === 'status')
-      await recordRunStatus(req.actor!.id, String(req.params.id), input.status);
-    res.json(result);
-  });
-  app.get('/api/missions/:id/reminders/:reminderId/calendar', async (req, res) =>
-    res.json(
-      await exportReminder(req.actor!.id, String(req.params.id), String(req.params.reminderId)),
-    ),
-  );
-
   // Profile editing and explicit approval are separate operations.
   app.post('/api/profiles/prepare', async (req, res) => {
     const { notes, currentProfile } = z
@@ -228,7 +209,6 @@ export function createApp() {
   registerApplications(app);
   registerCoach(app);
   registerResumeWording(app);
-  registerCloudBackups(app);
   registerResumeAgent(app);
   registerProfilePolish(app);
   registerJobFit(app);
@@ -425,14 +405,6 @@ export function createApp() {
     await enqueue(m.id).catch(() => {});
     res.status(202).json(m);
   });
-  app.post('/api/missions/:id/negotiation', async (req, res) =>
-    res
-      .status(201)
-      .json(await runNegotiationPractice(req.actor!.id, String(req.params.id), req.body)),
-  );
-  app.put('/api/missions/:id/negotiation/decision', async (req, res) =>
-    res.json(await decideNegotiationPractice(req.actor!.id, String(req.params.id), req.body)),
-  );
   app.put('/api/missions/:id/answers', async (req, res) =>
     res.json(
       await saveInterviewAnswer(req.actor!.id, String(req.params.id), answerSchema.parse(req.body)),

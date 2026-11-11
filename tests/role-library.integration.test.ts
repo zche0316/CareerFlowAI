@@ -236,14 +236,7 @@ it('shares one library between Find roles, Scout and the board', async () => {
   );
   expect((await call('/scout/roles/' + 'f'.repeat(32) + '/save', 'POST')).status).toBe(404);
 
-  // Statistics come from the board.
   await call(`/applications/${board[0].id}`, 'PATCH', { status: 'applied' });
-  const dashboard = (await call('/tools/dashboard')).body;
-  expect(dashboard.total).toBe(1);
-  expect(dashboard.applications[0]).toMatchObject({
-    applicationId: board[0].id,
-    status: 'applied',
-  });
 
   // Two months later the same roles are advertised again. Roles not on the board come back as
   // new; board roles are not packaged again but their history notes the re-advertisement.

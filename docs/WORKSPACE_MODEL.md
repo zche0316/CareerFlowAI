@@ -129,5 +129,5 @@ for the Coach (later issue), calendar sync.
   turn out to be the same role: runs move to the earlier application, histories combine and the furthest
   status wins. Each application records its provider mode; the board shows the current mode only.
 - Shortlists and the Scout table mark roles already on the board; Scout can save a role it
-  recorded. Application statistics in Optional tools come from the board.
+  recorded.
 

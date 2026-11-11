@@ -178,7 +178,7 @@ it('keeps one application per role across saves, choices and repeated runs', asy
     note: 'Sent on the careers site.',
   });
   expect(patched.body.history.map((h: any) => h.status)).toEqual(['saved', 'applied']);
-  await call(`/missions/${again.body.id}/tools`, 'POST', { kind: 'status', status: 'interview' });
+  await call(`/applications/${chosen.id}`, 'PATCH', { status: 'interview' });
   expect((await call('/applications')).body.find((a: any) => a.id === chosen.id).stage).toBe(
     'interview',
   );

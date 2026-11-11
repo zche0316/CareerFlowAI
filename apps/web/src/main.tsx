@@ -1,4 +1,3 @@
-import { CloudBackups } from './cloud-backups.js';
 import { MISSION_MODEL_CALL_LIMIT } from '../../../packages/contracts/src/mission-limits.js';
 import { nextMissionStep } from './mission-step.js';
 import { FlowNavigation } from './flow-navigation.js';
@@ -33,7 +32,6 @@ import { ProfileConversation } from './profile-conversation.js';
 import { CareerMemoryPanel } from './career-memory.js';
 import { DocumentWorkspace } from './document-workspace.js';
 import { recordKeys } from '../../../packages/contracts/src/profile-records.js';
-import { OptionalTools } from './tools.js';
 import {
   JobSearchFields,
   defaultJobSearch,
@@ -97,7 +95,7 @@ const phaseNames = [
   'Resume tailoring',
   'Interview practice',
   'Activity',
-  'Optional tools',
+  'Follow-up',
   'Real jobs & applications',
 ];
 type Tab =
@@ -107,7 +105,6 @@ type Tab =
   | 'approvals'
   | 'library'
   | 'activity'
-  | 'tools'
   | 'character'
   | 'home'
   | 'world'
@@ -134,7 +131,6 @@ const readWorkspaceRoute = () => {
     'approvals',
     'library',
     'activity',
-    'tools',
     'character',
     'home',
     'party',
@@ -639,8 +635,6 @@ function App() {
                 setPhase(1);
               }}
             />
-          ) : tab === 'tools' ? (
-            <OptionalTools missions={workspace?.missions || []} request={api} onRefresh={refresh} />
           ) : tab === 'profile' ? (
             renderProfile('build')
           ) : tab === 'missions' ? (
@@ -705,18 +699,6 @@ function App() {
                   onSaveAnswer={(a) =>
                     act(async () => {
                       await api(`/missions/${mission.id}/answers`, 'PUT', a);
-                    })
-                  }
-                  onNegotiation={(input) =>
-                    act(async () => {
-                      await api(`/missions/${mission.id}/negotiation`, 'POST', input);
-                    })
-                  }
-                  onNegotiationDecision={(decision) =>
-                    act(async () => {
-                      await api(`/missions/${mission.id}/negotiation/decision`, 'PUT', {
-                        decision,
-                      });
                     })
                   }
                   onRefineAnalysis={(feedback) =>
@@ -1694,8 +1676,6 @@ function MissionDetail({
   onBack,
   onAction,
   onSaveAnswer,
-  onNegotiation,
-  onNegotiationDecision,
   onRefineAnalysis,
   onOpenMission,
   userName = 'You',
@@ -1711,8 +1691,6 @@ function MissionDetail({
   onBack: () => void;
   onAction: (kind: string, body?: unknown) => Promise<void>;
   onSaveAnswer: (a: unknown) => Promise<void>;
-  onNegotiation: (input: unknown) => Promise<void>;
-  onNegotiationDecision: (decision: 'accept' | 'decline') => Promise<void>;
   onRefineAnalysis: (feedback: string) => Promise<void>;
 }) {
   const d = m.data,
@@ -1723,10 +1701,6 @@ function MissionDetail({
     [manualDirty, setManualDirty] = useState(false),
     [confirm, setConfirm] = useState(false),
     [compareIds, setCompareIds] = useState<string[]>([]),
-    [offerSalary, setOfferSalary] = useState(''),
-    [targetSalary, setTargetSalary] = useState(''),
-    [currency, setCurrency] = useState('AUD'),
-    [negotiationMessage, setNegotiationMessage] = useState(''),
     [viewJobId, setViewJobId] = useState('');
   const questions = d.questions || [],
     q = questions[question],
@@ -1746,14 +1720,6 @@ function MissionDetail({
   useEffect(() => {
     setAnalysisFeedback('');
   }, [m.id]);
-
-  useEffect(() => {
-    const salary = d.selectedJob?.job.salary;
-    setOfferSalary(salary ? String(salary.min) : '');
-    setTargetSalary(salary ? String(salary.max) : '');
-    setCurrency(salary?.currency || 'AUD');
-    setNegotiationMessage('');
-  }, [m.id, d.selectedJob?.job.id]);
 
   const completed = m.status === 'COMPLETE';
   if (completed && (phase === null || (phase > 4 && phase !== 8 && phase !== 9)))
@@ -2819,141 +2785,6 @@ function MissionDetail({
           ))}
         </details>
       )}
-      {!completed && (phase === null || phase === 5) && d.feedback && d.selectedJob && (
-        <section className="panel negotiation">
-          <div className="section-heading">
-            <h2>
-              <MessageSquare size={20} />
-              Salary negotiation practice
-            </h2>
-            <span className="tag">Optional · Interview Coach</span>
-          </div>
-          <p className="muted">
-            Practise one fictional negotiation for {d.selectedJob.job.title}. The coach simulates a
-            recruiter reply and gives feedback; you record the final practice decision. No real
-            offer is accepted or changed.
-          </p>
-          {d.negotiationRun?.status === 'FAILED' && (
-            <div className="error-banner">
-              <AlertCircle size={18} />
-              <span>{d.negotiationRun.error}</span>
-            </div>
-          )}
-          {d.negotiation && (
-            <div className="negotiation-result">
-              <h3>Simulated recruiter reply</h3>
-              <p>{d.negotiation.recruiterReply}</p>
-              <div className="feedback-grid">
-                {[
-                  ['Negotiation strengths', d.negotiation.feedback.strengths],
-                  ['Improvement areas', d.negotiation.feedback.improvements],
-                  ['Next steps', d.negotiation.feedback.nextSteps],
-                ].map(([label, items]: any) => (
-                  <div key={label}>
-                    <h3>{label}</h3>
-                    <ul>
-                      {items.map((item: string) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-              {d.negotiation.status === 'REVIEW' ? (
-                <div className="form-actions">
-                  <button
-                    className="secondary"
-                    disabled={busy}
-                    onClick={() => void onNegotiationDecision('accept')}
-                  >
-                    Record my choice: accept
-                  </button>
-                  <button
-                    className="secondary"
-                    disabled={busy}
-                    onClick={() => void onNegotiationDecision('decline')}
-                  >
-                    Record my choice: decline
-                  </button>
-                </div>
-              ) : (
-                <p>
-                  Practice decision recorded:{' '}
-                  <strong>{d.negotiation.userDecision === 'accept' ? 'accept' : 'decline'}</strong>.
-                </p>
-              )}
-            </div>
-          )}
-          {(!d.negotiation || d.negotiation.status === 'REVIEW') && (
-            <details open={!d.negotiation}>
-              <summary>
-                {d.negotiation ? 'Try another response' : 'Start negotiation practice'}
-              </summary>
-              <div className="form-grid">
-                <label>
-                  Practice offer salary
-                  <input
-                    type="number"
-                    min="1"
-                    value={offerSalary}
-                    onChange={(event) => setOfferSalary(event.target.value)}
-                  />
-                </label>
-                <label>
-                  Your target salary
-                  <input
-                    type="number"
-                    min="1"
-                    value={targetSalary}
-                    onChange={(event) => setTargetSalary(event.target.value)}
-                  />
-                </label>
-                <label>
-                  Currency
-                  <input
-                    value={currency}
-                    maxLength={3}
-                    onChange={(event) => setCurrency(event.target.value.toUpperCase())}
-                  />
-                </label>
-              </div>
-              <label>
-                Your negotiation response
-                <textarea
-                  rows={5}
-                  value={negotiationMessage}
-                  onChange={(event) => setNegotiationMessage(event.target.value)}
-                  placeholder="Explain the value you can bring, state your request and keep the decision yours."
-                />
-              </label>
-              <button
-                className="primary"
-                disabled={
-                  busy ||
-                  d.negotiationRun?.status === 'RUNNING' ||
-                  !Number.isFinite(Number(offerSalary)) ||
-                  !Number.isFinite(Number(targetSalary)) ||
-                  currency.trim().length !== 3 ||
-                  negotiationMessage.trim().length < 10
-                }
-                onClick={() =>
-                  void onNegotiation({
-                    offerSalary: Number(offerSalary),
-                    targetSalary: Number(targetSalary),
-                    currency,
-                    candidateMessage: negotiationMessage,
-                  })
-                }
-              >
-                {d.negotiationRun?.status === 'RUNNING'
-                  ? 'Simulating negotiation…'
-                  : 'Practice salary negotiation'}
-                <ArrowRight size={16} />
-              </button>
-            </details>
-          )}
-        </section>
-      )}
       {phase === null && (
         <details className="panel mission-activity">
           <summary>Activity and agent details</summary>
@@ -3023,7 +2854,6 @@ function ResumeDownloads({ id }: { id: string }) {
           Download PDF
         </a>
       </span>
-      <CloudBackups key={id} id={id} api={api} />
     </>
   );
 }
