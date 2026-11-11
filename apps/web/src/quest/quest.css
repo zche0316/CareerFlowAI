@@ -3592,3 +3592,36 @@ body:has(.quest) {
     grid-template-columns: 1fr auto;
   }
 }
+
+/* Profile sources (CFS-112 to 114). */
+.ps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 12px;
+}
+.ps-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 18px;
+  background: var(--q-soft);
+  min-width: 0;
+}
+.ps-card h3,
+.ps-card h4 {
+  margin: 0;
+}
+.ps-card form {
+  display: grid;
+  gap: 8px;
+}
+.ps-card input:not([type='checkbox']),
+.ps-card textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+.ps-preview ul {
+  margin: 4px 0 8px;
+  padding-left: 18px;
+  font-size: 13px;
+}

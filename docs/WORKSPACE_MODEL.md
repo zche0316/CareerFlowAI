@@ -175,3 +175,14 @@ location, years, degree) and shows level gaps. Results are a checklist with sub-
 pass probability. The employer's exact term is suggested only where an approved line already
 names the same skill. Open-source references: Resume-Matcher (Apache-2.0) for keyword-gap ideas;
 OpenResume's parser (AGPL-3.0) only as an outside readability reference, no code copied.
+
+## Profile sources (CFS-112 to CFS-114)
+
+`POST /api/profile-sources/:kind/preview` reads one public source and returns a proposal plus the
+approved profile with the proposal merged in. Nothing is saved: the Character page shows the
+proposal, and the user approves it as a new profile version through the normal draft flow.
+Imported facts carry their source and whether they were verified (`verifiedEvidence`), which the
+capability model uses for confidence and levels.
+
+- GitHub (official REST API, optional server `GITHUB_TOKEN`): up to six recent non-fork public
+  repositories become personal projects; languages, tests and CI become verified evidence.

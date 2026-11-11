@@ -637,6 +637,7 @@ function App() {
             <CharacterSheet
               workspace={workspace}
               request={api}
+              onProfileChanged={() => void refresh()}
               userName={session.user.name}
               onBuildProfile={() => setTab('profile')}
               onOpenMission={(id) => {
