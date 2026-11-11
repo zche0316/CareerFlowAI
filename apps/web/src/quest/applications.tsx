@@ -5,6 +5,11 @@ import { ArrowRight, RotateCw } from 'lucide-react';
 // keeps every resume and practice run for that role. Runs are the party's work on it.
 
 export const stageCopy: Record<string, { label: string; tone: string; next: string }> = {
+  discovered: {
+    label: 'New from Scout',
+    tone: 'lilac',
+    next: 'Scout found this role and scored it. Tailor a resume if it is worth pursuing, or remove it.',
+  },
   saved: {
     label: 'Saved',
     tone: 'outline',
@@ -58,6 +63,7 @@ export function boardStage(board: any[] | undefined, match: any): string | null 
 }
 
 const statusOptions = [
+  ['discovered', 'New from Scout'],
   ['saved', 'Not applied yet'],
   ['applied', 'Applied'],
   ['interview', 'Interviewing'],
@@ -67,7 +73,7 @@ const statusOptions = [
 ];
 
 const groups = [
-  { id: 'open', title: 'Getting ready', stages: ['saved', 'tailoring', 'ready'] },
+  { id: 'open', title: 'Getting ready', stages: ['discovered', 'saved', 'tailoring', 'ready'] },
   { id: 'applied', title: 'Applied', stages: ['applied', 'interview', 'offer'] },
   { id: 'closed', title: 'Closed', stages: ['rejected', 'closed'] },
 ];

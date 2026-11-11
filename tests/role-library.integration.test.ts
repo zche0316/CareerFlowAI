@@ -370,3 +370,40 @@ it('merges stored duplicates under the new fingerprint and keeps demo and live b
   // This server runs in fixture mode, so the live role is not on its board.
   expect((await call('/applications')).body).toEqual([]);
 });
+
+it('Scout discovers roles onto the board by default and new searches reuse saved advice', async () => {
+  const { call } = await client();
+  const setting = (await call('/scout')).body.setting;
+  expect(setting.autoPackage).toBe(false);
+  await call('/scout/settings', 'PUT', { ...setting, topK: 2, minScore: 0 });
+  await call('/scout/sweeps', 'POST', {});
+  const sweep = (
+    await until(
+      () => call('/scout'),
+      (r) => r.body.sweeps[0]?.status === 'COMPLETE',
+    )
+  ).body.sweeps[0];
+  expect(sweep).toMatchObject({ fresh: 8, discovered: 2, packages: [] });
+  expect(sweep.calls).toBe(0);
+  const board = (await call('/applications')).body;
+  expect(board).toHaveLength(2);
+  expect(
+    board.every(
+      (a: any) => a.stage === 'discovered' && a.source === 'scout' && a.runs.length === 0,
+    ),
+  ).toBe(true);
+
+  // Advice saved by the Coach is reused: the search run starts with it and makes no Coach call.
+  await call('/coach/refresh', 'POST');
+  const run = (await call('/missions', 'POST', { goal: 'Find a graduate analyst role.' })).body;
+  const shortlist = (
+    await until(
+      () => call(`/missions/${run.id}`),
+      (r) => r.body.status === 'AWAITING_JOB',
+    )
+  ).body;
+  expect(shortlist.data.analysisReused).toBe(true);
+  expect(
+    shortlist.events.some((e: any) => e.agent === 'Career Coach' && e.action === 'completed'),
+  ).toBe(false);
+});

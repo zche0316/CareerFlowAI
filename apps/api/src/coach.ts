@@ -77,13 +77,15 @@ export function coachActions(input: {
       action: { kind: 'quests' },
     });
   for (const a of apps
-    .filter((a) => a.stage === 'saved')
+    .filter((a) => a.stage === 'saved' || a.stage === 'discovered')
     .sort((x, y) => (y.score ?? -1) - (x.score ?? -1))
     .slice(0, 2))
     out.push({
       id: `tailor-${a.id}`,
       text: `Tailor a resume for ${a.title} at ${a.company}.`,
-      reason: a.score !== null ? `Saved role with a match of ${a.score}.` : 'Saved role.',
+      reason:
+        (a.stage === 'discovered' ? 'Found by Scout' : 'Saved role') +
+        (a.score !== null ? ` with a match of ${a.score}.` : '.'),
       action: { kind: 'tailor', applicationId: a.id },
     });
   for (const a of apps.filter((a) => a.stage === 'interview'))
@@ -140,6 +142,27 @@ async function latestFeedback(userId: string) {
     nextSteps: d.feedback.nextSteps || [],
     recordedAt: m.updatedAt.toISOString(),
   };
+}
+
+/**
+ * Career advice already paid for on this profile version and provider mode: the workspace Coach's
+ * latest review, else the analysis from an earlier run. New runs reuse it instead of a new call.
+ */
+export async function reusableAnalysis(userId: string, profileId: string, mode: string) {
+  const review = await db.coachReview.findFirst({
+    where: { userId, profileId, mode },
+    orderBy: { createdAt: 'desc' },
+  });
+  if (review) return review.analysis as MissionData['analysis'];
+  const run = (
+    await db.mission.findMany({
+      where: { userId, profileId, mode },
+      orderBy: { createdAt: 'desc' },
+      select: { data: true },
+      take: 20,
+    })
+  ).find((m) => (m.data as MissionData).analysis);
+  return run ? (run.data as MissionData).analysis : null;
 }
 
 /** The Coach panel: latest advice for the current profile version plus the next actions. */

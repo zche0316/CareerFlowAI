@@ -15,7 +15,7 @@ import {
   registerApplications,
   upsertApplication,
 } from './applications.js';
-import { registerCoach } from './coach.js';
+import { registerCoach, reusableAnalysis } from './coach.js';
 import { registerProfilePolish } from './profile-polish.js';
 import { registerResumeWording } from './resume-wording.js';
 import { registerResumeAgent } from './resume-agent.js';
@@ -306,6 +306,11 @@ export function createApp() {
           recordedAt: previous!.updatedAt.toISOString(),
         }
       : null;
+    // A plain search reuses advice already prepared for this profile; a refinement asks again.
+    const reused =
+      sourceMissionId || analysisFeedback.length
+        ? null
+        : await reusableAnalysis(req.actor!.id, profile.id, configuredMode());
     const mission = await db.mission.create({
       data: {
         userId: req.actor!.id,
@@ -322,6 +327,7 @@ export function createApp() {
           agentAccess: 'all-approved-profile',
           simulateSourceFailure: configuredMode() === 'fixture' && simulateSourceFailure,
           analysisFeedback,
+          ...(reused ? { analysis: reused, analysisReused: true } : {}),
           ...(sourceMissionId ? { refinedFromMissionId: sourceMissionId } : {}),
         }),
         events: json([

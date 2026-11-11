@@ -49,6 +49,7 @@ type SweepData = {
   search: z.infer<typeof jobSearchSchema>;
   topK: number;
   minScore: number;
+  autoPackage?: boolean;
   fetched?: number;
   fresh?: number;
   alreadySeen?: number;
@@ -105,6 +106,7 @@ export async function scoutSetting(userId: string) {
     enabled: saved?.enabled ?? false,
     topK: saved?.topK ?? 3,
     minScore: saved?.minScore ?? 50,
+    autoPackage: saved?.autoPackage ?? false,
     search: saved
       ? jobSearchSchema.parse(saved.search)
       : profile
@@ -558,6 +560,24 @@ const ports: ScoutGraphPorts = {
     return { jobId, missionId, title: match.job.title };
   },
 
+  async autoPackage(sweepId) {
+    const sweep = requireValue(await db.scoutSweep.findUnique({ where: { id: sweepId } }));
+    return (sweep.data as unknown as SweepData).autoPackage === true;
+  },
+
+  async discover(sweepId, jobIds) {
+    const sweep = requireValue(await db.scoutSweep.findUnique({ where: { id: sweepId } }));
+    const data = sweep.data as unknown as SweepData;
+    let added = 0;
+    for (const jobId of jobIds) {
+      const match = (data.shortlist || []).find((m) => m.job.id === jobId);
+      if (!match) continue;
+      await upsertApplication(sweep.userId, match, 'scout', sweep.mode, 'discovered');
+      added++;
+    }
+    return added;
+  },
+
   async report(sweepId, _packages, handoffs) {
     await patchSweep(sweepId, (d) => ({ ...d, handoffs, finishedAt: new Date().toISOString() }), {
       status: 'COMPLETE',
@@ -613,7 +633,12 @@ export async function startSweep(userId: string, trigger: 'manual' | 'schedule')
       userId,
       trigger,
       mode: configuredMode(),
-      data: json({ search: setting.search, topK: setting.topK, minScore: setting.minScore }),
+      data: json({
+        search: setting.search,
+        topK: setting.topK,
+        minScore: setting.minScore,
+        autoPackage: setting.autoPackage,
+      }),
     },
   });
   await queueClient().send(QUEUE, { sweepId: sweep.id });
@@ -724,29 +749,37 @@ async function overview(userId: string) {
         leads: d.leads ?? null,
         handoffs: d.handoffs || [],
         error: d.error || null,
-        packages: (d.shortlist || []).map((match) => {
-          const missionId = d.packages?.[match.job.id]?.missionId || null;
-          const m = missionId ? missions.get(missionId) : undefined;
-          const md = (m?.data || {}) as MissionData;
-          return {
-            jobId: match.job.id,
-            title: match.job.title,
-            company: match.job.company,
-            location: match.job.location,
-            url: match.job.applicationUrl || null,
-            score: Math.round(match.score),
-            missionId,
-            status: m?.status || null,
-            approved: Boolean(md.approvedResumeId),
-            critic:
-              typeof md.resumeTeam?.critiques?.at(-1)?.pass === 'boolean'
-                ? md.resumeTeam.critiques.at(-1).pass
-                  ? 'passed'
-                  : 'open issues'
-                : null,
-            record: buildJobRecord(match.job),
-          };
-        }),
+        // A discover-only sweep put its shortlist on the board instead of starting resume teams;
+        // a lead the user pasted still gets its package.
+        discovered:
+          d.autoPackage === false
+            ? (d.shortlist || []).filter((m) => !d.packages?.[m.job.id]).length
+            : 0,
+        packages: (d.shortlist || [])
+          .filter((m) => d.autoPackage !== false || d.packages?.[m.job.id])
+          .map((match) => {
+            const missionId = d.packages?.[match.job.id]?.missionId || null;
+            const m = missionId ? missions.get(missionId) : undefined;
+            const md = (m?.data || {}) as MissionData;
+            return {
+              jobId: match.job.id,
+              title: match.job.title,
+              company: match.job.company,
+              location: match.job.location,
+              url: match.job.applicationUrl || null,
+              score: Math.round(match.score),
+              missionId,
+              status: m?.status || null,
+              approved: Boolean(md.approvedResumeId),
+              critic:
+                typeof md.resumeTeam?.critiques?.at(-1)?.pass === 'boolean'
+                  ? md.resumeTeam.critiques.at(-1).pass
+                    ? 'passed'
+                    : 'open issues'
+                  : null,
+              record: buildJobRecord(match.job),
+            };
+          }),
       };
     }),
   };
@@ -760,6 +793,7 @@ export function registerScout(app: Express) {
         enabled: z.boolean(),
         topK: z.number().int().min(1).max(3),
         minScore: z.number().int().min(0).max(100),
+        autoPackage: z.boolean().default(false),
         search: jobSearchSchema.omit({ listing: true }),
       })
       .parse(req.body);

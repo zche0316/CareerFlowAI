@@ -158,6 +158,7 @@ function App() {
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
     [creating, setCreating] = useState(false),
+    [directions, setDirections] = useState<{ text: string; reason: string }[]>([]),
     [minScore, setMinScore] = useState(40),
     [jobSearch, setJobSearch] = useState(defaultJobSearch),
     [goal, setGoal] = useState(''),
@@ -168,6 +169,14 @@ function App() {
     [agentPrompt, setAgentPrompt] = useState<{ id: string; text: string; label: string } | null>(
       null,
     );
+
+  // Coach directions for this profile version, offered as goals when the Find roles form opens.
+  useEffect(() => {
+    if (!creating || !session?.user) return;
+    api('/coach')
+      .then((c) => setDirections(Array.isArray(c?.analysis?.directions) ? c.analysis.directions : []))
+      .catch(() => setDirections([]));
+  }, [creating]);
 
   useEffect(() => {
     const restore = () => {
@@ -981,6 +990,22 @@ function App() {
                 onChange={(e) => setGoal(e.target.value)}
               />
             </label>
+            {directions.length > 0 && (
+              <div className="coach-directions">
+                <span className="small muted">The Coach suggests:</span>
+                {directions.slice(0, 3).map((d) => (
+                  <button
+                    key={d.text}
+                    type="button"
+                    className="text-button"
+                    title={d.reason}
+                    onClick={() => setGoal(d.text)}
+                  >
+                    Use as goal: {d.text.length > 90 ? d.text.slice(0, 87) + '…' : d.text}
+                  </button>
+                ))}
+              </div>
+            )}
             <JobSearchFields
               value={jobSearch}
               onChange={setJobSearch}

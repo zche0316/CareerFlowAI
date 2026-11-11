@@ -18,6 +18,7 @@ import type { CareerProfile, Fact } from '../../../packages/contracts/src/index.
 // versions: every resume and every interview practice for that role hangs off it through its runs.
 
 export const applicationStatuses = [
+  'discovered',
   'saved',
   'applied',
   'interview',
@@ -40,8 +41,8 @@ export async function upsertApplication(
   match: any,
   source: 'search' | 'scout' | 'link',
   mode: string = configuredMode(),
+  status: ApplicationStatus = 'saved',
 ) {
-  const status: ApplicationStatus = 'saved';
   // The identity the role library gave this listing, or the one it resolves to now: the same
   // posting or a listing with the same names and a similar description joins the existing role.
   const known = await knownRoles(userId);
@@ -143,10 +144,11 @@ export function applicationStage(
   status: string,
   runs: Pick<RunSummary, 'status' | 'approvedResumeId'>[],
 ) {
-  if (status !== 'saved') return status;
+  // Before the user records an application, the runs decide the stage.
+  if (status !== 'saved' && status !== 'discovered') return status;
   if (runs.some((r) => r.approvedResumeId)) return 'ready';
   if (runs.some((r) => ACTIVE.includes(r.status))) return 'tailoring';
-  return 'saved';
+  return status;
 }
 
 // New runs are linked when they are created, so older missions need the backfill only once per

@@ -142,3 +142,13 @@ for the Coach (later issue), calendar sync.
   archived by setting its status to Closed.
 - Older runs stay tied to the profile version they used; their error messages point to the Quest
   log, where the role can be tailored again with the current profile.
+
+## Cost and Coach (CFS-105)
+
+- A Find roles run reuses career advice already prepared for the current profile version and
+  mode (the workspace Coach's latest review, else an earlier run's analysis) instead of a new
+  Career Coach call. A refinement with feedback still asks the Coach again.
+- Scout is discover-first: a sweep scores new roles and puts the shortlist on the board as
+  "New from Scout". Resume teams start only for roles the user tailors, or for every shortlisted
+  role when "Also start a resume team" is switched on. A pasted lead still gets its package.
+- The Find roles form offers the Coach's directions as goals.
