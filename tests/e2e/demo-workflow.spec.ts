@@ -117,7 +117,7 @@ test('the demo workflow runs end to end in the Quest interface', async ({ page }
   await go(page, 'Quests');
   await expect(page.locator('section.qa-group.applied')).toContainText(title);
   const later = page.locator('li.qa-card', { hasText: saved });
-  await expect(later.locator('.quest-chip')).toHaveText('Saved');
+  await expect(later.locator('.qa-card-top .quest-chip')).toHaveText('Saved');
   await expect(page.locator('section.ql-group.ended')).toContainText(title);
 
   // A saved role starts its own run at the resume team with the role already chosen.
