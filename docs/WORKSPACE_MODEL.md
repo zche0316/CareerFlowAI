@@ -108,3 +108,26 @@ Each phase: `verify:local` and the affected e2e specs; the full e2e suite and on
 
 Renaming the `Mission` table, deleting missions, automatic job applications, a model-run weekly plan
 for the Coach (later issue), calendar sync.
+
+## Role library (CFS-103)
+
+- Identity is decided in layers (`resolveRole` in `apps/api/src/role-library.ts`):
+  1. **Same posting**: same source and listing id (Greenhouse, Lever, Ashby, Adzuna, demo roles),
+     or the same link once tracking parameters, fragment, `www.` and trailing slash are removed.
+  2. **Same role on another board**: employer without legal suffixes, title with abbreviations
+     spelled out and the city match, and the descriptions are alike (MinHash over word 3-grams,
+     at least 0.6), or one side has no description, as a lead does. Same names with different
+     descriptions are two openings and get separate identities.
+  3. **Re-advertised**: a known role no search showed for 60 days. Off the board it is listed as
+     new again; on the board its history gets a "Re-advertised" note and no resume team starts.
+- A link or a date alone is not used: one role has a different link on each board, links carry
+  tracking parameters, and most sources give no posting date.
+- `TrackedJob` is the log of every role a search showed, from Scout sweeps and Find roles runs.
+  `Application` holds the status of the roles the user pursues. Scout treats both as already seen,
+  so it never lists a board role as new or starts a resume team on it.
+- At startup `migrateRoleLibrary` resolves stored rows in creation order and merges rows that
+  turn out to be the same role: runs move to the earlier application, histories combine and the furthest
+  status wins. Each application records its provider mode; the board shows the current mode only.
+- Shortlists and the Scout table mark roles already on the board; Scout can save a role it
+  recorded. Application statistics in Optional tools come from the board.
+

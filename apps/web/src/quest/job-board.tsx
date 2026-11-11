@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { stageCopy } from './applications.js';
 import { CompanyAvatar } from '../company-avatar.js';
 
 type Filter = 'strong' | 'salary' | 'live' | 'evidence';
@@ -78,7 +79,9 @@ export function QuestJobTable({
   compareIds,
   sourceLabel,
   onSelect,
+  stageOf,
 }: {
+  stageOf?: (r: any) => string | null;
   matches: any[];
   selectedId: string;
   compareIds: string[];
@@ -147,6 +150,7 @@ export function QuestJobTable({
                         <small>
                           {r.job.company}
                           {compareIds.includes(r.job.id) && ' · comparing'}
+                          {stageOf?.(r) && ` · in your quests (${stageCopy[stageOf(r)!]?.label})`}
                         </small>
                       </span>
                     </button>

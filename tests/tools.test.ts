@@ -21,20 +21,30 @@ it('handles an empty dashboard without inventing rates', () => {
   expect(d.interviewRate).toBeNull();
   expect(d.rejectionRate).toBeNull();
 });
-it('summarizes only explicit current application statuses and latest stored gaps', () => {
-  const d = summarizeTools([
-    {
-      id: 'm',
-      goal: 'x',
-      data: {
-        optionalTools: { status: { value: 'offer', at: 'now' } },
-        selectedJob: { job: { title: 'Analyst' } },
-        matches: [{ gaps: ['Python'] }],
-      },
-    },
+it('summarizes recorded statuses and recurring gaps from the board, not saved roles', () => {
+  const role = (id: string, status: string, gaps: string[]) => ({
+    id,
+    title: 'Analyst ' + id,
+    status,
+    gaps,
+    history: [{ status, at: '2026-11-01T00:00:00.000Z' }],
+    runs: [],
+  });
+  const d = summarizeTools(
+    [],
+    [
+      role('a', 'offer', ['Python']),
+      role('b', 'rejected', ['Python', 'dbt']),
+      role('c', 'saved', ['dbt']),
+    ],
+  );
+  expect(d.total).toBe(2);
+  expect(d.interviewRate).toBe(0.5);
+  expect(d.rejectionRate).toBe(0.5);
+  expect(d.recurringGaps).toEqual([
+    ['Python', 2],
+    ['dbt', 2],
   ]);
-  expect(d.interviewRate).toBe(1);
-  expect(d.recurringGaps).toEqual([['Python', 1]]);
 });
 it('escapes calendar text and provides an alarm without injected calendar properties', () => {
   const c = calendarFile({

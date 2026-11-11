@@ -126,11 +126,11 @@ export function OptionalTools({
                 : Math.round(dashboard.rejectionRate * 100) + '%'}
             </p>
             {dashboard.applications.map((a: any) => (
-              <p key={a.missionId}>
+              <p key={a.applicationId}>
                 {a.title} · {a.status}
               </p>
             ))}
-            <h3>Recurring gaps in latest matches</h3>
+            <h3>Recurring gaps across your roles</h3>
             {dashboard.recurringGaps.map(([gap, n]: any) => (
               <p key={gap}>
                 {gap} · {n} roles

@@ -3,6 +3,7 @@ import { ArrowRight, Radar, Trash2 } from 'lucide-react';
 import { countries } from '../../../../packages/recruitment/src/geography.js';
 import { workRightsLabels, type JobRecord } from '../../../../packages/contracts/src/job-record.js';
 import { AgentAvatar, agentProfiles, type AgentId } from './characters.js';
+import { stageCopy } from './applications.js';
 
 type Package = {
   jobId: string;
@@ -28,6 +29,7 @@ type Sweep = {
   fresh: number | null;
   alreadySeen: number | null;
   duplicates: number | null;
+  reposted: number | null;
   reviewed: number | null;
   notReviewed: number | null;
   failures: { provider: string; message: string }[];
@@ -70,7 +72,12 @@ type Overview = {
   modelSearchAvailable: boolean;
   webSearchAvailable: boolean;
   trackedTotal: number;
-  tracked: { fingerprint: string; firstSeenAt: string; record: JobRecord }[];
+  tracked: {
+    fingerprint: string;
+    firstSeenAt: string;
+    record: JobRecord;
+    board: { id: string; stage: string } | null;
+  }[];
   sweeps: Sweep[];
 };
 
@@ -442,8 +449,9 @@ export function QuestScout({
                 </div>
                 {s.fetched !== null && (
                   <p className="sc-counts">
-                    {s.fetched} fetched · <b>{s.fresh} new</b> · {s.alreadySeen} seen before ·{' '}
-                    {s.duplicates} duplicate{s.duplicates === 1 ? '' : 's'} across boards
+                    {s.fetched} fetched · <b>{s.fresh} new</b>
+                    {s.reposted ? ` (${s.reposted} re-advertised)` : ''} · {s.alreadySeen} seen
+                    before · {s.duplicates} duplicate{s.duplicates === 1 ? '' : 's'} across boards
                     {s.reviewed !== null && ` · ${s.reviewed} scored`}
                     {s.notReviewed ? ` · ${s.notReviewed} not scored (call limit)` : ''}
                     {s.mode !== 'fixture' && ` · ${s.calls} model calls`}
@@ -659,8 +667,8 @@ export function QuestScout({
           <h2 id="sc-records">Roles on record</h2>
           <span>
             {data.trackedTotal
-              ? `Latest ${data.tracked.length} of ${data.trackedTotal} · every field quotes the listing or stays empty`
-              : 'Empty until the first sweep'}
+              ? `Latest ${data.tracked.length} of ${data.trackedTotal} from Scout and Find roles · every field quotes the listing or stays empty`
+              : 'Empty until your first search'}
           </span>
         </div>
         {data.tracked.length > 0 && (
@@ -695,6 +703,26 @@ export function QuestScout({
                                 Open to check
                               </a>
                             </small>
+                          )}
+                          {t.board ? (
+                            <span className="quest-chip lime sc-board">
+                              In your quests · {stageCopy[t.board.stage]?.label || t.board.stage}
+                            </span>
+                          ) : (
+                            !r.lead && (
+                              <button
+                                type="button"
+                                className="quest-press sc-lead-action"
+                                disabled={busy}
+                                onClick={() =>
+                                  void act(async () => {
+                                    await request(`/scout/roles/${t.fingerprint}/save`, 'POST');
+                                  })
+                                }
+                              >
+                                Save to my quests
+                              </button>
+                            )
                           )}
                           {r.lead && r.missionId && (
                             <button

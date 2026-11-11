@@ -51,6 +51,8 @@ import { critiqueSchema, rewriteSchema } from './resume-team/schemas.js';
 import type { Critique, TeamFeedback } from './resume-team/types.js';
 import { agentLabels, appendHandoffs } from './orchestration/handoff.js';
 import { spanHook } from '../../../apps/api/src/trace.js';
+import { recordSeen } from '../../../apps/api/src/role-library.js';
+import { jobFingerprint } from './scout/scout.js';
 
 // Checkpoints store a mission reference; approved evidence and results remain in domain tables.
 const State = Annotation.Root({ missionId: Annotation<string>() });
@@ -582,6 +584,9 @@ export async function createWorkflow() {
           fetchedAt: new Date().toISOString(),
         };
       }
+      // Every role this search showed joins the user's role library, so Scout does not offer it
+      // again as new. Recording is best effort: a failure here must not lose the search.
+      const identities = await recordSeen(c.m.userId, jobs).catch(() => new Map<string, string>());
       const corpus = jobs.map((j: any) => j.title + ' ' + j.description);
       const legacy = matchingProfileView(c.p);
       const preliminary = jobs
@@ -661,6 +666,10 @@ export async function createWorkflow() {
         }
       }
       matches = matches
+        .map((r: any) => ({
+          ...r,
+          fingerprint: identities.get(r.job.id) || jobFingerprint(r.job),
+        }))
         .filter((r: any) => r.score >= (c.d.minScore ?? 40))
         .sort((a: any, b: any) => b.score - a.score || a.job.id.localeCompare(b.job.id));
       await patchRun(

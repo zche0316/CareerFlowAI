@@ -38,6 +38,24 @@ export const stageCopy: Record<string, { label: string; tone: string; next: stri
   closed: { label: 'Closed', tone: 'ink', next: 'Kept for your record.' },
 };
 
+/**
+ * The stage of a ranked role if it is already on the board. Runs made since the role library
+ * carry the role's fingerprint; older shortlists fall back to title and company.
+ */
+export function boardStage(board: any[] | undefined, match: any): string | null {
+  const key = (s = '') =>
+    s
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+  const found = (board || []).find((a) =>
+    match?.fingerprint
+      ? a.fingerprint === match.fingerprint
+      : key(a.title) === key(match?.job?.title) && key(a.company) === key(match?.job?.company),
+  );
+  return found ? found.stage : null;
+}
+
 const statusOptions = [
   ['saved', 'Not applied yet'],
   ['applied', 'Applied'],
@@ -79,6 +97,9 @@ function ApplicationCard({
         <span className={`quest-chip ${copy.tone}`}>{copy.label}</span>
       </div>
       <p className="ql-next">{copy.next}</p>
+      {a.history?.some((h: any) => h.note === 'Re-advertised') && (
+        <span className="quest-chip coral">Re-advertised · seen again after a while</span>
+      )}
       <div className="qa-facts">
         {a.score !== null && <span>Match {a.score}</span>}
         <span>

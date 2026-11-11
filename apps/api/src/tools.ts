@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from './db.js';
 import { ownedMission, json, type MissionData } from './domain.js';
 import { AppError, requireValue } from './errors.js';
+import { listApplications } from './applications.js';
 export const toolCommand = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('status'),
@@ -63,26 +64,35 @@ export function calendarFile(r: any) {
     '',
   ].join('\r\n');
 }
-export function summarizeTools(missions: any[]) {
-  const applications = missions.flatMap((m) => {
-    const status = m.data.optionalTools?.status;
-    return status
-      ? [
-          {
-            missionId: m.id,
-            title: m.data.selectedJob?.job.title,
-            status: status.value,
-            updatedAt: status.at,
-          },
-        ]
-      : [];
-  });
+type BoardRole = {
+  id: string;
+  title: string;
+  status: string;
+  gaps?: string[];
+  history: { status: string; at: string }[];
+  runs: { id: string }[];
+};
+
+/**
+ * Application statistics from the board: one entry per role with a status the user recorded.
+ * Reminders still belong to the runs they were made in.
+ */
+export function summarizeTools(missions: any[], board: BoardRole[] = []) {
+  const applications = board
+    .filter((a) => a.status !== 'saved')
+    .map((a) => ({
+      applicationId: a.id,
+      missionId: a.runs[0]?.id || null,
+      title: a.title,
+      status: a.status,
+      updatedAt: a.history.at(-1)?.at || null,
+    }));
   const n = applications.length,
     interviews = applications.filter((a) => ['interview', 'offer'].includes(a.status)).length,
     rejected = applications.filter((a) => a.status === 'rejected').length;
   const counts: Record<string, number> = {};
-  for (const r of missions.find((m) => m.data.matches)?.data.matches || [])
-    for (const gap of r.gaps) counts[gap] = (counts[gap] || 0) + 1;
+  for (const a of board)
+    for (const gap of new Set(a.gaps || [])) counts[gap] = (counts[gap] || 0) + 1;
   return {
     applications,
     total: n,
@@ -97,13 +107,14 @@ export function summarizeTools(missions: any[]) {
       (m.data.optionalTools?.reminders || []).map((r: any) => ({ ...r, missionId: m.id })),
     ),
     limitations: [
-      'Statuses are self-reported, not verified by employers. Rates use current status only; an offer counts as interview reached. One application record per mission. Latest persisted matching run supplies gap counts.',
+      'Statuses are self-reported, not verified by employers. Rates use each role’s current status; an offer counts as interview reached. Gap counts come from the roles on your board.',
     ],
   };
 }
 export async function toolsDashboard(userId: string) {
   return summarizeTools(
     await db.mission.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } }),
+    await listApplications(userId),
   );
 }
 export async function runTool(userId: string, id: string, input: z.infer<typeof toolCommand>) {

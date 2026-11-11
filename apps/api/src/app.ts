@@ -417,6 +417,7 @@ export function createApp() {
           req.actor!.id,
           chosen,
           chosen.job.source?.importedFromURL ? 'link' : 'search',
+          m.mode,
         );
         await db.mission.update({ where: { id: m.id }, data: { applicationId: application.id } });
       }

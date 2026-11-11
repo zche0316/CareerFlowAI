@@ -26,6 +26,7 @@ import { progressFrom } from './quest/progress.js';
 import { QuestTopBar, type QuestNavId } from './quest/top-bar.js';
 import { QuestHome } from './quest/home.js';
 import { QuestCoach } from './quest/coach.js';
+import { boardStage, stageCopy } from './quest/applications.js';
 import { PartyRoster } from './quest/roster.js';
 import './quest/fonts.js';
 import { ProfileConversation } from './profile-conversation.js';
@@ -647,6 +648,7 @@ function App() {
               {mission ? (
                 <MissionDetail
                   userName={session.user.name}
+                  board={workspace?.applications}
                   onOpenMission={(id) =>
                     void act(async () => {
                       const latest = (await refresh()).missions.find((x: any) => x.id === id);
@@ -1684,6 +1686,7 @@ function Profile({
 // Present persisted outputs and collect decisions; workflow transitions are validated by the API.
 function MissionDetail({
   mission: m,
+  board,
   phase,
   onNavigate,
   onNewSearch,
@@ -1698,6 +1701,7 @@ function MissionDetail({
   userName = 'You',
 }: {
   userName?: string;
+  board?: any[];
   onOpenMission: (id: string) => void;
   mission: any;
   phase: number | null;
@@ -2196,6 +2200,7 @@ function MissionDetail({
               {!d.selectedJob && (
                 <QuestJobTable
                   matches={d.matches}
+                  stageOf={(r) => boardStage(board, r)}
                   selectedId={viewJobId || d.matches[0]?.job.id}
                   compareIds={compareIds}
                   sourceLabel={
@@ -2388,13 +2393,19 @@ function MissionDetail({
                           Select this opportunity
                           <ArrowRight size={15} />
                         </button>
-                        <button
-                          className="text-button"
-                          disabled={busy}
-                          onClick={() => void onAction('saved-roles', { jobId: r.job.id })}
-                        >
-                          Save to my quests for later
-                        </button>
+                        {boardStage(board, r) ? (
+                          <span className="quest-chip lime">
+                            In your quests · {stageCopy[boardStage(board, r)!]?.label}
+                          </span>
+                        ) : (
+                          <button
+                            className="text-button"
+                            disabled={busy}
+                            onClick={() => void onAction('saved-roles', { jobId: r.job.id })}
+                          >
+                            Save to my quests for later
+                          </button>
+                        )}
                         <label className="checkbox small">
                           <input
                             type="checkbox"
