@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nextMissionStep } from '../apps/web/src/workspace-home.js';
+import { nextMissionStep } from '../apps/web/src/mission-step.js';
 
 describe('opening a saved mission at the next user action', () => {
   it('opens job selection when matching results are ready', () => {

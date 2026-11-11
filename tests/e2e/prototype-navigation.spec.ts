@@ -1,4 +1,5 @@
-import { test, expect } from './classic.js';
+import { test, expect } from '@playwright/test';
+import { go } from './nav.js';
 
 test('prototype navigation keeps profile, memory and existing tools reachable', async ({
   page,
@@ -12,14 +13,13 @@ test('prototype navigation keeps profile, memory and existing tools reachable', 
   await expect(
     page.getByRole('heading', { name: 'Build your profile', exact: true }),
   ).toBeVisible();
-  await page.getByRole('button', { name: 'My profile', exact: true }).click();
+  await go(page, 'My profile');
   await expect(page.getByRole('heading', { name: 'My profile', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Stories & notes', exact: true }).click();
   await expect(
     page.getByRole('region', { name: 'Career memory and STAR library', exact: true }),
   ).toBeVisible();
-  await page.getByText('More', { exact: true }).click();
-  await page.getByRole('button', { name: 'Optional tools', exact: true }).click();
+  await go(page, 'Optional tools');
   await expect(page.getByRole('heading', { name: 'Application tools' })).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Record target status', exact: true }),

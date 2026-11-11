@@ -16,8 +16,7 @@ export type QuestNavId =
   | 'approvals'
   | 'applications'
   | 'activity'
-  | 'tools'
-  | 'classic';
+  | 'tools';
 
 const primary: { id: QuestNavId; label: string }[] = [
   { id: 'home', label: 'Home' },
@@ -36,7 +35,6 @@ const more: { id: QuestNavId; label: string }[] = [
   { id: 'applications', label: 'Applications' },
   { id: 'activity', label: 'Activity' },
   { id: 'tools', label: 'Optional tools' },
-  { id: 'classic', label: 'Classic view' },
 ];
 
 /** Floating pill navigation for the Quest app. Navigation logic stays in the caller. */

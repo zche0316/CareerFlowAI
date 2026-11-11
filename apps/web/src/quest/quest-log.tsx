@@ -1,6 +1,6 @@
 import { ArrowRight, Check, Plus } from 'lucide-react';
 import { MISSION_MODEL_CALL_LIMIT } from '../../../../packages/contracts/src/mission-limits.js';
-import { nextMissionStep } from '../workspace-home.js';
+import { nextMissionStep } from '../mission-step.js';
 import { AgentAvatar, type AgentId } from './characters.js';
 import { XP_RULES } from './progress.js';
 
@@ -52,6 +52,10 @@ function QuestCard({ m, onOpen }: { m: any; onOpen: (m: any, phase: number | nul
   const step = m.status === 'COMPLETE' ? questRoute.length : nextMissionStep(m);
   const who = holder(m);
   const copy = nextText[m.status] || { text: m.status, cta: 'Open' };
+  const cta =
+    m.status === 'FAILED' && (d.apiCalls || 0) >= MISSION_MODEL_CALL_LIMIT
+      ? 'Review saved results'
+      : copy.cta;
   const rounds = d.resumeTeam?.critiques?.length || 0;
   const job = d.selectedJob?.job;
   const waiting = waitingStatus.includes(m.status);
@@ -95,7 +99,7 @@ function QuestCard({ m, onOpen }: { m: any; onOpen: (m: any, phase: number | nul
           className={`quest-press${waiting ? ' lime' : ''} ql-go`}
           onClick={() => onOpen(m, m.status === 'COMPLETE' ? null : nextMissionStep(m))}
         >
-          {copy.cta}
+          {cta}
           <ArrowRight size={16} strokeWidth={2.6} />
         </button>
       </div>

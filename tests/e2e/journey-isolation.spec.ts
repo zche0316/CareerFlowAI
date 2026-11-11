@@ -1,4 +1,5 @@
-import { test, expect } from './classic.js';
+import { test, expect } from '@playwright/test';
+import { step } from './nav.js';
 import { sampleProfile } from '../../packages/contracts/src/index.js';
 
 test('background completion preserves deliberate earlier-stage review and blocks future routes', async ({
@@ -49,7 +50,7 @@ test('background completion preserves deliberate earlier-stage review and blocks
   await expect(page.getByRole('list', { name: 'Agent progress' })).toContainText(
     'Target job selected',
   );
-  await page.getByRole('button', { name: '03 · Job matching', exact: true }).click();
+  await step(page, 3);
   await expect(page).toHaveURL(/step=2/);
   mission.status = 'AWAITING_APPROVAL';
   mission.data.resumeDraft = {
@@ -60,20 +61,17 @@ test('background completion preserves deliberate earlier-stage review and blocks
     claims: [],
     omittedFacts: [],
   };
-  await expect(page.getByText('awaiting approval', { exact: true })).toBeVisible({
-    timeout: 10000,
-  });
+  // The header chip follows the background change; the user stays on the step they opened.
+  await expect(page.locator('.qm-chips')).toContainText('Your call', { timeout: 10000 });
   await expect(page).toHaveURL(/step=2/);
-  await expect(
-    page.getByRole('heading', { name: 'Find the right opportunity', exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Target locked in.', exact: true })).toBeVisible();
   await page.goto('/?view=missions&mission=isolation&step=4');
   await expect(page).toHaveURL(/step=3/);
   await expect(
     page.getByRole('button', { name: 'Approve & save resume', exact: true }),
   ).toBeDisabled();
   await page.getByRole('button', { name: 'Cancel further work', exact: true }).click();
-  await expect(page.locator('.status-cancelled')).toBeVisible();
+  await expect(page.locator('.qm-chips')).toContainText('cancelled');
   await page.reload();
-  await expect(page.locator('.status-cancelled')).toBeVisible();
+  await expect(page.locator('.qm-chips')).toContainText('cancelled');
 });

@@ -1,6 +1,7 @@
 import { fillProfileFixture } from './profile-fixture.js';
 import { writeFile } from 'node:fs/promises';
-import { test, expect, type Page } from './classic.js';
+import { test, expect, type Page } from '@playwright/test';
+import { go, openProfile } from './nav.js';
 async function signup(page: Page) {
   await page.goto('/');
   await page.getByRole('button', { name: 'New here? Create an account' }).click();
@@ -8,11 +9,7 @@ async function signup(page: Page) {
   await page.getByLabel('Email address').fill(`memory-browser-${Date.now()}@careerflow.test`);
   await page.getByLabel('Password', { exact: true }).fill('Memory-QA-disposable-password');
   await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
-  await page
-    .getByRole('button', { name: 'Build profile', exact: true })
-    .or(page.getByRole('button', { name: 'My profile', exact: true }))
-    .first()
-    .click();
+  await openProfile(page);
 }
 test('saved profile conversation survives reload while memory management stays in My profile', async ({
   page,
@@ -44,18 +41,14 @@ test('saved profile conversation survives reload while memory management stays i
   ).toHaveCount(2);
   await expect(page.getByLabel('Full name', { exact: true })).toHaveValue('Manual edit stays');
   await page.reload();
-  await page
-    .getByRole('button', { name: 'Build profile', exact: true })
-    .or(page.getByRole('button', { name: 'My profile', exact: true }))
-    .first()
-    .click();
+  await openProfile(page);
   await expect(page.getByRole('log', { name: 'Saved profile messages' })).toContainText(
     'Atlas student project',
   );
   await expect(page.getByText('Approved v1', { exact: true })).toHaveCount(0);
   await expect(page.getByText('Keep this answer as a memory', { exact: true })).toHaveCount(0);
   await expect(page.getByText('Career memory & STAR library', { exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: 'My profile', exact: true }).click();
+  await go(page, 'My profile');
   await page.getByRole('button', { name: 'Stories & notes', exact: true }).click();
   await page.getByText('Add a memory', { exact: true }).click();
   await page.getByLabel('Memory title', { exact: true }).fill('Atlas SQL evidence');
@@ -102,7 +95,7 @@ test('saved profile conversation survives reload while memory management stays i
 
 test('STAR drafts allow unknown outcomes and remain user-reviewed memories', async ({ page }) => {
   await signup(page);
-  await page.getByRole('button', { name: 'My profile', exact: true }).click();
+  await go(page, 'My profile');
   await page.getByRole('button', { name: 'Stories & notes', exact: true }).click();
   await page.getByText('Add a memory', { exact: true }).click();
   await page.getByLabel('Memory type', { exact: true }).selectOption('STAR');
@@ -140,14 +133,10 @@ test('reviewed wording creates a downloadable edition and application answers st
     page.getByRole('button', { name: 'Start career mission', exact: true }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Close mission form', exact: true }).click();
-  await page
-    .getByRole('button', { name: 'Build profile', exact: true })
-    .or(page.getByRole('button', { name: 'My profile', exact: true }))
-    .first()
-    .click();
+  await openProfile(page);
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Overview', exact: true }).click();
-  await page.getByRole('button', { name: 'New career mission', exact: true }).click();
+  await go(page, 'Quests');
+  await page.getByRole('button', { name: 'Start a new quest', exact: true }).click();
   await page.getByText('Advanced source options', { exact: true }).click();
   await page.getByLabel('Job source', { exact: true }).selectOption('manual');
   await page
@@ -168,12 +157,11 @@ test('reviewed wording creates a downloadable edition and application answers st
   await expect(page.getByLabel('I read this exact draft.')).toBeVisible({ timeout: 30000 });
   await page.getByLabel('I read this exact draft.').check();
   await page.getByRole('button', { name: 'Approve this draft', exact: true }).click();
-  await expect(page.getByLabel('Your response', { exact: true })).toBeVisible({ timeout: 30000 });
-  await page.getByText('More', { exact: true }).click();
-  await page.getByRole('button', { name: 'Applications', exact: true }).click();
+  await expect(page.getByLabel('Your answer', { exact: true })).toBeVisible({ timeout: 30000 });
+  await go(page, 'Applications');
   await page.getByRole('button', { name: 'Check application fields', exact: true }).click();
   await expect(page.getByText('Full application schema unknown', { exact: false })).toBeVisible();
-  await page.getByRole('button', { name: 'My documents', exact: true }).click();
+  await go(page, 'My documents');
   await page.getByRole('button', { name: 'Polish wording', exact: true }).first().click();
   await page.getByLabel('Resume bullet', { exact: true }).selectOption('experience-1');
   await page.getByLabel('Use AI to suggest a factual rewrite of this bullet.').check();

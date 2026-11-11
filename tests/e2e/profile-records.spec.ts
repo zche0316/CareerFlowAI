@@ -1,5 +1,6 @@
 import { fillProfileFixture } from './profile-fixture.js';
-import { test, expect } from './classic.js';
+import { test, expect } from '@playwright/test';
+import { openProfile } from './nav.js';
 test('structured records and locally imported text remain separate from approval and survive reload', async ({
   page,
 }) => {
@@ -9,11 +10,7 @@ test('structured records and locally imported text remain separate from approval
   await page.getByLabel('Email address').fill(`import-qa-${Date.now()}@careerflow.test`);
   await page.getByLabel('Password', { exact: true }).fill('Fictional-import-QA-password');
   await page.getByRole('button', { name: 'Create workspace', exact: true }).click();
-  await page
-    .getByRole('button', { name: 'Build profile', exact: true })
-    .or(page.getByRole('button', { name: 'My profile', exact: true }))
-    .first()
-    .click();
+  await openProfile(page);
   await fillProfileFixture(page);
   await page.getByText('Edit profile details manually', { exact: true }).click();
   await page.getByRole('button', { name: 'Add Work experience', exact: true }).click();
@@ -64,18 +61,10 @@ test('structured records and locally imported text remain separate from approval
     page.getByRole('button', { name: 'Start career mission', exact: true }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Close mission form', exact: true }).click();
-  await page
-    .getByRole('button', { name: 'Build profile', exact: true })
-    .or(page.getByRole('button', { name: 'My profile', exact: true }))
-    .first()
-    .click();
+  await openProfile(page);
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
   await page.reload();
-  await page
-    .getByRole('button', { name: 'Build profile', exact: true })
-    .or(page.getByRole('button', { name: 'My profile', exact: true }))
-    .first()
-    .click();
+  await openProfile(page);
   await page.getByText('Edit profile details manually', { exact: true }).click();
   await expect(page.getByLabel('Work experience 1 title', { exact: true })).toHaveValue(
     'Fictional Software Engineer',

@@ -1,5 +1,6 @@
 import { fillProfileFixture } from './profile-fixture.js';
-import { test, expect } from './classic.js';
+import { test, expect } from '@playwright/test';
+import { go, step } from './nav.js';
 
 test('five-step journey automatically hands off and preserves decisions across reloads', async ({
   page,
@@ -26,7 +27,7 @@ test('five-step journey automatically hands off and preserves decisions across r
   });
   await expect(page).toHaveURL(/step=2/);
   const missionId = new URL(page.url()).searchParams.get('mission');
-  await page.getByRole('button', { name: '01 · Profile building', exact: true }).click();
+  await step(page, 1);
   await expect(page.getByRole('region', { name: 'Journey profile snapshot' })).toBeVisible();
   expect(new URL(page.url()).searchParams.get('mission')).toBe(missionId);
   await expect(page.getByLabel('Your next profile message')).toHaveCount(0);
@@ -38,15 +39,12 @@ test('five-step journey automatically hands off and preserves decisions across r
   await page.goForward();
   await expect(page).toHaveURL(/step=2/);
 
-  await page.getByRole('button', { name: '05 · Interview practice', exact: true }).click();
-  await expect(page).toHaveURL(/step=2/);
-  await expect(
-    page.getByText('Complete the current step before continuing.', { exact: false }),
-  ).toBeVisible();
+  // Steps the quest has not reached cannot be opened.
+  await expect(page.getByRole('button', { name: 'Practice', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: 'Select this opportunity' }).first().click();
-  await expect(
-    page.getByRole('button', { name: 'Approve this draft', exact: true }),
-  ).toBeVisible({ timeout: 45000 });
+  await expect(page.getByRole('button', { name: 'Approve this draft', exact: true })).toBeVisible({
+    timeout: 45000,
+  });
   await expect(page).toHaveURL(/step=3/);
   await expect(
     page.getByRole('button', { name: 'Approve this draft', exact: true }),
@@ -56,17 +54,20 @@ test('five-step journey automatically hands off and preserves decisions across r
   expect(new URL(page.url()).searchParams.get('mission')).toBe(missionId);
   await page.getByLabel('I read this exact draft.').check();
   await page.getByRole('button', { name: 'Approve this draft', exact: true }).click();
-  await expect(page.getByLabel('Your response', { exact: true })).toBeVisible({ timeout: 45000 });
+  await expect(page.getByRole('heading', { name: 'Your turn', exact: true })).toBeVisible({
+    timeout: 45000,
+  });
   await expect(page).toHaveURL(/step=4/);
   await page
-    .getByLabel('Your response', { exact: true })
+    .getByLabel('Your answer', { exact: true })
     .fill(
       'I used SQL to check records and discussed unexpected results with my supervisor. I supported the analysis and did not manage the team.',
     );
-  await page.getByRole('button', { name: 'Save response', exact: true }).click();
-  await page.getByRole('button', { name: 'Finish early & get feedback', exact: true }).click();
+  await page.getByRole('button', { name: 'Answer', exact: true }).click();
+  await page.getByRole('button', { name: 'Retreat · get feedback now', exact: true }).click();
   await expect(page.getByText('Strengths', { exact: true })).toBeVisible({ timeout: 45000 });
-  await page.getByRole('button', { name: 'Overview', exact: true }).click();
-  await expect(page.getByText('5 of 5 steps completed', { exact: false })).toBeVisible();
+  await go(page, 'Quests');
+  const finished = page.locator('li', { hasText: 'Quest complete.' });
+  await expect(finished.getByRole('button', { name: 'Open results' })).toBeVisible();
   expect(errors).toEqual([]);
 });

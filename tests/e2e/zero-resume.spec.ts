@@ -1,4 +1,5 @@
-import { test, expect } from './classic.js';
+import { test, expect } from '@playwright/test';
+import { go } from './nav.js';
 import { blankProfile } from '../../packages/contracts/src/index.js';
 test('a candidate with no resume or formal work builds a story, selects job content, exports and reviews saved feedback', async ({
   page,
@@ -143,9 +144,10 @@ test('a candidate with no resume or formal work builds a story, selects job cont
     timeout: 30000,
   });
   await page.getByRole('button', { name: 'Select this opportunity' }).first().click();
-  await expect(page.getByRole('heading', { name: 'Prepare your resume', exact: true })).toBeVisible(
-    { timeout: 30000 },
-  );
+  await expect(
+    page.getByRole('heading', { name: 'Your party built a draft. Now it’s your call.' }),
+  ).toBeVisible({ timeout: 45000 });
+  await page.getByText('Edit it yourself', { exact: true }).click();
   await page.getByRole('button', { name: 'Refine wording', exact: true }).click();
   await expect(page.getByRole('log')).toContainText(
     /Review the preview before saving\.|No wording changes needed\. The visible resume is unchanged\./,
@@ -153,10 +155,10 @@ test('a candidate with no resume or formal work builds a story, selects job cont
   await expect(page.getByLabel('I read this exact draft.')).not.toBeChecked();
   await page.getByLabel('I read this exact draft.').check();
   await page.getByRole('button', { name: 'Approve this draft', exact: true }).click();
-  await expect(page.getByLabel('Your response', { exact: true })).toBeVisible({ timeout: 30000 });
-  await page.getByLabel('Your response', { exact: true }).fill(action);
-  await page.getByRole('button', { name: 'Save response', exact: true }).click();
-  await page.getByRole('button', { name: 'Finish early & get feedback', exact: true }).click();
+  await expect(page.getByLabel('Your answer', { exact: true })).toBeVisible({ timeout: 30000 });
+  await page.getByLabel('Your answer', { exact: true }).fill(action);
+  await page.getByRole('button', { name: 'Answer', exact: true }).click();
+  await page.getByRole('button', { name: 'Retreat · get feedback now', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Strengths', exact: true })).toBeVisible({
     timeout: 30000,
   });
@@ -189,7 +191,7 @@ test('a candidate with no resume or formal work builds a story, selects job cont
       initialReturned();
     } else await route.continue();
   });
-  await page.getByRole('button', { name: 'My documents', exact: true }).click();
+  await go(page, 'My documents');
   await page.getByRole('button', { name: 'Polish wording', exact: true }).first().click();
   await seen;
   // The resume team's Rewriter already dropped the leading "I"; this bullet still has a filler lead-in.

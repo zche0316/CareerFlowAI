@@ -9,10 +9,5 @@ export default defineConfig({
     headless: true,
     viewport: { width: 1440, height: 1000 },
   },
-  // The group-interface specs run at ?classic=1 (tests/e2e/classic.ts); quest specs use the default UI.
-  projects: [
-    { name: 'classic', testIgnore: /quest\.spec\.ts$/ },
-    { name: 'quest', testMatch: /quest\.spec\.ts$/ },
-  ],
   reporter: [['list'], ['html', { open: 'never' }]],
 });

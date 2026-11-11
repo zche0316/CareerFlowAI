@@ -87,8 +87,8 @@ role by title.
    comparison searches. Model web search needs the native OpenAI route. Most entry-level roles
    are on SEEK, so they arrive as leads that need a manual paste.
 6. **Tracked roles are never re-checked.** Closed roles and stale leads stay on record as if open.
-7. **Classic interface still required.** Per `AGENTS.md`, the classic interface stays
-   until the Quest interface covers every flow. The remaining flows have not been audited.
+7. **One interface.** Resolved 2026-11-11: the classic interface was removed and every browser
+   test runs in Quest. See [LOCAL_DEMO.md](LOCAL_DEMO.md).
 8. **Extraction accuracy.** Rule extraction is about 88% field accuracy on held-out ads, with
    arrangement the weakest field. The live Job Matcher mapping fails schema validation about
    once per sweep, and that role is left out.
@@ -109,5 +109,5 @@ role by title.
 ## Suggested order
 
 Start with items 1–4, which turn the local app into a usable hosted service. Then item 6, so
-users do not apply to closed roles. Then item 7, so one interface covers every flow. Items 5 and
+users do not apply to closed roles. Items 5 and
 8 can improve in parallel using the evaluation floors to measure each change.

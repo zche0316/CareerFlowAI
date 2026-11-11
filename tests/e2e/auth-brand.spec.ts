@@ -1,4 +1,4 @@
-import { test, expect } from './classic.js';
+import { test, expect } from '@playwright/test';
 test('authentication matches the workspace and offers no demo or sample bypass', async ({
   page,
 }) => {

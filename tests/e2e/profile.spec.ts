@@ -1,5 +1,6 @@
 import { fillProfileFixture } from './profile-fixture.js';
-import { test, expect, type Page, type Route } from './classic.js';
+import { test, expect, type Page, type Route } from '@playwright/test';
+import { openProfile as openProfilePage } from './nav.js';
 import { AGENTS, sampleProfile } from '../../packages/contracts/src/index.js';
 
 // These browser checks inject API timing/failures deliberately. The database
@@ -27,11 +28,7 @@ async function openProfile(page: Page, approvedProfile: () => unknown = () => nu
     }),
   );
   await page.goto('/');
-  await page
-    .getByRole('button', { name: 'Build profile', exact: true })
-    .or(page.getByRole('button', { name: 'My profile', exact: true }))
-    .first()
-    .click();
+  await openProfilePage(page);
   await page.getByText('Edit profile details manually', { exact: true }).click();
   await expect(page.getByLabel('Full name', { exact: true })).toBeVisible();
 }

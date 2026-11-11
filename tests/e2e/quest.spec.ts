@@ -163,19 +163,6 @@ test('quest pages render from real records at desktop and phone width', async ({
   expect(errors).toEqual([]);
 });
 
-test('the classic interface stays reachable from the More menu', async ({ page }) => {
-  const api = await signUp(page);
-  await approveProfile(api);
-  await page.goto('/');
-  await expect(page.locator('.shell.quest')).toBeVisible();
-  await page.getByRole('button', { name: 'More' }).click();
-  await page.getByRole('menuitem', { name: 'Classic view', exact: true }).click();
-  await expect(page).toHaveURL(/classic=1/);
-  await expect(page.locator('.shell')).toBeVisible();
-  await expect(page.locator('.shell.quest')).toHaveCount(0);
-  await expect(page.getByRole('navigation', { name: 'Main', exact: true })).toHaveCount(0);
-});
-
 test('a Scout sweep fills the batch review and each package opens at its draft review', async ({
   page,
 }) => {

@@ -1,5 +1,6 @@
 import { fillProfileFixture } from './profile-fixture.js';
-import { test, expect } from './classic.js';
+import { test, expect } from '@playwright/test';
+import { openProfile } from './nav.js';
 test('interview controls stop and skip without model calls, survive reload and lead to review without approval', async ({
   page,
 }) => {
@@ -33,20 +34,20 @@ test('interview controls stop and skip without model calls, survive reload and l
     if (!(await skip.count())) break;
     await Promise.all([
       page.waitForResponse((r) => r.url().includes('/controls') && r.request().method() === 'POST'),
-      skip.click(),
+      // The profile builder's layout shifts by 1px every frame here (see docs/LOCAL_DEMO.md),
+      // so Playwright's stability wait never settles.
+      skip.click({ force: true }),
     ]);
   }
-  await page.getByRole('button', { name: 'Finish this experience', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Finish this experience', exact: true })
+    .click({ force: true });
   await expect(page.getByRole('log').locator('article').last()).toContainText(
     'This experience is finished',
   );
   await expect(page.getByRole('log').locator('article').last()).not.toContainText('When did Alpha');
   await page.reload();
-  await page
-    .getByRole('button', { name: 'Build profile', exact: true })
-    .or(page.getByRole('button', { name: 'My profile', exact: true }))
-    .first()
-    .click();
+  await openProfile(page);
   await expect(page.getByText('Switch experience', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Add another experience', exact: true }).click();
   await expect(page.getByRole('log').locator('article').last()).toContainText(
@@ -55,11 +56,7 @@ test('interview controls stop and skip without model calls, survive reload and l
   await page.getByRole('button', { name: 'End conversation & review', exact: true }).click();
   await expect(page.getByLabel('Your next profile message')).not.toBeVisible();
   await page.reload();
-  await page
-    .getByRole('button', { name: 'Build profile', exact: true })
-    .or(page.getByRole('button', { name: 'My profile', exact: true }))
-    .first()
-    .click();
+  await openProfile(page);
   await expect(
     page.getByText('Interview finished — review your draft.', { exact: true }),
   ).toBeVisible();
@@ -129,10 +126,14 @@ test('finishing a pending experience retains suggestions without a hidden model 
     if (!(await skip.count())) break;
     await Promise.all([
       page.waitForResponse((r) => r.url().includes('/controls') && r.request().method() === 'POST'),
-      skip.click(),
+      // The profile builder's layout shifts by 1px every frame here (see docs/LOCAL_DEMO.md),
+      // so Playwright's stability wait never settles.
+      skip.click({ force: true }),
     ]);
   }
-  await page.getByRole('button', { name: 'Finish this experience', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Finish this experience', exact: true })
+    .click({ force: true });
   await expect(page.getByRole('log').locator('article').last()).toContainText(
     'This experience is finished',
   );

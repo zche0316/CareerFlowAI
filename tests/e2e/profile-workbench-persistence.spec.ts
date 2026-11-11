@@ -1,5 +1,6 @@
 import { fillProfileFixture } from './profile-fixture.js';
-import { test, expect } from './classic.js';
+import { test, expect } from '@playwright/test';
+import { go, openProfile } from './nav.js';
 
 test('profile workbench approves and reloads a real saved profile without model calls', async ({
   page,
@@ -28,21 +29,13 @@ test('profile workbench approves and reloads a real saved profile without model 
     page.getByRole('button', { name: 'Start career mission', exact: true }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Close mission form', exact: true }).click();
-  await page
-    .getByRole('button', { name: 'Build profile', exact: true })
-    .or(page.getByRole('button', { name: 'My profile', exact: true }))
-    .first()
-    .click();
+  await openProfile(page);
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
   const saved = await (await page.request.get('/api/workspace')).json();
   expect(saved.profile.version).toBe(1);
   await page.screenshot({ path: 'output/profile-workbench/real-saved-profile.png' });
   await page.reload();
-  await page
-    .getByRole('button', { name: 'Build profile', exact: true })
-    .or(page.getByRole('button', { name: 'My profile', exact: true }))
-    .first()
-    .click();
+  await openProfile(page);
   await expect(page.getByRole('region', { name: 'Name block', exact: true })).toContainText(
     'Alex Morgan',
   );
@@ -68,13 +61,9 @@ test('profile polish uses the configured provider and keeps suggestions separate
     page.getByRole('button', { name: 'Start career mission', exact: true }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Close mission form', exact: true }).click();
-  await page
-    .getByRole('button', { name: 'Build profile', exact: true })
-    .or(page.getByRole('button', { name: 'My profile', exact: true }))
-    .first()
-    .click();
+  await openProfile(page);
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'My profile', exact: true }).click();
+  await go(page, 'My profile');
   await page
     .getByRole('checkbox', {
       name: 'I allow the configured model to process this conversation, working form and retrieved confirmed evidence.',
