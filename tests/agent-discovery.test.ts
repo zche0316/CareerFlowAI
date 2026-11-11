@@ -137,6 +137,14 @@ it('checks each reported role and keeps unreadable ones as leads', async () => {
         quote: 'Graduate Performance Analyst',
       },
       {
+        title: 'Junior Data Analyst',
+        company: 'Delta',
+        location: 'Sydney',
+        url: 'https://au.indeed.com/q-junior-data-analyst-l-sydney-nsw-jobs.html',
+        source: 'list page',
+        quote: 'Junior Data Analyst',
+      },
+      {
         title: 'Intranet role',
         company: 'X',
         location: '',
@@ -176,6 +184,7 @@ it('checks each reported role and keeps unreadable ones as leads', async () => {
   });
   expect(leads.map((j: any) => [j.title, j.source.leadReason])).toEqual([
     ['Graduate Performance Analyst', 'The site does not allow automated reading'],
+    ['Junior Data Analyst', 'The link is a search results page; find the role there by its title'],
     ['Data Analyst', 'The page could not be read'],
   ]);
   // A lead's description is only the model's quote, never page text.
@@ -183,9 +192,9 @@ it('checks each reported role and keeps unreadable ones as leads', async () => {
   expect(result.discovery).toMatchObject({
     provider: 'agent',
     searches: 7,
-    reported: 7,
+    reported: 8,
     checked: 1,
-    leads: 2,
+    leads: 3,
   });
   expect(result.discovery.rejected.map((r: any) => r.reason)).toEqual([
     'No usable public link',

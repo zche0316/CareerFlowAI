@@ -59,6 +59,20 @@ export function publicUrl(raw) {
   return url;
 }
 
+// The model sometimes reports a role with the board's search results page instead of the job
+// itself. Such a page lists many roles, so it is never read as the posting; the role stays a
+// lead and the reason tells the user to look for it by title on that page.
+export function searchResultsLink(url) {
+  const path = url.pathname.toLowerCase();
+  return /(^|\.)indeed\./.test(url.hostname)
+    ? !/^\/(m\/)?viewjob$/.test(path)
+    : /(^|\.)seek\./.test(url.hostname)
+      ? !/^\/job\/\d+\/?$/.test(path)
+      : /(^|\.)linkedin\./.test(url.hostname)
+        ? !/^\/jobs\/view\//.test(path)
+        : /\/(search|jobs)\/?$|-jobs(\/|$|\.html)|\/jobs\/search/.test(path);
+}
+
 /** Longest-match robots.txt decision for the wildcard group (and our own agent's group). */
 export function robotsAllow(robotsText, url) {
   const groups = [];
@@ -173,6 +187,13 @@ export async function discoverAgent(repo, criteria, { signal, searchAgent } = {}
   const readable = [];
   const leads = [];
   for (const claim of claims) {
+    if (searchResultsLink(claim.url)) {
+      leads.push({
+        ...claim,
+        leadReason: 'The link is a search results page; find the role there by its title',
+      });
+      continue;
+    }
     const text = await readRobots(repo, claim.url.origin, robots, signal);
     if (robotsAllow(text, claim.url)) readable.push(claim);
     else leads.push({ ...claim, leadReason: 'The site does not allow automated reading' });

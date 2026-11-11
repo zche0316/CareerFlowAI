@@ -84,12 +84,22 @@ const when = (iso: string) =>
 const busyStatus = (s: string | null) => s === 'QUEUED' || s === 'RUNNING';
 
 // Scout's own source choices; any other saved provider still shows under its raw name.
+// Two tiers: the Tavily-based sources are cheap and quick but find few roles; model web search
+// finds far more (see docs/EVALUATION.md, "Discovery comparison") and costs much more per sweep.
 const sources: [string, string][] = [
-  ['auto', 'Official boards + web pages'],
-  ['employers', 'Official employer boards only'],
-  ['web', 'Web pages only'],
+  ['auto', 'Official boards + web pages · low cost'],
+  ['employers', 'Official employer boards only · low cost'],
+  ['web', 'Web pages only · low cost'],
 ];
-const modelSource: [string, string] = ['agent', 'Model web search (slower, costs more)'];
+const modelSource: [string, string] = ['agent', 'Model web search · finds most, costs more'];
+const sourceHint: Record<string, string> = {
+  auto: 'Quick and cheap: one search per board type, a few model reads. Usually finds only a handful of new roles.',
+  employers:
+    'Quick and cheap: only roles confirmed through official Greenhouse, Lever or Ashby boards.',
+  web: 'Quick and cheap: one web search and at most eight page reads. Often finds one role or none.',
+  agent:
+    'A model searches the web for several minutes and reports up to 25 roles. Pages Scout may read are checked; the rest (for example SEEK) become leads you open and paste. Roughly 25 times the tokens of the low-cost sources.',
+};
 const sourceLabel = (r: JobRecord) =>
   r.fictional
     ? 'demo role'
@@ -551,6 +561,14 @@ export function QuestScout({
                 )}
               </select>
             </label>
+            {sourceHint[form.search.provider] && (
+              <p className="quest-fine">
+                {sourceHint[form.search.provider]}
+                {data.modelSearchAvailable &&
+                  form.search.provider !== 'agent' &&
+                  ' Model web search is available on this server and finds far more roles.'}
+              </p>
+            )}
             <label className="quest-field">
               Role keywords
               <input
