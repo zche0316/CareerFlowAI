@@ -1,4 +1,4 @@
-import { test, expect } from './classic.js';
+import { test, expect } from '@playwright/test';
 import { sampleProfile } from '../../packages/contracts/src/index.js';
 
 for (const calls of [12, 59, 60]) {
@@ -35,7 +35,11 @@ for (const calls of [12, 59, 60]) {
         exact: true,
       })
       .click();
-    await expect(page.getByText('STEP 02 OF 05', { exact: true })).toBeVisible();
+    await expect(page.getByRole('list', { name: 'Quest route' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Analysis', exact: true })).toHaveAttribute(
+      'aria-current',
+      'step',
+    );
     await expect(page.getByText('Before you start', { exact: true })).toBeVisible();
     await expect(
       page.getByText('Your career team is preparing this step.', { exact: false }),

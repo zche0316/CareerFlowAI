@@ -114,7 +114,7 @@ npx playwright install chromium # first time only
 npm run test:e2e:local
 ```
 
-This starts a fixture-mode app on a disposable database under `.runtime/pglite-e2e` and runs both Playwright projects: `classic` (the group interface at `?classic=1`) and `quest` (the default interface). Your local records in `.runtime/pglite` are not opened.
+This starts a fixture-mode app on a disposable database under `.runtime/pglite-e2e` and runs the Playwright specs against the Quest interface, including `tests/e2e/demo-workflow.spec.ts`, the local demo route from [docs/LOCAL_DEMO.md](docs/LOCAL_DEMO.md). Your local records in `.runtime/pglite` are not opened.
 
 With a dedicated native test database configured:
 

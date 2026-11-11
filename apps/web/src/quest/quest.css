@@ -217,13 +217,6 @@ body:has(.quest) {
   padding: 0 clamp(16px, 3vw, 40px) 48px;
   background: transparent;
 }
-.quest > .content .topbar {
-  min-height: 0;
-  padding: 6px 4px 14px;
-  border: 0;
-  background: transparent;
-  color: var(--q-muted);
-}
 .quest > .content main {
   padding: 0;
   background: transparent;
@@ -248,8 +241,7 @@ body:has(.quest) {
 }
 
 /* ---------- Surfaces ---------- */
-.agent-app.quest .content main .panel,
-.agent-app.quest .content main .prototype-side-panel {
+.agent-app.quest .content main .panel {
   border: 0;
   border-radius: 28px;
   background: var(--q-surface);
@@ -337,33 +329,6 @@ body:has(.quest) {
 }
 
 /* ---------- Overview hero ---------- */
-.quest .workspace-home .next-action {
-  border-radius: 28px;
-  background: var(--q-ink);
-  color: #fff;
-}
-.quest .workspace-home .next-action :is(h2, h1, p, span, small) {
-  color: inherit;
-}
-.quest .workspace-home .next-action .eyebrow {
-  color: var(--q-lime);
-}
-.agent-app.quest .workspace-home .next-action > button {
-  background: var(--q-lime);
-  border-color: var(--q-lime);
-  box-shadow: 0 4px 0 var(--q-lime-deep);
-}
-.quest .workspace-hero-art {
-  display: none;
-}
-.quest .prototype-progress-ring {
-  background: conic-gradient(var(--q-violet) var(--progress), var(--q-violet-soft) 0);
-}
-.quest .workspace-home .journey-overview .journey-current .step-badge,
-.quest .prototype-mini-steps button.current > span {
-  background: var(--q-violet);
-  color: #fff;
-}
 .quest .job-gap-notice {
   border-left-color: var(--q-coral);
   border-radius: 18px;
@@ -881,45 +846,6 @@ body:has(.quest) {
 .agent-app.quest .content main .quest-tile.ink :is(h1, h2, h3),
 .agent-app.quest .content main .quest-track :is(h1, h2, h3) {
   color: #fff;
-}
-.quest .workspace-home .next-action {
-  position: relative;
-  overflow: hidden;
-}
-.quest .workspace-home .next-action > .quest-hero-party {
-  position: absolute;
-  top: auto;
-  left: auto;
-  z-index: 0;
-  right: 28px;
-  bottom: 28px;
-  display: grid;
-  grid-template-columns: repeat(3, 58px);
-  gap: 14px;
-  transform: rotate(-4deg);
-}
-.quest .workspace-home .next-action > div:not(.quest-hero-party) {
-  position: relative;
-  z-index: 1;
-  max-width: min(560px, 100% - 240px);
-}
-.quest-hero-party svg:nth-child(even) {
-  transform: translateY(14px);
-}
-@media (max-width: 900px) {
-  .quest .workspace-home .next-action > div:not(.quest-hero-party) {
-    max-width: none;
-  }
-  .quest .workspace-home .next-action > .quest-hero-party {
-    display: none;
-  }
-}
-.quest .prototype-mini-steps button.current,
-.quest .workspace-home .journey-overview .journey-current {
-  background: var(--q-violet-soft);
-}
-.quest .row-action {
-  color: #4b2fd0;
 }
 
 /* ---------- Home ---------- */
@@ -1440,11 +1366,6 @@ body:has(.quest) {
   margin: 0;
   font-weight: 700;
   text-align: right;
-}
-
-/* Classic view keeps the original hero art. */
-.shell:not(.quest) .quest-hero-party {
-  display: none;
 }
 
 /* ---------- Quest log (missions list) ---------- */
@@ -2142,7 +2063,10 @@ body:has(.quest) {
   background: transparent;
   color: #e4e5ec;
   text-align: left;
-  font: 500 13px/1.4 ui-monospace, 'JetBrains Mono', monospace;
+  font:
+    500 13px/1.4 ui-monospace,
+    'JetBrains Mono',
+    monospace;
   cursor: pointer;
 }
 .bl-row:hover,
@@ -2247,7 +2171,10 @@ body:has(.quest) {
   border-radius: 14px;
   background: var(--q-ink);
   color: var(--q-lime);
-  font: 12px/1.6 ui-monospace, 'JetBrains Mono', monospace;
+  font:
+    12px/1.6 ui-monospace,
+    'JetBrains Mono',
+    monospace;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }

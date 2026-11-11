@@ -177,7 +177,7 @@ Scout (collect) -> Job Matcher (rank) -> Send per shortlisted job -> tailor_job 
 
 - **Save points and branching.** `apps/api/src/save-points.ts` lists a mission's top-level checkpoints through LangGraph `getStateHistory` and can branch a new mission from two points: after the analysis (Job Matcher searches again) or before the job choice (same shortlist, different job). Saved results are copied into the new mission, so completed nodes skip on replay and no model call is repeated. Later checkpoints are not branchable because that would replay a human approval. A newer approved profile version blocks branching.
 - **Interview rounds with an Evaluator.** `apps/api/src/interview-rounds.ts` scores each practice answer on the four STAR parts and asks at most one follow-up per question on the weakest part. It runs outside the graph on the locked mission row while the mission waits at `conduct_interview`; the Interview Coach still writes the final feedback. Fixture mode scores with labelled keyword rules. The live Evaluator has not been exercised on a real mission yet.
-- **Quest interface.** `apps/web/src/quest/` is the default UI: Home, Quest log, mission header, job board, Party at work (resume review), Battle log, Save points, Boss battle, Character sheet, Party roster, World map and Season event. Every number is derived from stored records; values without a source are shown as planned or left out. The group interface remains at `?classic=1`.
+- **Quest interface.** `apps/web/src/quest/` is the default UI: Home, Quest log, mission header, job board, Party at work (resume review), Battle log, Save points, Boss battle, Character sheet, Party roster, World map and Season event. Every number is derived from stored records; values without a source are shown as planned or left out. The group's numbered-stage interface was removed on 2026-11-11; Quest is the only interface.
 
 Not yet built from the design: source quotes and a work-rights column on the quest job board (the Scout page has them), a run comparison on Save points, realm rule packs on the World map, and the v1 requirement × evidence heatmap.
 
@@ -187,15 +187,15 @@ Metrics are computed by `reviewDraft` on every round and stored with each critiq
 
 ## 8. Milestones
 
-| ID  | Scope                                                                                | Acceptance                                                                                                               | Status                                                |
-| --- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
-| M1  | Resume team subgraph, Command routing, Critic loop, targeted human returns, UI panel | Unit tests for routing, specialists and guards pass; typecheck passes; fixture mission reaches review with a handoff log | Implemented on this branch                            |
-| M1+ | Save points with branching, per-question interview rounds, Quest interface           | Integration tests for branching and rounds; browser tests for the Quest pages                                            | Implemented on this branch                            |
-| M2  | Scout schedule, dedupe, job records, fan-out, batch review                           | Graph and integration tests; one batch review covers the shortlisted jobs; nothing is sent automatically                 | Implemented on this branch; outreach drafts not built |
-| M3  | Supervisor routing and plan gate                                                     | Routing table tests; plan edits change the executed steps                                                                | Scaffolding + tests                                   |
-| M4  | `ask_human` clarification pauses                                                     | Low-confidence step pauses with a question; answer resumes the same node                                                 | Scaffolding                                           |
-| M5  | Streaming timeline                                                                   | Handoffs appear live during a mission                                                                                    | Planned                                               |
-| M6  | Per-call traces and evaluation report | Trace endpoint and Battle log cost table; report generated from the evaluation set with regression floors | Implemented; resume-team before/after metrics not built |
+| ID  | Scope                                                                                | Acceptance                                                                                                               | Status                                                  |
+| --- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------- |
+| M1  | Resume team subgraph, Command routing, Critic loop, targeted human returns, UI panel | Unit tests for routing, specialists and guards pass; typecheck passes; fixture mission reaches review with a handoff log | Implemented on this branch                              |
+| M1+ | Save points with branching, per-question interview rounds, Quest interface           | Integration tests for branching and rounds; browser tests for the Quest pages                                            | Implemented on this branch                              |
+| M2  | Scout schedule, dedupe, job records, fan-out, batch review                           | Graph and integration tests; one batch review covers the shortlisted jobs; nothing is sent automatically                 | Implemented on this branch; outreach drafts not built   |
+| M3  | Supervisor routing and plan gate                                                     | Routing table tests; plan edits change the executed steps                                                                | Scaffolding + tests                                     |
+| M4  | `ask_human` clarification pauses                                                     | Low-confidence step pauses with a question; answer resumes the same node                                                 | Scaffolding                                             |
+| M5  | Streaming timeline                                                                   | Handoffs appear live during a mission                                                                                    | Planned                                                 |
+| M6  | Per-call traces and evaluation report                                                | Trace endpoint and Battle log cost table; report generated from the evaluation set with regression floors                | Implemented; resume-team before/after metrics not built |
 
 ## 9. Tests
 
@@ -206,7 +206,7 @@ Metrics are computed by `reviewDraft` on every round and stored with each critiq
 - `tests/job-record.test.ts` – quoted extraction, empty fields and salary conversion.
 
 - `tests/integration.test.ts` – save-point listing and branching, interview rounds and follow-ups against the real graph in fixture mode.
-- `tests/e2e/` – Playwright project `classic` runs the group-interface specs at `?classic=1`; project `quest` covers the Quest pages.
+- `tests/e2e/` – every spec runs against the Quest interface; `nav.ts` holds the top-bar and quest-route helpers.
 
 Run with `npx vitest run tests/resume-team.test.ts tests/orchestration-scaffold.test.ts`. The full `npm run verify:local` also needs the portable database; `npm run test:e2e:local` runs the browser tests on a disposable database.
 

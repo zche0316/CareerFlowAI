@@ -1,4 +1,5 @@
-import { test, expect, type Page } from './classic.js';
+import { test, expect, type Page } from '@playwright/test';
+import { go, step } from './nav.js';
 import { sampleProfile } from '../../packages/contracts/src/index.js';
 
 async function app(page: Page) {
@@ -186,8 +187,7 @@ test('approved profile links route to editing and polish sends a real edit reque
   const { errors, bodies } = await app(page);
   await page.goto('/?view=profile');
   await expect(page).toHaveURL(/view=approved-profile/);
-  await expect(page.getByRole('button', { name: 'Build profile', exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: 'My profile', exact: true }).click();
+  await go(page, 'My profile');
   await expect(page.getByRole('heading', { name: 'My profile', exact: true })).toBeVisible();
   const doc = await page.getByLabel('Profile document', { exact: true }).boundingBox();
   const edit = await page
@@ -227,7 +227,8 @@ test('new missions automatically use profile search defaults and the full career
 }) => {
   await app(page);
   await page.goto('/');
-  await page.getByRole('button', { name: 'New career mission', exact: true }).click();
+  await go(page, 'Quests');
+  await page.getByRole('button', { name: 'Start a new quest', exact: true }).click();
   await expect(page.getByLabel('Career goal', { exact: true })).toHaveValue(sampleProfile.goals);
   await expect(page.getByLabel('Job keywords', { exact: true })).toHaveValue('data analyst');
   await expect(page.getByLabel('City / locality', { exact: true })).toHaveValue(
@@ -289,11 +290,9 @@ test('resume editing uses suggestions and chat, refreshes the preview and requir
 test('output workspaces stay compact and usable across stages and mobile', async ({ page }) => {
   const { errors } = await app(page);
   await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Today’s quests', exact: true })).toBeVisible();
   await page.screenshot({ path: 'output/agent-native/home-desktop.png' });
-  await expect(
-    page.getByRole('heading', { name: 'Application progress', exact: true }),
-  ).toBeVisible();
-  await page.getByRole('button', { name: 'My documents', exact: true }).click();
+  await go(page, 'My documents');
   await expect(page.getByRole('article', { name: 'Resume preview' })).toHaveCount(1);
   await page.getByRole('button', { name: 'Reporting Analyst', exact: false }).click();
   await expect(page.getByRole('heading', { name: 'Reporting Analyst', exact: true })).toBeVisible();
@@ -302,11 +301,11 @@ test('output workspaces stay compact and usable across stages and mobile', async
   await expect(page.getByRole('heading', { name: 'Career Coach', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Run revised analysis' })).toBeDisabled();
   await page.screenshot({ path: 'output/agent-native/analysis-desktop.png' });
-  await page.getByRole('button', { name: '03 · Job matching', exact: true }).click();
+  await step(page, 3);
   await expect(page.getByRole('article').filter({ hasText: 'SQL evidence supports' })).toHaveCount(
     1,
   );
-  await page.getByRole('button', { name: '04 · Resume tailoring', exact: true }).click();
+  await step(page, 4);
   await expect(page.getByRole('article', { name: 'Resume preview' })).toHaveCount(1);
   await page.screenshot({ path: 'output/agent-native/resume-desktop.png' });
   await page.goto('/?view=tools');
@@ -370,15 +369,14 @@ test('global Find jobs starts fresh after the latest completed journey instead o
   );
   await page.goto('/?view=approved-profile');
   await expect(page.getByRole('heading', { name: 'My profile', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Build profile', exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Find jobs', exact: true }).click();
+  await go(page, 'Jobs');
   await expect(
     page.getByRole('button', { name: 'Start career mission', exact: true }),
   ).toBeVisible();
   await expect(page).not.toHaveURL(/older-search/);
 });
 
-test('overview shows three concise recent journeys and keeps unsuccessful attempts in history', async ({
+test('the quest log lists every journey by who acts next and keeps unsuccessful attempts in history', async ({
   page,
 }) => {
   await app(page);
@@ -403,20 +401,18 @@ test('overview shows three concise recent journeys and keeps unsuccessful attemp
       },
     }),
   );
-  await page.goto('/');
-  await expect(page.locator('.search-row')).toHaveCount(3);
-  await expect(page.locator('.search-row').first()).toContainText('Analyst 0 · Example 0');
-  await expect(page.locator('.search-row').first()).toContainText('Completed');
-  await expect(page.locator('.search-list')).not.toContainText('Failed');
-  await page.getByRole('button', { name: 'View all journeys (6)', exact: true }).click();
-  await expect(page.locator('.search-row')).toHaveCount(6);
-  await expect(page.locator('.search-list')).toContainText('Failed');
-  await expect(page.locator('.search-list')).toContainText('No matches');
-  await page.getByRole('button', { name: 'Show recent journeys', exact: true }).click();
-  await expect(page.locator('.search-row')).toHaveCount(3);
-  await page
-    .locator('section[aria-labelledby="recent-searches-title"]')
-    .screenshot({ path: 'output/agent-native/recent-journeys.png' });
+  await page.goto('/?view=missions');
+  await expect(page.getByText('6 quests · 4 complete', { exact: true })).toBeVisible();
+  const ended = page.locator('section.ql-group.ended');
+  await expect(ended.getByRole('heading', { name: /Finished and archived/ })).toBeVisible();
+  await expect(ended.locator('li.ql-card')).toHaveCount(6);
+  // A finished quest is titled by its role, not the repeated goal.
+  await expect(ended.locator('li.ql-card').first().locator('h3')).toHaveText('Analyst 0');
+  await expect(ended).toContainText('Example 0');
+  await expect(ended.getByRole('button', { name: 'Review and retry' })).toHaveCount(1);
+  await expect(ended.getByRole('button', { name: 'Review the search' })).toHaveCount(1);
+  await expect(page.locator('section.ql-group.waiting')).toHaveCount(0);
+  await ended.screenshot({ path: 'output/agent-native/recent-journeys.png' });
 });
 
 test('step three reads a URL into a reviewable candidate and preserves user selection', async ({
@@ -461,6 +457,7 @@ test('step three reads a URL into a reviewable candidate and preserves user sele
     await route.fulfill({ json: mission });
   });
   await page.goto('/?view=missions&mission=mission-qa&step=2');
+  await page.getByText('Add a job from a link', { exact: true }).click();
   await page
     .getByLabel('Job listing URL', { exact: true })
     .fill('https://job-boards.greenhouse.io/prezzee/jobs/123');
@@ -614,7 +611,9 @@ test('cancelling an earlier inbox journey clears its pending badge while retaini
   await page.getByRole('button', { name: 'Cancel this journey', exact: true }).click();
   await expect(page.getByText('You’re all caught up.', { exact: true })).toBeVisible();
   await expect(page.locator('.approval-card')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Overview', exact: true }).click();
-  await page.getByRole('button', { name: 'View all journeys (1)', exact: true }).click();
-  await expect(page.locator('.search-row')).toContainText('Cancelled');
+  await go(page, 'Quests');
+  const ended = page.locator('section.ql-group.ended');
+  await expect(ended.locator('li.ql-card')).toHaveCount(1);
+  await expect(ended).toContainText('Cancelled. History is kept read-only.');
+  await expect(page.getByRole('button', { name: 'Home', exact: true })).toHaveAccessibleName('Home');
 });

@@ -1,4 +1,5 @@
-import { test, expect, type Page } from './classic.js';
+import { test, expect, type Page } from '@playwright/test';
+import { go } from './nav.js';
 import { sampleProfile } from '../../packages/contracts/src/index.js';
 
 async function workbench(
@@ -155,7 +156,7 @@ async function workbench(
     return route.fulfill({ json: [] });
   });
   await page.goto('/');
-  await page.getByRole('button', { name: 'My profile', exact: true }).click();
+  await go(page, 'My profile');
   await expect(
     page.getByRole('button', { name: 'Accept Skills change', exact: true }),
   ).toBeVisible();

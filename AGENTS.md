@@ -1,9 +1,9 @@
 # CareerFlow AI working conventions
 
 - This checkout is the user's ELEC5620 group repository. Implement future improvements here; the older standalone prototype on port 8791 is a reference, not the working delivery target.
-- On the long-term branch `feat/multi-agent-resume-team`, the Quest interface (`apps/web/src/quest/`, top pill navigation) is the default UI. The group's navy header and numbered 01–08 stage interface is the submitted baseline and stays available at `?classic=1`; keep both working until the Quest UI covers every flow. Preserve the group account system, PostgreSQL schemas, versioned approvals, durable missions and evidence-grounded resume workflow.
+- The Quest interface (`apps/web/src/quest/`, top pill navigation) is the only UI. The group's navy header and numbered 01–08 stage interface (the submitted baseline, formerly `?classic=1`) was removed on 2026-11-11; build new flows in Quest. Preserve the group account system, PostgreSQL schemas, versioned approvals, durable missions and evidence-grounded resume workflow.
 - Local startup: `npm run start:local`, or VS Code F5 → CareerFlow: database + app. Group UI: http://localhost:8787.
-- Browser checks: `npm run test:e2e:local` starts a fixture-mode app on a disposable database (`.runtime/pglite-e2e`) and runs both Playwright projects (`classic` and `quest`). It needs ports 8787/55432 free (or set `PORT` and `LOCAL_DB_PORT`) and never touches `.runtime/pglite`.
+- Browser checks: `npm run test:e2e:local` starts a fixture-mode app on a disposable database (`.runtime/pglite-e2e`) and runs every Playwright spec against the Quest interface; `tests/e2e/demo-workflow.spec.ts` is the local demo route. It needs ports 8787/55432 free (or set `PORT` and `LOCAL_DB_PORT`) and never touches `.runtime/pglite`.
 - Full local checks: stop the app, then `npm run verify:local`. Portable mode uses one shared database connection; do not run another app/test process against that instance. Native PostgreSQL/Docker remain available for concurrent deployments.
 - The user authorized progress comments on Jira CFS-41 after meaningful implementation/validation milestones. Report checks actually run, limitations and available evidence. Keep assignees and workflow status unchanged unless separately requested; do not claim reviews, submissions, commits or deployments that did not occur.
 

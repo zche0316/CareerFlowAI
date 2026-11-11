@@ -1,6 +1,6 @@
 import { CloudBackups } from './cloud-backups.js';
 import { MISSION_MODEL_CALL_LIMIT } from '../../../packages/contracts/src/mission-limits.js';
-import { WorkspaceHome, nextMissionStep } from './workspace-home.js';
+import { nextMissionStep } from './mission-step.js';
 import { FlowNavigation } from './flow-navigation.js';
 import { ResumePreview } from './resume-preview.js';
 import { pendingResumeChanges } from '../../../packages/contracts/src/resume-review.js';
@@ -43,12 +43,10 @@ import { createRoot } from 'react-dom/client';
 import {
   ArrowRight,
   Check,
-  ChevronRight,
   Compass,
   Sparkles,
   FileCheck2,
   Activity,
-  LogOut,
   X,
   Pause,
   RefreshCw,
@@ -58,11 +56,6 @@ import {
   Download,
   CheckCircle2,
   AlertCircle,
-  Target,
-  House,
-  Search,
-  FileText,
-  UserRound,
 } from 'lucide-react';
 import { blankProfile, type CareerProfile } from '../../../packages/contracts/src/index.js';
 import './style.css';
@@ -105,25 +98,6 @@ const phaseNames = [
   'Optional tools',
   'Real jobs & applications',
 ];
-const stagePresentation = [
-  { title: 'Build your profile', description: 'Start with a conversation. No resume required.' },
-  {
-    title: 'Explore your direction',
-    description: 'Understand your strengths and where they can take you.',
-  },
-  {
-    title: 'Find the right opportunity',
-    description: 'Explore roles that match your career direction.',
-  },
-  {
-    title: 'Prepare your resume',
-    description: 'Bring the most relevant parts of your profile together.',
-  },
-  {
-    title: 'Get ready for the conversation',
-    description: 'Practise role-specific questions at your own pace.',
-  },
-];
 type Tab =
   | 'missions'
   | 'profile'
@@ -138,9 +112,6 @@ type Tab =
   | 'season'
   | 'scout'
   | 'party';
-
-// ?classic=1 keeps the previous group interface available while the Quest UI replaces it.
-const classicView = new URLSearchParams(window.location.search).has('classic');
 
 const realmCodes = ['au', 'nz', 'gb', 'us', 'ca', 'sg', 'de', 'fr'];
 const savedRealm = () => {
@@ -169,15 +140,13 @@ const readWorkspaceRoute = () => {
     'season',
     'scout',
   ];
-  const fallback = classicView ? 'missions' : 'home';
+  const fallback = 'home';
   const value = query.get('view') || fallback;
   const step = query.has('step') ? Number(query.get('step')) : null;
   return {
-    tab: (validTabs.includes(value) && !(classicView && ['home', 'party', 'world', 'season', 'scout'].includes(value))
-      ? value
-      : fallback) as Tab,
+    tab: (validTabs.includes(value) ? value : fallback) as Tab,
     selected: query.get('mission'),
-    phase: step !== null && Number.isInteger(step) && step >= 0 && step <= (classicView ? 7 : 9) ? step : null,
+    phase: step !== null && Number.isInteger(step) && step >= 0 && step <= 9 ? step : null,
   };
 };
 // Own workspace navigation and refreshes here; the server remains the source of mission status.
@@ -399,7 +368,7 @@ function App() {
       />
     );
   const progress = progressFrom(workspace);
-  // Quest navigation reuses the same state transitions as the classic sidebar.
+  // Top-bar navigation: each id maps to a workspace tab, mission phase and selection.
   const questNavActive: QuestNavId | null =
     tab === 'missions'
       ? phase === 2
@@ -412,13 +381,6 @@ function App() {
         : (tab as QuestNavId);
   const goQuest = (id: QuestNavId) => {
     setError('');
-    if (id === 'classic') {
-      const url = new URL(window.location.href);
-      url.searchParams.set('classic', '1');
-      url.searchParams.set('view', 'missions');
-      window.location.assign(url.toString());
-      return;
-    }
     if (id === 'jobs') {
       if (!workspace?.profile) {
         setTab('profile');
@@ -491,23 +453,12 @@ function App() {
       }}
     />
   );
-  const nav = [
-    { id: 'missions', label: 'Overview', icon: House },
-    { id: 'profile', label: 'Build profile', icon: MessageSquare },
-    { id: 'jobs', label: 'Find jobs', icon: Search },
-    { id: 'library', label: 'My documents', icon: FileText },
-    { id: 'approved-profile', label: 'My profile', icon: UserRound },
-    { id: 'approvals', label: 'Approval inbox', icon: FileCheck2 },
-    { id: 'applications', label: 'Applications', icon: BriefcaseBusiness },
-    { id: 'activity', label: 'Activity timeline', icon: Activity },
-    { id: 'tools', label: 'Optional tools', icon: Target },
-  ];
   return (
-    <div className={classicView ? 'shell agent-app' : 'shell agent-app quest'}>
+    <div className="shell agent-app quest">
       <a className="skip-link" href="#main-content">
         Skip to workspace
       </a>
-      {!classicView && (
+      {
         <QuestTopBar
           active={questNavActive}
           userName={session.user.name}
@@ -525,194 +476,8 @@ function App() {
             })
           }
         />
-      )}
-      {classicView && (
-      <aside className="sidebar">
-        <a className="brand" href="/" aria-label="CareerFlow home">
-          <span className="brandmark" aria-hidden="true">
-            <img src="/careerflow-logo.svg" alt="" />
-          </span>
-          CareerFlow
-        </a>
-        <div className="workspace-label">Workspace</div>
-        <nav aria-label="Main navigation">
-          {nav
-            .filter(
-              (n) =>
-                !['approvals', 'applications', 'activity', 'tools'].includes(n.id) &&
-                !(n.id === 'profile' && workspace?.profile),
-            )
-            .map((n) => (
-              <button
-                key={n.id}
-                aria-current={tab === n.id || (n.id === 'jobs' && phase === 2) ? 'page' : undefined}
-                className={
-                  n.id === 'jobs'
-                    ? tab === 'missions' && phase === 2
-                      ? 'nav active'
-                      : 'nav'
-                    : tab === n.id && !(n.id === 'missions' && (phase !== null || selected))
-                      ? 'nav active'
-                      : 'nav'
-                }
-                onClick={() => {
-                  if (n.id === 'jobs') {
-                    if (!workspace?.profile) {
-                      setTab('profile');
-                      setSelected(null);
-                      setPhase(0);
-                      return;
-                    }
-                    const candidate = mission || workspace?.missions[0];
-                    const active =
-                      candidate &&
-                      [
-                        'QUEUED',
-                        'RUNNING',
-                        'AWAITING_JOB',
-                        'AWAITING_APPROVAL',
-                        'AWAITING_INTERVIEW',
-                      ].includes(candidate.status)
-                        ? candidate
-                        : null;
-                    if (active) {
-                      setSelected(active.id);
-                      setTab('missions');
-                      setPhase(active.data?.matches?.length ? 2 : nextMissionStep(active));
-                    } else {
-                      setCreating(true);
-                    }
-                    setError('');
-                    return;
-                  }
-                  if (n.id === 'applications') {
-                    setTab('missions');
-                    setPhase(7);
-                    setSelected(
-                      workspace?.missions.find((m: any) => m.data?.approvedResumeId)?.id ||
-                        workspace?.missions[0]?.id ||
-                        null,
-                    );
-                    setError('');
-                    return;
-                  }
-                  setTab(n.id as Tab);
-                  setSelected(null);
-                  setPhase(null);
-                  setError('');
-                }}
-              >
-                <n.icon size={18} />
-                {n.label}
-                {n.id === 'approvals' && approvals.length > 0 && (
-                  <span className="count">{approvals.length}</span>
-                )}
-              </button>
-            ))}
-          <details className="sidebar-more">
-            <summary>More</summary>
-            {nav
-              .filter((n) => ['approvals', 'applications', 'activity', 'tools'].includes(n.id))
-              .map((n) => (
-                <button
-                  key={n.id}
-                  className={tab === n.id ? 'nav active' : 'nav'}
-                  onClick={() => {
-                    if (n.id === 'applications') {
-                      setTab('missions');
-                      setPhase(7);
-                      setSelected(
-                        workspace?.missions.find((m: any) => m.data?.approvedResumeId)?.id ||
-                          workspace?.missions[0]?.id ||
-                          null,
-                      );
-                    } else {
-                      setTab(n.id as Tab);
-                      setSelected(null);
-                      setPhase(null);
-                    }
-                    setError('');
-                  }}
-                >
-                  <n.icon size={18} />
-                  {n.label}
-                  {n.id === 'approvals' && approvals.length > 0 && (
-                    <span className="count">{approvals.length}</span>
-                  )}
-                </button>
-              ))}
-          </details>
-        </nav>
-        <div className="account">
-          <details className="account-menu">
-            <summary aria-label="Account menu">
-              <span className="avatar">
-                {session.user.name
-                  .split(' ')
-                  .map((x: string) => x[0])
-                  .join('')
-                  .slice(0, 2)}
-              </span>
-              <div>
-                <strong>{session.user.name}</strong>
-                <small>Career workspace</small>
-              </div>
-            </summary>
-            <div className="account-menu-items">
-              <button
-                aria-label="My profile"
-                onClick={(event) => {
-                  event.currentTarget.closest('details')?.removeAttribute('open');
-                  setTab('approved-profile');
-                  setPhase(null);
-                  setSelected(null);
-                }}
-              >
-                My profile
-              </button>
-            </div>
-          </details>
-          <button
-            aria-label="Sign out"
-            onClick={() =>
-              void act(async () => {
-                await api('/logout', 'POST', {});
-                csrf = '';
-                setSession({ ...session, user: null });
-                setWorkspace(null);
-              })
-            }
-          >
-            <LogOut size={16} />
-          </button>
-        </div>
-      </aside>
-      )}
+      }
       <div className="content">
-        {classicView && (
-        <header className="topbar">
-          <div>
-            <span className="breadcrumb">Workspace</span>
-            <ChevronRight size={14} />
-            <span>
-              {phase !== null
-                ? phaseNames[phase]
-                : tab === 'missions' && mission?.status === 'COMPLETE'
-                  ? 'Journey results'
-                  : tab === 'approved-profile'
-                    ? 'My profile'
-                    : nav.find((n) => n.id === tab)?.label}
-            </span>
-          </div>
-          <details className="provider-details">
-            <summary>Service status</summary>
-            <span className={`provider ${session.mode === 'fixture' ? 'fixture' : ''}`}>
-              <i />
-              {session.mode === 'fixture' ? 'Verification mode' : 'Live AI enabled'}
-            </span>
-          </details>
-        </header>
-        )}
         <main id="main-content" tabIndex={-1}>
           {error && (
             <div role="alert" className="error-banner global-error-toast">
@@ -731,8 +496,7 @@ function App() {
               </button>
             </div>
           )}
-          {(tab === 'profile' ||
-            (classicView && tab === 'missions' && (selected || phase !== null))) && (
+          {tab === 'profile' && (
             <FlowNavigation
               current={
                 tab === 'profile'
@@ -958,7 +722,7 @@ function App() {
                     </button>
                   </section>
                 </>
-              ) : !classicView ? (
+              ) : (
                 <QuestLog
                   workspace={workspace}
                   onOpen={(m, targetPhase) => {
@@ -972,30 +736,6 @@ function App() {
                     setPhase(0);
                   }}
                 />
-              ) : (
-                <>
-                  <WorkspaceHome
-                    workspace={workspace}
-                    onProfile={() => {
-                      setTab('profile');
-                      setPhase(0);
-                    }}
-                    onSearch={(nextGoal) => {
-                      if (nextGoal) setGoal(nextGoal);
-                      setCreating(true);
-                    }}
-                    onLibrary={() => {
-                      setTab('library');
-                      setPhase(null);
-                    }}
-                    onOpen={(m, targetPhase) => {
-                      setSelected(m.id);
-                      setPhase(
-                        targetPhase ?? (m.status === 'COMPLETE' ? null : nextMissionStep(m)),
-                      );
-                    }}
-                  />
-                </>
               )}
             </>
           ) : tab === 'approvals' ? (
@@ -1410,15 +1150,6 @@ function PageTitle({ title, text }: { eyebrow: string; title: string; text: stri
         <p>{text}</p>
       </div>
     </div>
-  );
-}
-
-function Status({ value }: { value: string }) {
-  return (
-    <span className={`status status-${value.toLowerCase()}`}>
-      {['RUNNING', 'QUEUED'].includes(value) && <span className="pulse" />}
-      {nice(value)}
-    </span>
   );
 }
 
@@ -1983,13 +1714,11 @@ function MissionDetail({
   if (completed && (phase === null || (phase > 4 && phase !== 8 && phase !== 9)))
     return (
       <section aria-label="Completed journey results">
-        <button className="back" onClick={onBack}>
-          ← All missions
-        </button>
+        <QuestMissionHeader mission={m} phase={phase} onBack={onBack} onSelect={onNavigate} />
         <div className="page-heading">
           <div>
-            <span className="eyebrow">JOURNEY COMPLETE · 5 OF 5</span>
-            <h1>Your journey results</h1>
+            <span className="eyebrow">QUEST COMPLETE · 5 OF 5</span>
+            <h2>Your journey results</h2>
             <p>{m.goal}</p>
           </div>
           <button className="primary" onClick={onNewSearch}>
@@ -1997,8 +1726,8 @@ function MissionDetail({
           </button>
         </div>
         <p>
-          This journey is saved. Review its five steps above. New work uses your latest approved
-          profile and keeps these results unchanged.
+          This journey is saved. Review its five steps in the route above. New work uses your latest
+          approved profile and keeps these results unchanged.
         </p>
         <section className="panel" aria-label="Saved application results">
           <h2>{d.selectedJob?.job.title || 'Your application'}</h2>
@@ -2036,14 +1765,7 @@ function MissionDetail({
     );
   return (
     <>
-      {!classicView && (
-        <QuestMissionHeader mission={m} phase={phase} onBack={onBack} onSelect={onNavigate} />
-      )}
-      {classicView && (
-        <button className="back" onClick={onBack}>
-          ← All missions
-        </button>
-      )}
+      {<QuestMissionHeader mission={m} phase={phase} onBack={onBack} onSelect={onNavigate} />}
       {completed && (
         <div className="info" role="note">
           <span>Saved journey · Read-only history</span>
@@ -2055,71 +1777,8 @@ function MissionDetail({
           </button>
         </div>
       )}
-      {classicView && (
-      <>
-      <div className="mission-heading">
-        <div>
-          <span className="eyebrow">
-            {phase !== null
-              ? phase < 5
-                ? `STEP ${String(phase + 1).padStart(2, '0')} OF 05`
-                : 'OPTIONAL CAREER TOOL'
-              : `CAREER MISSION · ${m.mode === 'fixture' ? 'VERIFICATION' : 'LIVE'}`}
-          </span>
-          <h1>
-            {phase === 0
-              ? 'Your profile for this journey'
-              : phase === null
-                ? m.goal
-                : stagePresentation[phase]?.title || phaseNames[phase]}
-          </h1>
-          <p>
-            {phase === 0
-              ? 'Review the approved profile snapshot attached to this application.'
-              : phase === null
-                ? `Started ${date(m.createdAt)} · Your approved context, saved with this mission.`
-                : stagePresentation[phase]?.description || m.goal}
-          </p>
-        </div>
-        <Status value={m.status} />
-      </div>
-      <div className="mission-context-strip" aria-label="Agent context">
-        <span>
-          <UserRound size={14} />
-          Profile snapshot for this journey
-        </span>
-        {d.selectedJob && (
-          <span>
-            <BriefcaseBusiness size={14} />
-            {d.selectedJob.job.title}
-          </span>
-        )}
-        {d.approvedResumeId && (
-          <span>
-            <FileCheck2 size={14} />
-            Approved resume
-          </span>
-        )}
-        <strong>
-          {m.status === 'AWAITING_JOB'
-            ? 'Your decision · Choose a target'
-            : m.status === 'AWAITING_APPROVAL'
-              ? 'Your decision · Approve the resume'
-              : m.status === 'AWAITING_INTERVIEW'
-                ? 'Your turn · Practise an answer'
-                : ['RUNNING', 'QUEUED'].includes(m.status)
-                  ? 'Agent working'
-                  : nice(m.status)}
-        </strong>
-      </div>
-      </>
-      )}
-      {!classicView && phase === 8 && (
-        <QuestBattleLog mission={m} userName={userName} request={api} />
-      )}
-      {!classicView && phase === 9 && (
-        <QuestSavePoints mission={m} request={api} onOpenMission={onOpenMission} />
-      )}
+      {phase === 8 && <QuestBattleLog mission={m} userName={userName} request={api} />}
+      {phase === 9 && <QuestSavePoints mission={m} request={api} onOpenMission={onOpenMission} />}
       {phase === 0 && (
         <MissionProfile
           missionId={m.id}
@@ -2129,42 +1788,39 @@ function MissionDetail({
         />
       )}
       {phase === 2 && ['AWAITING_JOB', 'NO_MATCHES'].includes(m.status) && !d.selectedJob && (
-        <QuestAddLink quest={!classicView}>
-        <section className="panel" aria-label="Read a job link">
-          <h2>Have a job in mind?</h2>
-          <div className="form-actions">
-            <label style={{ flex: 1 }}>
-              Job listing URL
-              <input
-                type="url"
-                value={jobURL}
-                onChange={(e) => setJobURL(e.target.value)}
-                placeholder="Paste a job listing link…"
-              />
-            </label>
-            <button
-              className="secondary"
-              disabled={busy || !jobURL.trim()}
-              onClick={async () => {
-                await onAction('job-link', { url: jobURL.trim() });
-                setViewJobId('');
-              }}
-            >
-              {busy ? 'Reading job listing…' : 'Read job'}
-            </button>
-          </div>
-          <p className="small muted">
-            We’ll read the public listing. Review the job and its gaps before choosing it.
-          </p>
-        </section>
+        <QuestAddLink>
+          <section className="panel" aria-label="Read a job link">
+            <h2>Have a job in mind?</h2>
+            <div className="form-actions">
+              <label style={{ flex: 1 }}>
+                Job listing URL
+                <input
+                  type="url"
+                  value={jobURL}
+                  onChange={(e) => setJobURL(e.target.value)}
+                  placeholder="Paste a job listing link…"
+                />
+              </label>
+              <button
+                className="secondary"
+                disabled={busy || !jobURL.trim()}
+                onClick={async () => {
+                  await onAction('job-link', { url: jobURL.trim() });
+                  setViewJobId('');
+                }}
+              >
+                {busy ? 'Reading job listing…' : 'Read job'}
+              </button>
+            </div>
+            <p className="small muted">
+              We’ll read the public listing. Review the job and its gaps before choosing it.
+            </p>
+          </section>
         </QuestAddLink>
       )}
       {phase === 2 && !completed && !d.selectedJob && (
-        <button
-          className={classicView || !d.matches?.length ? 'primary' : 'secondary'}
-          onClick={onNewSearch}
-        >
-          {classicView || !d.matches?.length ? 'Search Australian jobs' : 'Run a new search'}
+        <button className={!d.matches?.length ? 'primary' : 'secondary'} onClick={onNewSearch}>
+          {!d.matches?.length ? 'Search Australian jobs' : 'Run a new search'}
         </button>
       )}
       {phase === 2 && d.selectedJob && !completed && (
@@ -2291,7 +1947,9 @@ function MissionDetail({
                       : 'Your approved resume is saved. Continue after resolving the mission status above.'
                     : 'Approve your evidence-based resume before starting interview practice.'
                   : phase === 7
-                    ? 'Select a real target job and approve your resume before preparing an application.'
+                    ? d.selectedJob && d.approvedResumeId
+                      ? 'This role has no application link, so there is nothing to apply to. Demo roles never have one; choose a live or pasted listing to prepare an application.'
+                      : 'Select a real target job and approve your resume before preparing an application.'
                     : isWorking
                       ? 'Your career team is preparing this step. Results are saved with this mission.'
                       : 'This step has no results yet. Check the mission status above to continue.'}
@@ -2299,7 +1957,7 @@ function MissionDetail({
             {(phase === 3 || phase === 7) && (
               <>
                 <button className="secondary" onClick={() => onNavigate(2)}>
-                  Go to 03 Job matching
+                  Go to the Shortlist
                 </button>
                 <details className="stage-evidence-help">
                   <summary>How profile evidence is used</summary>
@@ -2312,7 +1970,7 @@ function MissionDetail({
             )}
             {phase === 4 && (
               <button className="secondary" onClick={() => onNavigate(3)}>
-                Go to 04 Resume tailoring
+                Go to the Review
               </button>
             )}
           </section>
@@ -2475,278 +2133,240 @@ function MissionDetail({
           </div>
         )}
         {(phase === null || phase === 2) && d.matches?.length > 0 && (
-          <section id="job-matching" className={classicView ? undefined : 'qj-section'}>
-            {(classicView || d.selectedJob) && (
-            <div className="section-heading">
-              <h2>
-                {d.selectedJob
-                  ? 'Your selected opportunity'
-                  : 'Opportunities that fit your direction'}
-              </h2>
-              <span className="muted">
-                {d.jobRetrieval?.source === 'fixtures'
-                  ? 'Sample jobs'
-                  : d.jobRetrieval?.source === 'manual'
-                    ? 'User-pasted listing · unverified'
-                    : 'Live source snapshots'}{' '}
-                · heuristic scores
-              </span>
-            </div>
-            )}
-            <div className={classicView || d.selectedJob ? undefined : 'qj-layout'}>
-            {!classicView && !d.selectedJob && (
-              <QuestJobTable
-                matches={d.matches}
-                selectedId={viewJobId || d.matches[0]?.job.id}
-                compareIds={compareIds}
-                sourceLabel={
-                  d.jobRetrieval?.source === 'fixtures'
-                    ? 'sample jobs'
+          <section id="job-matching" className="qj-section">
+            {d.selectedJob && (
+              <div className="section-heading">
+                <h2>
+                  {d.selectedJob
+                    ? 'Your selected opportunity'
+                    : 'Opportunities that fit your direction'}
+                </h2>
+                <span className="muted">
+                  {d.jobRetrieval?.source === 'fixtures'
+                    ? 'Sample jobs'
                     : d.jobRetrieval?.source === 'manual'
-                      ? 'pasted listing'
-                      : 'live source snapshots'
-                }
-                onSelect={setViewJobId}
-              />
+                      ? 'User-pasted listing · unverified'
+                      : 'Live source snapshots'}{' '}
+                  · heuristic scores
+                </span>
+              </div>
             )}
-            {classicView && !d.selectedJob && (
-              <nav className="job-choice-list" aria-label="Matched jobs">
-                {d.matches.map((r: any) => (
-                  <button
-                    key={r.job.id}
-                    aria-pressed={(viewJobId || d.matches[0]?.job.id) === r.job.id}
-                    onClick={() => setViewJobId(r.job.id)}
-                  >
-                    <span className="job-choice-identity">
-                      <CompanyAvatar job={r.job} small />
-                      <strong>{r.job.title}</strong>
-                    </span>
-                    <span>
-                      {r.job.company} · {r.score}/100
-                    </span>
-                  </button>
-                ))}
-              </nav>
-            )}
-            <div className="jobs-grid">
-              {(d.selectedJob
-                ? [d.selectedJob]
-                : [d.matches.find((r: any) => r.job.id === viewJobId) || d.matches[0]]
-              ).map((r: any) => (
-                <article className="job-card" key={r.job.id}>
-                  <div className="job-card-top">
-                    <CompanyAvatar job={r.job} />
-                    <div
-                      className="score"
-                      role="img"
-                      aria-label={`Estimated match score ${r.score} out of 100`}
-                      style={
-                        {
-                          '--score': `${Math.max(0, Math.min(100, Number(r.score) || 0))}%`,
-                        } as React.CSSProperties
-                      }
-                    >
-                      <span>{r.score}</span>
-                      <small>/ 100</small>
+            <div className={d.selectedJob ? undefined : 'qj-layout'}>
+              {!d.selectedJob && (
+                <QuestJobTable
+                  matches={d.matches}
+                  selectedId={viewJobId || d.matches[0]?.job.id}
+                  compareIds={compareIds}
+                  sourceLabel={
+                    d.jobRetrieval?.source === 'fixtures'
+                      ? 'sample jobs'
+                      : d.jobRetrieval?.source === 'manual'
+                        ? 'pasted listing'
+                        : 'live source snapshots'
+                  }
+                  onSelect={setViewJobId}
+                />
+              )}
+              <div className="jobs-grid">
+                {(d.selectedJob
+                  ? [d.selectedJob]
+                  : [d.matches.find((r: any) => r.job.id === viewJobId) || d.matches[0]]
+                ).map((r: any) => (
+                  <article className="job-card" key={r.job.id}>
+                    <div className="job-card-top">
+                      <CompanyAvatar job={r.job} />
+                      <div
+                        className="score"
+                        role="img"
+                        aria-label={`Estimated match score ${r.score} out of 100`}
+                        style={
+                          {
+                            '--score': `${Math.max(0, Math.min(100, Number(r.score) || 0))}%`,
+                          } as React.CSSProperties
+                        }
+                      >
+                        <span>{r.score}</span>
+                        <small>/ 100</small>
+                      </div>
                     </div>
-                  </div>
-                  <span className="small muted job-choice-identity">
-                    <SourceIcon job={r.job} />
-                    {r.job.company}
-                  </span>
-                  <h3>{r.job.title}</h3>
-                  <p className="small muted">
-                    {r.job.location} · {r.job.employmentType}
-                  </p>
-                  <p className="small muted">
-                    Salary:{' '}
-                    {r.job.salary
-                      ? `${r.job.salary.currency} ${r.job.salary.min?.toLocaleString() ?? '?'}–${r.job.salary.max?.toLocaleString() ?? '?'} / year · ${r.job.salary.basis || 'source supplied'}`
-                      : 'Unknown — not supplied by source'}
-                  </p>
-                  {classicView ? (
-                    <div className="pills">
-                      {r.matches.slice(0, 4).map((s: string) => (
-                        <span key={s}>{s}</span>
-                      ))}
-                    </div>
-                  ) : (
-                    <RequirementChips r={r} />
-                  )}
-                  <p>{r.explanation}</p>
-                  {r.scoringVersion === 'matching-v2' && (
+                    <span className="small muted job-choice-identity">
+                      <SourceIcon job={r.job} />
+                      {r.job.company}
+                    </span>
+                    <h3>{r.job.title}</h3>
                     <p className="small muted">
-                      Saved rule-based score. A new live mission uses source-quoted LLM requirement
-                      mapping.
+                      {r.job.location} · {r.job.employmentType}
                     </p>
-                  )}
-                  {classicView && r.gaps?.length > 0 && (
-                    <div className="job-gap-notice" role="note">
-                      <strong>Before you choose: evidence gaps</strong>
-                      <ul>
-                        {r.gaps.slice(0, 4).map((gap: string) => (
-                          <li key={gap}>{gap}</li>
-                        ))}
-                      </ul>
-                      <p>
-                        You can pursue this role, but your resume will only use experience you have
-                        confirmed.
+                    <p className="small muted">
+                      Salary:{' '}
+                      {r.job.salary
+                        ? `${r.job.salary.currency} ${r.job.salary.min?.toLocaleString() ?? '?'}–${r.job.salary.max?.toLocaleString() ?? '?'} / year · ${r.job.salary.basis || 'source supplied'}`
+                        : 'Unknown — not supplied by source'}
+                    </p>
+                    {<RequirementChips r={r} />}
+                    <p>{r.explanation}</p>
+                    {r.scoringVersion === 'matching-v2' && (
+                      <p className="small muted">
+                        Saved rule-based score. A new live mission uses source-quoted LLM
+                        requirement mapping.
                       </p>
-                    </div>
-                  )}
-                  {!completed && <JobSourceActions job={r.job} missionId={m.id} request={api} />}
-                  <details>
-                    <summary>Evidence, gaps & source</summary>
-                    <p>
-                      <strong>Gaps:</strong> {r.gaps.join('; ') || 'No explicit gaps identified.'}
-                    </p>
-                    {r.scoringVersion === 'llm-evidence-v1' && (
-                      <>
-                        <p>
-                          LLM evidence mapping · Coverage: {r.coverage}% · Confidence:{' '}
-                          {r.confidence}
-                        </p>
-                        <ul aria-label="Suitability score components">
-                          {Object.entries(r.scoringWeights as Record<string, number>).map(
-                            ([key, weight]) => (
-                              <li key={key}>
-                                {key}: {Math.round(weight * 100)}% policy weight ·{' '}
-                                {r.components[key] === null
-                                  ? 'Unknown — unscored'
-                                  : `${Math.round(r.components[key] * 100)}% evidenced`}
-                              </li>
-                            ),
-                          )}
-                        </ul>
-                        {r.mapping.items.map((item: any, index: number) => (
-                          <article key={index}>
-                            <strong>
-                              {item.term} · {item.level} · {item.status.replaceAll('_', ' ')}
-                            </strong>
-                            <blockquote>{item.excerpt}</blockquote>
-                            <p>{item.reason}</p>
+                    )}
+                    {!completed && <JobSourceActions job={r.job} missionId={m.id} request={api} />}
+                    <details>
+                      <summary>Evidence, gaps & source</summary>
+                      <p>
+                        <strong>Gaps:</strong> {r.gaps.join('; ') || 'No explicit gaps identified.'}
+                      </p>
+                      {r.scoringVersion === 'llm-evidence-v1' && (
+                        <>
+                          <p>
+                            LLM evidence mapping · Coverage: {r.coverage}% · Confidence:{' '}
+                            {r.confidence}
+                          </p>
+                          <ul aria-label="Suitability score components">
+                            {Object.entries(r.scoringWeights as Record<string, number>).map(
+                              ([key, weight]) => (
+                                <li key={key}>
+                                  {key}: {Math.round(weight * 100)}% policy weight ·{' '}
+                                  {r.components[key] === null
+                                    ? 'Unknown — unscored'
+                                    : `${Math.round(r.components[key] * 100)}% evidenced`}
+                                </li>
+                              ),
+                            )}
+                          </ul>
+                          {r.mapping.items.map((item: any, index: number) => (
+                            <article key={index}>
+                              <strong>
+                                {item.term} · {item.level} · {item.status.replaceAll('_', ' ')}
+                              </strong>
+                              <blockquote>{item.excerpt}</blockquote>
+                              <p>{item.reason}</p>
+                              <ul>
+                                {item.evidence.map((e: any) => (
+                                  <li key={e.factId}>
+                                    {e.factId}: {e.quote}
+                                  </li>
+                                ))}
+                              </ul>
+                            </article>
+                          ))}
+                        </>
+                      )}
+                      {r.scoringVersion === 'matching-v2' && (
+                        <>
+                          <p>
+                            <strong>Required skills:</strong>{' '}
+                            {r.requirements.required.join(', ') ||
+                              'Unknown — not explicitly stated'}
+                          </p>
+                          <p>
+                            <strong>Preferred skills (optional):</strong>{' '}
+                            {r.requirements.preferred.join(', ') || 'Not stated'}. Evidenced:{' '}
+                            {r.preferredMatches?.join(', ') || 'None identified'}.
+                          </p>
+                          <p>
+                            <strong>Other skill mentions:</strong>{' '}
+                            {r.requirements.mentioned?.join(', ') || 'None'}. These are excluded
+                            from skill requirement scoring.
+                          </p>
+                          <p>
+                            <strong>Education:</strong>{' '}
+                            {r.assessment.education.status.replace('_', ' ')} —{' '}
+                            {r.assessment.education.reason}
+                          </p>
+                          <p>
+                            <strong>Location:</strong>{' '}
+                            {r.assessment.location.status.replace('_', ' ')} —{' '}
+                            {r.assessment.location.reason}
+                          </p>
+                          <p>
+                            <strong>Experience:</strong> {r.assessment.experience.replace('_', ' ')}
+                            . Unknown requirements receive neutral half-credit.
+                          </p>
+                          <ul aria-label="Suitability score components">
+                            {Object.entries(r.scoringWeights as Record<string, number>).map(
+                              ([key, weight]) => (
+                                <li key={key}>
+                                  {key === 'semantic' ? 'TF-IDF overlap' : key}:{' '}
+                                  {Math.round(weight * 100)}% weight ·{' '}
+                                  {Math.round(r.components[key] * 100)}% component
+                                </li>
+                              ),
+                            )}
+                          </ul>
+                          <details>
+                            <summary>Skill extraction evidence</summary>
                             <ul>
-                              {item.evidence.map((e: any) => (
-                                <li key={e.factId}>
-                                  {e.factId}: {e.quote}
+                              {r.requirements.skillEvidence?.map((item: any, index: number) => (
+                                <li key={index}>
+                                  {item.kind}: {item.skills.join(', ')} — {item.text}
                                 </li>
                               ))}
                             </ul>
-                          </article>
+                          </details>
+                        </>
+                      )}
+                      <p>{r.job.description}</p>
+                      <ul>
+                        {r.limitations?.map((limit: string) => (
+                          <li key={limit}>{limit}</li>
                         ))}
-                      </>
-                    )}
-                    {r.scoringVersion === 'matching-v2' && (
+                      </ul>
+                      {r.job.applicationUrl && (
+                        <a href={r.job.applicationUrl} target="_blank" rel="noopener noreferrer">
+                          View source listing ↗
+                        </a>
+                      )}
+                      <p>
+                        Source: {r.job.source.name} · {r.job.source.version}.{' '}
+                        {r.job.source.liveVacancy
+                          ? 'Retrieved vacancy; availability may change.'
+                          : r.job.source.externalListing
+                            ? 'User-pasted listing; availability unverified.'
+                            : 'Fictional sample vacancy.'}
+                      </p>
+                      <p>
+                        {r.scoringVersion === 'llm-evidence-v1'
+                          ? 'LLM extracts requirements and maps approved facts; code scores evidenced/partial/missing items. Unknown categories are excluded, not awarded half-credit. Coverage reports the weighted categories actually assessed.'
+                          : r.scoringVersion === 'matching-v2'
+                            ? '40% required skills · 5% preferred skills · 15% experience · 10% education · 15% preferences · 15% TF-IDF overlap. Unknown components receive neutral half-credit.'
+                            : '45% skills · 15% experience · 10% education · 15% preferences · 15% TF-IDF overlap (saved legacy result).'}
+                      </p>
+                      <p>Scores indicate heuristic suitability, not hiring probabilities.</p>
+                    </details>
+                    {m.status === 'AWAITING_JOB' && (
                       <>
-                        <p>
-                          <strong>Required skills:</strong>{' '}
-                          {r.requirements.required.join(', ') || 'Unknown — not explicitly stated'}
-                        </p>
-                        <p>
-                          <strong>Preferred skills (optional):</strong>{' '}
-                          {r.requirements.preferred.join(', ') || 'Not stated'}. Evidenced:{' '}
-                          {r.preferredMatches?.join(', ') || 'None identified'}.
-                        </p>
-                        <p>
-                          <strong>Other skill mentions:</strong>{' '}
-                          {r.requirements.mentioned?.join(', ') || 'None'}. These are excluded from
-                          skill requirement scoring.
-                        </p>
-                        <p>
-                          <strong>Education:</strong>{' '}
-                          {r.assessment.education.status.replace('_', ' ')} —{' '}
-                          {r.assessment.education.reason}
-                        </p>
-                        <p>
-                          <strong>Location:</strong>{' '}
-                          {r.assessment.location.status.replace('_', ' ')} —{' '}
-                          {r.assessment.location.reason}
-                        </p>
-                        <p>
-                          <strong>Experience:</strong> {r.assessment.experience.replace('_', ' ')}.
-                          Unknown requirements receive neutral half-credit.
-                        </p>
-                        <ul aria-label="Suitability score components">
-                          {Object.entries(r.scoringWeights as Record<string, number>).map(
-                            ([key, weight]) => (
-                              <li key={key}>
-                                {key === 'semantic' ? 'TF-IDF overlap' : key}:{' '}
-                                {Math.round(weight * 100)}% weight ·{' '}
-                                {Math.round(r.components[key] * 100)}% component
-                              </li>
-                            ),
-                          )}
-                        </ul>
-                        <details>
-                          <summary>Skill extraction evidence</summary>
-                          <ul>
-                            {r.requirements.skillEvidence?.map((item: any, index: number) => (
-                              <li key={index}>
-                                {item.kind}: {item.skills.join(', ')} — {item.text}
-                              </li>
-                            ))}
-                          </ul>
-                        </details>
+                        <button
+                          className="secondary full"
+                          disabled={busy}
+                          onClick={() =>
+                            void onAction('decisions', { kind: 'job', jobId: r.job.id })
+                          }
+                        >
+                          Select this opportunity
+                          <ArrowRight size={15} />
+                        </button>
+                        <label className="checkbox small">
+                          <input
+                            type="checkbox"
+                            checked={compareIds.includes(r.job.id)}
+                            disabled={!compareIds.includes(r.job.id) && compareIds.length >= 4}
+                            onChange={(e) =>
+                              setCompareIds(
+                                e.target.checked
+                                  ? [...compareIds, r.job.id]
+                                  : compareIds.filter((id) => id !== r.job.id),
+                              )
+                            }
+                          />
+                          Compare this job
+                        </label>
                       </>
                     )}
-                    <p>{r.job.description}</p>
-                    <ul>
-                      {r.limitations?.map((limit: string) => (
-                        <li key={limit}>{limit}</li>
-                      ))}
-                    </ul>
-                    {r.job.applicationUrl && (
-                      <a href={r.job.applicationUrl} target="_blank" rel="noopener noreferrer">
-                        View source listing ↗
-                      </a>
-                    )}
-                    <p>
-                      Source: {r.job.source.name} · {r.job.source.version}.{' '}
-                      {r.job.source.liveVacancy
-                        ? 'Retrieved vacancy; availability may change.'
-                        : r.job.source.externalListing
-                          ? 'User-pasted listing; availability unverified.'
-                          : 'Fictional sample vacancy.'}
-                    </p>
-                    <p>
-                      {r.scoringVersion === 'llm-evidence-v1'
-                        ? 'LLM extracts requirements and maps approved facts; code scores evidenced/partial/missing items. Unknown categories are excluded, not awarded half-credit. Coverage reports the weighted categories actually assessed.'
-                        : r.scoringVersion === 'matching-v2'
-                          ? '40% required skills · 5% preferred skills · 15% experience · 10% education · 15% preferences · 15% TF-IDF overlap. Unknown components receive neutral half-credit.'
-                          : '45% skills · 15% experience · 10% education · 15% preferences · 15% TF-IDF overlap (saved legacy result).'}
-                    </p>
-                    <p>Scores indicate heuristic suitability, not hiring probabilities.</p>
-                  </details>
-                  {m.status === 'AWAITING_JOB' && (
-                    <>
-                      <button
-                        className="secondary full"
-                        disabled={busy}
-                        onClick={() => void onAction('decisions', { kind: 'job', jobId: r.job.id })}
-                      >
-                        Select this opportunity
-                        <ArrowRight size={15} />
-                      </button>
-                      <label className="checkbox small">
-                        <input
-                          type="checkbox"
-                          checked={compareIds.includes(r.job.id)}
-                          disabled={!compareIds.includes(r.job.id) && compareIds.length >= 4}
-                          onChange={(e) =>
-                            setCompareIds(
-                              e.target.checked
-                                ? [...compareIds, r.job.id]
-                                : compareIds.filter((id) => id !== r.job.id),
-                            )
-                          }
-                        />
-                        Compare this job
-                      </label>
-                    </>
-                  )}
-                </article>
-              ))}
-            </div>
+                  </article>
+                ))}
+              </div>
             </div>
             {compareIds.length >= 2 && (
               <div className="panel comparison">
@@ -2864,7 +2484,7 @@ function MissionDetail({
             <aside className="prototype-resume-controls">
               <p className="agent-context-caption">Target · {d.resumeDraft.jobTitle}</p>
               <JobFit missionId={m.id} api={api} compact />
-              {d.selectedJob?.gaps?.length > 0 && (classicView || !d.resumeTeam) && (
+              {d.selectedJob?.gaps?.length > 0 && !d.resumeTeam && (
                 <div className="job-gap-notice" role="note">
                   <strong>Gaps to keep in mind</strong>
                   <ul>
@@ -2901,38 +2521,48 @@ function MissionDetail({
                   }
                 />
               )}
-              {(classicView || !d.resumeTeam || d.approvedResumeId) && (
+              {(!d.resumeTeam || d.approvedResumeId) && (
                 <div className="section-heading">
-                  <h2>{completed ? 'Saved resume' : d.approvedResumeId ? 'Approved resume' : 'Edit with your agent'}</h2>
+                  <h2>
+                    {completed
+                      ? 'Saved resume'
+                      : d.approvedResumeId
+                        ? 'Approved resume'
+                        : 'Edit with your agent'}
+                  </h2>
                   <span className="tag">
                     {d.approvedResumeId ? 'Approved & saved' : 'Review required'}
                   </span>
                 </div>
               )}
-              <QuestEditDrawer quest={!classicView && !!d.resumeTeam && m.status === 'AWAITING_APPROVAL'}>
-              {m.status === 'AWAITING_APPROVAL' && (
-                <ResumeManualEdit
-                  draft={d.resumeDraft}
-                  busy={busy}
-                  onDirty={(dirty) => {
-                    setManualDirty(dirty);
-                    if (dirty) setConfirm(false);
-                  }}
-                  onSave={(factId, text) =>
-                    onAction('resume-agent/manual', { draftHash: d.resumeDraft.hash, factId, text })
-                  }
-                />
-              )}
-              {m.status === 'AWAITING_APPROVAL' && (
-                <ResumeAgent
-                  draft={d.resumeDraft}
-                  messages={d.resumeChat || []}
-                  busy={busy || manualDirty}
-                  onEdit={(message) =>
-                    onAction('resume-agent', { draftHash: d.resumeDraft.hash, message })
-                  }
-                />
-              )}
+              <QuestEditDrawer quest={!!d.resumeTeam && m.status === 'AWAITING_APPROVAL'}>
+                {m.status === 'AWAITING_APPROVAL' && (
+                  <ResumeManualEdit
+                    draft={d.resumeDraft}
+                    busy={busy}
+                    onDirty={(dirty) => {
+                      setManualDirty(dirty);
+                      if (dirty) setConfirm(false);
+                    }}
+                    onSave={(factId, text) =>
+                      onAction('resume-agent/manual', {
+                        draftHash: d.resumeDraft.hash,
+                        factId,
+                        text,
+                      })
+                    }
+                  />
+                )}
+                {m.status === 'AWAITING_APPROVAL' && (
+                  <ResumeAgent
+                    draft={d.resumeDraft}
+                    messages={d.resumeChat || []}
+                    busy={busy || manualDirty}
+                    onEdit={(message) =>
+                      onAction('resume-agent', { draftHash: d.resumeDraft.hash, message })
+                    }
+                  />
+                )}
               </QuestEditDrawer>
               {d.approvedResumeId && <ResumeDownloads id={d.approvedResumeId} />}
               {d.approvedResumeId && (
@@ -2964,7 +2594,7 @@ function MissionDetail({
           </section>
         )}
 
-      {!classicView && phase === 4 && questions.length > 0 && (
+      {phase === 4 && questions.length > 0 && (
         <QuestBossBattle
           mission={m}
           busy={busy}
@@ -2974,129 +2604,133 @@ function MissionDetail({
       )}
       {(phase === null || phase === 4) &&
         questions.length > 0 &&
-        (classicView || phase === null || d.feedback) && (
-        <div className="prototype-interview-layout">
-          <section className="panel interview">
-            <div className="section-heading">
-              <h2>
-                <MessageSquare size={20} />
-                Prepare for the conversation
-              </h2>
-              <span className="tag">Interview Coach</span>
-            </div>
-            <p className="muted">
-              Role-specific practice for {d.selectedJob?.job.title}. Your answers stay separate from
-              approved candidate facts.
-            </p>
-            {m.status === 'AWAITING_INTERVIEW' ? (
-              <>
-                <div className="question-tabs">
-                  {questions.map((item: any, i: number) => (
+        (phase === null || d.feedback) && (
+          <div className="prototype-interview-layout">
+            <section className="panel interview">
+              <div className="section-heading">
+                <h2>
+                  <MessageSquare size={20} />
+                  Prepare for the conversation
+                </h2>
+                <span className="tag">Interview Coach</span>
+              </div>
+              <p className="muted">
+                Role-specific practice for {d.selectedJob?.job.title}. Your answers stay separate
+                from approved candidate facts.
+              </p>
+              {m.status === 'AWAITING_INTERVIEW' ? (
+                <>
+                  <div className="question-tabs">
+                    {questions.map((item: any, i: number) => (
+                      <button
+                        className={i === question ? 'selected' : ''}
+                        key={item.id}
+                        onClick={() => setQuestion(i)}
+                      >
+                        Question {i + 1}
+                        {d.answers?.some((a: any) => a.questionId === item.id) && (
+                          <Check size={13} />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                  <span className="eyebrow">{q?.focus}</span>
+                  <h3>{q?.question}</h3>
+                  <label>
+                    Your response
+                    <textarea
+                      rows={6}
+                      value={answer}
+                      onChange={(e) => setAnswer(e.target.value)}
+                      placeholder="Describe the context, your action and the result. Use only your real experience."
+                    />
+                  </label>
+                  <div className="form-actions">
                     <button
-                      className={i === question ? 'selected' : ''}
-                      key={item.id}
-                      onClick={() => setQuestion(i)}
+                      className="secondary"
+                      disabled={busy || !answer.trim()}
+                      onClick={() => void onSaveAnswer({ questionId: q.id, answer })}
                     >
-                      Question {i + 1}
-                      {d.answers?.some((a: any) => a.questionId === item.id) && <Check size={13} />}
+                      Save response
+                      <Check size={15} />
                     </button>
+                    <span className="small muted">
+                      {responseCount} of {questions.length} responses saved
+                    </span>
+                  </div>
+                  <button
+                    className="primary"
+                    disabled={busy || !responseCount}
+                    onClick={() =>
+                      void onAction('decisions', {
+                        kind: 'interview',
+                        endedEarly: responseCount < questions.length,
+                      })
+                    }
+                  >
+                    {responseCount < questions.length
+                      ? 'Finish early & get feedback'
+                      : 'Complete interview & get feedback'}
+                    <ArrowRight size={16} />
+                  </button>
+                </>
+              ) : (
+                <p>
+                  {responseCount} {responseCount === 1 ? 'response' : 'responses'} retained.{' '}
+                  {d.endedEarly
+                    ? 'You finished early; feedback reflects the available answers.'
+                    : ''}
+                </p>
+              )}
+              {completed && (
+                <section aria-label="Saved interview answers">
+                  <h3>Your saved answers</h3>
+                  {(d.answers || []).map((a: any, i: number) => (
+                    <article key={a.questionId || i}>
+                      <h4>
+                        {questions.find((q: any) => q.id === a.questionId)?.question ||
+                          `Question ${i + 1}`}
+                      </h4>
+                      <p>{a.answer}</p>
+                    </article>
+                  ))}
+                </section>
+              )}
+              {d.feedback && phase === 4 && (
+                <button className="secondary" onClick={() => onNavigate(null)}>
+                  Back to journey results
+                </button>
+              )}
+              {d.feedback && (
+                <div className="feedback-grid">
+                  {[
+                    ['Strengths', d.feedback.strengths],
+                    ['Areas to improve', d.feedback.improvements],
+                    ['Next practice', d.feedback.nextSteps],
+                  ].map(([label, items]: any) => (
+                    <div key={label}>
+                      <h3>{label}</h3>
+                      <ul>
+                        {items.map((s: string) => (
+                          <li key={s}>{s}</li>
+                        ))}
+                      </ul>
+                    </div>
                   ))}
                 </div>
-                <span className="eyebrow">{q?.focus}</span>
-                <h3>{q?.question}</h3>
-                <label>
-                  Your response
-                  <textarea
-                    rows={6}
-                    value={answer}
-                    onChange={(e) => setAnswer(e.target.value)}
-                    placeholder="Describe the context, your action and the result. Use only your real experience."
-                  />
-                </label>
-                <div className="form-actions">
-                  <button
-                    className="secondary"
-                    disabled={busy || !answer.trim()}
-                    onClick={() => void onSaveAnswer({ questionId: q.id, answer })}
-                  >
-                    Save response
-                    <Check size={15} />
-                  </button>
-                  <span className="small muted">
-                    {responseCount} of {questions.length} responses saved
-                  </span>
-                </div>
-                <button
-                  className="primary"
-                  disabled={busy || !responseCount}
-                  onClick={() =>
-                    void onAction('decisions', {
-                      kind: 'interview',
-                      endedEarly: responseCount < questions.length,
-                    })
-                  }
-                >
-                  {responseCount < questions.length
-                    ? 'Finish early & get feedback'
-                    : 'Complete interview & get feedback'}
-                  <ArrowRight size={16} />
-                </button>
-              </>
-            ) : (
-              <p>
-                {responseCount} {responseCount === 1 ? 'response' : 'responses'} retained.{' '}
-                {d.endedEarly ? 'You finished early; feedback reflects the available answers.' : ''}
-              </p>
-            )}
-            {completed && (
-              <section aria-label="Saved interview answers">
-                <h3>Your saved answers</h3>
-                {(d.answers || []).map((a: any, i: number) => (
-                  <article key={a.questionId || i}>
-                    <h4>
-                      {questions.find((q: any) => q.id === a.questionId)?.question ||
-                        `Question ${i + 1}`}
-                    </h4>
-                    <p>{a.answer}</p>
-                  </article>
-                ))}
-              </section>
-            )}
-            {d.feedback && phase === 4 && (
-              <button className="secondary" onClick={() => onNavigate(null)}>
-                Back to journey results
-              </button>
-            )}
-            {d.feedback && (
-              <div className="feedback-grid">
-                {[
-                  ['Strengths', d.feedback.strengths],
-                  ['Areas to improve', d.feedback.improvements],
-                  ['Next practice', d.feedback.nextSteps],
-                ].map(([label, items]: any) => (
-                  <div key={label}>
-                    <h3>{label}</h3>
-                    <ul>
-                      {items.map((s: string) => (
-                        <li key={s}>{s}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-          <aside className="panel interview-guidance">
-            <h2>A little help</h2>
-            <p>Try structuring your answer around the situation, your action and the outcome.</p>
-            <ol>
-              <li>Set the scene: what was the challenge?</li>
-              <li>Explain what you personally did.</li>
-              <li>Share the result or what you learned.</li>
-            </ol>
-          </aside>
-        </div>
-      )}
+              )}
+            </section>
+            <aside className="panel interview-guidance">
+              <h2>A little help</h2>
+              <p>Try structuring your answer around the situation, your action and the outcome.</p>
+              <ol>
+                <li>Set the scene: what was the challenge?</li>
+                <li>Explain what you personally did.</li>
+                <li>Share the result or what you learned.</li>
+              </ol>
+            </aside>
+          </div>
+        )}
       {!completed && (phase === null || phase === 4) && d.feedback && (
         <details className="panel feedback-memory-action">
           <summary>Keep a learning note</summary>
@@ -3291,8 +2925,7 @@ function MissionDetail({
 createRoot(document.getElementById('root')!).render(<App />);
 
 /** In the Quest UI, adding a job by link is a secondary action folded under the header. */
-function QuestAddLink({ quest, children }: { quest: boolean; children: React.ReactNode }) {
-  if (!quest) return <>{children}</>;
+function QuestAddLink({ children }: { children: React.ReactNode }) {
   return (
     <details className="quest-edit-drawer qj-add">
       <summary>
@@ -3311,7 +2944,9 @@ function QuestEditDrawer({ quest, children }: { quest: boolean; children: React.
     <details className="quest-edit-drawer">
       <summary>
         <span>Edit it yourself</span>
-        <small>Change a line by hand or ask the resume agent. Edits are re-checked against your facts.</small>
+        <small>
+          Change a line by hand or ask the resume agent. Edits are re-checked against your facts.
+        </small>
       </summary>
       <div>{children}</div>
     </details>

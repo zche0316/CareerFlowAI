@@ -1,4 +1,5 @@
-import { test, expect } from './classic.js';
+import { test, expect } from '@playwright/test';
+import { openProfile } from './nav.js';
 import { AGENTS, sampleProfile } from '../../packages/contracts/src/index.js';
 // Controlled transport verifies view state independently of PDF parsing/model quality.
 test('new imports clear previous pages and consent; organization uses explicitly selected source pages', async ({
@@ -60,11 +61,7 @@ test('new imports clear previous pages and consent; organization uses explicitly
     await r.fulfill({ json: current });
   });
   await page.goto('/');
-  await page
-    .getByRole('button', { name: 'Build profile', exact: true })
-    .or(page.getByRole('button', { name: 'My profile', exact: true }))
-    .first()
-    .click();
+  await openProfile(page);
   await page.getByText('Edit profile details manually', { exact: true }).click();
   await page
     .getByText('Already have career material? Optional resume import', { exact: true })

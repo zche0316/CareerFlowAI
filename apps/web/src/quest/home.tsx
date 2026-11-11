@@ -1,5 +1,6 @@
 import { ArrowRight, Check, Flag } from 'lucide-react';
-import { nextMissionStep } from '../workspace-home.js';
+import { MISSION_MODEL_CALL_LIMIT } from '../../../../packages/contracts/src/mission-limits.js';
+import { nextMissionStep } from '../mission-step.js';
 import { AgentAvatar, LeaderBadge, type AgentId } from './characters.js';
 import { XP_PER_LEVEL, XP_RULES, progressFrom, skillBoard } from './progress.js';
 import { prettyTerm } from './character-sheet.js';
@@ -39,6 +40,11 @@ const heroCopy: Record<string, { title: string; text: string; cta: string }> = {
     title: 'Your party is working on it.',
     text: 'You can leave this page; work continues on the server and waits for you at the next decision.',
     cta: 'Watch the quest',
+  },
+  FAILED: {
+    title: 'Your last quest stopped.',
+    text: 'A step failed. Your saved work is intact; open the quest to retry or keep its results.',
+    cta: 'Review and retry',
   },
   COMPLETE: {
     title: 'Quest complete. Ready for the next one?',
@@ -103,9 +109,13 @@ export function QuestHome({
         text: 'Set a goal and your party will analyse your profile, find matching roles and wait for your decisions.',
         cta: 'Start a quest',
       };
+  // A quest stopped by its model-call budget cannot be retried; its saved results stay readable.
+  const budgetSpent =
+    status === 'FAILED' && (active?.data?.apiCalls || 0) >= MISSION_MODEL_CALL_LIMIT;
+  const cta = budgetSpent ? 'Review saved results' : copy.cta;
   const heroAction = () => {
     if (!hasProfile) return onBuildProfile();
-    if (!active || active.status === 'COMPLETE' || ['FAILED', 'CANCELLED', 'STALE'].includes(active.status))
+    if (!active || active.status === 'COMPLETE' || ['CANCELLED', 'STALE'].includes(active.status))
       return onNewQuest();
     onOpenMission(active.id, step);
   };
@@ -184,7 +194,7 @@ export function QuestHome({
           </ol>
           <div className="qh-cta">
             <button type="button" className="quest-press lime" onClick={heroAction}>
-              {copy.cta}
+              {cta}
               <ArrowRight size={18} strokeWidth={2.6} />
             </button>
             {status === 'AWAITING_APPROVAL' && <span>+{XP_RULES.approvedResume} XP on approval</span>}
