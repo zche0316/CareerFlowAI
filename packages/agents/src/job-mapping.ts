@@ -18,14 +18,65 @@ export const jobMappingSchema = z.object({
   experienceExcerpt: z.string().max(500),
 });
 export type JobMapping = z.infer<typeof jobMappingSchema>;
-const normal = (s: string) => s.normalize('NFKC').toLowerCase().replace(/\s+/g, ' ').trim();
+// Quotes are compared after typography is evened out: curly quotes, dashes, bullets and spacing
+// differ between a listing and a model's copy of it without changing the words.
+const normal = (s: string) =>
+  s
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/[\u2018\u2019\u201b`]/g, "'")
+    .replace(/[\u201c\u201d\u201f]/g, '"')
+    .replace(/[\u2010-\u2015\u2212]/g, '-')
+    .replace(/[\u2022\u25aa\u25cf\u00b7]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+/** Whether a quote appears in the source; a quote shortened with "…" must match piece by piece. */
+const quoted = (source: string, quote: string) => {
+  const text = normal(source);
+  const pieces = normal(quote)
+    .split(/\s*(?:\.\.\.|\u2026)\s*/)
+    .map((p) => p.replace(/^[\s"'.,;:-]+|[\s"'.,;:-]+$/g, ''))
+    .filter(Boolean);
+  let from = 0;
+  for (const piece of pieces) {
+    const at = text.indexOf(piece, from);
+    if (at < 0) return false;
+    from = at + piece.length;
+  }
+  return pieces.length > 0;
+};
+
+/**
+ * Remove what the model could not quote instead of rejecting the whole mapping (CFS-117): a
+ * requirement whose excerpt is not in the listing is dropped, and a year count whose excerpt is
+ * not in the listing becomes unknown. Nothing unquoted is ever accepted.
+ */
+export function dropUnquoted(value: any, job: any) {
+  if (!value || !Array.isArray(value.items)) return value;
+  const description = String(job?.description || '');
+  const items = value.items.filter(
+    (i: any) => typeof i?.excerpt === 'string' && quoted(description, i.excerpt),
+  );
+  const years =
+    typeof value.experienceYears === 'number' &&
+    typeof value.experienceExcerpt === 'string' &&
+    quoted(description, value.experienceExcerpt)
+      ? value.experienceYears
+      : null;
+  return {
+    ...value,
+    items,
+    experienceYears: years,
+    experienceExcerpt: years === null ? '' : value.experienceExcerpt,
+  };
+}
 
 export function validateJobMapping(value: unknown, job: any, facts: Fact[]): JobMapping {
   const mapping = jobMappingSchema.parse(value);
   const known = new Map(facts.map((f) => [f.id, f]));
   const seen = new Set<string>();
   for (const item of mapping.items) {
-    if (!normal(job.description).includes(normal(item.excerpt)))
+    if (!quoted(job.description, item.excerpt))
       throw Error('Job requirement has no exact source excerpt.');
     const key = normal(item.term);
     if (seen.has(key)) throw Error('Duplicate job requirement.');
@@ -53,7 +104,7 @@ export function validateJobMapping(value: unknown, job: any, facts: Fact[]): Job
   if (
     mapping.experienceYears !== null &&
     (!mapping.experienceExcerpt ||
-      !normal(job.description).includes(normal(mapping.experienceExcerpt)) ||
+      !quoted(job.description, mapping.experienceExcerpt) ||
       !new RegExp(`\\b${mapping.experienceYears}\\b`).test(mapping.experienceExcerpt))
   )
     throw Error(
@@ -71,7 +122,7 @@ export async function mapJobRequirements(
 ) {
   const schema = jobMappingSchema.superRefine((value, ctx) => {
     try {
-      validateJobMapping(value, job, facts);
+      validateJobMapping(dropUnquoted(value, job), job, facts);
     } catch (error) {
       ctx.addIssue({ code: 'custom', message: (error as Error).message });
     }
@@ -90,7 +141,7 @@ export async function mapJobRequirements(
     hooks,
     signal,
   );
-  return validateJobMapping(value, job, facts);
+  return validateJobMapping(dropUnquoted(value, job), job, facts);
 }
 
 // Unknown categories are unscored, not half-credit. Weights are policy, not a skill vocabulary.

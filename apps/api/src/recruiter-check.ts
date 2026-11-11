@@ -15,6 +15,7 @@ import {
   levelGaps,
   mentionsSkill,
   requirementItems,
+  skillsIn,
 } from '../../../packages/contracts/src/capability.js';
 import { placeKey } from '../../../packages/agents/src/scout/scout.js';
 
@@ -31,6 +32,36 @@ type Check = { label: string; ok: boolean; detail?: string };
 type Knockout = { kind: string; status: 'met' | 'not_met' | 'check' | 'unknown'; detail: string };
 
 const lower = (s: string) => s.toLowerCase().replace(/\s+/g, ' ');
+const stop = new Set([
+  'with',
+  'and',
+  'the',
+  'that',
+  'this',
+  'from',
+  'your',
+  'have',
+  'into',
+  'their',
+  'using',
+  'experience',
+  'ability',
+  'skills',
+  'strong',
+  'excellent',
+  'exceptional',
+  'effectively',
+  'work',
+  'working',
+]);
+const aliasNamed = (term: string) => {
+  const canonical = canonicalSkill(term);
+  return canonical !== term.trim() || skillsIn(term).includes(canonical)
+    ? [canonical]
+    : skillsIn(term);
+};
+// Letters and digits only, so line wrapping, hyphenation and punctuation in the PDF do not matter.
+const alnum = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const hasTerm = (text: string, term: string) =>
   new RegExp(`(^|[^\\p{L}\\p{N}+#])${escape(term)}($|[^\\p{L}\\p{N}+#])`, 'iu').test(text);
@@ -48,19 +79,44 @@ export function keywordCoverage(
     .map((c) => c.text)
     .join('\n');
   const all = experience + '\n' + skills + '\n' + (content.summary || '');
+  const words = (t: string) =>
+    (t.toLowerCase().match(/[\p{L}\p{N}]+/gu) || []).filter((w) => w.length >= 4 && !stop.has(w));
+  const covers = (text: string, term: string) => {
+    // A phrase with no named skill counts when most of its key words (by stem) appear.
+    const key = words(term);
+    if (!key.length) return false;
+    const have = new Set(words(text).map((w) => w.slice(0, 5)));
+    return key.filter((w) => have.has(w.slice(0, 5))).length / key.length >= 0.6;
+  };
   const rows = items
     .filter((i) => !i.category || ['skill', 'experience'].includes(i.category))
     .map((i) => {
-      const skill = canonicalSkill(i.term);
+      const skills = aliasNamed(i.term);
       const exact = hasTerm(all, i.term);
-      const synonym = !exact && mentionsSkill(all, skill);
-      const where =
-        hasTerm(experience, i.term) || mentionsSkill(experience, skill)
-          ? 'experience'
-          : exact || synonym
-            ? 'skills only'
-            : 'missing';
-      return { term: i.term, level: i.level, exact, synonym, where };
+      if (!skills.length) {
+        const present = exact || covers(all, i.term);
+        const where = !present
+          ? 'missing'
+          : exact || covers(experience, i.term)
+            ? 'experience'
+            : 'skills only';
+        return {
+          term: i.term,
+          level: i.level,
+          kind: 'phrase' as const,
+          exact,
+          synonym: false,
+          where,
+        };
+      }
+      const found = skills.filter((s) => mentionsSkill(all, s));
+      const synonym = !exact && found.length > 0 && !skills.some((s) => hasTerm(all, s));
+      const where = skills.some((s) => mentionsSkill(experience, s))
+        ? 'experience'
+        : found.length
+          ? 'skills only'
+          : 'missing';
+      return { term: i.term, level: i.level, kind: 'skill' as const, exact, synonym, where };
     });
   // Use the employer's exact term only where an approved line already names the same skill.
   const swaps = rows
@@ -132,8 +188,10 @@ async function parseCheck(content: ResumeContent) {
   const text = lower(pages.map((p) => p.text).join('\n'));
   const has = (s?: string) => Boolean(s) && text.includes(lower(s!));
   const sections = resumeSections(content).map((s) => s.title);
-  const lines = content.claims.map((c) => c.text.slice(0, 60));
-  const kept = lines.filter((l) => has(l)).length;
+  // Record headers carry dates the layout reformats, so each claim is checked by its first line.
+  const lines = content.claims.map((c) => c.text.split('\n')[0]);
+  const flat = alnum(pages.map((p) => p.text).join(''));
+  const kept = lines.filter((l) => flat.includes(alnum(l).slice(0, 40))).length;
   const years = (
     content.claims
       .map((c) => c.text)

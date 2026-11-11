@@ -632,6 +632,7 @@ export async function createWorkflow() {
         jobRetrieval.llmReviewed = shortlist.length;
         jobRetrieval.notLlmReviewed = Math.max(0, jobs.length - shortlist.length);
         const saved = c.d.requirementMappings || {};
+        const unmapped: unknown[] = [];
         matches = [];
         for (let offset = 0; offset < shortlist.length; offset += 2) {
           const batch = await Promise.allSettled(
@@ -673,12 +674,23 @@ export async function createWorkflow() {
               return scoreJobMapping(job, mapping, c.facts, c.p);
             }),
           );
-          const failed = batch.find((result) => result.status === 'rejected');
-          if (failed?.status === 'rejected') throw failed.reason;
+          // A role the Job Matcher could not map is left out with a recorded limitation (CFS-117);
+          // the search fails only when no role could be mapped.
+          batch.forEach((result, i) => {
+            if (result.status === 'rejected') {
+              unmapped.push(result.reason);
+              const job = shortlist[offset + i].job;
+              jobRetrieval.limitations = [
+                ...(jobRetrieval.limitations || []),
+                `Could not map the requirements of ${job.title}${job.company ? ` at ${job.company}` : ''}; it was left out.`,
+              ];
+            }
+          });
           matches.push(
             ...batch.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : [])),
           );
         }
+        if (!matches.length && unmapped.length) throw unmapped[0];
       }
       matches = matches
         .map((r: any) => ({

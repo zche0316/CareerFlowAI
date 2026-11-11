@@ -140,3 +140,25 @@ it('gives the demo graduate believable levels', () => {
   expect(level(skills, 'Power BI')?.level).toBeGreaterThanOrEqual(2);
   expect(skills.every((s) => s.level <= 4 && s.evidence.length > 0)).toBe(true);
 });
+
+it('counts level gaps only for skills a requirement names', () => {
+  const skills = capabilityLevels({ skills: ['SQL'] }, [], [], now);
+  const gaps = levelGaps(
+    [
+      { term: 'Teamwork', level: 'required', category: 'skill' },
+      { term: 'Data analysis experience using R or Stata', level: 'preferred', category: 'skill' },
+      {
+        term: 'Strong SQL and Python',
+        level: 'required',
+        excerpt: 'Strong SQL and Python',
+        category: 'skill',
+      },
+    ],
+    skills,
+  );
+  expect(gaps.map((g) => [g.skill, g.have, g.need])).toEqual([
+    ['Python', 0, 3],
+    ['SQL', 1, 3],
+    ['R', 0, 1],
+  ]);
+});

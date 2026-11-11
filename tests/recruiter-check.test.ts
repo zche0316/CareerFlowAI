@@ -72,3 +72,25 @@ it('reads knock-out conditions from the listing and the profile', () => {
     knockouts(match, { ...profile, contact: {} }).find((k) => k.kind === 'Work rights')!.status,
   ).toBe('unknown');
 });
+
+it('reads live-style requirement phrases for the skills they name (CFS-117 follow-up)', () => {
+  const { rows } = keywordCoverage(
+    [
+      { term: 'Data analysis experience using R or Stata', level: 'preferred', category: 'skill' },
+      { term: 'Statistical analysis of messy data', level: 'required', category: 'skill' },
+      { term: 'Creative problem-solving', level: 'required', category: 'skill' },
+    ],
+    {
+      ...content,
+      claims: [
+        ...content.claims,
+        { kind: 'experience', text: 'Ran a statistical analysis of messy train delay data in R.' },
+      ],
+    },
+  );
+  expect(rows.map((r) => [r.kind, r.where])).toEqual([
+    ['skill', 'experience'],
+    ['skill', 'experience'],
+    ['phrase', 'missing'],
+  ]);
+});

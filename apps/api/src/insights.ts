@@ -6,7 +6,7 @@ import type { MissionData } from './domain.js';
 import { configuredMode } from '../../../packages/agents/src/provider.js';
 import { jobFingerprint, placeKey } from '../../../packages/agents/src/scout/scout.js';
 import { buildJobRecord } from '../../../packages/contracts/src/job-record.js';
-import { canonicalSkill, mentionsSkill } from '../../../packages/contracts/src/capability.js';
+import { mentionsSkill } from '../../../packages/contracts/src/capability.js';
 import { countrySpec } from '../../../packages/recruitment/src/geography.js';
 
 // Regional market insight (CFS-115): what the roles this user's searches have actually found ask
@@ -138,11 +138,9 @@ export async function marketInsight(userId: string, country: string, family = 'a
       { count: number; examples: { title: string; company: string }[] }
     >();
     for (const { l } of records) {
-      const found = new Set<string>(
-        l.requirements?.length
-          ? l.requirements.map(canonicalSkill)
-          : skillWords.filter((w) => mentionsSkill(l.job.description || '', w)),
-      );
+      // Only named skills are counted: requirement phrases are read for the skills they name.
+      const text = l.requirements?.length ? l.requirements.join('\n') : l.job.description || '';
+      const found = new Set<string>(skillWords.filter((w) => mentionsSkill(text, w)));
       for (const skill of found) {
         const e = skills.get(skill) || { count: 0, examples: [] };
         e.count++;

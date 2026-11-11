@@ -142,6 +142,11 @@ export function mentionsSkill(text: string, skill: string) {
   );
 }
 
+/** Known skills a free-text requirement names: "Data analysis using R or Stata" -> ["R"]. */
+export function skillsIn(text: string) {
+  return Object.keys(aliases).filter((skill) => mentionsSkill(text, skill));
+}
+
 const monthIndex = (m?: string | null) => {
   const x = /^(\d{4})-(\d{2})$/.exec(m || '');
   return x ? Number(x[1]) * 12 + Number(x[2]) - 1 : null;
@@ -282,23 +287,23 @@ export function levelGaps(
   const out: LevelGap[] = [];
   for (const item of items) {
     if (item.category && !['skill', 'experience'].includes(item.category)) continue;
-    const skill = canonicalSkill(item.term);
-    const cap =
-      bySkill.get(skill) ||
-      capabilities.find(
-        (c) => mentionsSkill(item.term, c.skill) || mentionsSkill(c.skill, item.term),
-      );
+    // A requirement counts here only for the skills it names; soft-skill phrases such as
+    // "Creative problem-solving" are left to the Job Matcher's evidence mapping.
+    const canonical = canonicalSkill(item.term);
+    const named = bySkill.has(canonical) || aliases[canonical] ? [canonical] : skillsIn(item.term);
     const need = requiredLevel(item.level, item.excerpt);
-    const have = (cap?.level ?? 0) as Level;
-    if (need > have)
-      out.push({
-        skill: cap?.skill || skill,
-        term: item.term,
-        need,
-        have,
-        confidence: cap?.confidence ?? null,
-        level: item.level,
-      });
+    for (const skill of named) {
+      const have = (bySkill.get(skill)?.level ?? 0) as Level;
+      if (need > have && !out.some((g) => g.skill === skill))
+        out.push({
+          skill,
+          term: item.term,
+          need,
+          have,
+          confidence: bySkill.get(skill)?.confidence ?? null,
+          level: item.level,
+        });
+    }
   }
   return out.sort(
     (a, b) =>

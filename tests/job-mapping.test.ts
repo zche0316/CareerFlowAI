@@ -76,3 +76,37 @@ it('rejects goals as qualification evidence and course facts as fully evidenced 
   for (const kind of ['goal', 'education'])
     expect(() => validateJobMapping(mapping, job, [{ ...facts[0], kind }])).toThrow();
 });
+
+it('drops requirements it cannot quote instead of rejecting the whole mapping (CFS-117)', async () => {
+  const { dropUnquoted } = await import('../packages/agents/src/job-mapping.js');
+  const typographic = { ...mapping.items[0], excerpt: mapping.items[0].excerpt.replace(/'/g, '’') };
+  const invented = {
+    ...mapping.items[0],
+    term: 'Invented',
+    excerpt: 'A certification is required.',
+  };
+  const cleaned = dropUnquoted(
+    {
+      ...mapping,
+      items: [typographic, invented],
+      experienceYears: 5,
+      experienceExcerpt: 'Five years',
+    },
+    job,
+  );
+  expect(cleaned.items.map((i: any) => i.term)).toEqual([mapping.items[0].term]);
+  expect(cleaned).toMatchObject({ experienceYears: null, experienceExcerpt: '' });
+  expect(() => validateJobMapping(cleaned, job, facts)).not.toThrow();
+  // A quote shortened with an ellipsis still has to match piece by piece, in order.
+  const words = job.description.split(' ');
+  const shortened = {
+    ...mapping.items[0],
+    excerpt: `${words.slice(0, 2).join(' ')} … ${words.slice(-2).join(' ')}`,
+  };
+  expect(dropUnquoted({ ...mapping, items: [shortened] }, job).items).toHaveLength(1);
+  const reversed = {
+    ...mapping.items[0],
+    excerpt: `${words.slice(-2).join(' ')} … ${words.slice(0, 2).join(' ')}`,
+  };
+  expect(dropUnquoted({ ...mapping, items: [reversed] }, job).items).toHaveLength(0);
+});
