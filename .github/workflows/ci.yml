@@ -1,8 +1,39 @@
 name: CareerFlow verification
-on: [push, pull_request]
+# Pull requests, and main after a merge. A push to a PR branch is covered by its pull_request run.
+on:
+  pull_request:
+  push:
+    branches: [main]
+# A newer push replaces a run still going for the same PR or branch.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  verify:
-    # GitHub Enterprise Server may require an administrator-provisioned runner.
+  # Docs-only changes skip the tests; the required "verify" check still reports.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: diff
+        run: |
+          base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          if git cat-file -e "$base^{commit}" 2>/dev/null; then
+            files=$(git diff --name-only "$base" HEAD)
+          else
+            files=unknown
+          fi
+          if printf '%s\n' "$files" | grep -qvE '^(docs/.*|.*\.md)$'; then code=true; else code=false; fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "Code changed: $code"
+
+  checks:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -28,14 +59,59 @@ jobs:
       - run: npm ci
       - run: npm run db:migrate
       - run: npm run verify
-      - run: npx playwright install --with-deps chromium
+
+  # Runs beside the checks. The Playwright image already has the browser and its system
+  # libraries, so no apt install (which failed on 2026-11-11 when the runner lost DNS).
+  e2e:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/playwright:v1.64.1-noble
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: careerflow
+          POSTGRES_PASSWORD: careerflow-test
+          POSTGRES_DB: careerflow_test
+        options: >-
+          --health-cmd "pg_isready -U careerflow -d careerflow_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://careerflow:careerflow-test@postgres:5432/careerflow_test
+      PROVIDER_MODE: fixture
+      JOB_SOURCE: fixtures
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run db:migrate
+      - run: npm run build
       - run: npm start > /tmp/careerflow.log 2>&1 &
       - run: node scripts/wait-ready.mjs
-      - run: npm run test:e2e
+      - run: npx playwright test --reporter=line
+      - if: failure()
+        run: tail -n 200 /tmp/careerflow.log
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: failure()
         with:
           name: browser-evidence
           path: |
             playwright-report
-            output/acceptance
+            test-results
+
+  # The required check: passes when both jobs passed or were skipped for a docs-only change.
+  verify:
+    needs: [changes, checks, e2e]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "changes=${{ needs.changes.result }} checks=${{ needs.checks.result }} e2e=${{ needs.e2e.result }}"
+          test "${{ needs.changes.result }}" = success
+          for r in "${{ needs.checks.result }}" "${{ needs.e2e.result }}"; do
+            case "$r" in success|skipped) ;; *) exit 1 ;; esac
+          done

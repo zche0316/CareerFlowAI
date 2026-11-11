@@ -5,6 +5,10 @@
 - Local startup: `npm run start:local`, or VS Code F5 → CareerFlow: database + app. Group UI: http://localhost:8787.
 - Browser checks: `npm run test:e2e:local` starts a fixture-mode app on a disposable database (`.runtime/pglite-e2e`) and runs every Playwright spec against the Quest interface; `tests/e2e/demo-workflow.spec.ts` is the local demo route. It needs ports 8787/55432 free (or set `PORT` and `LOCAL_DB_PORT`) and never touches `.runtime/pglite`.
 - Full local checks: stop the app, then `npm run verify:local`. Portable mode uses one shared database connection; do not run another app/test process against that instance. Native PostgreSQL/Docker remain available for concurrent deployments.
+- Test routine (keep it light, CFS-107):
+  - While iterating: `npm run verify:quick` (types plus the vitest files affected since `origin/main`) and the one or two browser specs for the page you changed: `npm run test:e2e:local -- tests/e2e/<spec>.spec.ts --reporter=line`.
+  - Before pushing: `npm run verify:local` once and `npm run test:e2e:smoke` (demo route and Quest pages, under a minute). Run the full browser suite locally only when a change touches shared navigation, the start form or many pages.
+  - CI runs the full checks and every browser spec in parallel jobs on each PR; let it be the full gate. Report only the summary lines of test output.
 - The user authorized progress comments on Jira CFS-41 after meaningful implementation/validation milestones. Report checks actually run, limitations and available evidence. Keep assignees and workflow status unchanged unless separately requested; do not claim reviews, submissions, commits or deployments that did not occur.
 
 ## Post-development issue workflow
