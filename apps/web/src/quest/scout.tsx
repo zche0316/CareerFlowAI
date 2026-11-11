@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { ArrowRight, Radar, Trash2 } from 'lucide-react';
 import { countries } from '../../../../packages/recruitment/src/geography.js';
 import { workRightsLabels, type JobRecord } from '../../../../packages/contracts/src/job-record.js';
@@ -94,12 +94,16 @@ const sourceLabel = (r: JobRecord) =>
   r.fictional
     ? 'demo role'
     : r.lead
-      ? 'lead · not checked'
-      : r.source === 'web'
-        ? 'web page · unverified vacancy'
-        : r.source === 'agent'
-          ? 'model search · page checked · unverified vacancy'
-          : r.source;
+      ? r.pasted
+        ? 'lead · ad pasted by you'
+        : 'lead · not checked'
+      : r.source === 'lead'
+        ? 'ad pasted by you'
+        : r.source === 'web'
+          ? 'web page · unverified vacancy'
+          : r.source === 'agent'
+            ? 'model search · page checked · unverified vacancy'
+            : r.source;
 
 // What a package's quest status means for the person reviewing the batch.
 function packageState(p: Package): { label: string; tone: string } {
@@ -151,6 +155,9 @@ export function QuestScout({
   onChanged: () => void;
 }) {
   const [data, setData] = useState<Overview | null>(null);
+  // The lead whose advertisement the user is pasting, and the text so far.
+  const [pasteFor, setPasteFor] = useState<string | null>(null);
+  const [pasteText, setPasteText] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState<Setting | null>(null);
@@ -649,59 +656,138 @@ export function QuestScout({
                 {data.tracked.map((t) => {
                   const r = t.record;
                   return (
-                    <tr key={t.fingerprint}>
-                      <th scope="row">
-                        {r.title}
-                        <small>
-                          {r.company}
-                          {` · ${sourceLabel(r)}`}
-                        </small>
-                        {r.lead && r.url && (
+                    <Fragment key={t.fingerprint}>
+                      <tr>
+                        <th scope="row">
+                          {r.title}
                           <small>
-                            {r.leadReason || 'Not checked'} ·{' '}
-                            <a href={r.url} target="_blank" rel="noreferrer noopener">
-                              Open to check
-                            </a>
+                            {r.company}
+                            {` · ${sourceLabel(r)}`}
                           </small>
-                        )}
-                      </th>
-                      <td>{when(t.firstSeenAt)}</td>
-                      <td>
-                        {r.workRights ? (
-                          <>
-                            {workRightsLabels[r.workRights.value]}
-                            <small>“{r.workRights.quote}”</small>
-                          </>
-                        ) : (
-                          <span className="sc-empty">Not stated</span>
-                        )}
-                      </td>
-                      <td>
-                        {r.arrangement ? (
-                          <>
-                            {r.arrangement.value}
-                            <small>“{r.arrangement.quote}”</small>
-                          </>
-                        ) : (
-                          <span className="sc-empty">Not stated</span>
-                        )}
-                      </td>
-                      <td>{r.seniority?.value || <span className="sc-empty">Not stated</span>}</td>
-                      <td>
-                        {money(r) ? (
-                          <>
-                            {money(r)}
+                          {r.lead && r.url && !r.pasted && (
                             <small>
-                              {r.salary!.quote
-                                ? `“${r.salary!.quote}”`
-                                : 'From the job board field'}
+                              {r.leadReason || 'Not checked'} ·{' '}
+                              <a href={r.url} target="_blank" rel="noreferrer noopener">
+                                Open to check
+                              </a>
                             </small>
-                          </>
-                        ) : (
-                          <span className="sc-empty">Not stated</span>
-                        )}
-                      </td>
-                    </tr>
+                          )}
+                          {r.lead && r.missionId && (
+                            <button
+                              type="button"
+                              className="quest-press sc-lead-action"
+                              onClick={() => onOpenMission(r.missionId!, 3)}
+                            >
+                              Open package <ArrowRight size={14} />
+                            </button>
+                          )}
+                          {r.lead && !r.missionId && pasteFor !== t.fingerprint && (
+                            <button
+                              type="button"
+                              className="quest-press sc-lead-action"
+                              disabled={busy}
+                              onClick={() => {
+                                setPasteFor(t.fingerprint);
+                                setPasteText('');
+                              }}
+                            >
+                              Paste the ad
+                            </button>
+                          )}
+                        </th>
+                        <td>{when(t.firstSeenAt)}</td>
+                        <td>
+                          {r.workRights ? (
+                            <>
+                              {workRightsLabels[r.workRights.value]}
+                              <small>“{r.workRights.quote}”</small>
+                            </>
+                          ) : (
+                            <span className="sc-empty">Not stated</span>
+                          )}
+                        </td>
+                        <td>
+                          {r.arrangement ? (
+                            <>
+                              {r.arrangement.value}
+                              <small>“{r.arrangement.quote}”</small>
+                            </>
+                          ) : (
+                            <span className="sc-empty">Not stated</span>
+                          )}
+                        </td>
+                        <td>
+                          {r.seniority?.value || <span className="sc-empty">Not stated</span>}
+                        </td>
+                        <td>
+                          {money(r) ? (
+                            <>
+                              {money(r)}
+                              <small>
+                                {r.salary!.quote
+                                  ? `“${r.salary!.quote}”`
+                                  : 'From the job board field'}
+                              </small>
+                            </>
+                          ) : (
+                            <span className="sc-empty">Not stated</span>
+                          )}
+                        </td>
+                      </tr>
+                      {pasteFor === t.fingerprint && (
+                        <tr className="sc-paste">
+                          <td colSpan={6}>
+                            <form
+                              onSubmit={(e) => {
+                                e.preventDefault();
+                                void act(async () => {
+                                  await request(`/scout/leads/${t.fingerprint}/package`, 'POST', {
+                                    description: pasteText,
+                                  });
+                                  setPasteFor(null);
+                                  setPasteText('');
+                                });
+                              }}
+                            >
+                              <label className="quest-field">
+                                Advertisement for {r.title} at {r.company}
+                                <textarea
+                                  rows={8}
+                                  value={pasteText}
+                                  maxLength={20000}
+                                  placeholder="Open the link, copy the whole advertisement and paste it here."
+                                  onChange={(e) => setPasteText(e.target.value)}
+                                />
+                              </label>
+                              <p className="quest-fine">
+                                Scout scores this text against your approved profile and starts a
+                                resume team on it. The text is yours and is not checked by the
+                                server; nothing is sent to the employer.
+                              </p>
+                              <div className="sc-paste-actions">
+                                <button
+                                  type="submit"
+                                  className="quest-press lime"
+                                  disabled={busy || pasteText.trim().length < 200}
+                                >
+                                  Start resume team
+                                </button>
+                                <button
+                                  type="button"
+                                  className="quest-press"
+                                  onClick={() => setPasteFor(null)}
+                                >
+                                  Cancel
+                                </button>
+                                {pasteText.trim().length < 200 && (
+                                  <span className="quest-sub">At least 200 characters</span>
+                                )}
+                              </div>
+                            </form>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   );
                 })}
               </tbody>

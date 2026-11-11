@@ -132,6 +132,153 @@ async function patchSweep(
 
 const slim = (job: any) => ({ ...job, description: String(job.description || '').slice(0, 20000) });
 
+// One package quest for a chosen role: the role is already selected, so the quest runs the
+// resume team and stops at the normal draft review. Used by sweeps and by pasted leads.
+async function startPackage(input: {
+  userId: string;
+  mode: Mode;
+  sweepId: string;
+  match: any;
+  minScore: number;
+  search: unknown;
+  detail: string;
+  fingerprint?: string;
+}) {
+  const { userId, mode, sweepId, match } = input;
+  const profile = requireValue(await latestProfile(userId));
+  // Reuse the latest career analysis for this profile version instead of paying for it per package.
+  const analysed = (
+    await db.mission.findMany({
+      // Same provider mode only: a demo analysis must not seed a live quest.
+      where: { userId, profileId: profile.id, mode },
+      orderBy: { createdAt: 'desc' },
+      select: { data: true },
+      take: 20,
+    })
+  ).find((m) => (m.data as MissionData).analysis);
+  const at = new Date().toISOString();
+  const mission = await db.mission.create({
+    data: {
+      userId,
+      profileId: profile.id,
+      goal: `Scout: ${match.job.title} at ${match.job.company}`.slice(0, 2000),
+      mode,
+      data: json({
+        revisions: 0,
+        answers: [],
+        apiCalls: 0,
+        minScore: input.minScore,
+        jobSearch: input.search,
+        agentAccess: 'all-approved-profile',
+        ...(analysed ? { analysis: (analysed.data as MissionData).analysis } : {}),
+        matches: [match],
+        jobRetrieval: { source: 'scout', sweepId, count: 1, fetchedAt: at },
+        selectedJob: match,
+        scout: { sweepId, fingerprint: input.fingerprint || jobFingerprint(match.job) },
+      }),
+      events: json([{ at, agent: 'Scout', action: 'queued', detail: input.detail }]),
+    },
+  });
+  await patchSweep(sweepId, (d) => ({
+    ...d,
+    packages: { ...(d.packages || {}), [match.job.id]: { missionId: mission.id } },
+  }));
+  await enqueue(mission.id);
+  return mission.id;
+}
+
+// Scores one role against the latest approved profile: the matching baseline in fixture mode,
+// the Job Matcher's requirement mapping (one counted call) in live mode.
+async function scoreRole(job: any, userId: string, mode: Mode, sweepId: string) {
+  const profile = requireValue(await latestProfile(userId));
+  const p = profile.data as unknown as CareerProfile;
+  const facts = profile.facts as unknown as Fact[];
+  if (mode === 'fixture')
+    return compare(matchingProfileView(p), job, [job.title + ' ' + job.description]);
+  const mapping = await mapJobRequirements(job, facts, mode, {
+    onCall: async () => void (await patchSweep(sweepId, () => {}, { calls: 1 })),
+    onTool: async () => {},
+    onUsage: async () => {},
+    onSpan: spanHook({ userId, sweepId, agent: 'Job Matcher' }),
+  });
+  return scoreJobMapping(job, mapping, facts, p);
+}
+
+// A lead was found by model web search on a site the server may not read. The user opens it,
+// pastes the advertisement, and Scout scores it and starts a resume team on that text.
+export async function packageLead(
+  userId: string,
+  fingerprint: string,
+  pasted: { description: string; title?: string; company?: string; location?: string },
+) {
+  const tracked = await db.trackedJob.findUnique({
+    where: { userId_fingerprint: { userId, fingerprint } },
+  });
+  if (!tracked) throw new AppError(404, 'LEAD_NOT_FOUND', 'That lead is no longer on record.');
+  const record = tracked.record as unknown as JobRecord & { missionId?: string };
+  if (!record.lead) throw new AppError(422, 'NOT_A_LEAD', 'Only unchecked leads take a pasted ad.');
+  if (record.missionId)
+    throw new AppError(409, 'LEAD_PACKAGED', 'A resume team already has this lead.');
+  if (!tracked.sweepId) throw new AppError(422, 'LEAD_SWEEP', 'This lead has no sweep on record.');
+  const sweep = requireValue(await db.scoutSweep.findUnique({ where: { id: tracked.sweepId } }));
+  const sweepData = sweep.data as unknown as SweepData;
+  const title = pasted.title?.trim() || record.title;
+  const company = pasted.company?.trim() || record.company;
+  const location = pasted.location?.trim() || record.location;
+  const job = {
+    id: 'lead-' + fingerprint.slice(0, 16),
+    title,
+    company,
+    location,
+    employmentType: 'Not supplied',
+    description: pasted.description.replace(/\s+/g, ' ').trim(),
+    salary: null,
+    growth: null,
+    applicationUrl: record.url,
+    source: {
+      provider: 'lead',
+      name: 'Pasted lead',
+      version: 'user-provided',
+      externalListing: true,
+      liveVacancy: false,
+      fictional: false,
+      fetchedAt: new Date().toISOString(),
+      coverage:
+        'Found by model web search; the description was pasted by the user from the original page and was not retrieved or verified by the server',
+    },
+  };
+  const mode = sweep.mode as Mode;
+  const match = { ...(await scoreRole(job, userId, mode, sweep.id)), fromLead: true };
+  // The pasted text now gives the record its quoted fields; it stays marked as a lead.
+  const currency = countrySpec(sweepData.search.country).currency;
+  await patchSweep(sweep.id, (d) => ({ ...d, shortlist: [...(d.shortlist || []), match] }));
+  const missionId = await startPackage({
+    userId,
+    mode,
+    sweepId: sweep.id,
+    match,
+    minScore: sweepData.minScore,
+    search: sweepData.search,
+    fingerprint,
+    detail: `You pasted the advertisement for ${title} (match ${Math.round(match.score)}). The resume team starts on it; you review the draft.`,
+  });
+  await db.trackedJob.update({
+    where: { id: tracked.id },
+    data: {
+      record: json({
+        ...buildJobRecord(job, currency),
+        source: record.source,
+        verified: false,
+        lead: true,
+        leadReason: record.leadReason,
+        pasted: true,
+        missionId,
+      }),
+    },
+  });
+  return { missionId, score: Math.round(match.score) };
+}
+
 const ports: ScoutGraphPorts = {
   async collect(sweepId) {
     const sweep = requireValue(await db.scoutSweep.findUnique({ where: { id: sweepId } }));
@@ -344,53 +491,16 @@ const ports: ScoutGraphPorts = {
     const existing = data.packages?.[jobId];
     if (existing) return { jobId, missionId: existing.missionId };
     const match = requireValue((data.shortlist || []).find((m) => m.job.id === jobId));
-    const profile = requireValue(await latestProfile(sweep.userId));
-    // Reuse the latest career analysis for this profile version instead of paying for it per package.
-    const analysed = (
-      await db.mission.findMany({
-        // Same provider mode only: a demo analysis must not seed a live quest.
-        where: { userId: sweep.userId, profileId: profile.id, mode: sweep.mode },
-        orderBy: { createdAt: 'desc' },
-        select: { data: true },
-        take: 20,
-      })
-    ).find((m) => (m.data as MissionData).analysis);
-    const at = new Date().toISOString();
-    const mission = await db.mission.create({
-      data: {
-        userId: sweep.userId,
-        profileId: profile.id,
-        goal: `Scout: ${match.job.title} at ${match.job.company}`.slice(0, 2000),
-        mode: sweep.mode,
-        data: json({
-          revisions: 0,
-          answers: [],
-          apiCalls: 0,
-          minScore: data.minScore,
-          jobSearch: data.search,
-          agentAccess: 'all-approved-profile',
-          ...(analysed ? { analysis: (analysed.data as MissionData).analysis } : {}),
-          matches: [match],
-          jobRetrieval: { source: 'scout', sweepId, count: 1, fetchedAt: at },
-          selectedJob: match,
-          scout: { sweepId, fingerprint: jobFingerprint(match.job) },
-        }),
-        events: json([
-          {
-            at,
-            agent: 'Scout',
-            action: 'queued',
-            detail: `Scout shortlisted ${match.job.title} (match ${Math.round(match.score)}). The resume team starts on it; you review the draft.`,
-          },
-        ]),
-      },
+    const missionId = await startPackage({
+      userId: sweep.userId,
+      mode: sweep.mode as Mode,
+      sweepId,
+      match,
+      minScore: data.minScore,
+      search: data.search,
+      detail: `Scout shortlisted ${match.job.title} (match ${Math.round(match.score)}). The resume team starts on it; you review the draft.`,
     });
-    await patchSweep(sweepId, (d) => ({
-      ...d,
-      packages: { ...(d.packages || {}), [jobId]: { missionId: mission.id } },
-    }));
-    await enqueue(mission.id);
-    return { jobId, missionId: mission.id, title: match.job.title };
+    return { jobId, missionId, title: match.job.title };
   },
 
   async report(sweepId, _packages, handoffs) {
@@ -600,6 +710,25 @@ export function registerScout(app: Express) {
       update: { ...input, search: json(input.search) },
     });
     res.json(await scoutSetting(userId));
+  });
+  app.post('/api/scout/leads/:fingerprint/package', async (req, res) => {
+    const input = z
+      .object({
+        description: z
+          .string()
+          .trim()
+          .min(200, 'Paste the full advertisement (at least 200 characters).')
+          .max(20000),
+        title: z.string().max(300).optional(),
+        company: z.string().max(300).optional(),
+        location: z.string().max(300).optional(),
+      })
+      .parse(req.body);
+    const fingerprint = z
+      .string()
+      .regex(/^[a-f0-9]{16,64}$/)
+      .parse(req.params.fingerprint);
+    res.status(202).json(await packageLead(req.actor!.id, fingerprint, input));
   });
   app.post('/api/scout/sweeps', async (req, res) => {
     const sweep = await startSweep(req.actor!.id, 'manual');

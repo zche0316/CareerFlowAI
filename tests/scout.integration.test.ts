@@ -188,3 +188,90 @@ it('a sweep records new roles, tailors the shortlist in parallel and never repea
   expect(other.sweeps).toEqual([]);
   expect(other.trackedTotal).toBe(0);
 });
+
+it('a pasted advertisement turns a lead into a package that stops at the draft review', async () => {
+  const c = await client(),
+    stranger = await client();
+  const draft = await c('/profiles/drafts', 'POST', sampleProfile);
+  await c(`/profiles/drafts/${draft.body.id}/approve`, 'POST', { reviewed: true });
+  const initial = (await c('/scout')).body;
+  await c('/scout/settings', 'PUT', { ...initial.setting, topK: 1, minScore: 0 });
+  expect((await c('/scout/sweeps', 'POST', {})).status).toBe(202);
+  const sweep = (
+    await until(
+      () => c('/scout'),
+      (r) => r.body.sweeps[0]?.status === 'COMPLETE',
+    )
+  ).body.sweeps[0];
+  const userId = users[users.length - 2];
+  const fingerprint = 'a'.repeat(64);
+  // A lead as model web search records it: title, company and link, no page text.
+  await db.trackedJob.create({
+    data: {
+      userId,
+      fingerprint,
+      sweepId: sweep.id,
+      record: {
+        jobId: 'agent-au.seek.com-1',
+        title: 'Graduate Data Analyst',
+        company: 'Harbourline Energy',
+        location: 'Sydney NSW',
+        employmentType: null,
+        url: 'https://au.seek.com/job/1',
+        source: 'agent',
+        verified: false,
+        fictional: false,
+        postedAt: null,
+        workRights: null,
+        arrangement: null,
+        seniority: null,
+        salary: null,
+        lead: true,
+        leadReason: 'The site does not allow automated reading',
+      },
+    },
+  });
+  const ad =
+    'Harbourline Energy is hiring a Graduate Data Analyst in Sydney. About the role: build Power BI ' +
+    'dashboards, clean meter data in SQL and present findings to the operations team. Requirements: ' +
+    'a recent degree in statistics or computing, SQL and Python. You must be an Australian citizen ' +
+    'or permanent resident. Hybrid working with three days in our Sydney office.';
+  const path = `/scout/leads/${fingerprint}/package`;
+  expect((await c(path, 'POST', { description: 'too short' })).status).toBeGreaterThanOrEqual(400);
+  expect((await stranger(path, 'POST', { description: ad })).status).toBe(404);
+  const started = await c(path, 'POST', { description: ad });
+  expect(started.status).toBe(202);
+  const m = (
+    await until(
+      () => c('/missions/' + started.body.missionId),
+      (r) => r.body.status === 'AWAITING_APPROVAL',
+    )
+  ).body;
+  expect(m.data.scout).toMatchObject({ sweepId: sweep.id, fingerprint });
+  expect(m.data.selectedJob.job).toMatchObject({
+    title: 'Graduate Data Analyst',
+    company: 'Harbourline Energy',
+    applicationUrl: 'https://au.seek.com/job/1',
+    source: { provider: 'lead', liveVacancy: false },
+  });
+  expect(m.data.selectedJob.job.description).toContain('Power BI');
+  expect(m.data.resumeDraft.claims.length).toBeGreaterThan(0);
+
+  const after = (await c('/scout')).body;
+  const lead = after.tracked.find((t: any) => t.fingerprint === fingerprint).record;
+  expect(lead).toMatchObject({
+    lead: true,
+    pasted: true,
+    missionId: started.body.missionId,
+    source: 'agent',
+    workRights: { value: 'citizen_or_pr' },
+    arrangement: { value: 'hybrid' },
+  });
+  expect(after.sweeps[0].packages.map((p: any) => p.missionId)).toContain(started.body.missionId);
+  // One package per lead, and only leads take a pasted ad.
+  expect((await c(path, 'POST', { description: ad })).status).toBe(409);
+  const checked = after.tracked.find((t: any) => !t.record.lead);
+  expect(
+    (await c(`/scout/leads/${checked.fingerprint}/package`, 'POST', { description: ad })).status,
+  ).toBe(422);
+});

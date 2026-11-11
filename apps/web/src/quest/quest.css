@@ -3396,3 +3396,28 @@ body:has(.quest) {
     width: 100%;
   }
 }
+
+.quest .sc-lead-action {
+  margin-top: 6px;
+  min-height: 36px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
+.quest .sc-paste textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+}
+.quest .sc-paste-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+/* The records table scrolls sideways on small screens; keep the paste form in view. */
+.quest .sc-paste form {
+  position: sticky;
+  left: 0;
+  max-width: min(640px, calc(100vw - 96px));
+  white-space: normal;
+}

@@ -22,6 +22,9 @@ export type JobRecord = {
   // quote are known; the user opens the link to check it.
   lead: boolean;
   leadReason: string | null;
+  // Set once the user pasted the advertisement for a lead and a resume team started on it.
+  pasted?: boolean;
+  missionId?: string;
   fictional: boolean;
   postedAt: string | null;
   workRights: Quoted<WorkRights> | null;
