@@ -18,10 +18,8 @@ test('five-step journey automatically hands off and preserves decisions across r
   await page.getByRole('button', { name: 'Review profile draft', exact: true }).click();
   await page.getByLabel('I reviewed this exact draft').check();
   await page.getByRole('button', { name: 'Approve & save profile', exact: true }).click();
-  await expect(
-    page.getByRole('button', { name: 'Start career mission', exact: true }),
-  ).toBeVisible();
-  await page.getByRole('button', { name: 'Start career mission', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Send the party out', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Send the party out', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Select this opportunity' }).first()).toBeVisible({
     timeout: 45000,
   });

@@ -33,9 +33,8 @@ test('the demo workflow runs end to end in the Quest interface', async ({ page }
 
   // 3. Start a quest (the form opens after approval).
   await expect(page.getByRole('heading', { name: 'What’s your next career goal?' })).toBeVisible();
-  await page.getByText('Advanced source options', { exact: true }).click();
-  await page.getByLabel('Job source', { exact: true }).selectOption('fixtures');
-  await page.getByRole('button', { name: 'Start career mission', exact: true }).click();
+  await page.getByLabel('Demo roles').check();
+  await page.getByRole('button', { name: 'Send the party out', exact: true }).click();
 
   // 4. Choose one role from the shortlist.
   await expect(
@@ -43,6 +42,11 @@ test('the demo workflow runs end to end in the Quest interface', async ({ page }
   ).toBeVisible({ timeout: 45000 });
   const roles = page.locator('button.qj-role');
   expect(await roles.count()).toBeGreaterThan(1);
+  // Save a second role to the quest log for later; the run keeps waiting for a choice.
+  await roles.nth(1).click();
+  const saved = await page.locator('article.job-card h3').first().innerText();
+  await page.getByRole('button', { name: 'Save to my quests for later' }).click();
+  await expect(page.getByText('Saved to your quests.', { exact: false })).toBeVisible();
   await roles.first().click();
   const title = await page.locator('article.job-card h3').first().innerText();
   await page.getByRole('button', { name: 'Select this opportunity' }).first().click();
@@ -110,9 +114,28 @@ test('the demo workflow runs end to end in the Quest interface', async ({ page }
     timeout: 60000,
   });
 
-  // The finished quest is listed with its results, and nothing overflows at phone width.
+  // The Quest log lists both roles: the chosen one as applied, the saved one ready to tailor.
   await go(page, 'Quests');
+  await expect(page.locator('section.qa-group.applied')).toContainText(title);
+  const later = page.locator('li.qa-card', { hasText: saved });
+  await expect(later.locator('.quest-chip')).toHaveText('Saved');
   await expect(page.locator('section.ql-group.ended')).toContainText(title);
+
+  // A saved role starts its own run at the resume team with the role already chosen.
+  await later.getByRole('button', { name: 'Tailor resume' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Your party built a draft. Now it’s your call.' }),
+  ).toBeVisible({ timeout: 45000 });
+  await expect(page.locator('.qm-crumb')).toContainText(saved);
+
+  // The Coach on Home keeps advice for this profile version, outside any one run.
+  await go(page, 'Home');
+  const coach = page.getByRole('region', { name: 'Coach' });
+  await expect(coach.getByRole('heading', { name: 'Next steps' })).toBeVisible();
+  await coach.getByRole('button', { name: 'Refresh advice' }).click();
+  await expect(coach.getByText('Strength', { exact: true })).toBeVisible();
+
+  // Nothing overflows at phone width.
   await page.setViewportSize({ width: 390, height: 844 });
   for (const label of ['Home', 'Quests', 'Scout']) {
     await go(page, label);

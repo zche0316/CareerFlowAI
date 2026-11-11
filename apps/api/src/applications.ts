@@ -166,6 +166,9 @@ export async function listApplications(userId: string) {
       location: match.job?.location || '',
       url: match.job?.applicationUrl || match.job?.url || '',
       score: typeof match.score === 'number' ? match.score : null,
+      gaps: Array.isArray(match.gaps)
+        ? match.gaps.filter((g: unknown): g is string => typeof g === 'string').slice(0, 20)
+        : [],
       source: a.source,
       status: a.status,
       stage: applicationStage(a.status, runs),

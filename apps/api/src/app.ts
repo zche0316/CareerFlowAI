@@ -11,7 +11,13 @@ import { registerProfileImports } from './profile-import.js';
 import { registerExperienceOrganisation } from './experience-organisation.js';
 import { registerProfileConversations } from './profile-conversations.js';
 import { registerCareerMemory } from './career-memory.js';
-import { recordRunStatus, registerApplications, upsertApplication } from './applications.js';
+import {
+  listApplications,
+  recordRunStatus,
+  registerApplications,
+  upsertApplication,
+} from './applications.js';
+import { registerCoach } from './coach.js';
 import { registerProfilePolish } from './profile-polish.js';
 import { registerResumeWording } from './resume-wording.js';
 import { registerResumeAgent } from './resume-agent.js';
@@ -165,7 +171,8 @@ export function createApp() {
       db.mission.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 40 }),
       db.approvedResume.findMany({ where: { userId }, orderBy: { approvedAt: 'desc' }, take: 20 }),
     ]);
-    res.json({ profile, missions, resumes, agents: AGENTS, mode: configuredMode() });
+    const applications = await listApplications(userId);
+    res.json({ profile, missions, resumes, applications, agents: AGENTS, mode: configuredMode() });
   });
 
   app.get('/api/tools/dashboard', async (req, res) =>
@@ -219,6 +226,7 @@ export function createApp() {
   registerExperienceOrganisation(app);
   registerCareerMemory(app);
   registerApplications(app);
+  registerCoach(app);
   registerResumeWording(app);
   registerCloudBackups(app);
   registerResumeAgent(app);

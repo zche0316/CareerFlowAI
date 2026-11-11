@@ -129,16 +129,13 @@ test('reviewed wording creates a downloadable edition and application answers st
   await page.getByRole('button', { name: 'Review profile draft', exact: true }).click();
   await page.getByLabel('I reviewed this exact draft').check();
   await page.getByRole('button', { name: 'Approve & save profile', exact: true }).click();
-  await expect(
-    page.getByRole('button', { name: 'Start career mission', exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Send the party out', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Close mission form', exact: true }).click();
   await openProfile(page);
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
   await go(page, 'Quests');
-  await page.getByRole('button', { name: 'Start a new quest', exact: true }).click();
-  await page.getByText('Advanced source options', { exact: true }).click();
-  await page.getByLabel('Job source', { exact: true }).selectOption('manual');
+  await page.getByRole('button', { name: 'Find roles', exact: true }).click();
+  await page.getByLabel('Paste a listing').check();
   await page
     .getByLabel('Listing url', { exact: true })
     .fill('https://www.seek.com.au/job/12345678');
@@ -149,7 +146,7 @@ test('reviewed wording creates a downloadable edition and application answers st
     .getByLabel('Listing description', { exact: true })
     .fill('Fictional test listing. Required skills: SQL, Python, data analysis. Bachelor degree.');
   await page.getByRole('slider').fill('0');
-  await page.getByRole('button', { name: 'Start career mission', exact: true }).click();
+  await page.getByRole('button', { name: 'Send the party out', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Select this opportunity' }).first()).toBeVisible({
     timeout: 30000,
   });

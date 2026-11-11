@@ -3348,3 +3348,151 @@ body:has(.quest) {
   max-width: min(640px, calc(100vw - 96px));
   white-space: normal;
 }
+
+/* Applications board: one card per role the user is pursuing. */
+.qa-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  border-radius: 24px;
+  background: #fff;
+  min-width: 0;
+}
+.qa-group.applied .qa-card {
+  box-shadow: inset 0 0 0 2px var(--q-ink);
+}
+.qa-group.closed .qa-card {
+  background: var(--q-soft);
+}
+.qa-card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.qa-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--q-muted);
+}
+.qa-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+}
+.qa-status {
+  margin-right: auto;
+}
+.qa-status select {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 2px solid var(--q-ink);
+  border-radius: 999px;
+  background: #fff;
+  font: 700 14px var(--q-body);
+  color: var(--q-ink);
+}
+.qa-runs-head {
+  padding: 12px 4px 0;
+}
+.qa-runs-head h2 {
+  margin: 0 0 4px;
+  font-size: 26px;
+}
+.qa-runs-head p {
+  margin: 0;
+  color: var(--q-muted);
+}
+
+/* Find roles form: Quest look on the shared modal. */
+.quest .modal.quest-form {
+  border-radius: 28px;
+}
+.quest .modal.quest-form .eyebrow {
+  color: var(--q-violet);
+}
+.source-pick {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 12px;
+  padding: 0;
+  border: 0;
+}
+.source-pick legend {
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+.source-pick label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 2px solid var(--q-rail, #dfe0e8);
+  border-radius: 16px;
+  cursor: pointer;
+}
+.source-pick label.on {
+  border-color: var(--q-ink, #111218);
+  background: var(--q-lime, #d4f55b);
+}
+.source-pick input {
+  margin-top: 3px;
+}
+.source-pick span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.source-pick small {
+  color: #3b3d47;
+}
+
+/* Coach tile on Home: next steps across the board, plus advice for this profile version. */
+.qh-coach h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.qh-coach-body {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 20px;
+}
+.qh-coach-body h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+.qh-advice {
+  margin: 0 0 12px;
+  display: grid;
+  gap: 8px;
+}
+.qh-advice div {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--q-soft);
+}
+.qh-advice dt {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--q-muted);
+}
+.qh-advice dd {
+  margin: 2px 0 0;
+  font-size: 14px;
+}
+.qh-coach-cost {
+  display: block;
+  margin-top: 6px;
+  color: var(--q-muted);
+}
+@media (max-width: 760px) {
+  .qh-coach-body {
+    grid-template-columns: 1fr;
+  }
+}

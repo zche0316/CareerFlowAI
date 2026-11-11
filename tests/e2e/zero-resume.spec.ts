@@ -133,13 +133,10 @@ test('a candidate with no resume or formal work builds a story, selects job cont
   await page.getByRole('button', { name: 'Review profile draft', exact: true }).click();
   await page.getByLabel('I reviewed this exact draft').check();
   await page.getByRole('button', { name: 'Approve & save profile', exact: true }).click();
-  await expect(
-    page.getByRole('button', { name: 'Start career mission', exact: true }),
-  ).toBeVisible();
-  await page.getByText('Advanced source options', { exact: true }).click();
-  await page.getByLabel('Job source', { exact: true }).selectOption('fixtures');
+  await expect(page.getByRole('button', { name: 'Send the party out', exact: true })).toBeVisible();
+  await page.getByLabel('Demo roles').check();
   await page.getByRole('slider').fill('0');
-  await page.getByRole('button', { name: 'Start career mission', exact: true }).click();
+  await page.getByRole('button', { name: 'Send the party out', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Select this opportunity' }).first()).toBeVisible({
     timeout: 30000,
   });

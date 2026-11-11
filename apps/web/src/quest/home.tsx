@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { ArrowRight, Check, Flag } from 'lucide-react';
 import { MISSION_MODEL_CALL_LIMIT } from '../../../../packages/contracts/src/mission-limits.js';
 import { nextMissionStep } from '../mission-step.js';
@@ -80,8 +81,10 @@ export function QuestHome({
   onNewQuest,
   onBuildProfile,
   onNavigate,
+  coach,
 }: {
   workspace: any;
+  coach?: ReactNode;
   userName: string;
   onOpenMission: (id: string, step: number | null) => void;
   onNewQuest: () => void;
@@ -123,7 +126,6 @@ export function QuestHome({
   const waiting = missions.filter((m) =>
     ['AWAITING_JOB', 'AWAITING_APPROVAL', 'AWAITING_INTERVIEW'].includes(m.status),
   );
-  const coachActions: any[] = missions.find((m) => m.data?.analysis)?.data?.analysis?.actions || [];
   const locked = skillBoard(workspace).filter((t) => t.status === 'locked');
   const quests = [
     ...waiting.map((m) => ({
@@ -142,13 +144,6 @@ export function QuestHome({
             : 'Answers are practice, never facts.',
       xp: m.status === 'AWAITING_APPROVAL' ? XP_RULES.approvedResume : m.status === 'AWAITING_INTERVIEW' ? XP_RULES.practiceAnswer : null,
       go: () => onOpenMission(m.id, nextMissionStep(m)),
-    })),
-    ...coachActions.slice(0, 2).map((a, i) => ({
-      key: 'coach' + i,
-      title: a.text,
-      text: a.reason,
-      xp: XP_RULES.coachQuest,
-      go: () => onNavigate('character'),
     })),
     ...locked.slice(0, 1).map((t) => ({
       key: 'skill' + t.term,
@@ -234,6 +229,8 @@ export function QuestHome({
           </ul>
         </section>
       </div>
+
+      {coach}
 
       <div className="quest-row">
         <section className="quest-tile qh-quests" aria-labelledby="qh-quests">
