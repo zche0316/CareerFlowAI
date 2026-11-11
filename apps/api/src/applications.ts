@@ -6,7 +6,7 @@ import { json, type MissionData } from './domain.js';
 import { AppError, requireValue } from './errors.js';
 import { enqueue } from './queue.js';
 import { spanHook } from './trace.js';
-import { jobFingerprint } from '../../../packages/agents/src/scout/scout.js';
+import { knownRoles, resolveRole } from './role-library.js';
 import { configuredMode, type Mode } from '../../../packages/agents/src/provider.js';
 import { mapJobRequirements, scoreJobMapping } from '../../../packages/agents/src/job-mapping.js';
 import { matchingProfileView } from '../../../packages/contracts/src/career-evidence.js';
@@ -41,7 +41,17 @@ export async function upsertApplication(
   mode: string = configuredMode(),
 ) {
   const status: ApplicationStatus = 'saved';
-  const fingerprint = jobFingerprint(match.job);
+  // The identity the role library gave this listing, or the one it resolves to now: the same
+  // posting or a listing with the same names and a similar description joins the existing role.
+  const known = await knownRoles(userId);
+  const tag = match.fingerprint || match.job?.fingerprint;
+  const resolved = resolveRole(match.job, known);
+  const fingerprint =
+    tag && known.some((k) => k.fingerprint === tag)
+      ? tag
+      : resolved.match
+        ? resolved.fingerprint
+        : tag || resolved.fingerprint;
   const at = new Date().toISOString();
   return db.application.upsert({
     where: { userId_fingerprint: { userId, fingerprint } },
@@ -52,6 +62,8 @@ export async function upsertApplication(
       source,
       status,
       mode,
+      postingKey: resolved.key,
+      textSig: json(resolved.sig),
       history: json([{ status, at }]),
     },
     update: { job: json(slim(match)) },

@@ -29,6 +29,7 @@ type Sweep = {
   fresh: number | null;
   alreadySeen: number | null;
   duplicates: number | null;
+  reposted: number | null;
   reviewed: number | null;
   notReviewed: number | null;
   failures: { provider: string; message: string }[];
@@ -448,8 +449,9 @@ export function QuestScout({
                 </div>
                 {s.fetched !== null && (
                   <p className="sc-counts">
-                    {s.fetched} fetched · <b>{s.fresh} new</b> · {s.alreadySeen} seen before ·{' '}
-                    {s.duplicates} duplicate{s.duplicates === 1 ? '' : 's'} across boards
+                    {s.fetched} fetched · <b>{s.fresh} new</b>
+                    {s.reposted ? ` (${s.reposted} re-advertised)` : ''} · {s.alreadySeen} seen
+                    before · {s.duplicates} duplicate{s.duplicates === 1 ? '' : 's'} across boards
                     {s.reviewed !== null && ` · ${s.reviewed} scored`}
                     {s.notReviewed ? ` · ${s.notReviewed} not scored (call limit)` : ''}
                     {s.mode !== 'fixture' && ` · ${s.calls} model calls`}

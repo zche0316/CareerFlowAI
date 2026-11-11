@@ -94,10 +94,14 @@ model Application {
   notes String @default("")
   // fixture or openai: the board shows the current mode's roles only.
   mode String?
+  // Source listing id or cleaned link, and a description signature (apps/api/src/role-library.ts).
+  postingKey String?
+  textSig Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@unique([userId, fingerprint])
   @@index([userId, updatedAt])
+  @@index([userId, postingKey])
 }
 // Workspace-level Career Coach advice, kept per profile version so it outlives any one run.
 model CoachReview {
@@ -226,10 +230,13 @@ model TrackedJob {
   fingerprint String
   sweepId String?
   record Json
+  postingKey String?
+  textSig Json?
   firstSeenAt DateTime @default(now())
   lastSeenAt DateTime @default(now())
   @@unique([userId, fingerprint])
   @@index([userId, firstSeenAt])
+  @@index([userId, postingKey])
 }
 
 // One row per model call. Mission and sweep ids are plain columns so spans outlive either.

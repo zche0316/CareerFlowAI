@@ -97,6 +97,9 @@ function ApplicationCard({
         <span className={`quest-chip ${copy.tone}`}>{copy.label}</span>
       </div>
       <p className="ql-next">{copy.next}</p>
+      {a.history?.some((h: any) => h.note === 'Re-advertised') && (
+        <span className="quest-chip coral">Re-advertised · seen again after a while</span>
+      )}
       <div className="qa-facts">
         {a.score !== null && <span>Match {a.score}</span>}
         <span>

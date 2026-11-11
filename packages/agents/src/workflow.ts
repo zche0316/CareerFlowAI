@@ -586,7 +586,7 @@ export async function createWorkflow() {
       }
       // Every role this search showed joins the user's role library, so Scout does not offer it
       // again as new. Recording is best effort: a failure here must not lose the search.
-      await recordSeen(c.m.userId, jobs).catch(() => {});
+      const identities = await recordSeen(c.m.userId, jobs).catch(() => new Map<string, string>());
       const corpus = jobs.map((j: any) => j.title + ' ' + j.description);
       const legacy = matchingProfileView(c.p);
       const preliminary = jobs
@@ -666,7 +666,10 @@ export async function createWorkflow() {
         }
       }
       matches = matches
-        .map((r: any) => ({ ...r, fingerprint: jobFingerprint(r.job) }))
+        .map((r: any) => ({
+          ...r,
+          fingerprint: identities.get(r.job.id) || jobFingerprint(r.job),
+        }))
         .filter((r: any) => r.score >= (c.d.minScore ?? 40))
         .sort((a: any, b: any) => b.score - a.score || a.job.id.localeCompare(b.job.id));
       await patchRun(

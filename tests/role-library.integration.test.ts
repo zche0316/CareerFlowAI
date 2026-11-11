@@ -5,7 +5,14 @@ import { initQueue, closeQueue } from '../apps/api/src/queue.js';
 import { initScout, closeScout } from '../apps/api/src/scout.js';
 import { db } from '../apps/api/src/db.js';
 import { json } from '../apps/api/src/domain.js';
-import { migrateRoleLibrary } from '../apps/api/src/role-library.js';
+import {
+  canonicalUrl,
+  migrateRoleLibrary,
+  postingKey,
+  resolveRole,
+  similarity,
+  textSignature,
+} from '../apps/api/src/role-library.js';
 import { jobFingerprint, placeKey } from '../packages/agents/src/scout/scout.js';
 import { sampleProfile } from '../packages/contracts/src/index.js';
 
@@ -111,8 +118,85 @@ it('treats spelling differences between boards as the same role', () => {
   expect(placeKey('Remote')).toBe('');
 });
 
+const words = (seed: string, n = 80) =>
+  Array.from({ length: n }, (_, i) => `${seed}${i % 37} task${(i * 7) % 23}`).join(' ');
+const listing = (over: any = {}) => ({
+  id: crypto.randomUUID(),
+  company: 'Acme Pty Ltd',
+  title: 'Graduate Data Analyst',
+  location: 'Sydney NSW',
+  description: words('report'),
+  ...over,
+});
+
+it('recognises the same posting by its source id or cleaned link', () => {
+  expect(canonicalUrl('https://www.SEEK.com.au/job/123/?utm_source=x&ref=y#apply')).toBe(
+    'seek.com.au/job/123',
+  );
+  expect(canonicalUrl('https://au.indeed.com/viewjob?jk=abc&from=serp')).toBe(
+    'au.indeed.com/viewjob?jk=abc',
+  );
+  expect(postingKey({ source: { provider: 'greenhouse', board: 'Acme', listingId: '42' } })).toBe(
+    'greenhouse:acme:42',
+  );
+  expect(postingKey({ applicationUrl: 'https://acme.com/careers/7?utm_medium=email' })).toBe(
+    'url:acme.com/careers/7',
+  );
+  // Same link, different spelling of the names: the link decides.
+  const known = [{ fingerprint: 'role-1', postingKey: 'url:acme.com/careers/7', textSig: null }];
+  expect(
+    resolveRole(
+      listing({ title: 'Data Analyst (Grad)', applicationUrl: 'https://acme.com/careers/7/' }),
+      known,
+    ).fingerprint,
+  ).toBe('role-1');
+});
+
+it('keeps two openings with the same title apart when their descriptions differ', () => {
+  const first = listing({ applicationUrl: 'https://seek.com.au/job/1' });
+  const sameAdElsewhere = listing({
+    applicationUrl: 'https://linkedin.com/jobs/view/9',
+    description: first.description,
+  });
+  const otherTeam = listing({
+    applicationUrl: 'https://seek.com.au/job/2',
+    description: words('pipeline'),
+  });
+  expect(
+    similarity(textSignature(first.description), textSignature(sameAdElsewhere.description)),
+  ).toBe(1);
+  expect(
+    similarity(textSignature(first.description), textSignature(otherTeam.description))!,
+  ).toBeLessThan(0.6);
+  expect(textSignature('too short to compare')).toBeNull();
+
+  const a = resolveRole(first, []);
+  const known = [{ fingerprint: a.fingerprint, postingKey: a.key, textSig: a.sig }];
+  expect(resolveRole(sameAdElsewhere, known).fingerprint).toBe(a.fingerprint);
+  const b = resolveRole(otherTeam, known);
+  expect(b.match).toBeNull();
+  expect(b.fingerprint).toMatch(new RegExp(`^${a.fingerprint}:[a-f0-9]{8}$`));
+  // A listing with no description to compare (a lead) joins the existing role.
+  expect(resolveRole(listing({ description: '' }), known).fingerprint).toBe(a.fingerprint);
+});
+
+it('treats a role unseen for sixty days as re-advertised', () => {
+  const a = resolveRole(listing(), []);
+  const now = new Date('2026-12-31T00:00:00.000Z');
+  const known = (days: number) => [
+    {
+      fingerprint: a.fingerprint,
+      postingKey: a.key,
+      textSig: a.sig,
+      lastSeenAt: new Date(now.getTime() - days * 86400000),
+    },
+  ];
+  expect(resolveRole(listing(), known(30), now).reposted).toBe(false);
+  expect(resolveRole(listing(), known(61), now).reposted).toBe(true);
+});
+
 it('shares one library between Find roles, Scout and the board', async () => {
-  const { call } = await client();
+  const { id, call } = await client();
   // A Find roles run records every role it showed and tags its ranked roles.
   const search = (await call('/missions', 'POST', { goal: 'Find a graduate analyst role.' })).body;
   const shortlist = (
@@ -160,6 +244,23 @@ it('shares one library between Find roles, Scout and the board', async () => {
     applicationId: board[0].id,
     status: 'applied',
   });
+
+  // Two months later the same roles are advertised again. Roles not on the board come back as
+  // new; board roles are not packaged again but their history notes the re-advertisement.
+  await db.trackedJob.updateMany({
+    where: { userId: id },
+    data: { lastSeenAt: new Date(Date.now() - 61 * 86400000) },
+  });
+  expect((await call('/scout/sweeps', 'POST', {})).status).toBe(202);
+  const again = (
+    await until(
+      () => call('/scout'),
+      (r) => r.body.sweeps.length === 2 && r.body.sweeps[0]?.status === 'COMPLETE',
+    )
+  ).body.sweeps[0];
+  expect(again).toMatchObject({ fetched: 8, fresh: 6, reposted: 6 });
+  const noted = (await call('/applications')).body.find((a: any) => a.id === board[0].id);
+  expect(noted.history.at(-1)).toMatchObject({ status: 'applied', note: 'Re-advertised' });
 });
 
 it('merges stored duplicates under the new fingerprint and keeps demo and live boards apart', async () => {
@@ -244,6 +345,34 @@ it('merges stored duplicates under the new fingerprint and keeps demo and live b
   const tracked = await db.trackedJob.findMany({ where: { userId: id } });
   expect(tracked).toHaveLength(1);
   expect(tracked[0].firstSeenAt.toISOString()).toBe('2026-11-01T00:00:00.000Z');
+
+  // Same names, different descriptions: two openings that the migration keeps apart.
+  for (const seed of ['dashboards', 'pipelines'])
+    await db.application.create({
+      data: {
+        userId: id,
+        fingerprint: 'legacy-' + seed,
+        job: json({
+          job: {
+            id: seed,
+            company: 'Beta',
+            title: 'Analyst',
+            location: 'Perth',
+            description: words(seed),
+          },
+          score: 50,
+        }),
+        source: 'search',
+        status: 'saved',
+        history: json([{ status: 'saved', at: '2026-11-04T00:00:00.000Z' }]),
+      },
+    });
+  await migrateRoleLibrary();
+  const beta = (await db.application.findMany({ where: { userId: id } })).filter(
+    (a) => (a.job as any).job.company === 'Beta',
+  );
+  expect(beta).toHaveLength(2);
+  expect(new Set(beta.map((a) => a.fingerprint)).size).toBe(2);
 
   // This server runs in fixture mode, so the live role is not on its board.
   expect((await call('/applications')).body).toEqual([]);

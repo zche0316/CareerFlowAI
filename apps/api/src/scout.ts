@@ -6,7 +6,7 @@ import { json, type MissionData } from './domain.js';
 import { AppError, requireValue } from './errors.js';
 import { enqueue, queueClient } from './queue.js';
 import { linkRun, listApplications, upsertApplication } from './applications.js';
-import { knownFingerprints } from './role-library.js';
+import { knownRoles, postingKey, recordListings, sortListings } from './role-library.js';
 import { spanHook, traceTotals } from './trace.js';
 import {
   jobSearchSchema,
@@ -32,7 +32,7 @@ import {
 } from '../../../packages/agents/src/job-search-agent.js';
 import { readJobs } from '../../../packages/agents/src/workflow.js';
 import { buildScoutGraph, type ScoutGraphPorts } from '../../../packages/agents/src/scout/graph.js';
-import { freshJobs, jobFingerprint } from '../../../packages/agents/src/scout/scout.js';
+import { jobFingerprint } from '../../../packages/agents/src/scout/scout.js';
 import type { Handoff } from '../../../packages/agents/src/orchestration/handoff.js';
 
 const QUEUE = 'careerflow-scout';
@@ -53,6 +53,8 @@ type SweepData = {
   fresh?: number;
   alreadySeen?: number;
   duplicates?: number;
+  // Roles seen before but not shown by any search for REPOST_DAYS, listed again as new.
+  reposted?: number;
   failures?: { provider: string; message: string }[];
   limitations?: string[];
   webDiscovery?: {
@@ -177,7 +179,10 @@ async function startPackage(input: {
         matches: [match],
         jobRetrieval: { source: 'scout', sweepId, count: 1, fetchedAt: at },
         selectedJob: match,
-        scout: { sweepId, fingerprint: input.fingerprint || jobFingerprint(match.job) },
+        scout: {
+          sweepId,
+          fingerprint: input.fingerprint || match.job.fingerprint || jobFingerprint(match.job),
+        },
       }),
       events: json([{ at, agent: 'Scout', action: 'queued', detail: input.detail }]),
     },
@@ -224,7 +229,9 @@ export async function saveTrackedRole(userId: string, fingerprint: string) {
       'LEAD_NEEDS_TEXT',
       'Scout could not read this page. Open it and paste the advertisement first.',
     );
-  const same = (job: any) => job && jobFingerprint(job) === fingerprint;
+  // Listings carry the identity the role library gave them; older ones fall back to the names.
+  const same = (job: any, tag?: string) =>
+    Boolean(job) && (tag || job.fingerprint || jobFingerprint(job)) === fingerprint;
   let match: any = null,
     source: 'scout' | 'search' = 'scout',
     mode: string = configuredMode();
@@ -233,8 +240,8 @@ export async function saveTrackedRole(userId: string, fingerprint: string) {
     const d = (sweep?.data || {}) as unknown as SweepData;
     match =
       (d.shortlist || []).find((m: any) => same(m.job)) ||
-      ((d.candidates || []).find(same)
-        ? { job: (d.candidates || []).find(same), score: null }
+      ((d.candidates || []).find((job) => same(job))
+        ? { job: (d.candidates || []).find((job) => same(job)), score: null }
         : null);
     if (sweep) mode = sweep.mode;
   }
@@ -246,7 +253,9 @@ export async function saveTrackedRole(userId: string, fingerprint: string) {
       take: 40,
     });
     for (const run of runs) {
-      const found = ((run.data as MissionData).matches || []).find((m: any) => same(m.job));
+      const found = ((run.data as MissionData).matches || []).find((m: any) =>
+        same(m.job, m.fingerprint),
+      );
       if (found) {
         match = found;
         source = 'search';
@@ -349,15 +358,21 @@ const ports: ScoutGraphPorts = {
       };
     }
     // Roles already seen by any search, or already on the board, are not new: Scout neither
-    // lists them as new nor starts a resume team on them.
-    const seen = await knownFingerprints(sweep.userId);
+    // lists them as new nor starts a resume team on them (role-library.ts decides identity).
+    const known = await knownRoles(sweep.userId);
     // Shortlists from runs made before every search recorded its roles count as seen too.
     for (const m of await db.mission.findMany({
       where: { userId: sweep.userId },
       select: { data: true },
     }))
       for (const match of (m.data as MissionData).matches || [])
-        if (match?.job) seen.add(jobFingerprint(match.job));
+        if (match?.job && !match.fingerprint)
+          known.push({
+            fingerprint: jobFingerprint(match.job),
+            postingKey: postingKey(match.job),
+            textSig: null,
+            onBoard: false,
+          });
 
     let jobs: any[] = [];
     const failures: SweepData['failures'] = [];
@@ -421,27 +436,13 @@ const ports: ScoutGraphPorts = {
         message: e instanceof Error ? e.message.slice(0, 300) : 'Job source unavailable',
       });
     }
-    const sorted = freshJobs(jobs, seen);
+    const sorted = sortListings(jobs, known);
     // Leads were never read, so they are recorded for the user but never scored or tailored.
     const fresh = sorted.fresh.slice(0, MAX_CANDIDATES).map(slim);
     const candidates = fresh.filter((job) => job.source?.lead !== true);
     const leads = fresh.filter((job) => job.source?.lead === true);
     const currency = countrySpec(data.search.country).currency;
-    const now = new Date();
-    for (const job of fresh) {
-      const fingerprint = jobFingerprint(job);
-      const record = buildJobRecord(job, currency);
-      await db.trackedJob.upsert({
-        where: { userId_fingerprint: { userId: sweep.userId, fingerprint } },
-        create: { userId: sweep.userId, fingerprint, sweepId, record: json(record) },
-        update: { lastSeenAt: now },
-      });
-    }
-    if (sorted.seenAgain.length)
-      await db.trackedJob.updateMany({
-        where: { userId: sweep.userId, fingerprint: { in: sorted.seenAgain } },
-        data: { lastSeenAt: now },
-      });
+    await recordListings(sweep.userId, { ...sorted, fresh }, { sweepId, currency });
     await patchSweep(
       sweepId,
       (d) => ({
@@ -452,6 +453,7 @@ const ports: ScoutGraphPorts = {
         agentDiscovery,
         alreadySeen: sorted.seenAgain.length,
         duplicates: sorted.duplicates,
+        reposted: fresh.filter((job) => job.reposted).length,
         failures,
         limitations,
         ...(webDiscovery
@@ -712,6 +714,7 @@ async function overview(userId: string) {
         fresh: d.fresh ?? null,
         alreadySeen: d.alreadySeen ?? null,
         duplicates: d.duplicates ?? null,
+        reposted: d.reposted ?? null,
         reviewed: d.reviewed ?? null,
         notReviewed: d.notReviewed ?? null,
         failures: d.failures || [],
