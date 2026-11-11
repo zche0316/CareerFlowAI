@@ -19,6 +19,7 @@ import {
   recruitmentSettings,
 } from '../../../packages/recruitment/src/repository.js';
 import { countrySpec } from '../../../packages/recruitment/src/geography.js';
+import { tavilyAccess } from '../../../packages/recruitment/src/tavily.js';
 import { compare, vectorSimilarity } from '../../../packages/matching/domain.js';
 import { configuredMode, type Mode } from '../../../packages/agents/src/provider.js';
 import { mapJobRequirements, scoreJobMapping } from '../../../packages/agents/src/job-mapping.js';
@@ -630,6 +631,7 @@ async function overview(userId: string) {
     limits: { reviewPerSweep: SCOUT_REVIEW_LIMIT, sweepsPerDay: SCOUT_SWEEPS_PER_DAY },
     // The model web search source needs the native OpenAI route; the UI offers it only then.
     modelSearchAvailable: jobSearchAgentAvailable(),
+    webSearchAvailable: tavilyAccess().configured,
     trackedTotal: await db.trackedJob.count({ where: { userId } }),
     tracked: tracked.map((t) => ({
       fingerprint: t.fingerprint,

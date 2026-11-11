@@ -68,6 +68,7 @@ type Overview = {
   schedule: { cron: string; timeZone: string };
   limits: { reviewPerSweep: number; sweepsPerDay: number };
   modelSearchAvailable: boolean;
+  webSearchAvailable: boolean;
   trackedTotal: number;
   tracked: { fingerprint: string; firstSeenAt: string; record: JobRecord }[];
   sweeps: Sweep[];
@@ -567,6 +568,11 @@ export function QuestScout({
                 {data.modelSearchAvailable &&
                   form.search.provider !== 'agent' &&
                   ' Model web search is available on this server and finds far more roles.'}
+                {!data.webSearchAvailable &&
+                  ['auto', 'web', 'agent'].includes(form.search.provider) &&
+                  (form.search.provider === 'auto'
+                    ? ' Web pages are skipped on this server because no Tavily key is set, so only official boards are searched.'
+                    : ' No Tavily key is set on this server, so web pages cannot be read.')}
               </p>
             )}
             <label className="quest-field">

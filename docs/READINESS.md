@@ -56,6 +56,31 @@ role by title.
   - The draft stopped at review and appeared in the sweep's batch review.
 - **Cost:** 10 model calls, about one minute. The draft was left for the user; it was not approved.
 
+### Live demo route (G4)
+
+Demo account from `npm run demo:account`, latest `main` with the live configuration, through the
+Quest interface. Detailed status per step is in [LOCAL_DEMO.md](LOCAL_DEMO.md).
+
+| Step                   | Result                                                                                                       |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Quest to shortlist     | Default search "data analyst, Sydney" (low-cost sources): 2 roles in 104 s                                   |
+| Chosen role            | The Brattle Group, "Research Analyst Graduate Program - Sydney"                                              |
+| Resume team            | 10 of 14 requirements evidenced. Before the fix: 3 Critic rounds, then escalated to the user, about 70 s     |
+| User return            | Rewriter return, another 3 Critic rounds, escalated again                                                    |
+| Interview              | 1 question (live generated only one), one answer scored by the Evaluator with a follow-up, feedback written  |
+| Export and application | PDF 200 (34 kB); "applied" recorded in Optional tools                                                        |
+| Whole quest            | 20 calls (42 model requests of the 60 budget), 49.0k input and 23.2k output tokens, 4 min 32 s of model time |
+
+Found and fixed in this run: the Evidence Selector re-picked the resume from scratch after each
+Critic return, so a line the Critic asked for in one round was dropped again in the next, and the
+loop ran until it escalated. Requested lines now stay requested, and a Critic return keeps the
+lines already in the draft. Rerun on the same role from its save point: 1 Critic return, then
+passed; 5 calls, 52 s.
+
+Scout with model web search, keywords "data analyst": 2 searches, 16 roles reported, all 16 on
+SEEK or LinkedIn and kept as leads (robots.txt), so no page was checked and no package started.
+1 call, 61.9k input and 3.5k output tokens, 45 s. Two of the leads were senior roles.
+
 ### Checks run before and after
 
 - **`verify:local`:** 318 tests.
