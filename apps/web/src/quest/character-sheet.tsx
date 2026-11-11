@@ -1,3 +1,4 @@
+import { CapabilityLevels } from './capabilities.js';
 import { Lock } from 'lucide-react';
 import { AgentAvatar, LeaderBadge } from './characters.js';
 import { XP_PER_LEVEL, XP_RULES, attributes, factUsage, progressFrom, skillBoard } from './progress.js';
@@ -18,11 +19,13 @@ export function CharacterSheet({
   userName,
   onBuildProfile,
   onOpenMission,
+  request,
 }: {
   workspace: any;
   userName: string;
   onBuildProfile: () => void;
   onOpenMission: (id: string) => void;
+  request?: (path: string) => Promise<any>;
 }) {
   const profile = workspace?.profile;
   if (!profile)
@@ -205,6 +208,7 @@ export function CharacterSheet({
           </div>
         </section>
       </div>
+      {request && <CapabilityLevels request={request} profileVersion={profile.version} />}
     </div>
   );
 }

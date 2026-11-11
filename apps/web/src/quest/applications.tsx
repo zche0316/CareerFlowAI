@@ -111,6 +111,15 @@ function ApplicationCard({
       {a.history?.some((h: any) => h.note === 'Re-advertised') && (
         <span className="quest-chip coral">Re-advertised · seen again after a while</span>
       )}
+      {a.levelGaps?.length > 0 && (
+        <div className="qa-gaps" aria-label="Level gaps">
+          {a.levelGaps.slice(0, 3).map((g: any) => (
+            <span key={g.term} className={`quest-chip ${g.level === 'required' ? 'coral' : 'outline'}`}>
+              {g.skill} {g.have}→{g.need}
+            </span>
+          ))}
+        </div>
+      )}
       <div className="qa-facts">
         {a.score !== null && <span>Match {a.score}</span>}
         <span>

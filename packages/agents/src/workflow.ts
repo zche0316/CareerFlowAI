@@ -61,6 +61,18 @@ const jobFile = new URL('../../matching/jobs.json', import.meta.url);
 
 export const readJobs = async () => JSON.parse(await readFile(jobFile, 'utf8'));
 
+// The Evidence Selector sees the strongest evidence first (CFS-111): facts from records with a
+// stated result (a STAR story) before other records, then everything else in profile order.
+function byConfidence(facts: Fact[], profile: CareerProfile) {
+  const records = [...(profile.workExperiences || []), ...(profile.projects || [])];
+  const strong = new Set(records.filter((r: any) => r.starStory?.result?.trim()).map((r) => r.id));
+  const rank = (f: Fact) => (f.recordId && strong.has(f.recordId) ? 0 : f.recordId ? 1 : 2);
+  return facts
+    .map((f, i) => ({ f, i }))
+    .sort((a, b) => rank(a.f) - rank(b.f) || a.i - b.i)
+    .map((x) => x.f);
+}
+
 export async function createWorkflow() {
   const saver = portablePool
     ? new PostgresSaver(portablePool)
@@ -135,8 +147,11 @@ export async function createWorkflow() {
                   c.d.resumeDraft.claims.some((claim: any) => claim.factId === f.id),
                 )
               : role === 'resume'
-                ? c.facts.filter(
-                    (f) => !f.recordId || f.kind !== 'experience' || isResumeContribution(f),
+                ? byConfidence(
+                    c.facts.filter(
+                      (f) => !f.recordId || f.kind !== 'experience' || isResumeContribution(f),
+                    ),
+                    c.p,
                   )
                 : c.facts,
         profileBase: role === 'resume' ? { records: resumeRecordIndex(c.p) } : undefined,

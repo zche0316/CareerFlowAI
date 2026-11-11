@@ -152,3 +152,15 @@ for the Coach (later issue), calendar sync.
   "New from Scout". Resume teams start only for roles the user tailors, or for every shortlisted
   role when "Also start a resume team" is switched on. A pasted lead still gets its package.
 - The Find roles form offers the Coach's directions as goals.
+
+## Capability levels (CFS-111)
+
+`packages/contracts/src/capability.ts` gives each skill a level from approved data only:
+0 no evidence · 1 aware (listed, or studied in a course) · 2 used (one project or role) ·
+3 proficient (several projects or a delivered outcome, or a meaningful public repository) ·
+4 advanced (over a year in roles, or external recognition). Confidence comes from the strongest
+source (verified external evidence, STAR story, described record, listing); skills unused for
+three years show one level lower. Role requirements are read as skill plus required level
+(years, "strong", "familiarity" wording), and the gap drives role cards, the Coach and the
+Character page. The Evidence Selector sees facts from records with a stated result first. There
+is no overall score and no hiring prediction.

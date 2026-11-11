@@ -636,6 +636,7 @@ function App() {
           ) : tab === 'character' ? (
             <CharacterSheet
               workspace={workspace}
+              request={api}
               userName={session.user.name}
               onBuildProfile={() => setTab('profile')}
               onOpenMission={(id) => {

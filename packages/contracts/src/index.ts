@@ -42,6 +42,25 @@ export const profileSchema = z
     salaryMin: z.number().nonnegative().nullable().default(null),
     salaryMax: z.number().nonnegative().nullable().default(null),
     currency: z.string().max(10).default(''),
+    // Evidence from verifiable sources (GitHub, certificates, contest sites), added through an
+    // approved profile draft like any other fact. See capability.ts.
+    verifiedEvidence: z
+      .array(
+        z.object({
+          skill: z.string().trim().min(1).max(100),
+          source: z.string().trim().min(1).max(40),
+          verified: z.boolean(),
+          supports: z.number().int().min(0).max(4),
+          detail: z.string().trim().min(1).max(300),
+          lastUsed: z
+            .string()
+            .regex(/^\d{4}-\d{2}$/)
+            .optional(),
+          url: z.string().trim().max(500).optional(),
+        }),
+      )
+      .max(200)
+      .optional(),
     sharing: z.object({
       coach: z.boolean(),
       matching: z.boolean(),

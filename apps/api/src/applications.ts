@@ -8,6 +8,8 @@ import { enqueue } from './queue.js';
 import { spanHook } from './trace.js';
 import { knownRoles, resolveRole } from './role-library.js';
 import { readPublicJob } from './job-link.js';
+import { capabilitiesFor } from './capability.js';
+import { levelGaps, requirementItems } from '../../../packages/contracts/src/capability.js';
 import { configuredMode, type Mode } from '../../../packages/agents/src/provider.js';
 import { mapJobRequirements, scoreJobMapping } from '../../../packages/agents/src/job-mapping.js';
 import { matchingProfileView } from '../../../packages/contracts/src/career-evidence.js';
@@ -169,6 +171,7 @@ export async function listApplications(userId: string) {
     where: { userId, applicationId: { in: applications.map((a) => a.id) } },
     orderBy: { createdAt: 'desc' },
   });
+  const capabilities = await capabilitiesFor(userId);
   return applications.map((a) => {
     const runs: RunSummary[] = missions
       .filter((m) => m.applicationId === a.id)
@@ -194,6 +197,8 @@ export async function listApplications(userId: string) {
       location: match.job?.location || '',
       url: match.job?.applicationUrl || match.job?.url || '',
       score: typeof match.score === 'number' ? match.score : null,
+      // Where this role asks for more than the profile shows, biggest required gaps first.
+      levelGaps: levelGaps(requirementItems(match), capabilities).slice(0, 4),
       gaps: Array.isArray(match.gaps)
         ? match.gaps.filter((g: unknown): g is string => typeof g === 'string').slice(0, 20)
         : [],
