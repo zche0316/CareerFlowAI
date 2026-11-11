@@ -186,3 +186,11 @@ capability model uses for confidence and levels.
 
 - GitHub (official REST API, optional server `GITHUB_TOKEN`): up to six recent non-fork public
   repositories become personal projects; languages, tests and CI become verified evidence.
+- Certificates: badge or verification links. An Open Badges assertion (most Credly badges) that
+  can be fetched and has not expired is verified; others are skipped with a warning. Certificates
+  join Education; named skills (AWS, Azure, Power BI, ...) get evidence at level 2, or 3 for
+  professional, expert or specialty certificates.
+- LinkedIn: no API scraping. The user uploads the official data export ZIP (or one CSV);
+  positions, education, skills and certifications become a draft marked as self-reported.
+- Personal website: one page, read only where robots.txt allows; each heading with text becomes
+  a project draft, with known skills as technologies. No model call.

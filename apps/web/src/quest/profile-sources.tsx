@@ -18,6 +18,31 @@ export const sourceConfigs: SourceConfig[] = [
     hint: 'Public repositories, languages, tests and CI, read through the official GitHub API.',
     fields: [{ name: 'username', label: 'GitHub username', placeholder: 'octocat' }],
   },
+  {
+    kind: 'certificate',
+    title: 'Certificates',
+    hint: 'Badge or verification links (one per line). Open Badges records, such as most Credly badges, are verified; others are kept as links.',
+    fields: [
+      {
+        name: 'urls',
+        label: 'Certificate links',
+        type: 'textarea',
+        placeholder: 'https://www.credly.com/badges/…',
+      },
+    ],
+  },
+  {
+    kind: 'linkedin',
+    title: 'LinkedIn data export',
+    hint: 'LinkedIn has no public profile API. Download your data from LinkedIn (Settings → Data privacy → Get a copy of your data) and upload the ZIP here.',
+    fields: [{ name: 'file', label: 'Export ZIP or CSV', type: 'file' }],
+  },
+  {
+    kind: 'website',
+    title: 'Personal website',
+    hint: 'Project sections (a heading followed by text) on one page. Pages the site asks robots not to read are skipped.',
+    fields: [{ name: 'url', label: 'Page address', placeholder: 'https://' }],
+  },
 ];
 
 const readFile = (file: File) =>
