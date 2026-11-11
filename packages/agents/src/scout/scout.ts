@@ -13,15 +13,82 @@ export type ScoutJob = {
   applicationUrl?: string;
 };
 
-// The same vacancy appears on several boards with different IDs; compare normalised content.
+// Words that change between boards for the same employer or place, not the role itself.
+const legalSuffix = new Set(
+  'pty proprietary ltd limited inc incorporated llc plc corp corporation co gmbh ag sa bv'.split(
+    ' ',
+  ),
+);
+const placeNoise = new RegExp(
+  '\\b(' +
+    [
+      'new south wales',
+      'victoria',
+      'queensland',
+      'western australia',
+      'south australia',
+      'tasmania',
+      'australian capital territory',
+      'northern territory',
+      'nsw',
+      'vic',
+      'qld',
+      'wa',
+      'sa',
+      'tas',
+      'act',
+      'nt',
+      'australia',
+      'au',
+      'new zealand',
+      'nz',
+      'hybrid',
+      'remote',
+      'on site',
+      'onsite',
+      'cbd',
+      'metro',
+      'greater',
+      'region',
+    ].join('|') +
+    ')\\b|\\d+',
+  'g',
+);
+const words = (s = '') =>
+  s
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^\p{L}\p{N},|]+/gu, ' ');
+const squash = (s: string) => s.replace(/[,|]/g, ' ').replace(/\s+/g, ' ').trim();
+
+/** Company without legal suffixes or a leading "the": "The Acme Pty Ltd" -> "acme". */
+export function companyKey(company = '') {
+  const tokens = squash(words(company)).split(' ').filter(Boolean);
+  while (tokens.length > 1 && legalSuffix.has(tokens.at(-1)!)) tokens.pop();
+  if (tokens.length > 1 && tokens[0] === 'the') tokens.shift();
+  return tokens.join(' ');
+}
+/** Title with common abbreviations spelled out: "Sr. Data Analyst" -> "senior data analyst". */
+export const titleKey = (title = '') =>
+  squash(
+    words(title)
+      .replace(/\bsr\b/g, 'senior')
+      .replace(/\bjr\b/g, 'junior')
+      .replace(/\bgrad\b/g, 'graduate'),
+  );
+/** The city only: "Sydney NSW 2000", "Sydney, New South Wales" and "Hybrid - Sydney" -> "sydney". */
+export const placeKey = (location = '') =>
+  words(location.replace(/\s[-–]\s/g, ','))
+    .replace(placeNoise, ' ')
+    .split(/[,|]/)
+    .map(squash)
+    .find(Boolean) || '';
+
+// The same vacancy appears on several boards with different IDs and spellings; compare the
+// employer, role and city after removing those differences.
 export function jobFingerprint(job: Pick<ScoutJob, 'title' | 'company' | 'location'>) {
-  const norm = (s = '') =>
-    s
-      .toLowerCase()
-      .replace(/[^\p{L}\p{N}]+/gu, ' ')
-      .trim();
   return createHash('sha256')
-    .update([norm(job.company), norm(job.title), norm(job.location)].join('|'))
+    .update([companyKey(job.company), titleKey(job.title), placeKey(job.location)].join('|'))
     .digest('hex')
     .slice(0, 32);
 }

@@ -92,6 +92,8 @@ model Application {
   status String @default("saved")
   history Json
   notes String @default("")
+  // fixture or openai: the board shows the current mode's roles only.
+  mode String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@unique([userId, fingerprint])

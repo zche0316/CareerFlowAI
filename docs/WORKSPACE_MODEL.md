@@ -108,3 +108,18 @@ Each phase: `verify:local` and the affected e2e specs; the full e2e suite and on
 
 Renaming the `Mission` table, deleting missions, automatic job applications, a model-run weekly plan
 for the Coach (later issue), calendar sync.
+
+## Role library (CFS-103)
+
+- One fingerprint for a role everywhere: employer without legal suffixes, title with common
+  abbreviations spelled out, and the city only. "Acme Pty Ltd / Sr Data Analyst / Sydney NSW" and
+  "ACME / Senior Data Analyst / Hybrid - Sydney, New South Wales" are the same role.
+- `TrackedJob` is the log of every role a search showed, from Scout sweeps and Find roles runs.
+  `Application` holds the status of the roles the user pursues. Scout treats both as already seen,
+  so it never lists a board role as new or starts a resume team on it.
+- At startup `migrateRoleLibrary` recomputes stored fingerprints and merges rows that turn out to
+  be the same role: runs move to the earlier application, histories combine and the furthest
+  status wins. Each application records its provider mode; the board shows the current mode only.
+- Shortlists and the Scout table mark roles already on the board; Scout can save a role it
+  recorded. Application statistics in Optional tools come from the board.
+

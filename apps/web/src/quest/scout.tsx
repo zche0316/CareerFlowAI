@@ -3,6 +3,7 @@ import { ArrowRight, Radar, Trash2 } from 'lucide-react';
 import { countries } from '../../../../packages/recruitment/src/geography.js';
 import { workRightsLabels, type JobRecord } from '../../../../packages/contracts/src/job-record.js';
 import { AgentAvatar, agentProfiles, type AgentId } from './characters.js';
+import { stageCopy } from './applications.js';
 
 type Package = {
   jobId: string;
@@ -70,7 +71,12 @@ type Overview = {
   modelSearchAvailable: boolean;
   webSearchAvailable: boolean;
   trackedTotal: number;
-  tracked: { fingerprint: string; firstSeenAt: string; record: JobRecord }[];
+  tracked: {
+    fingerprint: string;
+    firstSeenAt: string;
+    record: JobRecord;
+    board: { id: string; stage: string } | null;
+  }[];
   sweeps: Sweep[];
 };
 
@@ -659,8 +665,8 @@ export function QuestScout({
           <h2 id="sc-records">Roles on record</h2>
           <span>
             {data.trackedTotal
-              ? `Latest ${data.tracked.length} of ${data.trackedTotal} · every field quotes the listing or stays empty`
-              : 'Empty until the first sweep'}
+              ? `Latest ${data.tracked.length} of ${data.trackedTotal} from Scout and Find roles · every field quotes the listing or stays empty`
+              : 'Empty until your first search'}
           </span>
         </div>
         {data.tracked.length > 0 && (
@@ -695,6 +701,26 @@ export function QuestScout({
                                 Open to check
                               </a>
                             </small>
+                          )}
+                          {t.board ? (
+                            <span className="quest-chip lime sc-board">
+                              In your quests · {stageCopy[t.board.stage]?.label || t.board.stage}
+                            </span>
+                          ) : (
+                            !r.lead && (
+                              <button
+                                type="button"
+                                className="quest-press sc-lead-action"
+                                disabled={busy}
+                                onClick={() =>
+                                  void act(async () => {
+                                    await request(`/scout/roles/${t.fingerprint}/save`, 'POST');
+                                  })
+                                }
+                              >
+                                Save to my quests
+                              </button>
+                            )
                           )}
                           {r.lead && r.missionId && (
                             <button

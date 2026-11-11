@@ -5,7 +5,8 @@ import { db, databaseUrl, portablePool } from './db.js';
 import { json, type MissionData } from './domain.js';
 import { AppError, requireValue } from './errors.js';
 import { enqueue, queueClient } from './queue.js';
-import { linkRun } from './applications.js';
+import { linkRun, listApplications, upsertApplication } from './applications.js';
+import { knownFingerprints } from './role-library.js';
 import { spanHook, traceTotals } from './trace.js';
 import {
   jobSearchSchema,
@@ -209,6 +210,60 @@ async function scoreRole(job: any, userId: string, mode: Mode, sweepId: string) 
 
 // A lead was found by model web search on a site the server may not read. The user opens it,
 // pastes the advertisement, and Scout scores it and starts a resume team on that text.
+/**
+ * Put a role from the Scout table on the board without starting a resume team. The full listing
+ * comes from the sweep or search run that showed it; a lead has none until its ad is pasted.
+ */
+export async function saveTrackedRole(userId: string, fingerprint: string) {
+  const tracked = requireValue(
+    await db.trackedJob.findUnique({ where: { userId_fingerprint: { userId, fingerprint } } }),
+  );
+  if ((tracked.record as unknown as JobRecord).lead)
+    throw new AppError(
+      409,
+      'LEAD_NEEDS_TEXT',
+      'Scout could not read this page. Open it and paste the advertisement first.',
+    );
+  const same = (job: any) => job && jobFingerprint(job) === fingerprint;
+  let match: any = null,
+    source: 'scout' | 'search' = 'scout',
+    mode: string = configuredMode();
+  if (tracked.sweepId) {
+    const sweep = await db.scoutSweep.findUnique({ where: { id: tracked.sweepId } });
+    const d = (sweep?.data || {}) as unknown as SweepData;
+    match =
+      (d.shortlist || []).find((m: any) => same(m.job)) ||
+      ((d.candidates || []).find(same)
+        ? { job: (d.candidates || []).find(same), score: null }
+        : null);
+    if (sweep) mode = sweep.mode;
+  }
+  if (!match) {
+    const runs = await db.mission.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      select: { data: true, mode: true },
+      take: 40,
+    });
+    for (const run of runs) {
+      const found = ((run.data as MissionData).matches || []).find((m: any) => same(m.job));
+      if (found) {
+        match = found;
+        source = 'search';
+        mode = run.mode;
+        break;
+      }
+    }
+  }
+  if (!match)
+    throw new AppError(
+      409,
+      'LISTING_NOT_STORED',
+      'The full listing for this role is no longer stored. Find it again or paste its link.',
+    );
+  return upsertApplication(userId, match, source, mode);
+}
+
 export async function packageLead(
   userId: string,
   fingerprint: string,
@@ -293,15 +348,10 @@ const ports: ScoutGraphPorts = {
         failures: data.failures?.length || 0,
       };
     }
-    const seen = new Set(
-      (
-        await db.trackedJob.findMany({
-          where: { userId: sweep.userId },
-          select: { fingerprint: true },
-        })
-      ).map((t) => t.fingerprint),
-    );
-    // Roles the user already saw in an earlier quest shortlist count as seen too.
+    // Roles already seen by any search, or already on the board, are not new: Scout neither
+    // lists them as new nor starts a resume team on them.
+    const seen = await knownFingerprints(sweep.userId);
+    // Shortlists from runs made before every search recorded its roles count as seen too.
     for (const m of await db.mission.findMany({
       where: { userId: sweep.userId },
       select: { data: true },
@@ -614,6 +664,10 @@ async function overview(userId: string) {
     orderBy: { firstSeenAt: 'desc' },
     take: 40,
   });
+  // Roles already on the board show their stage instead of a Save button.
+  const board = new Map(
+    (await listApplications(userId)).map((a) => [a.fingerprint, { id: a.id, stage: a.stage }]),
+  );
   // Per-sweep model work from the stored spans; sweeps before tracing simply show zeros.
   const spans = await db.traceSpan.findMany({
     where: { userId, sweepId: { in: sweeps.map((s) => s.id) } },
@@ -640,6 +694,7 @@ async function overview(userId: string) {
       firstSeenAt: t.firstSeenAt,
       lastSeenAt: t.lastSeenAt,
       record: t.record as unknown as JobRecord,
+      board: board.get(t.fingerprint) || null,
     })),
     sweeps: sweeps.map((s) => {
       const d = s.data as unknown as SweepData;
@@ -733,6 +788,13 @@ export function registerScout(app: Express) {
       .regex(/^[a-f0-9]{16,64}$/)
       .parse(req.params.fingerprint);
     res.status(202).json(await packageLead(req.actor!.id, fingerprint, input));
+  });
+  app.post('/api/scout/roles/:fingerprint/save', async (req, res) => {
+    const fingerprint = z
+      .string()
+      .regex(/^[a-f0-9]{16,64}$/)
+      .parse(req.params.fingerprint);
+    res.status(201).json(await saveTrackedRole(req.actor!.id, fingerprint));
   });
   app.post('/api/scout/sweeps', async (req, res) => {
     const sweep = await startSweep(req.actor!.id, 'manual');

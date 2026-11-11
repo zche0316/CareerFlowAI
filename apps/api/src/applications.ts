@@ -38,8 +38,9 @@ export async function upsertApplication(
   userId: string,
   match: any,
   source: 'search' | 'scout' | 'link',
-  status: ApplicationStatus = 'saved',
+  mode: string = configuredMode(),
 ) {
+  const status: ApplicationStatus = 'saved';
   const fingerprint = jobFingerprint(match.job);
   const at = new Date().toISOString();
   return db.application.upsert({
@@ -50,6 +51,7 @@ export async function upsertApplication(
       job: json(slim(match)),
       source,
       status,
+      mode,
       history: json([{ status, at }]),
     },
     update: { job: json(slim(match)) },
@@ -65,6 +67,7 @@ export async function linkRun(userId: string, missionId: string, source: 'search
     userId,
     match,
     match.job?.source?.importedFromURL ? 'link' : source,
+    m.mode,
   );
   await db.mission.update({ where: { id: m.id }, data: { applicationId: application.id } });
   return application;
@@ -93,6 +96,7 @@ export async function backfillApplications(userId: string) {
       userId,
       d.selectedJob,
       d.scout ? 'scout' : d.selectedJob.job.source?.importedFromURL ? 'link' : 'search',
+      m.mode,
     );
     await db.mission.update({ where: { id: m.id }, data: { applicationId: application.id } });
     const legacy = legacyStatus(d);
@@ -134,8 +138,9 @@ export function applicationStage(
 
 export async function listApplications(userId: string) {
   await backfillApplications(userId);
+  // Demo roles and live roles keep separate boards; rows not yet given a mode show in both.
   const applications = await db.application.findMany({
-    where: { userId },
+    where: { userId, OR: [{ mode: configuredMode() }, { mode: null }] },
     orderBy: { updatedAt: 'desc' },
   });
   const missions = await db.mission.findMany({
@@ -161,6 +166,7 @@ export async function listApplications(userId: string) {
     const match = a.job as any;
     return {
       id: a.id,
+      fingerprint: a.fingerprint,
       title: match.job?.title || '',
       company: match.job?.company || '',
       location: match.job?.location || '',
@@ -172,7 +178,7 @@ export async function listApplications(userId: string) {
       source: a.source,
       status: a.status,
       stage: applicationStage(a.status, runs),
-      history: a.history,
+      history: a.history as { status: string; at: string; note?: string }[],
       notes: a.notes,
       createdAt: a.createdAt,
       updatedAt: a.updatedAt,
@@ -239,6 +245,7 @@ export async function saveFromRun(userId: string, missionId: string, jobId: stri
     userId,
     match,
     (m.data as MissionData).scout ? 'scout' : match.job.source?.importedFromURL ? 'link' : 'search',
+    m.mode,
   );
 }
 
