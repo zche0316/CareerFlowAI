@@ -17,6 +17,11 @@ export type JobRecord = {
   source: string;
   // False for a page found by web search: nothing confirmed the vacancy through an employer API.
   verified: boolean;
+  // True when the role came from a model's web search and its page could not be read (for
+  // example the site forbids automated reading). Only the title, company, link and the model's
+  // quote are known; the user opens the link to check it.
+  lead: boolean;
+  leadReason: string | null;
   fictional: boolean;
   postedAt: string | null;
   workRights: Quoted<WorkRights> | null;
@@ -274,7 +279,9 @@ export function buildJobRecord(job: any, fallbackCurrency = 'AUD'): JobRecord {
       job.employmentType && job.employmentType !== 'Unspecified' ? job.employmentType : null,
     url: job.applicationUrl || (/^https?:/.test(job.url || '') ? job.url : null),
     source: job.source?.provider || job.source?.name || 'unknown',
-    verified: job.source?.provider !== 'web' && job.source?.verified !== false,
+    verified: !['web', 'agent'].includes(job.source?.provider) && job.source?.verified !== false,
+    lead: job.source?.lead === true,
+    leadReason: job.source?.lead === true ? String(job.source.leadReason || '') || null : null,
     fictional:
       Boolean(job.source?.fictional) ||
       job.source?.type === 'disclosed-fixture' ||

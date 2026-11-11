@@ -143,10 +143,18 @@ export function requireTavily() {
 }
 
 // One Tavily search call with the shared access headers and error mapping.
-export async function tavilyRequest(repo, access, body, deadline, signal, maxBytes = 2000000) {
+export async function tavilyRequest(
+  repo,
+  access,
+  body,
+  deadline,
+  signal,
+  maxBytes = 2000000,
+  endpoint = 'search',
+) {
   let response;
   try {
-    response = await repo.fetcher('https://api.tavily.com/search', {
+    response = await repo.fetcher(`https://api.tavily.com/${endpoint}`, {
       method: 'POST',
       redirect: 'error',
       signal: deadline,

@@ -38,6 +38,15 @@ type Sweep = {
     accepted: number;
     rejected: { url: string; reason: string }[];
   } | null;
+  agentDiscovery: {
+    searches: number;
+    pagesOpenedByModel: number;
+    reported: number;
+    checked: number;
+    leads: number;
+    rejected: { url: string; reason: string }[];
+  } | null;
+  leads: number | null;
   handoffs: { at: string; from: string; to: string; reason: string }[];
   error: string | null;
   packages: Package[];
@@ -58,6 +67,7 @@ type Overview = {
   setting: Setting;
   schedule: { cron: string; timeZone: string };
   limits: { reviewPerSweep: number; sweepsPerDay: number };
+  modelSearchAvailable: boolean;
   trackedTotal: number;
   tracked: { fingerprint: string; firstSeenAt: string; record: JobRecord }[];
   sweeps: Sweep[];
@@ -79,8 +89,17 @@ const sources: [string, string][] = [
   ['employers', 'Official employer boards only'],
   ['web', 'Web pages only'],
 ];
+const modelSource: [string, string] = ['agent', 'Model web search (slower, costs more)'];
 const sourceLabel = (r: JobRecord) =>
-  r.fictional ? 'demo role' : r.source === 'web' ? 'web page · unverified vacancy' : r.source;
+  r.fictional
+    ? 'demo role'
+    : r.lead
+      ? 'lead · not checked'
+      : r.source === 'web'
+        ? 'web page · unverified vacancy'
+        : r.source === 'agent'
+          ? 'model search · page checked · unverified vacancy'
+          : r.source;
 
 // What a package's quest status means for the person reviewing the batch.
 function packageState(p: Package): { label: string; tone: string } {
@@ -221,7 +240,9 @@ export function QuestScout({
                 ? 'official employer job boards'
                 : data.setting.search.provider === 'web'
                   ? 'public web pages found by search'
-                  : 'public job boards'}
+                  : data.setting.search.provider === 'agent'
+                    ? 'what a model finds with its own web search, checked page by page'
+                    : 'public job boards'}
             , skips anything you have already seen, and hands the best new matches to a resume team
             each. Nothing is sent anywhere, and no draft is approved without you.
           </p>
@@ -410,6 +431,14 @@ export function QuestScout({
                     {s.mode !== 'fixture' && ` · ${s.calls} model calls`}
                   </p>
                 )}
+                {s.agentDiscovery && (
+                  <p className="sc-counts">
+                    Model search: {s.agentDiscovery.searches} searches · {s.agentDiscovery.reported}{' '}
+                    roles reported · <b>{s.agentDiscovery.checked} pages checked</b> ·{' '}
+                    {s.agentDiscovery.leads} leads to open yourself ·{' '}
+                    {s.agentDiscovery.rejected.length} rejected
+                  </p>
+                )}
                 {s.webDiscovery && (
                   <p className="sc-counts">
                     Web: read {s.webDiscovery.pagesRead} of {s.webDiscovery.pagesFound} pages ·{' '}
@@ -495,13 +524,21 @@ export function QuestScout({
                   </option>
                 ) : (
                   <>
-                    {sources.map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
+                    {[...sources, ...(data.modelSearchAvailable ? [modelSource] : [])].map(
+                      ([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ),
+                    )}
+                    {![...sources, ...(data.modelSearchAvailable ? [modelSource] : [])].some(
+                      ([value]) => value === form.search.provider,
+                    ) && (
+                      <option value={form.search.provider}>
+                        {form.search.provider === 'agent'
+                          ? `${modelSource[1]} · unavailable on this server`
+                          : form.search.provider}
                       </option>
-                    ))}
-                    {!sources.some(([value]) => value === form.search.provider) && (
-                      <option value={form.search.provider}>{form.search.provider}</option>
                     )}
                   </>
                 )}
@@ -619,6 +656,14 @@ export function QuestScout({
                           {r.company}
                           {` · ${sourceLabel(r)}`}
                         </small>
+                        {r.lead && r.url && (
+                          <small>
+                            {r.leadReason || 'Not checked'} ·{' '}
+                            <a href={r.url} target="_blank" rel="noreferrer noopener">
+                              Open to check
+                            </a>
+                          </small>
+                        )}
                       </th>
                       <td>{when(t.firstSeenAt)}</td>
                       <td>

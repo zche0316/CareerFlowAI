@@ -3,6 +3,7 @@ export { JobSourceError } from './source-error.js';
 import { discoverTavily, postingIdentity, tavilyAccess, verifyPosting } from './tavily.js';
 import { countries, countrySpec, filterGeography } from './geography.js';
 import { discoverWeb } from './web-discovery.js';
+import { discoverAgent } from './agent-discovery.js';
 export const employerBoards = [
   { board: 'spaceship', company: 'Spaceship', hosts: [] },
   { board: 'vgw', company: 'VGW', hosts: [] },
@@ -203,7 +204,9 @@ export class JobRepository {
     return {
       id: source.provider + '-' + source.board + '-' + String(j.id),
       title: clean(j.title),
-      company: clean(j.company) || (source.provider === 'adzuna' ? 'Not supplied' : source.board),
+      company:
+        clean(j.company) ||
+        (['adzuna', 'agent'].includes(source.provider) ? 'Not supplied' : source.board),
       location: clean(j.location) || 'Not supplied',
       employmentType: clean(j.employmentType) || 'Unspecified',
       description: clean(j.description).slice(0, 50000),
@@ -300,7 +303,7 @@ export class JobRepository {
       throw e;
     }
   }
-  async search(b, { signal, extractPage } = {}) {
+  async search(b, { signal, extractPage, searchAgent } = {}) {
     if (
       typeof b.keyword !== 'string' ||
       b.keyword.length > 150 ||
@@ -325,6 +328,8 @@ export class JobRepository {
       };
     if (b.provider === 'tavily') return discoverTavily(this, b, signal);
     if (b.provider === 'web') return discoverWeb(this, b, { signal, extractPage });
+    // Model web search is slower and costlier, so it runs only when chosen, never under auto.
+    if (b.provider === 'agent') return discoverAgent(this, b, { signal, searchAgent });
     if (b.provider === 'auto') {
       // Web pages need a model reader, so they join only when the caller supplies one.
       const providers = [

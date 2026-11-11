@@ -23,6 +23,10 @@ import { compare, vectorSimilarity } from '../../../packages/matching/domain.js'
 import { configuredMode, type Mode } from '../../../packages/agents/src/provider.js';
 import { mapJobRequirements, scoreJobMapping } from '../../../packages/agents/src/job-mapping.js';
 import { extractJobPage } from '../../../packages/agents/src/job-page.js';
+import {
+  jobSearchAgentAvailable,
+  searchJobsWithModel,
+} from '../../../packages/agents/src/job-search-agent.js';
 import { readJobs } from '../../../packages/agents/src/workflow.js';
 import { buildScoutGraph, type ScoutGraphPorts } from '../../../packages/agents/src/scout/graph.js';
 import { freshJobs, jobFingerprint } from '../../../packages/agents/src/scout/scout.js';
@@ -54,6 +58,17 @@ type SweepData = {
     accepted: number;
     rejected: { url: string; reason: string }[];
   } | null;
+  // Model web search: roles it reported, how many pages passed the server check, and leads.
+  agentDiscovery?: {
+    model: string;
+    searches: number;
+    pagesOpenedByModel: number;
+    reported: number;
+    checked: number;
+    leads: number;
+    rejected: { url: string; reason: string }[];
+  } | null;
+  leads?: number;
   candidates?: any[];
   reviewed?: number;
   notReviewed?: number;
@@ -159,10 +174,37 @@ const ports: ScoutGraphPorts = {
               onUsage: async () => {},
               onSpan: spanHook({ userId: sweep.userId, sweepId, agent: 'Scout' }),
             });
+    // Model web search is one counted call that runs the provider's own search tool.
+    const searchAgent =
+      sweep.mode === 'fixture' || !jobSearchAgentAvailable()
+        ? undefined
+        : (criteria: Parameters<typeof searchJobsWithModel>[0]) =>
+            searchJobsWithModel(criteria, sweep.mode as Mode, {
+              onCall: async () => void (await patchSweep(sweepId, () => {}, { calls: 1 })),
+              onTool: async () => {},
+              onUsage: async () => {},
+              onSpan: spanHook({ userId: sweep.userId, sweepId, agent: 'Scout' }),
+            });
+    let agentDiscovery: SweepData['agentDiscovery'] = null;
     try {
       if (data.search.provider === 'fixtures') jobs = await readJobs();
       else {
-        const fetched: any = await new JobRepository().search(data.search, { extractPage });
+        const fetched: any = await new JobRepository().search(data.search, {
+          extractPage,
+          searchAgent,
+        });
+        if (fetched.discovery?.provider === 'agent') {
+          const d = fetched.discovery;
+          agentDiscovery = {
+            model: d.model,
+            searches: d.searches,
+            pagesOpenedByModel: d.pagesOpenedByModel,
+            reported: d.reported,
+            checked: d.checked,
+            leads: d.leads,
+            rejected: d.rejected,
+          };
+        }
         jobs = fetched.jobs;
         limitations = fetched.limitations || [];
         webDiscovery =
@@ -180,10 +222,13 @@ const ports: ScoutGraphPorts = {
       });
     }
     const sorted = freshJobs(jobs, seen);
-    const candidates = sorted.fresh.slice(0, MAX_CANDIDATES).map(slim);
+    // Leads were never read, so they are recorded for the user but never scored or tailored.
+    const fresh = sorted.fresh.slice(0, MAX_CANDIDATES).map(slim);
+    const candidates = fresh.filter((job) => job.source?.lead !== true);
+    const leads = fresh.filter((job) => job.source?.lead === true);
     const currency = countrySpec(data.search.country).currency;
     const now = new Date();
-    for (const job of candidates) {
+    for (const job of fresh) {
       const fingerprint = jobFingerprint(job);
       const record = buildJobRecord(job, currency);
       await db.trackedJob.upsert({
@@ -202,7 +247,9 @@ const ports: ScoutGraphPorts = {
       (d) => ({
         ...d,
         fetched: jobs.length,
-        fresh: candidates.length,
+        fresh: fresh.length,
+        leads: leads.length,
+        agentDiscovery,
         alreadySeen: sorted.seenAgain.length,
         duplicates: sorted.duplicates,
         failures,
@@ -471,6 +518,8 @@ async function overview(userId: string) {
     setting: await scoutSetting(userId),
     schedule: { cron: SCOUT_CRON, timeZone: SCOUT_TZ },
     limits: { reviewPerSweep: SCOUT_REVIEW_LIMIT, sweepsPerDay: SCOUT_SWEEPS_PER_DAY },
+    // The model web search source needs the native OpenAI route; the UI offers it only then.
+    modelSearchAvailable: jobSearchAgentAvailable(),
     trackedTotal: await db.trackedJob.count({ where: { userId } }),
     tracked: tracked.map((t) => ({
       fingerprint: t.fingerprint,
@@ -499,6 +548,8 @@ async function overview(userId: string) {
         failures: d.failures || [],
         limitations: d.limitations || [],
         webDiscovery: d.webDiscovery || null,
+        agentDiscovery: d.agentDiscovery || null,
+        leads: d.leads ?? null,
         handoffs: d.handoffs || [],
         error: d.error || null,
         packages: (d.shortlist || []).map((match) => {
