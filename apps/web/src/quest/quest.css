@@ -3625,3 +3625,37 @@ body:has(.quest) {
   padding-left: 18px;
   font-size: 13px;
 }
+
+/* Market insight (CFS-115). */
+.mi-overall {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.mi-overall div {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--q-soft);
+}
+.mi-overall dt {
+  font-size: 12px;
+  color: var(--q-muted);
+}
+.mi-overall dd {
+  margin: 2px 0 0;
+  font-weight: 800;
+}
+.mi-skills {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.mi-skills li {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--q-soft);
+  font-size: 13px;
+}

@@ -407,3 +407,24 @@ it('Scout discovers roles onto the board by default and new searches reuse saved
     shortlist.events.some((e: any) => e.agent === 'Career Coach' && e.action === 'completed'),
   ).toBe(false);
 });
+
+it('counts regional market insight from the roles the searches found', async () => {
+  const { call } = await client();
+  expect((await call('/insights?country=au')).body.overall.roles).toBe(0);
+  const run = (await call('/missions', 'POST', { goal: 'Find a graduate analyst role.' })).body;
+  const done = (
+    await until(
+      () => call(`/missions/${run.id}`),
+      (r) => r.body.status === 'AWAITING_JOB',
+    )
+  ).body;
+  const insight = (await call('/insights?country=au')).body;
+  expect(insight).toMatchObject({ country: 'au', family: 'all' });
+  expect(insight.overall.roles).toBe(done.data.matches.length);
+  expect(insight.overall.topSkills.length).toBeGreaterThan(0);
+  expect(insight.overall.topSkills[0].examples[0].title).toBeTruthy();
+  expect(insight.cities.reduce((n: number, c: any) => n + c.roles, 0)).toBe(insight.overall.roles);
+  const data = (await call('/insights?country=au&family=data')).body;
+  expect(data.overall.roles).toBeLessThanOrEqual(insight.overall.roles);
+  expect((await call('/insights?country=zz')).status).toBe(422);
+});

@@ -200,3 +200,13 @@ capability model uses for confidence and levels.
   score (100+ → 4, 20+ → 3, else 2).
 - LeetCode (optional; no official API): the public profile is read when possible; otherwise the
   user's own solved count is added as self-reported (300+ → 3, 50+ → 2, else 1).
+
+## Regional insight and positioning (CFS-115)
+
+`GET /api/insights?country=&family=` (World page) counts, from the roles this user's searches and
+Scout sweeps found in the current provider mode: roles per city, salary middle half from listings
+that state one (yearly), visa sponsorship and citizen/PR-only counts, remote and hybrid counts, and
+the most requested skills with example listings. It is a sample of what the searches found, not
+the whole market. Role families: data, software, ML/AI, cloud/DevOps, product/business analysis.
+The product is positioned as narrowing the information gap for technical roles across regions
+(README, footer, demo pitch).

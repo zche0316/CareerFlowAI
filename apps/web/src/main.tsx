@@ -595,6 +595,7 @@ function App() {
           ) : tab === 'world' ? (
             <QuestWorld
               workspace={workspace}
+              request={api}
               realm={jobSearch.country}
               onTravel={(country) => {
                 setJobSearch((j: any) => ({ ...j, country, region: '', location: '' }));
@@ -939,7 +940,7 @@ function App() {
           )}
         </main>
         <footer>
-          CareerFlow AI <span>Built around your evidence. Guided by your decisions.</span>
+          CareerFlow AI <span>Technical roles across regions, matched to evidence you approve.</span>
         </footer>
       </div>
       {creating && (

@@ -1,6 +1,8 @@
 # CareerFlow AI
 
-A local career workspace with five specialist agents: Profile Builder, Career Coach, Job Matcher, Resume Tailor and Interview Coach. Approved profile versions, background missions, human decisions and evidence-grounded application documents persist in PostgreSQL.
+CareerFlow AI narrows the information gap for people looking for technical roles across regions. It finds roles on official job boards and verifiable sources, shows what each region's roles actually ask for, rates your capability per skill from evidence you approve (including GitHub, certificates and contest profiles), and tailors an evidence-grounded resume for each role you pursue, with interview practice.
+
+Under the hood, a team of agents (Profile Builder, Career Coach, Scout, Job Matcher, a resume team and Interview Coach) works on a long-lived workspace: approved profile versions, one quest per role, durable runs, human decisions and documents persist in PostgreSQL.
 
 Progress, acceptance results, defects and delivery evidence are managed in [Jira](https://careerflow-elec5620-group2.atlassian.net/jira/software/projects/CFS/boards/2). Repository documentation covers how to use, run and maintain the application.
 

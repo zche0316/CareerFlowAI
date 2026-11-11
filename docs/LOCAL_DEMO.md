@@ -40,6 +40,10 @@ account by hand.
 
 ## The demo workflow
 
+Pitch in one line: CareerFlow narrows the information gap for technical roles across regions.
+It finds roles, shows what each region asks for, rates capability per skill from approved
+evidence, and tailors an evidence-grounded resume per role.
+
 One story, in this order. Each step names the Quest page where it happens.
 
 1. **Sign in** → Home.
