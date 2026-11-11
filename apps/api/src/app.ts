@@ -11,6 +11,13 @@ import { registerProfileImports } from './profile-import.js';
 import { registerExperienceOrganisation } from './experience-organisation.js';
 import { registerProfileConversations } from './profile-conversations.js';
 import { registerCareerMemory } from './career-memory.js';
+import {
+  listApplications,
+  recordRunStatus,
+  registerApplications,
+  upsertApplication,
+} from './applications.js';
+import { registerCoach } from './coach.js';
 import { registerProfilePolish } from './profile-polish.js';
 import { registerResumeWording } from './resume-wording.js';
 import { registerResumeAgent } from './resume-agent.js';
@@ -164,15 +171,20 @@ export function createApp() {
       db.mission.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 40 }),
       db.approvedResume.findMany({ where: { userId }, orderBy: { approvedAt: 'desc' }, take: 20 }),
     ]);
-    res.json({ profile, missions, resumes, agents: AGENTS, mode: configuredMode() });
+    const applications = await listApplications(userId);
+    res.json({ profile, missions, resumes, applications, agents: AGENTS, mode: configuredMode() });
   });
 
   app.get('/api/tools/dashboard', async (req, res) =>
     res.json(await toolsDashboard(req.actor!.id)),
   );
-  app.post('/api/missions/:id/tools', async (req, res) =>
-    res.json(await runTool(req.actor!.id, String(req.params.id), toolCommand.parse(req.body))),
-  );
+  app.post('/api/missions/:id/tools', async (req, res) => {
+    const input = toolCommand.parse(req.body);
+    const result = await runTool(req.actor!.id, String(req.params.id), input);
+    if (input.kind === 'status')
+      await recordRunStatus(req.actor!.id, String(req.params.id), input.status);
+    res.json(result);
+  });
   app.get('/api/missions/:id/reminders/:reminderId/calendar', async (req, res) =>
     res.json(
       await exportReminder(req.actor!.id, String(req.params.id), String(req.params.reminderId)),
@@ -213,6 +225,8 @@ export function createApp() {
   registerProfileConversations(app);
   registerExperienceOrganisation(app);
   registerCareerMemory(app);
+  registerApplications(app);
+  registerCoach(app);
   registerResumeWording(app);
   registerCloudBackups(app);
   registerResumeAgent(app);
@@ -353,15 +367,13 @@ export function createApp() {
   app.get('/api/missions/:id/application', async (req, res) =>
     res.json(await prepareApplication(req.actor!.id, String(req.params.id))),
   );
-  app.post('/api/missions/:id/applications', async (req, res) =>
-    res.json(
-      await recordApplication(
-        req.actor!.id,
-        String(req.params.id),
-        applicationRecordSchema.parse(req.body),
-      ),
-    ),
-  );
+  app.post('/api/missions/:id/applications', async (req, res) => {
+    const input = applicationRecordSchema.parse(req.body);
+    const record = await recordApplication(req.actor!.id, String(req.params.id), input);
+    if (input.status === 'submitted_self_reported')
+      await recordRunStatus(req.actor!.id, String(req.params.id), 'applied');
+    res.json(record);
+  });
   app.get('/api/missions/:id/jobs/:jobId/availability', async (req, res) => {
     const m = await ownedMission(req.actor!.id, String(req.params.id));
     const selected = (m.data as MissionData).matches?.find(
@@ -397,6 +409,18 @@ export function createApp() {
     }
 
     const m = await queueDecision(req.actor!.id, String(req.params.id), decision);
+    if (decision.kind === 'job') {
+      // The chosen role becomes (or joins) its long-lived application before the run continues.
+      const chosen = (m.data as MissionData).matches?.find((r: any) => r.job.id === decision.jobId);
+      if (chosen) {
+        const application = await upsertApplication(
+          req.actor!.id,
+          chosen,
+          chosen.job.source?.importedFromURL ? 'link' : 'search',
+        );
+        await db.mission.update({ where: { id: m.id }, data: { applicationId: application.id } });
+      }
+    }
     await enqueue(m.id).catch(() => {});
     res.status(202).json(m);
   });

@@ -25,6 +25,7 @@ import { CharacterSheet } from './quest/character-sheet.js';
 import { progressFrom } from './quest/progress.js';
 import { QuestTopBar, type QuestNavId } from './quest/top-bar.js';
 import { QuestHome } from './quest/home.js';
+import { QuestCoach } from './quest/coach.js';
 import { PartyRoster } from './quest/roster.js';
 import './quest/fonts.js';
 import { ProfileConversation } from './profile-conversation.js';
@@ -551,6 +552,29 @@ function App() {
           ) : tab === 'home' ? (
             <QuestHome
               workspace={workspace}
+              coach={
+                workspace?.profile && (
+                  <QuestCoach
+                    request={api}
+                    live={session?.mode !== 'fixture'}
+                    boardKey={(workspace?.applications || [])
+                      .map((a: any) => a.id + a.stage)
+                      .join()}
+                    onFind={() => setCreating(true)}
+                    onTailor={(applicationId) =>
+                      void act(async () => {
+                        const run = await api(`/applications/${applicationId}/runs`, 'POST');
+                        setSelected(run.id);
+                        setTab('missions');
+                        setPhase(3);
+                        setNotice('Your resume team is tailoring a resume for this role…');
+                      })
+                    }
+                    onQuests={() => goQuest('quests')}
+                    onProfile={() => goQuest('approved-profile')}
+                  />
+                )
+              }
               userName={session.user.name}
               onOpenMission={(id, step) => {
                 setSelected(id);
@@ -657,6 +681,10 @@ function App() {
                       await api(`/missions/${mission.id}/${kind}`, 'POST', body || {});
                       if (kind === 'job-link')
                         setNotice('Job read. Review the listing and choose it as your target.');
+                      if (kind === 'saved-roles')
+                        setNotice(
+                          'Saved to your quests. Tailor a resume for it from the Quest log.',
+                        );
                       if (kind === 'decisions' && (body as any)?.kind === 'job') {
                         setPhase(3);
                         setNotice('Job selected. Preparing your resume…');
@@ -714,17 +742,31 @@ function App() {
                   <section className="panel">
                     <h2>{phaseNames[phase]} Agent</h2>
                     <p>
-                      Start a career mission with an approved profile. Your agents share the same
-                      reviewed evidence and selected target job.
+                      Find roles with your approved profile. Your party shares the same reviewed
+                      evidence and the role you choose.
                     </p>
                     <button className="primary" onClick={() => setCreating(true)}>
-                      Start career mission
+                      Find roles
                     </button>
                   </section>
                 </>
               ) : (
                 <QuestLog
                   workspace={workspace}
+                  busy={busy}
+                  onTailor={(applicationId) =>
+                    void act(async () => {
+                      const run = await api(`/applications/${applicationId}/runs`, 'POST');
+                      setSelected(run.id);
+                      setPhase(3);
+                      setNotice('Your resume team is tailoring a resume for this role…');
+                    })
+                  }
+                  onStatus={(applicationId, status) =>
+                    void act(async () => {
+                      await api(`/applications/${applicationId}`, 'PATCH', { status });
+                    })
+                  }
                   onOpen={(m, targetPhase) => {
                     setSelected(m.id);
                     setPhase(targetPhase);
@@ -885,7 +927,7 @@ function App() {
       {creating && (
         <div className="modal-backdrop">
           <section
-            className="modal"
+            className="modal quest-form"
             role="dialog"
             aria-modal="true"
             aria-labelledby="mission-title"
@@ -917,11 +959,11 @@ function App() {
             >
               <X />
             </button>
-            <span className="eyebrow">GIVE YOUR TEAM A DIRECTION</span>
+            <span className="eyebrow">SEND THE PARTY OUT</span>
             <h2 id="mission-title">What’s your next career goal?</h2>
             <p>
-              Your team will analyse your approved profile, find relevant opportunities and prepare
-              your next steps. All four specialists use this approved profile automatically.
+              The Coach reads your approved profile and the Job Matcher ranks roles against it. You
+              choose one to tailor a resume for, and can save others to your quests for later.
             </p>
             <label>
               Career goal
@@ -940,13 +982,9 @@ function App() {
               tavilyAccessMode={session?.recruitment?.tavilyAccessMode}
               internalFixtures={session?.mode === 'fixture'}
             />
-            <p className="small muted">
-              Search sends only keywords and selected location to the recruitment API, not your
-              name, contact details or full resume. You can edit the suggested terms before
-              searching.
-            </p>
             <label>
-              Minimum job suitability: {minScore}/100
+              Minimum match: {minScore}/100
+              <small className="muted">Roles scoring below this stay off the shortlist.</small>
               <input
                 type="range"
                 min={0}
@@ -958,7 +996,10 @@ function App() {
             <div className="info">
               <ShieldCheck size={18} />
               <span>
-                You choose the target job and approve the exact resume before it is saved.
+                You choose the role and approve the exact resume before it is saved.{' '}
+                {session?.mode === 'fixture'
+                  ? 'Rehearsal mode: demo answers, no model cost.'
+                  : `Live mode: a run makes real model calls, usually 10 to 20 of its ${MISSION_MODEL_CALL_LIMIT}-call budget.`}
               </span>
             </div>
             {!workspace?.profile ? (
@@ -998,7 +1039,7 @@ function App() {
                   })
                 }
               >
-                {busy ? 'Starting…' : 'Start career mission'}
+                {busy ? 'Sending…' : 'Send the party out'}
                 <ArrowRight size={17} />
               </button>
             )}
@@ -2346,6 +2387,13 @@ function MissionDetail({
                         >
                           Select this opportunity
                           <ArrowRight size={15} />
+                        </button>
+                        <button
+                          className="text-button"
+                          disabled={busy}
+                          onClick={() => void onAction('saved-roles', { jobId: r.job.id })}
+                        >
+                          Save to my quests for later
                         </button>
                         <label className="checkbox small">
                           <input

@@ -6,7 +6,9 @@ const primary = ['Home', 'Quests', 'Jobs', 'Scout', 'World', 'Party', 'Character
 
 export async function go(page: Page, label: string) {
   const nav = page.getByRole('navigation', { name: 'Main', exact: true });
-  if (primary.includes(label)) return nav.getByRole('button', { name: label, exact: true }).click();
+  // Home carries a "N waiting for you" badge in its accessible name while a run waits.
+  if (primary.includes(label))
+    return nav.getByRole('button', { name: new RegExp(`^${label}( \\d+ waiting for you)?$`) }).click();
   await nav.getByRole('button', { name: /^More/ }).click();
   await page.getByRole('menuitem', { name: label, exact: true }).click();
 }

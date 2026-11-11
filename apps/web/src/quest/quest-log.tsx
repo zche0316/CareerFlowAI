@@ -3,6 +3,7 @@ import { MISSION_MODEL_CALL_LIMIT } from '../../../../packages/contracts/src/mis
 import { nextMissionStep } from '../mission-step.js';
 import { AgentAvatar, type AgentId } from './characters.js';
 import { XP_RULES } from './progress.js';
+import { QuestApplications } from './applications.js';
 
 export const questRoute = ['Profile', 'Analysis', 'Shortlist', 'Review', 'Practice'];
 
@@ -107,23 +108,33 @@ function QuestCard({ m, onOpen }: { m: any; onOpen: (m: any, phase: number | nul
   );
 }
 
-/** Quests page: every mission grouped by who has to act next. */
+/**
+ * Quests page: the roles the user is pursuing (one quest per role, kept across runs), then the
+ * party's runs grouped by who has to act next.
+ */
 export function QuestLog({
   workspace,
+  busy = false,
   onOpen,
   onNewQuest,
   onBuildProfile,
+  onTailor,
+  onStatus,
 }: {
   workspace: any;
+  busy?: boolean;
   onOpen: (m: any, phase: number | null) => void;
   onNewQuest: () => void;
   onBuildProfile: () => void;
+  onTailor: (applicationId: string) => void;
+  onStatus: (applicationId: string, status: string) => void;
 }) {
+  const applications: any[] = workspace?.applications || [];
   const missions: any[] = workspace?.missions || [];
   const groups = [
     {
       id: 'waiting',
-      title: 'Waiting on you',
+      title: 'Runs waiting on you',
       sub: 'Nothing moves until you decide.',
       items: missions.filter((m) => waitingStatus.includes(m.status)),
     },
@@ -135,23 +146,32 @@ export function QuestLog({
     },
     {
       id: 'ended',
-      title: 'Finished and archived',
-      sub: 'Read-only history. New quests use your latest approved profile.',
+      title: 'Run history',
+      sub: 'Read-only. New runs use your latest approved profile.',
       items: missions.filter(
         (m) => !waitingStatus.includes(m.status) && !workingStatus.includes(m.status),
       ),
     },
   ];
-  const complete = missions.filter((m) => m.status === 'COMPLETE').length;
+  const applied = applications.filter((a) =>
+    ['applied', 'interview', 'offer'].includes(a.stage),
+  ).length;
+  const openRun = (id: string) => {
+    const m = missions.find((x) => x.id === id);
+    if (m) onOpen(m, m.status === 'COMPLETE' ? null : nextMissionStep(m));
+  };
   return (
     <div className="quest-page ql">
       <div className="ql-head">
         <div>
           <span className="quest-sub dark">
-            {missions.length} quest{missions.length === 1 ? '' : 's'} · {complete} complete
+            {applications.length} role{applications.length === 1 ? '' : 's'} · {applied} applied
           </span>
           <h1 className="quest-display">Quest log</h1>
-          <p>Each quest is one target role: shortlist, tailored resume, then interview practice.</p>
+          <p>
+            Each quest is one role you are pursuing. It keeps every tailored resume and practice run
+            for that role, so you can come back after your profile grows.
+          </p>
         </div>
         <button
           type="button"
@@ -159,10 +179,25 @@ export function QuestLog({
           onClick={workspace?.profile ? onNewQuest : onBuildProfile}
         >
           <Plus size={18} strokeWidth={2.8} />
-          {workspace?.profile ? 'Start a new quest' : 'Build my profile first'}
+          {workspace?.profile ? 'Find roles' : 'Build my profile first'}
         </button>
       </div>
-      {missions.length === 0 ? (
+      {workspace?.profile && (
+        <QuestApplications
+          applications={applications}
+          busy={busy}
+          onOpenRun={openRun}
+          onTailor={onTailor}
+          onStatus={onStatus}
+        />
+      )}
+      {missions.length > 0 && (
+        <div className="qa-runs-head">
+          <h2 className="quest-display">Party runs</h2>
+          <p>Searches, resume teams and interview practice, newest first.</p>
+        </div>
+      )}
+      {missions.length === 0 && !workspace?.profile ? (
         <section className="quest-tile ql-empty">
           <div className="ql-empty-party" aria-hidden="true">
             {(['scout', 'coach', 'matcher', 'critic'] as const).map((id) => (

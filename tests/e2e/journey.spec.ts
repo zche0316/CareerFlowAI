@@ -20,17 +20,14 @@ async function openRankedJobs(page: Page) {
   await page.getByRole('button', { name: 'Review profile draft' }).click();
   await page.getByLabel('I reviewed this exact draft').check();
   await page.getByRole('button', { name: 'Approve & save profile' }).click();
-  await expect(
-    page.getByRole('button', { name: 'Start career mission', exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Send the party out', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Close mission form', exact: true }).click();
   await openProfile(page);
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
   await go(page, 'Quests');
-  await page.getByRole('button', { name: 'Start a new quest' }).click();
-  await page.getByText('Advanced source options', { exact: true }).click();
-  await page.getByLabel('Job source', { exact: true }).selectOption('fixtures');
-  await page.getByRole('button', { name: 'Start career mission', exact: true }).click();
+  await page.getByRole('button', { name: 'Find roles' }).click();
+  await page.getByLabel('Demo roles').check();
+  await page.getByRole('button', { name: 'Send the party out', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Select this opportunity' }).first()).toBeVisible({
     timeout: 30000,
   });
@@ -76,9 +73,7 @@ test('a user must explicitly review a profile before v1 is persisted', async ({ 
   await page.getByLabel('I reviewed this exact draft').check();
   await expect(approve).toBeEnabled();
   await approve.click();
-  await expect(
-    page.getByRole('button', { name: 'Start career mission', exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Send the party out', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Close mission form', exact: true }).click();
   await openProfile(page);
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
@@ -235,7 +230,7 @@ test('a user answers every interview question and receives complete feedback', a
   await page.getByRole('button', { name: 'Back to results', exact: true }).click();
   await go(page, 'My profile');
   await go(page, 'Jobs');
-  await page.getByRole('button', { name: 'Start career mission', exact: true }).click();
+  await page.getByRole('button', { name: 'Send the party out', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Select this opportunity' }).first()).toBeVisible({
     timeout: 30000,
   });

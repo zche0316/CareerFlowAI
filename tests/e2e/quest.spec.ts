@@ -56,7 +56,7 @@ test('a quest runs from the log through review, a return to the Rewriter and the
   await page.goto('/?view=missions');
   await expect(page.getByRole('navigation', { name: 'Main', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Quest log', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: /Waiting on you/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Runs waiting on you/ })).toBeVisible();
 
   await page.goto(`/?view=missions&mission=${id}&step=2`);
   await expect(

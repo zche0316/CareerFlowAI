@@ -10,6 +10,18 @@ export const defaultJobSearch = {
   keyword: '',
   listing: { url: '', title: '', company: '', location: '', description: '' },
 };
+const sourceChoices = [
+  {
+    id: 'auto',
+    label: 'Official job boards',
+    hint: 'Live roles from company careers boards. Quick and low cost.',
+  },
+  {
+    id: 'manual',
+    label: 'Paste a listing',
+    hint: 'For SEEK, LinkedIn or any ad you found yourself.',
+  },
+];
 export function JobSearchFields({
   value,
   onChange,
@@ -28,16 +40,37 @@ export function JobSearchFields({
   const update = (p: Partial<typeof defaultJobSearch>) => onChange({ ...value, ...p });
   return (
     <section>
-      <h3>Job source and location</h3>
-      <p className="small muted">
-        {value.provider === 'fixtures'
-          ? 'Offline verification listings are selected.'
-          : value.provider === 'manual'
-            ? 'Use the listing you provide below.'
-            : 'Searches connected job sources, not the entire job market.'}
-      </p>
+      <fieldset className="source-pick">
+        <legend>Where should the party look?</legend>
+        {[
+          ...sourceChoices,
+          ...(internalFixtures
+            ? [
+                {
+                  id: 'fixtures',
+                  label: 'Demo roles',
+                  hint: 'Eight fictional roles for rehearsal.',
+                },
+              ]
+            : []),
+        ].map((choice) => (
+          <label key={choice.id} className={value.provider === choice.id ? 'on' : undefined}>
+            <input
+              type="radio"
+              name="job-source"
+              value={choice.id}
+              checked={value.provider === choice.id}
+              onChange={() => update({ provider: choice.id })}
+            />
+            <span>
+              <strong>{choice.label}</strong>
+              <small>{choice.hint}</small>
+            </span>
+          </label>
+        ))}
+      </fieldset>
       <details>
-        <summary>Advanced source options</summary>
+        <summary>More sources</summary>
         <label>
           Job source
           <select
@@ -45,28 +78,28 @@ export function JobSearchFields({
             value={value.provider}
             onChange={(e) => update({ provider: e.target.value })}
           >
-            <option value="auto">Automatic · all available sources</option>
-            <option value="employers">Official employer boards · multiple companies</option>
-            <option value="greenhouse">Live company careers (Greenhouse)</option>
-            <option value="tavily">Tavily discovery · verified public job boards</option>
-            <option value="adzuna">Live country-wide search (Adzuna credentials required)</option>
-            <option value="manual">SEEK / Indeed · paste a listing</option>
-            {internalFixtures && <option value="fixtures">Offline verification listings</option>}
+            <option value="auto">Official job boards · all available sources</option>
+            <option value="employers">Official employer boards only</option>
+            <option value="greenhouse">One company’s careers page (Greenhouse)</option>
+            <option value="tavily">Web discovery · verified public job boards</option>
+            <option value="adzuna">Country-wide search (Adzuna)</option>
+            <option value="manual">Paste a listing (SEEK, LinkedIn, Indeed…)</option>
+            {internalFixtures && <option value="fixtures">Demo roles</option>}
           </select>
         </label>
       </details>
       {value.provider === 'tavily' && (
         <p role="status" className="info">
           {tavilyConfigured
-            ? `Tavily ${tavilyAccessMode === 'keyless' ? 'limited keyless access' : 'API access'}: ${tavilyAccessMode === 'keyless' ? 'one search, up to 5 links' : 'up to two searches, up to 20 links'}. Only postings confirmed through official Greenhouse, Lever or Ashby APIs are matched.`
-            : 'Tavily is not configured. Set TAVILY_API_KEY on the server, or explicitly choose limited TAVILY_ACCESS_MODE=keyless, then restart.'}
+            ? `Web discovery: ${tavilyAccessMode === 'keyless' ? 'one search, up to 5 links' : 'up to two searches, up to 20 links'}. Only postings confirmed on official Greenhouse, Lever or Ashby boards are matched.`
+            : 'Web discovery is not set up on this server. Choose Official job boards or paste a listing.'}
         </p>
       )}
       {value.provider === 'adzuna' && (
         <p role="status" className="info">
           {adzunaConfigured
-            ? 'Adzuna search is configured. Only search terms and location are sent.'
-            : 'Adzuna is not configured. Add ADZUNA_APP_ID and ADZUNA_APP_KEY to the server .env and restart. Groq credentials cannot be used. No sample jobs will be substituted.'}
+            ? 'Country-wide search is set up. Only search terms and location are sent.'
+            : 'Country-wide search is not set up on this server. Choose Official job boards or paste a listing.'}
         </p>
       )}
       {value.provider === 'manual' && (
@@ -141,14 +174,11 @@ export function JobSearchFields({
           </label>
         </div>
       )}
-      <details className="source-help">
-        <summary>About job sources</summary>
-        <p>
-          Jobs are retrieved when the mission reaches matching. Source failures are reported; sample
-          jobs are never substituted. Availability and location must be checked on the original
-          listing.
-        </p>
-      </details>
+      <p className="small muted">
+        Only your keywords and location are sent to job sources, never your name, contact details or
+        resume. If a source fails you will see why; demo roles are never swapped in. Check
+        availability on the original listing.
+      </p>
     </section>
   );
 }

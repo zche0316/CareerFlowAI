@@ -228,7 +228,7 @@ test('new missions automatically use profile search defaults and the full career
   await app(page);
   await page.goto('/');
   await go(page, 'Quests');
-  await page.getByRole('button', { name: 'Start a new quest', exact: true }).click();
+  await page.getByRole('button', { name: 'Find roles', exact: true }).click();
   await expect(page.getByLabel('Career goal', { exact: true })).toHaveValue(sampleProfile.goals);
   await expect(page.getByLabel('Job keywords', { exact: true })).toHaveValue('data analyst');
   await expect(page.getByLabel('City / locality', { exact: true })).toHaveValue(
@@ -236,9 +236,7 @@ test('new missions automatically use profile search defaults and the full career
   );
   await expect(page.getByLabel('Job source', { exact: true })).toHaveValue('auto');
   await expect(page.getByLabel('Job source', { exact: true })).not.toBeVisible();
-  await expect(page.getByRole('dialog')).toContainText(
-    'All four specialists use this approved profile automatically.',
-  );
+  await expect(page.getByRole('dialog')).toContainText('The Coach reads your approved profile');
 });
 
 test('resume editing uses suggestions and chat, refreshes the preview and requires fresh confirmation', async ({
@@ -370,9 +368,7 @@ test('global Find jobs starts fresh after the latest completed journey instead o
   await page.goto('/?view=approved-profile');
   await expect(page.getByRole('heading', { name: 'My profile', exact: true })).toBeVisible();
   await go(page, 'Jobs');
-  await expect(
-    page.getByRole('button', { name: 'Start career mission', exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Send the party out', exact: true })).toBeVisible();
   await expect(page).not.toHaveURL(/older-search/);
 });
 
@@ -402,9 +398,9 @@ test('the quest log lists every journey by who acts next and keeps unsuccessful 
     }),
   );
   await page.goto('/?view=missions');
-  await expect(page.getByText('6 quests · 4 complete', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Party runs', exact: true })).toBeVisible();
   const ended = page.locator('section.ql-group.ended');
-  await expect(ended.getByRole('heading', { name: /Finished and archived/ })).toBeVisible();
+  await expect(ended.getByRole('heading', { name: /Run history/ })).toBeVisible();
   await expect(ended.locator('li.ql-card')).toHaveCount(6);
   // A finished quest is titled by its role, not the repeated goal.
   await expect(ended.locator('li.ql-card').first().locator('h3')).toHaveText('Analyst 0');
@@ -615,5 +611,7 @@ test('cancelling an earlier inbox journey clears its pending badge while retaini
   const ended = page.locator('section.ql-group.ended');
   await expect(ended.locator('li.ql-card')).toHaveCount(1);
   await expect(ended).toContainText('Cancelled. History is kept read-only.');
-  await expect(page.getByRole('button', { name: 'Home', exact: true })).toHaveAccessibleName('Home');
+  await expect(page.getByRole('button', { name: 'Home', exact: true })).toHaveAccessibleName(
+    'Home',
+  );
 });

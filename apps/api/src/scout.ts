@@ -5,6 +5,7 @@ import { db, databaseUrl, portablePool } from './db.js';
 import { json, type MissionData } from './domain.js';
 import { AppError, requireValue } from './errors.js';
 import { enqueue, queueClient } from './queue.js';
+import { linkRun } from './applications.js';
 import { spanHook, traceTotals } from './trace.js';
 import {
   jobSearchSchema,
@@ -180,6 +181,7 @@ async function startPackage(input: {
       events: json([{ at, agent: 'Scout', action: 'queued', detail: input.detail }]),
     },
   });
+  await linkRun(userId, mission.id, 'scout');
   await patchSweep(sweepId, (d) => ({
     ...d,
     packages: { ...(d.packages || {}), [match.job.id]: { missionId: mission.id } },
