@@ -129,14 +129,14 @@ export async function createWorkflow() {
                 ),
               )
             : role === 'questions' && c.d.resumeDraft?.claims?.length
-            ? c.facts.filter((f) =>
-                c.d.resumeDraft.claims.some((claim: any) => claim.factId === f.id),
-              )
-            : role === 'resume'
-              ? c.facts.filter(
-                  (f) => !f.recordId || f.kind !== 'experience' || isResumeContribution(f),
+              ? c.facts.filter((f) =>
+                  c.d.resumeDraft.claims.some((claim: any) => claim.factId === f.id),
                 )
-              : c.facts,
+              : role === 'resume'
+                ? c.facts.filter(
+                    (f) => !f.recordId || f.kind !== 'experience' || isResumeContribution(f),
+                  )
+                : c.facts,
         profileBase: role === 'resume' ? { records: resumeRecordIndex(c.p) } : undefined,
         analysisFeedback: role === 'coach' ? c.d.analysisFeedback : undefined,
         job: c.d.selectedJob?.job,
@@ -257,8 +257,23 @@ export async function createWorkflow() {
       const selection = filterResumeEvidence(plan.claims, eligible);
       // Critic and user-focus requests are applied deterministically, not left to the model.
       const gaps = c.d.resumeTeam?.gaps;
+      // Facts the Critic or the user asked for stay requested in later rounds, so a round whose
+      // notes carry no fact ID cannot silently drop them again.
+      const pinned: string[] = c.d.resumeTeam?.pinnedFactIds || [];
+      const asked = feedback.flatMap((f) => (f.factId ? [f.factId] : []));
+      const nextPinned = [...new Set([...pinned, ...asked])].filter((factId) =>
+        eligible.has(factId),
+      );
+      // A Critic return refines the current draft: lines already in it stay unless the user asks
+      // otherwise, so a fresh model pick cannot drop evidence the Critic has already accepted.
+      const kept =
+        feedback.length && feedback.every((f) => f.from === 'critic')
+          ? (c.d.resumeDraft?.claims || []).map((claim: DraftClaim) => claim.factId)
+          : [];
       const requested = [
-        ...feedback.flatMap((f) => (f.factId ? [f.factId] : [])),
+        ...asked,
+        ...pinned,
+        ...kept,
         ...(gaps?.requirements || [])
           .filter((r: any) => gaps?.userFocus?.includes(r.term))
           .flatMap((r: any) => r.factIds as string[]),
@@ -304,14 +319,15 @@ export async function createWorkflow() {
       };
       const summary =
         `Selected ${claims.length} approved claims` +
-        (requested.length ? `, including ${requested.length} requested by the team.` : '.');
-      await patchRun(
+        (requested.length ? `, including ${requested.length} kept or requested by the team.` : '.');
+      await patchTeam(
         id,
         c.token,
-        { resumeDraft: { ...draft, hash: digest(draft) } },
+        (t) => ({ ...t, pinnedFactIds: nextPinned }),
         'Evidence Selector',
         'completed',
         summary,
+        { resumeDraft: { ...draft, hash: digest(draft) } },
       );
       return { summary };
     },
@@ -320,7 +336,8 @@ export async function createWorkflow() {
     async rewrite(id, feedback) {
       const c = await context(id, 'resume');
       const draft = c.d.resumeDraft;
-      if (!draft) throw new AppError(409, 'DRAFT_REQUIRED', 'No resume draft is available to reword.');
+      if (!draft)
+        throw new AppError(409, 'DRAFT_REQUIRED', 'No resume draft is available to reword.');
       if (!draft.claims.some((claim: DraftClaim) => isRewritable(claim))) {
         const summary = 'No personal contribution statements to reword; claims stay verbatim.';
         await patchTeam(
