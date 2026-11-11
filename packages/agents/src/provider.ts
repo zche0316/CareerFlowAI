@@ -367,17 +367,10 @@ async function generateOnce<T>(
                       }
                     : role === 'resume'
                       ? {
-                          claims: context.facts
-                            .filter(
-                              (f) =>
-                                ['skill', 'education', 'experience'].includes(f.kind) &&
-                                !/^none yet$/i.test(f.text),
-                            )
-                            .slice(0, 12)
-                            .map((f) => ({
-                              factId: f.id,
-                              reason: `User-confirmed ${f.kind} evidence, retained verbatim for ${context.job?.title || 'the selected role'}.`,
-                            })),
+                          claims: fixtureResumeSelection(context.facts, context.job).map((f) => ({
+                            factId: f.id,
+                            reason: `User-confirmed ${f.kind} evidence, retained verbatim for ${context.job?.title || 'the selected role'}.`,
+                          })),
                         }
                       : role === 'rewrite'
                         ? {
@@ -870,4 +863,38 @@ async function generateOnce<T>(
   if (!correction.output_parsed)
     throw Error('The provider returned no valid structured result after correction.');
   return schema.parse(correction.output_parsed);
+}
+
+// Deterministic stand-in for the Evidence Selector: a balanced resume rather than the first facts
+// in profile order, so a long skill or coursework list cannot crowd out experience. Experiences
+// are ranked by how many of their words appear in the job text.
+function fixtureResumeSelection(facts: any[], job?: { title?: string; description?: string }) {
+  const usable = facts.filter(
+    (f) => ['skill', 'education', 'experience'].includes(f.kind) && !/^none yet$/i.test(f.text),
+  );
+  const words = (t: string) => new Set(t.toLowerCase().match(/[a-z][a-z+#.]{1,}/g) || []);
+  const jobWords = words(`${job?.title || ''} ${job?.description || ''}`);
+  const skills = usable.filter((f) => f.kind === 'skill').slice(0, 6);
+  const education = usable.filter((f) => f.kind === 'education');
+  const degrees = education.filter((f) => !/-(detail|coursework)-\d+$/.test(f.id));
+  const educationLines = education
+    .filter((f) => /-(detail|coursework)-\d+$/.test(f.id))
+    .slice(0, 2);
+  const experience = usable.filter((f) => f.kind === 'experience');
+  const recordIds = [...new Set(experience.map((f) => f.recordId).filter(Boolean))];
+  const overlap = (id: string) =>
+    experience
+      .filter((f) => f.recordId === id)
+      .reduce((n, f) => n + [...words(f.text)].filter((w) => jobWords.has(w)).length, 0);
+  const records = recordIds
+    .map((id, order) => ({ id, order, score: overlap(id) }))
+    .sort((a, b) => b.score - a.score || a.order - b.order)
+    .slice(0, 3)
+    .map((r) => r.id);
+  const details = records.flatMap((id) =>
+    experience.filter((f) => f.recordId === id && /-detail-\d+$/.test(f.id)).slice(0, 3),
+  );
+  // Profiles without structured records keep their legacy experience text.
+  const legacy = recordIds.length ? [] : experience;
+  return [...skills, ...degrees, ...educationLines, ...details, ...legacy].slice(0, 20);
 }

@@ -22,6 +22,7 @@
     "test:matching": "node --test packages/matching/original.test.js",
     "postinstall": "node scripts/generate-client.mjs",
     "start:local": "node scripts/local-run.mjs",
+    "demo:account": "node scripts/demo-account.mjs",
     "verify:local": "node scripts/local-run.mjs --verify",
     "package:source": "python3 scripts/package-source.py",
     "test:packaging": "python3 -B -m unittest discover -s tests -p 'test_*.py'",

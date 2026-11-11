@@ -14,6 +14,30 @@ deployment is out of scope for now; the longer list is in [READINESS.md](READINE
 | Mode rule      | A mission keeps the mode it was created in. After switching mode, create a new mission.                                          |
 | Data           | Portable database in `.runtime/pglite`. One app process at a time.                                                               |
 
+## Demo account
+
+With the app running, one command creates a ready account:
+
+```sh
+npm run demo:account                                  # app on http://localhost:8787
+npm run demo:account -- --url http://localhost:8797   # another port
+```
+
+The profile is Jordan Ellis, a fictional Data Science graduate. The person, university, employers and
+contact details are invented; the structure and level follow typical Australian graduate resumes:
+
+- a degree with a WAM, coursework and a Dean's List line;
+- a twelve-week data analyst internship;
+- a part-time customer service job during study;
+- a team capstone, a course project and a personal project;
+- a club role and volunteering.
+
+Each result is stated modestly ("I did not measure time saved"), so the resume team has real evidence
+to select and the Gap Analyzer still finds real gaps. The source is `scripts/demo-profile.mjs`.
+
+The account skips step 2 of the workflow below. To demo profile building as well, create a second
+account by hand.
+
 ## The demo workflow
 
 One story, in this order. Each step names the Quest page where it happens.
@@ -38,17 +62,17 @@ Rehearse the whole route in fixture mode. Then run it once in live mode the day 
 
 Ordered by demo risk. Each gap has a "done when" check.
 
-| #   | Gap                                                                                                                                                                                                                                   | Done when                                                                                                                                                     |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| G1  | **Done 2026-11-11.** The classic interface is removed; every Playwright spec runs in Quest. `tests/e2e/demo-workflow.spec.ts` drives steps 1–9 and the Scout sweep through the Quest UI only, in fixture mode.                        | Met. Step 10 (pasted SEEK lead) needs live model search, so it stays a manual live check.                                                                     |
-| G2  | **Walked by the ported specs; styling still mixed.** Every page and step in the checklist opens and works in Quest. The More-menu pages and parts of the quest steps still use the older panel styling inside the Quest shell.        | Each page uses Quest styling. That is a visual change, not a functional gap; the boxes below still need a manual run.                                         |
-| G3  | **No demo reset.** A fresh account starts empty, and building a profile live takes several model calls.                                                                                                                               | One command or documented step gives a clean demo account with an approved fictional profile, without touching `.runtime/pglite` data the user wants to keep. |
-| G4  | **Live route not re-run end to end.** Two Scout packages from the 2026-11-11 sweep have no recorded final state. Interview, export and applications have not been run live since the multi-agent work.                                | One live pass of the demo workflow, with model calls and time recorded in [READINESS.md](READINESS.md).                                                       |
-| G5  | **Live failure points in Scout.** Job Matcher mapping fails schema validation about once per sweep and drops that role. Without model search the low-cost sources found 0–1 roles.                                                    | Mapping retries once before dropping a role. The demo uses model search or a pasted job link, and the empty state says what to do.                            |
-| G6  | **Unexercised features.** Nobody has opened these in a browser: the Scout daily schedule, the LangSmith passthrough, the Battle log cost table, the S3 backup (it needs AWS credentials), the reminder calendar file and negotiation. | Each one either works in a local run or is hidden from the demo, with its note in the checklist.                                                              |
-| G7  | **Missing-key messages.** It is not checked what a user sees when the Tavily, OpenAI or AWS keys are absent in live mode.                                                                                                             | Each missing key gives one plain message on the page that uses it, with no stack trace and no blank page.                                                     |
+| #   | Gap                                                                                                                                                                                                                                             | Done when                                                                                                                          |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| G1  | **Done 2026-11-11.** The classic interface is removed; every Playwright spec runs in Quest. `tests/e2e/demo-workflow.spec.ts` drives steps 1–9 and the Scout sweep through the Quest UI only, in fixture mode.                                  | Met. Step 10 (pasted SEEK lead) needs live model search, so it stays a manual live check.                                          |
+| G2  | **Walked by the ported specs; styling still mixed.** Every page and step in the checklist opens and works in Quest. The More-menu pages and parts of the quest steps still use the older panel styling inside the Quest shell.                  | Each page uses Quest styling. That is a visual change, not a functional gap; the boxes below still need a manual run.              |
+| G3  | **Done 2026-11-11.** `npm run demo:account` creates a fresh account through the app's API with the fictional graduate Jordan Ellis approved as profile v1 and three confirmed career memories. No model calls; existing accounts are untouched. | Met. Each run makes a new account; sign-in details go to `.runtime/demo-account.json`.                                             |
+| G4  | **Live route not re-run end to end.** Two Scout packages from the 2026-11-11 sweep have no recorded final state. Interview, export and applications have not been run live since the multi-agent work.                                          | One live pass of the demo workflow, with model calls and time recorded in [READINESS.md](READINESS.md).                            |
+| G5  | **Live failure points in Scout.** Job Matcher mapping fails schema validation about once per sweep and drops that role. Without model search the low-cost sources found 0–1 roles.                                                              | Mapping retries once before dropping a role. The demo uses model search or a pasted job link, and the empty state says what to do. |
+| G6  | **Unexercised features.** Nobody has opened these in a browser: the Scout daily schedule, the LangSmith passthrough, the Battle log cost table, the S3 backup (it needs AWS credentials), the reminder calendar file and negotiation.           | Each one either works in a local run or is hidden from the demo, with its note in the checklist.                                   |
+| G7  | **Missing-key messages.** It is not checked what a user sees when the Tavily, OpenAI or AWS keys are absent in live mode.                                                                                                                       | Each missing key gives one plain message on the page that uses it, with no stack trace and no blank page.                          |
 
-Next: G3, then G4. G5–G7 can be worked through during the G4 live pass.
+Next: G4. G5–G7 can be worked through during the G4 live pass.
 
 ### Found while doing G1 and G2
 

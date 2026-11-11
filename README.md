@@ -66,6 +66,8 @@ npm run start:local
 
 Open **http://localhost:8787** and create an account. VS Code F5 → **CareerFlow: database + app** runs the same startup flow.
 
+For a demo, `npm run demo:account` (in a second terminal, with the app running) creates a ready account with a fictional graduate profile; see [docs/LOCAL_DEMO.md](docs/LOCAL_DEMO.md).
+
 The runner starts persistent PGlite under `.runtime/pglite`, applies Prisma migrations, builds the frontend and starts the API with its background worker. Ctrl+C stops the app and database. Restarting preserves local records; deleting `.runtime/pglite` removes them.
 
 Portable mode uses one shared PostgreSQL connection. Run one app process and stop it before testing; do not attach another app or test process to that instance. Use native PostgreSQL or Docker for concurrent deployments.
