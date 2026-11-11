@@ -131,3 +131,14 @@ for the Coach (later issue), calendar sync.
 - Shortlists and the Scout table mark roles already on the board; Scout can save a role it
   recorded.
 
+
+## Per-role actions (CFS-104)
+
+- `POST /api/applications` adds a role straight to the board from a public job link (at most one
+  model call to read the page) or a pasted advertisement, scored against the current profile.
+- `POST /api/applications/:id/practice` starts an interview-only run that reuses the latest
+  approved resume made for this role with the current profile; the resume team is skipped.
+- `DELETE /api/applications/:id` removes a role with no runs. A role with runs and documents is
+  archived by setting its status to Closed.
+- Older runs stay tied to the profile version they used; their error messages point to the Quest
+  log, where the role can be tailored again with the current profile.

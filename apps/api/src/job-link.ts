@@ -15,6 +15,41 @@ const extractedJob = z.object({
   location: z.string().max(300),
   description: z.string().max(16000),
 });
+/** Read a public job page into a listing; at most one model call, counted through onCall. */
+export async function readPublicJob(url: string, onCall: () => Promise<void>) {
+  try {
+    return await resolveJobLink(url, {
+      parseText: async (sourceText: string) => {
+        if (
+          !/\b(responsibilities|qualifications|requirements|about the role|job description)\b/i.test(
+            sourceText,
+          )
+        )
+          throw new Error(
+            'No readable job description was found. Try the employer’s original listing.',
+          );
+        return generate(
+          'job-link',
+          { goal: 'Read the public job listing without inventing details', facts: [], sourceText },
+          extractedJob,
+          configuredMode(),
+          { onCall, onTool: async () => {}, onUsage: async () => {} },
+        );
+      },
+    });
+  } catch (e) {
+    if (e instanceof AppError) throw e;
+    const message = (e as Error).message;
+    throw new AppError(
+      422,
+      'JOB_LINK_UNREADABLE',
+      /^(Paste |Use |This |The link |No |Job page |The job details)/.test(message)
+        ? message
+        : 'Could not read this public job page. Try the employer’s original listing.',
+    );
+  }
+}
+
 export function registerJobLink(app: Express) {
   app.post('/api/missions/:id/job-link', async (req, res) => {
     const { url } = z.object({ url: z.string().trim().url().max(2000) }).parse(req.body);
@@ -56,59 +91,20 @@ export function registerJobLink(app: Express) {
         check(m);
         return fn(m, tx);
       });
-    let job: any;
-    try {
-      job = await resolveJobLink(url, {
-        parseText: async (sourceText: string) => {
-          if (
-            !/\b(responsibilities|qualifications|requirements|about the role|job description)\b/i.test(
-              sourceText,
-            )
-          )
-            throw new Error(
-              'No readable job description was found. Try the employer’s original listing.',
-            );
-          return generate(
-            'job-link',
-            {
-              goal: 'Read the public job listing without inventing details',
-              facts: [],
-              sourceText,
-            },
-            extractedJob,
-            configuredMode(),
-            {
-              onCall: async () => {
-                await locked(async (m, tx) => {
-                  if ((m.data.apiCalls || 0) >= MISSION_MODEL_CALL_LIMIT)
-                    throw new AppError(
-                      429,
-                      'BUDGET_EXCEEDED',
-                      'This journey reached its model-call limit. Start a new journey.',
-                    );
-                  await tx.mission.update({
-                    where: { id },
-                    data: { data: json({ ...m.data, apiCalls: (m.data.apiCalls || 0) + 1 }) },
-                  });
-                });
-              },
-              onTool: async () => {},
-              onUsage: async () => {},
-            },
+    const job = await readPublicJob(url, async () => {
+      await locked(async (m, tx) => {
+        if ((m.data.apiCalls || 0) >= MISSION_MODEL_CALL_LIMIT)
+          throw new AppError(
+            429,
+            'BUDGET_EXCEEDED',
+            'This run reached its model-call limit. Add the role from the Quest log instead.',
           );
-        },
+        await tx.mission.update({
+          where: { id },
+          data: { data: json({ ...m.data, apiCalls: (m.data.apiCalls || 0) + 1 }) },
+        });
       });
-    } catch (e) {
-      if (e instanceof AppError) throw e;
-      const message = (e as Error).message;
-      throw new AppError(
-        422,
-        'JOB_LINK_UNREADABLE',
-        /^(Paste |Use |This |The link |No |Job page |The job details)/.test(message)
-          ? message
-          : 'Could not read this public job page. Try the employer’s original listing.',
-      );
-    }
+    });
     const result = await locked(async (m, tx) => {
       const previous = m.data.matches || [];
       const corpus = [job, ...previous.map((r: any) => r.job)].map(

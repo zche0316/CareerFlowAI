@@ -3,7 +3,7 @@ import { MISSION_MODEL_CALL_LIMIT } from '../../../../packages/contracts/src/mis
 import { nextMissionStep } from '../mission-step.js';
 import { AgentAvatar, type AgentId } from './characters.js';
 import { XP_RULES } from './progress.js';
-import { QuestApplications } from './applications.js';
+import { AddRole, QuestApplications } from './applications.js';
 
 export const questRoute = ['Profile', 'Analysis', 'Shortlist', 'Review', 'Practice'];
 
@@ -120,9 +120,15 @@ export function QuestLog({
   onBuildProfile,
   onTailor,
   onStatus,
+  onPractice,
+  onRemove,
+  onAdd,
 }: {
   workspace: any;
   busy?: boolean;
+  onPractice?: (applicationId: string) => void;
+  onRemove?: (applicationId: string) => void;
+  onAdd?: (body: unknown) => Promise<boolean>;
   onOpen: (m: any, phase: number | null) => void;
   onNewQuest: () => void;
   onBuildProfile: () => void;
@@ -182,6 +188,7 @@ export function QuestLog({
           {workspace?.profile ? 'Find roles' : 'Build my profile first'}
         </button>
       </div>
+      {workspace?.profile && onAdd && <AddRole busy={busy} onAdd={onAdd} />}
       {workspace?.profile && (
         <QuestApplications
           applications={applications}
@@ -189,6 +196,8 @@ export function QuestLog({
           onOpenRun={openRun}
           onTailor={onTailor}
           onStatus={onStatus}
+          onPractice={onPractice}
+          onRemove={onRemove}
         />
       )}
       {missions.length > 0 && (

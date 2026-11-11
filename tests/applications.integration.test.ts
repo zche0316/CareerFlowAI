@@ -226,3 +226,56 @@ it('backfills older missions that chose a role, keeping their recorded status', 
   ).toBe(404);
   expect((await stranger.call(`/applications/${legacy.id}/runs`, 'POST')).status).toBe(404);
 });
+
+it('adds roles directly, practises with an approved resume and removes only untouched roles', async () => {
+  const { call } = await client();
+  const ad = (title: string) => ({
+    listing: {
+      title,
+      company: 'Pasted Co',
+      location: 'Melbourne VIC',
+      description:
+        `We are hiring a ${title}. `.repeat(4) +
+        'Requirements: SQL, Python, stakeholder communication and reporting dashboards for operations teams.',
+    },
+  });
+  expect(
+    (
+      await call('/applications', 'POST', {
+        listing: { ...ad('Analyst').listing, description: 'too short' },
+      })
+    ).status,
+  ).toBe(422);
+  const added = await call('/applications', 'POST', ad('Reporting Analyst'));
+  expect(added.status).toBe(201);
+  const spare = (await call('/applications', 'POST', ad('Insights Analyst'))).body;
+  let board = (await call('/applications')).body;
+  expect(board.find((a: any) => a.id === added.body.id)).toMatchObject({
+    source: 'link',
+    stage: 'saved',
+    runs: [],
+  });
+
+  // Practice needs an approved resume for the role.
+  expect((await call(`/applications/${added.body.id}/practice`, 'POST')).body.code).toBe(
+    'RESUME_REQUIRED',
+  );
+  const run = (await call(`/applications/${added.body.id}/runs`, 'POST')).body;
+  await approve(call, run.id);
+  await call(`/missions/${run.id}/cancel`, 'POST', {});
+  const practice = await call(`/applications/${added.body.id}/practice`, 'POST');
+  expect(practice.status).toBe(202);
+  const ready = await wait(call, practice.body.id, 'AWAITING_INTERVIEW');
+  expect(ready.data).toMatchObject({ practiceOnly: true, practiceFromRunId: run.id });
+  expect(ready.data.resumeTeam).toBeUndefined();
+  expect(ready.data.approvedResumeId).toBe(
+    (await call(`/missions/${run.id}`)).body.data.approvedResumeId,
+  );
+  expect(ready.data.questions.length).toBeGreaterThan(0);
+
+  // A role with runs is closed, not removed; an untouched role can be removed.
+  expect((await call(`/applications/${added.body.id}`, 'DELETE')).body.code).toBe('ROLE_HAS_RUNS');
+  expect((await call(`/applications/${spare.id}`, 'DELETE')).status).toBe(200);
+  board = (await call('/applications')).body;
+  expect(board.map((a: any) => a.id)).toEqual([added.body.id]);
+});

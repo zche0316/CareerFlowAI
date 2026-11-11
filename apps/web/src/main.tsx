@@ -751,6 +751,29 @@ function App() {
                       await api(`/applications/${applicationId}`, 'PATCH', { status });
                     })
                   }
+                  onPractice={(applicationId) =>
+                    void act(async () => {
+                      const run = await api(`/applications/${applicationId}/practice`, 'POST');
+                      setSelected(run.id);
+                      setPhase(4);
+                      setNotice('Your interview panel is preparing questions for this role…');
+                    })
+                  }
+                  onRemove={(applicationId) =>
+                    void act(async () => {
+                      await api(`/applications/${applicationId}`, 'DELETE');
+                      setNotice('Role removed from your quests.');
+                    })
+                  }
+                  onAdd={async (body) => {
+                    let ok = false;
+                    await act(async () => {
+                      await api('/applications', 'POST', body);
+                      ok = true;
+                      setNotice('Role added to your quests. Tailor a resume when you are ready.');
+                    });
+                    return ok;
+                  }}
                   onOpen={(m, targetPhase) => {
                     setSelected(m.id);
                     setPhase(targetPhase);

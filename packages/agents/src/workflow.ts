@@ -786,7 +786,15 @@ export async function createWorkflow() {
       ['select_job', END],
     )
     // The resume team ends only after explicit approval of an exact draft.
-    .addEdge('select_job', 'resume_team')
+    // A practice run reuses an approved resume for this role and goes straight to the interview.
+    .addConditionalEdges(
+      'select_job',
+      async (s) => {
+        const d = (await freshMission(s.missionId)).data as MissionData;
+        return d.practiceOnly && d.approvedResumeId ? 'interview_questions' : 'resume_team';
+      },
+      ['resume_team', 'interview_questions'],
+    )
     .addEdge('resume_team', 'interview_questions')
     .addEdge('interview_questions', 'conduct_interview')
     .addEdge('conduct_interview', 'interview_feedback')

@@ -3496,3 +3496,28 @@ body:has(.quest) {
     grid-template-columns: 1fr;
   }
 }
+
+/* Add a role straight to the board. */
+.qa-add summary {
+  cursor: pointer;
+  font-weight: 800;
+}
+.qa-add form,
+.qa-add-modes {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+.qa-add-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.qa-add input:not([type='radio']),
+.qa-add textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+.qa-add textarea {
+  min-height: 140px;
+}
