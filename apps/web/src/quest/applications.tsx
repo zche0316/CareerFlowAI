@@ -1,9 +1,15 @@
+import { useState } from 'react';
 import { ArrowRight, RotateCw } from 'lucide-react';
 
 // The board of roles the user is pursuing. Each card is one quest: a long-lived application that
 // keeps every resume and practice run for that role. Runs are the party's work on it.
 
 export const stageCopy: Record<string, { label: string; tone: string; next: string }> = {
+  discovered: {
+    label: 'New from Scout',
+    tone: 'lilac',
+    next: 'Scout found this role and scored it. Tailor a resume if it is worth pursuing, or remove it.',
+  },
   saved: {
     label: 'Saved',
     tone: 'outline',
@@ -57,6 +63,7 @@ export function boardStage(board: any[] | undefined, match: any): string | null 
 }
 
 const statusOptions = [
+  ['discovered', 'New from Scout'],
   ['saved', 'Not applied yet'],
   ['applied', 'Applied'],
   ['interview', 'Interviewing'],
@@ -66,7 +73,7 @@ const statusOptions = [
 ];
 
 const groups = [
-  { id: 'open', title: 'Getting ready', stages: ['saved', 'tailoring', 'ready'] },
+  { id: 'open', title: 'Getting ready', stages: ['discovered', 'saved', 'tailoring', 'ready'] },
   { id: 'applied', title: 'Applied', stages: ['applied', 'interview', 'offer'] },
   { id: 'closed', title: 'Closed', stages: ['rejected', 'closed'] },
 ];
@@ -77,12 +84,16 @@ function ApplicationCard({
   onOpenRun,
   onTailor,
   onStatus,
+  onPractice,
+  onRemove,
 }: {
   a: any;
   busy: boolean;
   onOpenRun: (missionId: string) => void;
   onTailor: (applicationId: string) => void;
   onStatus: (applicationId: string, status: string) => void;
+  onPractice?: (applicationId: string) => void;
+  onRemove?: (applicationId: string) => void;
 }) {
   const copy = stageCopy[a.stage] || stageCopy.saved;
   const resumes = a.runs.filter((r: any) => r.approvedResumeId).length;
@@ -99,6 +110,15 @@ function ApplicationCard({
       <p className="ql-next">{copy.next}</p>
       {a.history?.some((h: any) => h.note === 'Re-advertised') && (
         <span className="quest-chip coral">Re-advertised · seen again after a while</span>
+      )}
+      {a.levelGaps?.length > 0 && (
+        <div className="qa-gaps" aria-label="Level gaps">
+          {a.levelGaps.slice(0, 3).map((g: any) => (
+            <span key={g.term} className={`quest-chip ${g.level === 'required' ? 'coral' : 'outline'}`}>
+              {g.skill} {g.have}→{g.need}
+            </span>
+          ))}
+        </div>
       )}
       <div className="qa-facts">
         {a.score !== null && <span>Match {a.score}</span>}
@@ -168,6 +188,26 @@ function ApplicationCard({
                 </>
               )}
             </button>
+            {resumes > 0 && onPractice && (
+              <button
+                type="button"
+                className="quest-press ql-go"
+                disabled={busy}
+                onClick={() => onPractice(a.id)}
+              >
+                Practise interview
+              </button>
+            )}
+            {a.runs.length === 0 && onRemove && (
+              <button
+                type="button"
+                className="text-button"
+                disabled={busy}
+                onClick={() => onRemove(a.id)}
+              >
+                Remove
+              </button>
+            )}
           </>
         )}
       </div>
@@ -181,12 +221,16 @@ export function QuestApplications({
   onOpenRun,
   onTailor,
   onStatus,
+  onPractice,
+  onRemove,
 }: {
   applications: any[];
   busy: boolean;
   onOpenRun: (missionId: string) => void;
   onTailor: (applicationId: string) => void;
   onStatus: (applicationId: string, status: string) => void;
+  onPractice?: (applicationId: string) => void;
+  onRemove?: (applicationId: string) => void;
 }) {
   if (!applications.length)
     return (
@@ -223,6 +267,8 @@ export function QuestApplications({
                   onOpenRun={onOpenRun}
                   onTailor={onTailor}
                   onStatus={onStatus}
+                  onPractice={onPractice}
+                  onRemove={onRemove}
                 />
               ))}
             </ul>
@@ -230,5 +276,99 @@ export function QuestApplications({
         );
       })}
     </>
+  );
+}
+
+/** Add a role straight to the board: a public job link, or an advertisement pasted in full. */
+export function AddRole({
+  busy,
+  onAdd,
+}: {
+  busy: boolean;
+  onAdd: (body: unknown) => Promise<boolean>;
+}) {
+  const [mode, setMode] = useState<'link' | 'paste'>('link');
+  const [url, setUrl] = useState('');
+  const [listing, setListing] = useState({ title: '', company: '', location: '', description: '' });
+  const set = (k: keyof typeof listing) => (e: any) =>
+    setListing({ ...listing, [k]: e.target.value });
+  return (
+    <details className="quest-tile qa-add">
+      <summary>Add a role</summary>
+      <div className="qa-add-modes" role="group" aria-label="How to add the role">
+        <label>
+          <input
+            type="radio"
+            name="add-role"
+            checked={mode === 'link'}
+            onChange={() => setMode('link')}
+          />
+          Public job link
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="add-role"
+            checked={mode === 'paste'}
+            onChange={() => setMode('paste')}
+          />
+          Paste the advertisement
+        </label>
+      </div>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void onAdd(mode === 'link' ? { url } : { listing: { ...listing } }).then((ok) => {
+            if (!ok) return;
+            setUrl('');
+            setListing({ title: '', company: '', location: '', description: '' });
+          });
+        }}
+      >
+        {mode === 'link' ? (
+          <label>
+            Job link
+            <input
+              type="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://"
+              required
+            />
+            <small className="muted">
+              Company careers pages and boards that allow reading. For SEEK or LinkedIn, paste the
+              advertisement instead.
+            </small>
+          </label>
+        ) : (
+          <>
+            <label>
+              Role title
+              <input value={listing.title} onChange={set('title')} required />
+            </label>
+            <label>
+              Company
+              <input value={listing.company} onChange={set('company')} required />
+            </label>
+            <label>
+              Location
+              <input value={listing.location} onChange={set('location')} />
+            </label>
+            <label>
+              Advertisement
+              <textarea
+                value={listing.description}
+                onChange={set('description')}
+                required
+                minLength={200}
+              />
+            </label>
+          </>
+        )}
+        <button type="submit" className="quest-press lime ql-go" disabled={busy}>
+          Add to my quests
+        </button>
+      </form>
+    </details>
   );
 }

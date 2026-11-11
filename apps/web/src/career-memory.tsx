@@ -178,7 +178,7 @@ export function CareerMemoryPanel({
           <label>
             Applicable application or mission
             <select
-              aria-label="Applicable application or mission"
+              aria-label="Applicable application or run"
               value={form.missionId}
               onChange={(e) => setForm({ ...form, missionId: e.target.value })}
             >

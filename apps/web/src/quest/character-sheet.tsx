@@ -1,3 +1,5 @@
+import { CapabilityLevels } from './capabilities.js';
+import { ProfileSources } from './profile-sources.js';
 import { Lock } from 'lucide-react';
 import { AgentAvatar, LeaderBadge } from './characters.js';
 import { XP_PER_LEVEL, XP_RULES, attributes, factUsage, progressFrom, skillBoard } from './progress.js';
@@ -18,11 +20,15 @@ export function CharacterSheet({
   userName,
   onBuildProfile,
   onOpenMission,
+  request,
+  onProfileChanged,
 }: {
   workspace: any;
   userName: string;
   onBuildProfile: () => void;
   onOpenMission: (id: string) => void;
+  request?: (path: string, method?: string, body?: unknown) => Promise<any>;
+  onProfileChanged?: () => void;
 }) {
   const profile = workspace?.profile;
   if (!profile)
@@ -88,7 +94,7 @@ export function CharacterSheet({
             </div>
             <div>
               <b>{workspace.missions?.length || 0}</b>
-              <span>missions</span>
+              <span>runs</span>
             </div>
           </div>
           <p className="quest-fine dark">
@@ -179,7 +185,7 @@ export function CharacterSheet({
           )}
           {latest && (
             <button type="button" className="quest-press" onClick={() => onOpenMission(latest.id)}>
-              Open the mission
+              Open the run
             </button>
           )}
         </section>
@@ -205,6 +211,10 @@ export function CharacterSheet({
           </div>
         </section>
       </div>
+      {request && <CapabilityLevels request={request} profileVersion={profile.version} />}
+      {request && (
+        <ProfileSources request={request} onApproved={() => onProfileChanged?.()} />
+      )}
     </div>
   );
 }

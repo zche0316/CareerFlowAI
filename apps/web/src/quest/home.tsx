@@ -94,7 +94,14 @@ export function QuestHome({
   // Until the workspace loads, render nothing that would claim the profile is missing.
   if (!workspace) return <p className="quest-fine dark">Loading your quests…</p>;
   const missions: any[] = workspace?.missions || [];
-  const active = missions[0];
+  const board: any[] = workspace?.applications || [];
+  // The run that needs you first, then one still working, then the latest one.
+  const active =
+    missions.find((m) => ['AWAITING_JOB', 'AWAITING_APPROVAL', 'AWAITING_INTERVIEW'].includes(m.status)) ||
+    missions.find((m) => ['QUEUED', 'RUNNING'].includes(m.status)) ||
+    missions[0];
+  const idle = !active || ['COMPLETE', 'CANCELLED', 'STALE'].includes(active.status);
+  const applied = board.filter((a) => ['applied', 'interview', 'offer'].includes(a.stage)).length;
   const hasProfile = Boolean(workspace?.profile);
   const progress = progressFrom(workspace);
   const step = active ? nextMissionStep(active) : hasProfile ? 1 : 0;
@@ -107,7 +114,13 @@ export function QuestHome({
         text: 'Tell Coach about your study, work and projects. You approve every fact before your party can use it.',
         cta: 'Build my profile',
       }
-    : heroCopy[status] || {
+    : idle && board.length
+      ? {
+          title: 'Pick up a quest.',
+          text: `${board.length} role${board.length === 1 ? '' : 's'} on your board, ${applied} applied. Tailor a saved role, record a reply, or find more roles.`,
+          cta: 'Open my quests',
+        }
+      : heroCopy[status] || {
         title: 'Start your first quest.',
         text: 'Set a goal and your party will analyse your profile, find matching roles and wait for your decisions.',
         cta: 'Start a quest',
@@ -118,8 +131,7 @@ export function QuestHome({
   const cta = budgetSpent ? 'Review saved results' : copy.cta;
   const heroAction = () => {
     if (!hasProfile) return onBuildProfile();
-    if (!active || active.status === 'COMPLETE' || ['CANCELLED', 'STALE'].includes(active.status))
-      return onNewQuest();
+    if (idle) return board.length ? onNavigate('quests') : onNewQuest();
     onOpenMission(active.id, step);
   };
 

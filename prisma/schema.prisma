@@ -205,6 +205,8 @@ model ScoutSetting {
   enabled Boolean @default(false)
   topK Int @default(3)
   minScore Int @default(50)
+  // Off: sweeps put roles on the board; on: they also start one resume team per role.
+  autoPackage Boolean @default(false)
   search Json
   updatedAt DateTime @updatedAt
 }

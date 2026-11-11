@@ -236,14 +236,7 @@ it('shares one library between Find roles, Scout and the board', async () => {
   );
   expect((await call('/scout/roles/' + 'f'.repeat(32) + '/save', 'POST')).status).toBe(404);
 
-  // Statistics come from the board.
   await call(`/applications/${board[0].id}`, 'PATCH', { status: 'applied' });
-  const dashboard = (await call('/tools/dashboard')).body;
-  expect(dashboard.total).toBe(1);
-  expect(dashboard.applications[0]).toMatchObject({
-    applicationId: board[0].id,
-    status: 'applied',
-  });
 
   // Two months later the same roles are advertised again. Roles not on the board come back as
   // new; board roles are not packaged again but their history notes the re-advertisement.
@@ -376,4 +369,62 @@ it('merges stored duplicates under the new fingerprint and keeps demo and live b
 
   // This server runs in fixture mode, so the live role is not on its board.
   expect((await call('/applications')).body).toEqual([]);
+});
+
+it('Scout discovers roles onto the board by default and new searches reuse saved advice', async () => {
+  const { call } = await client();
+  const setting = (await call('/scout')).body.setting;
+  expect(setting.autoPackage).toBe(false);
+  await call('/scout/settings', 'PUT', { ...setting, topK: 2, minScore: 0 });
+  await call('/scout/sweeps', 'POST', {});
+  const sweep = (
+    await until(
+      () => call('/scout'),
+      (r) => r.body.sweeps[0]?.status === 'COMPLETE',
+    )
+  ).body.sweeps[0];
+  expect(sweep).toMatchObject({ fresh: 8, discovered: 2, packages: [] });
+  expect(sweep.calls).toBe(0);
+  const board = (await call('/applications')).body;
+  expect(board).toHaveLength(2);
+  expect(
+    board.every(
+      (a: any) => a.stage === 'discovered' && a.source === 'scout' && a.runs.length === 0,
+    ),
+  ).toBe(true);
+
+  // Advice saved by the Coach is reused: the search run starts with it and makes no Coach call.
+  await call('/coach/refresh', 'POST');
+  const run = (await call('/missions', 'POST', { goal: 'Find a graduate analyst role.' })).body;
+  const shortlist = (
+    await until(
+      () => call(`/missions/${run.id}`),
+      (r) => r.body.status === 'AWAITING_JOB',
+    )
+  ).body;
+  expect(shortlist.data.analysisReused).toBe(true);
+  expect(
+    shortlist.events.some((e: any) => e.agent === 'Career Coach' && e.action === 'completed'),
+  ).toBe(false);
+});
+
+it('counts regional market insight from the roles the searches found', async () => {
+  const { call } = await client();
+  expect((await call('/insights?country=au')).body.overall.roles).toBe(0);
+  const run = (await call('/missions', 'POST', { goal: 'Find a graduate analyst role.' })).body;
+  const done = (
+    await until(
+      () => call(`/missions/${run.id}`),
+      (r) => r.body.status === 'AWAITING_JOB',
+    )
+  ).body;
+  const insight = (await call('/insights?country=au')).body;
+  expect(insight).toMatchObject({ country: 'au', family: 'all' });
+  expect(insight.overall.roles).toBe(done.data.matches.length);
+  expect(insight.overall.topSkills.length).toBeGreaterThan(0);
+  expect(insight.overall.topSkills[0].examples[0].title).toBeTruthy();
+  expect(insight.cities.reduce((n: number, c: any) => n + c.roles, 0)).toBe(insight.overall.roles);
+  const data = (await call('/insights?country=au&family=data')).body;
+  expect(data.overall.roles).toBeLessThanOrEqual(insight.overall.roles);
+  expect((await call('/insights?country=zz')).status).toBe(422);
 });

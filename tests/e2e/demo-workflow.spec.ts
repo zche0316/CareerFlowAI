@@ -100,11 +100,10 @@ test('the demo workflow runs end to end in the Quest interface', async ({ page }
     page.getByRole('link', { name: 'Download DOCX', exact: true }).first(),
   ).toBeVisible();
 
-  // 9. Record the application status (applying itself stays manual).
-  await go(page, 'Optional tools');
-  await expect(page.getByRole('heading', { name: 'Application progress' })).toBeVisible();
-  await page.getByRole('button', { name: 'Record target status', exact: true }).click();
-  await expect(page.getByText(`${title} · applied`, { exact: true })).toBeVisible();
+  // 9. Record the application status on the role board (applying itself stays manual).
+  await go(page, 'Quests');
+  await page.getByLabel(`Status for ${title}`).selectOption('applied');
+  await expect(page.locator('section.qa-group.applied')).toContainText(title);
 
   // 10. Scout: a sweep reads the demo roles and skips the ones the quest already saw. Packages
   // start only for new roles above the minimum match; the Scout spec covers that path.
@@ -118,7 +117,7 @@ test('the demo workflow runs end to end in the Quest interface', async ({ page }
   await go(page, 'Quests');
   await expect(page.locator('section.qa-group.applied')).toContainText(title);
   const later = page.locator('li.qa-card', { hasText: saved });
-  await expect(later.locator('.quest-chip')).toHaveText('Saved');
+  await expect(later.locator('.qa-card-top .quest-chip')).toHaveText('Saved');
   await expect(page.locator('section.ql-group.ended')).toContainText(title);
 
   // A saved role starts its own run at the resume team with the role already chosen.

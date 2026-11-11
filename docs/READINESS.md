@@ -68,7 +68,7 @@ Quest interface. Detailed status per step is in [LOCAL_DEMO.md](LOCAL_DEMO.md).
 | Resume team            | 10 of 14 requirements evidenced. Before the fix: 3 Critic rounds, then escalated to the user, about 70 s     |
 | User return            | Rewriter return, another 3 Critic rounds, escalated again                                                    |
 | Interview              | 1 question (live generated only one), one answer scored by the Evaluator with a follow-up, feedback written  |
-| Export and application | PDF 200 (34 kB); "applied" recorded in Optional tools                                                        |
+| Export and application | PDF 200 (34 kB); "applied" recorded (then in Optional tools, now on the role board)                                                        |
 | Whole quest            | 20 calls (42 model requests of the 60 budget), 49.0k input and 23.2k output tokens, 4 min 32 s of model time |
 
 Found and fixed in this run: the Evidence Selector re-picked the resume from scratch after each
@@ -136,3 +136,21 @@ SEEK or LinkedIn and kept as leads (robots.txt), so no page was checked and no p
 Start with items 1–4, which turn the local app into a usable hosted service. Then item 6, so
 users do not apply to closed roles. Items 5 and
 8 can improve in parallel using the evaluation floors to measure each change.
+
+### Live run of the role-centred flow (CFS-109, 2026-11-12)
+
+Demo account, live provider, separate database. First attempt: the search failed after 6 calls
+because one requirement excerpt was not an exact quote (CFS-117); fixed and rerun.
+
+| Step | Result |
+| --- | --- |
+| Coach refresh | 1 call, 11 s; Find roles then reused the advice (no Career Coach call) |
+| Find roles | 2 roles, 66 s, 6 calls (11.4k in / 11.5k out tokens) |
+| Tailor chosen role | Draft in 67 s after 2 Critic rounds, 14 lines; approved |
+| Interview and feedback | Complete; whole first run 20 calls (25.9k in / 15.5k out), 165 s |
+| Recruiter view | PDF read-back 100%; knock-outs met; keywords 25% (most requirements were soft-skill phrases) |
+| Tailor saved role | Draft in 141 s, 16 calls (24.0k in / 10.2k out) |
+| Practice-only run | 15 s, 2 calls; resume team skipped; 3 questions |
+| Scout sweep | 3 fetched, 0 new, 3 seen before; 0 packages (discover-first); 2 calls; some employer boards unavailable |
+| Board, levels, insight | 2 roles (ready, applied); 6 skills at level 3 with story confidence; insight counted 2 roles |
+

@@ -140,7 +140,7 @@ async function executeMission(id: string) {
               action: waiting ? 'waiting' : 'completed',
               detail: waiting
                 ? `Waiting for your ${waiting} decision.`
-                : 'Career mission completed; interview feedback is available.',
+                : 'Run completed; interview feedback is available.',
             },
           ]),
         },

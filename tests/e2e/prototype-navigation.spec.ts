@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { go } from './nav.js';
 
-test('prototype navigation keeps profile, memory and existing tools reachable', async ({
+test('prototype navigation keeps profile and memory reachable', async ({
   page,
 }) => {
   await page.goto('/');
@@ -19,13 +19,6 @@ test('prototype navigation keeps profile, memory and existing tools reachable', 
   await expect(
     page.getByRole('region', { name: 'Career memory and STAR library', exact: true }),
   ).toBeVisible();
-  await go(page, 'Optional tools');
-  await expect(page.getByRole('heading', { name: 'Application tools' })).toBeVisible();
-  await expect(
-    page.getByRole('button', { name: 'Record target status', exact: true }),
-  ).toBeDisabled();
-  await page.getByRole('button', { name: 'Cover letter', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Cover letter', exact: true })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await expect
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))

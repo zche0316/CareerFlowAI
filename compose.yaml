@@ -19,8 +19,6 @@ services:
     environment:
       DATABASE_URL: postgresql://careerflow:${DB_PASSWORD:-careerflow-local}@db:5432/careerflow
       PORT: 8787
-      S3_BACKUP_BUCKET: ${S3_BACKUP_BUCKET:-}
-      AWS_REGION: ${AWS_REGION:-ap-southeast-2}
       HOST: 0.0.0.0
       APP_ORIGIN: http://localhost:${APP_PORT:-8787}
       PROVIDER_MODE: ${PROVIDER_MODE:-fixture}

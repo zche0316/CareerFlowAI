@@ -3496,3 +3496,166 @@ body:has(.quest) {
     grid-template-columns: 1fr;
   }
 }
+
+/* Add a role straight to the board. */
+.qa-add summary {
+  cursor: pointer;
+  font-weight: 800;
+}
+.qa-add form,
+.qa-add-modes {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+.qa-add-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.qa-add input:not([type='radio']),
+.qa-add textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+.qa-add textarea {
+  min-height: 140px;
+}
+
+.sc-auto {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 14px;
+}
+.sc-auto input {
+  margin-top: 3px;
+}
+
+.coach-directions {
+  display: grid;
+  gap: 4px;
+  margin: -4px 0 12px;
+  justify-items: start;
+}
+
+/* Capability levels (CFS-111). */
+.cap-list,
+.cap-evidence {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.cap-list {
+  display: grid;
+  gap: 6px;
+}
+.cap-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--q-soft);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.cap-pips {
+  display: inline-flex;
+  gap: 3px;
+}
+.cap-pips i {
+  width: 14px;
+  height: 8px;
+  border-radius: 4px;
+  background: #e2e3ea;
+}
+.cap-pips i.on {
+  background: var(--q-ink);
+}
+.cap-evidence {
+  padding: 6px 14px 10px;
+  font-size: 13px;
+  color: #3b3d47;
+}
+.qa-gaps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+@media (max-width: 600px) {
+  .cap-row {
+    grid-template-columns: 1fr auto;
+  }
+}
+
+/* Profile sources (CFS-112 to 114). */
+.ps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 12px;
+}
+.ps-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 18px;
+  background: var(--q-soft);
+  min-width: 0;
+}
+.ps-card h3,
+.ps-card h4 {
+  margin: 0;
+}
+.ps-card form {
+  display: grid;
+  gap: 8px;
+}
+.ps-card input:not([type='checkbox']),
+.ps-card textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+.ps-preview ul {
+  margin: 4px 0 8px;
+  padding-left: 18px;
+  font-size: 13px;
+}
+
+/* Market insight (CFS-115). */
+.mi-overall {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.mi-overall div {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--q-soft);
+}
+.mi-overall dt {
+  font-size: 12px;
+  color: var(--q-muted);
+}
+.mi-overall dd {
+  margin: 2px 0 0;
+  font-weight: 800;
+}
+.mi-skills {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.mi-skills li {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--q-soft);
+  font-size: 13px;
+}

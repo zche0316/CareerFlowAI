@@ -49,7 +49,7 @@ export async function prepareApplication(userId: string, id: string) {
   const m = await ownedMission(userId, id);
   const u = await db.user.findUniqueOrThrow({ where: { id: userId } });
   if (u.profileVersion !== m.profile.version)
-    throw new AppError(409, 'STALE_PROFILE', 'Prepare a new mission using your current profile.');
+    throw new AppError(409, 'STALE_PROFILE', 'Your profile changed. Tailor this role again from the Quest log.');
   const d = m.data as MissionData;
   const resume = requireValue(
     await db.approvedResume.findFirst({

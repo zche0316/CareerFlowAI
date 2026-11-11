@@ -7,6 +7,9 @@ import { AppError, requireValue } from './errors.js';
 import { enqueue } from './queue.js';
 import { spanHook } from './trace.js';
 import { knownRoles, resolveRole } from './role-library.js';
+import { readPublicJob } from './job-link.js';
+import { capabilitiesFor } from './capability.js';
+import { levelGaps, requirementItems } from '../../../packages/contracts/src/capability.js';
 import { configuredMode, type Mode } from '../../../packages/agents/src/provider.js';
 import { mapJobRequirements, scoreJobMapping } from '../../../packages/agents/src/job-mapping.js';
 import { matchingProfileView } from '../../../packages/contracts/src/career-evidence.js';
@@ -17,6 +20,7 @@ import type { CareerProfile, Fact } from '../../../packages/contracts/src/index.
 // versions: every resume and every interview practice for that role hangs off it through its runs.
 
 export const applicationStatuses = [
+  'discovered',
   'saved',
   'applied',
   'interview',
@@ -39,8 +43,8 @@ export async function upsertApplication(
   match: any,
   source: 'search' | 'scout' | 'link',
   mode: string = configuredMode(),
+  status: ApplicationStatus = 'saved',
 ) {
-  const status: ApplicationStatus = 'saved';
   // The identity the role library gave this listing, or the one it resolves to now: the same
   // posting or a listing with the same names and a similar description joins the existing role.
   const known = await knownRoles(userId);
@@ -142,14 +146,22 @@ export function applicationStage(
   status: string,
   runs: Pick<RunSummary, 'status' | 'approvedResumeId'>[],
 ) {
-  if (status !== 'saved') return status;
+  // Before the user records an application, the runs decide the stage.
+  if (status !== 'saved' && status !== 'discovered') return status;
   if (runs.some((r) => r.approvedResumeId)) return 'ready';
   if (runs.some((r) => ACTIVE.includes(r.status))) return 'tailoring';
-  return 'saved';
+  return status;
 }
 
+// New runs are linked when they are created, so older missions need the backfill only once per
+// user per server process, not on every workspace poll.
+const backfilled = new Set<string>();
+
 export async function listApplications(userId: string) {
-  await backfillApplications(userId);
+  if (!backfilled.has(userId)) {
+    await backfillApplications(userId);
+    backfilled.add(userId);
+  }
   // Demo roles and live roles keep separate boards; rows not yet given a mode show in both.
   const applications = await db.application.findMany({
     where: { userId, OR: [{ mode: configuredMode() }, { mode: null }] },
@@ -159,6 +171,7 @@ export async function listApplications(userId: string) {
     where: { userId, applicationId: { in: applications.map((a) => a.id) } },
     orderBy: { createdAt: 'desc' },
   });
+  const capabilities = await capabilitiesFor(userId);
   return applications.map((a) => {
     const runs: RunSummary[] = missions
       .filter((m) => m.applicationId === a.id)
@@ -184,6 +197,8 @@ export async function listApplications(userId: string) {
       location: match.job?.location || '',
       url: match.job?.applicationUrl || match.job?.url || '',
       score: typeof match.score === 'number' ? match.score : null,
+      // Where this role asks for more than the profile shows, biggest required gaps first.
+      levelGaps: levelGaps(requirementItems(match), capabilities).slice(0, 4),
       gaps: Array.isArray(match.gaps)
         ? match.gaps.filter((g: unknown): g is string => typeof g === 'string').slice(0, 20)
         : [],
@@ -266,7 +281,42 @@ export async function saveFromRun(userId: string, missionId: string, jobId: stri
  * interview, as in a quest where the role is already chosen. The role is scored again when the
  * profile changed since it was matched, because requirement mappings cite profile fact ids.
  */
-export async function startApplicationRun(userId: string, id: string) {
+/**
+ * Score a role against an approved profile: the matching baseline in fixture mode, one counted
+ * Job Matcher call in live mode (requirement mappings cite the profile's fact ids).
+ */
+export async function scoreForProfile(
+  userId: string,
+  job: any,
+  profile: { data: unknown; facts: unknown },
+  mode: string,
+  missionId?: string,
+) {
+  let usage = { calls: 0, input: 0, output: 0 };
+  const facts = profile.facts as unknown as Fact[];
+  if (mode === 'fixture')
+    return {
+      match: compare(matchingProfileView(profile.data as unknown as CareerProfile), job, [
+        job.title + ' ' + job.description,
+      ]),
+      usage,
+    };
+  const mapping = await mapJobRequirements(job, facts, mode as Mode, {
+    onCall: async () => void usage.calls++,
+    onTool: async () => {},
+    onUsage: async (input, output) => {
+      usage = { ...usage, input: usage.input + input, output: usage.output + output };
+    },
+    onSpan: spanHook({ userId, missionId, agent: 'Job Matcher' }),
+  });
+  return { match: scoreJobMapping(job, mapping, facts, profile.data as any), usage };
+}
+
+export async function startApplicationRun(
+  userId: string,
+  id: string,
+  kind: 'tailor' | 'practice' = 'tailor',
+) {
   const a = await owned(userId, id);
   const profile = await db.profile.findFirst({ where: { userId }, orderBy: { version: 'desc' } });
   if (!profile)
@@ -296,34 +346,42 @@ export async function startApplicationRun(userId: string, id: string) {
   const at = new Date().toISOString();
   const stored = a.job as any;
   const missionId = randomUUID();
-  let match = previous ? (previous.data as MissionData).selectedJob : null;
+  // Practice reuses the latest approved resume for this role made with the current profile.
+  const source =
+    kind === 'practice'
+      ? runs.find(
+          (r) =>
+            r.profileId === profile.id &&
+            r.mode === mode &&
+            (r.data as MissionData).approvedResumeId,
+        )
+      : undefined;
+  if (kind === 'practice' && !source)
+    throw new AppError(
+      409,
+      'RESUME_REQUIRED',
+      'Tailor and approve a resume for this role with your current profile before practising.',
+    );
+  let match = (source || previous)?.data
+    ? ((source || previous)!.data as MissionData).selectedJob
+    : null;
   let usage = { calls: 0, input: 0, output: 0 };
   if (!match) {
-    const facts = profile.facts as unknown as Fact[];
-    if (mode === 'fixture')
-      match = compare(matchingProfileView(profile.data as unknown as CareerProfile), stored.job, [
-        stored.job.title + ' ' + stored.job.description,
-      ]);
-    else {
-      // One counted Job Matcher call, charged to the new run.
-      const mapping = await mapJobRequirements(stored.job, facts, mode as Mode, {
-        onCall: async () => void usage.calls++,
-        onTool: async () => {},
-        onUsage: async (input, output) => {
-          usage = { ...usage, input: usage.input + input, output: usage.output + output };
-        },
-        onSpan: spanHook({ userId, missionId, agent: 'Job Matcher' }),
-      });
-      match = scoreJobMapping(stored.job, mapping, facts, profile.data as any);
-    }
+    const scored = await scoreForProfile(userId, stored.job, profile, mode, missionId);
+    match = scored.match;
+    usage = scored.usage;
   }
+  const kept = source?.data as MissionData | undefined;
   const mission = await db.mission.create({
     data: {
       id: missionId,
       userId,
       profileId: profile.id,
       applicationId: a.id,
-      goal: `Tailor: ${stored.job.title} at ${stored.job.company}`.slice(0, 2000),
+      goal: `${kind === 'practice' ? 'Practise' : 'Tailor'}: ${stored.job.title} at ${stored.job.company}`.slice(
+        0,
+        2000,
+      ),
       mode,
       data: json({
         revisions: 0,
@@ -339,6 +397,14 @@ export async function startApplicationRun(userId: string, id: string) {
         selectedJob: match,
         preselected: true,
         jobRetrieval: { source: 'application', applicationId: a.id, count: 1, fetchedAt: at },
+        ...(kept
+          ? {
+              practiceOnly: true,
+              resumeDraft: kept.resumeDraft,
+              approvedResumeId: kept.approvedResumeId,
+              practiceFromRunId: source!.id,
+            }
+          : {}),
       }),
       events: json([
         {
@@ -355,6 +421,71 @@ export async function startApplicationRun(userId: string, id: string) {
   return mission;
 }
 
+const pastedListing = z.object({
+  title: z.string().trim().min(2).max(300),
+  company: z.string().trim().min(1).max(300),
+  location: z.string().trim().max(300).default(''),
+  description: z
+    .string()
+    .trim()
+    .min(200, 'Paste the full advertisement (at least 200 characters).')
+    .max(20000),
+  url: z.string().trim().url().max(2000).optional(),
+});
+export const addRoleSchema = z.union([
+  z.object({ url: z.string().trim().url().max(2000) }),
+  z.object({ listing: pastedListing }),
+]);
+
+/**
+ * Put a role on the board directly, without a search run: from a public job link (one model call
+ * at most to read the page) or from an advertisement the user pasted. The role is scored against
+ * the current approved profile; nothing is tailored until the user asks.
+ */
+export async function addRole(userId: string, input: z.infer<typeof addRoleSchema>) {
+  const profile = await db.profile.findFirst({ where: { userId }, orderBy: { version: 'desc' } });
+  if (!profile)
+    throw new AppError(409, 'PROFILE_REQUIRED', 'Approve your profile before adding roles.');
+  const mode = configuredMode();
+  const job =
+    'url' in input
+      ? await readPublicJob(input.url, async () => {})
+      : {
+          id: 'pasted-' + randomUUID(),
+          title: input.listing.title,
+          company: input.listing.company,
+          location: input.listing.location,
+          employmentType: 'Not supplied',
+          description: input.listing.description,
+          salary: null,
+          applicationUrl: input.listing.url || '',
+          source: {
+            name: 'Pasted listing',
+            version: 'user-provided',
+            externalListing: true,
+            liveVacancy: false,
+            fictional: false,
+            fetchedAt: new Date().toISOString(),
+            coverage: 'User-pasted listing; not retrieved or verified by API',
+          },
+        };
+  const { match } = await scoreForProfile(userId, job, profile, mode);
+  return upsertApplication(userId, match, 'link', mode);
+}
+
+/** Remove a role from the board. Only a role with no runs can be removed; others are closed. */
+export async function removeRole(userId: string, id: string) {
+  const a = await owned(userId, id);
+  if (await db.mission.count({ where: { userId, applicationId: a.id } }))
+    throw new AppError(
+      409,
+      'ROLE_HAS_RUNS',
+      'This role has runs and documents. Set its status to Closed to archive it instead.',
+    );
+  await db.application.delete({ where: { id: a.id } });
+  return { ok: true };
+}
+
 export function registerApplications(app: Express) {
   app.get('/api/applications', async (req, res) => res.json(await listApplications(req.actor!.id)));
   app.patch('/api/applications/:id', async (req, res) => {
@@ -369,6 +500,17 @@ export function registerApplications(app: Express) {
   });
   app.post('/api/applications/:id/runs', async (req, res) =>
     res.status(202).json(await startApplicationRun(req.actor!.id, String(req.params.id))),
+  );
+  app.post('/api/applications/:id/practice', async (req, res) =>
+    res
+      .status(202)
+      .json(await startApplicationRun(req.actor!.id, String(req.params.id), 'practice')),
+  );
+  app.post('/api/applications', async (req, res) =>
+    res.status(201).json(await addRole(req.actor!.id, addRoleSchema.parse(req.body))),
+  );
+  app.delete('/api/applications/:id', async (req, res) =>
+    res.json(await removeRole(req.actor!.id, String(req.params.id))),
   );
   app.post('/api/missions/:id/saved-roles', async (req, res) => {
     const { jobId } = z.object({ jobId: z.string().min(1).max(500) }).parse(req.body);

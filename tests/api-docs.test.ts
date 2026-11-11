@@ -44,12 +44,9 @@ describe('API documentation contract', () => {
     expect(stale, `Documented routes missing from app.ts: ${stale.join(', ')}`).toEqual([]);
   });
 
-  it('keeps the PR #3 tools, reminders and application routes explicit', () => {
+  it('keeps the application routes explicit', () => {
     expect(sourceEndpoints()).toEqual(
       expect.arrayContaining([
-        'GET /api/tools/dashboard',
-        'POST /api/missions/:id/tools',
-        'GET /api/missions/:id/reminders/:reminderId/calendar',
         'GET /api/missions/:id/application',
         'POST /api/missions/:id/applications',
         'GET /api/missions/:id/jobs/:jobId/availability',

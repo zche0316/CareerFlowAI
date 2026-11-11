@@ -243,7 +243,7 @@ export async function approveProfile(userId: string, draftId: string) {
         leaseToken: null,
         leaseExpiresAt: null,
         error:
-          'The approved profile changed. Start a new mission; previous approved documents are preserved.',
+          'Your profile changed. Tailor this role again from the Quest log; approved documents are kept.',
       },
     });
     return profile;
@@ -261,7 +261,7 @@ export async function freshMission(id: string) {
     await db.mission.findUnique({ where: { id }, include: { profile: true, user: true } }),
   );
   if (m.user.profileVersion !== m.profile.version || m.status === 'STALE')
-    throw new AppError(409, 'STALE_PROFILE', 'The approved profile changed. Start a new mission.');
+    throw new AppError(409, 'STALE_PROFILE', 'Your profile changed. Tailor this role again from the Quest log.');
   return m;
 }
 
@@ -275,7 +275,7 @@ export async function mutateRun(
     const rows = await tx.$queryRaw<
       { userId: string }[]
     >`SELECT "userId" FROM "Mission" WHERE id = ${id} FOR UPDATE`;
-    if (!rows.length) throw new AppError(404, 'NOT_FOUND', 'Mission unavailable.');
+    if (!rows.length) throw new AppError(404, 'NOT_FOUND', 'Run unavailable.');
     const m = requireValue(await tx.mission.findUnique({ where: { id } }));
     const user = requireValue(await tx.user.findUnique({ where: { id: m.userId } }));
     const p = requireValue(await tx.profile.findUnique({ where: { id: m.profileId } }));
@@ -416,7 +416,7 @@ export async function queueDecision(
     );
     const d = m.data as MissionData;
     if (m.profile.version !== m.user.profileVersion)
-      throw new AppError(409, 'STALE_PROFILE', 'Your profile changed. Start a new mission.');
+      throw new AppError(409, 'STALE_PROFILE', 'Your profile changed. Tailor this role again from the Quest log.');
 
     // Each human decision is accepted only at its corresponding pause point.
     const expected = {
@@ -428,10 +428,10 @@ export async function queueDecision(
       throw new AppError(
         409,
         'DECISION_NOT_EXPECTED',
-        'This decision has already been handled or the mission is not waiting for it.',
+        'This decision has already been handled or the run is not waiting for it.',
       );
     if (decision.kind === 'job' && !d.matches?.some((r: any) => r.job.id === decision.jobId))
-      throw new AppError(422, 'INVALID_JOB', 'Choose a job from this mission’s ranked results.');
+      throw new AppError(422, 'INVALID_JOB', 'Choose a role from this run’s shortlist.');
 
     // Approval authorises this exact draft, not a later revision shown in another tab.
     if (decision.kind === 'resume' && d.resumeDraft?.hash !== decision.draftHash)
@@ -454,7 +454,7 @@ export async function queueDecision(
       throw new AppError(
         409,
         'REVISION_LIMIT',
-        'Two revisions have been reached. Start a new mission with revised inputs.',
+        'Two revisions have been reached. Tailor this role again from the Quest log.',
       );
     let persistedDecision = decision;
     if (decision.kind === 'interview') {
@@ -514,7 +514,7 @@ export async function cancelMission(userId: string, id: string) {
     await tx.$queryRaw`SELECT id FROM "Mission" WHERE id = ${id} FOR UPDATE`;
     const m = requireValue(await tx.mission.findFirst({ where: { id, userId } }));
     if (['COMPLETE', 'CANCELLED', 'STALE', 'NO_MATCHES'].includes(m.status))
-      throw new AppError(409, 'TERMINAL_MISSION', 'This mission is already finished or outdated.');
+      throw new AppError(409, 'TERMINAL_MISSION', 'This run is already finished or outdated.');
     await tx.mission.update({
       where: { id },
       data: {

@@ -64,7 +64,7 @@ test('a new profile starts with no invented background and automatic career-team
     page.getByLabel('Experience and projects or “none yet”', { exact: true }),
   ).toHaveValue('');
   await expect(
-    page.getByText('Your career team uses approved profile facts when you start a mission.', {
+    page.getByText('Your party uses approved profile facts in every run.', {
       exact: false,
     }),
   ).toBeVisible();

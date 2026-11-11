@@ -130,7 +130,7 @@ test('reviewed wording creates a downloadable edition and application answers st
   await page.getByLabel('I reviewed this exact draft').check();
   await page.getByRole('button', { name: 'Approve & save profile', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Send the party out', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Close mission form', exact: true }).click();
+  await page.getByRole('button', { name: 'Close Find roles form', exact: true }).click();
   await openProfile(page);
   await expect(page.getByText('Approved v1', { exact: true })).toBeVisible();
   await go(page, 'Quests');

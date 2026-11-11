@@ -16,7 +16,7 @@ export function registerApplicationReadiness(app: Express) {
       throw new AppError(
         409,
         'STALE_PROFILE',
-        'Start a mission using your current approved profile.',
+        'Your profile changed. Tailor this role again from the Quest log.',
       );
     const resume = await db.approvedResume.findFirst({
       where: { id: (m.data as any).approvedResumeId || '', userId: m.userId },

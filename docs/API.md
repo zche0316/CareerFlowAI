@@ -6,14 +6,13 @@ commands. It describes the code in this repository, not a hosted deployment.
 
 ## Stage 1 names and implemented roles
 
-| Stage 1 role | Implemented identity      | Main responsibility                                                |
-| ------------ | ------------------------- | ------------------------------------------------------------------ |
-| R1 / UC1     | Profile Builder           | Turn user-supplied information into a reviewed, versioned profile  |
-| R2 / UC2     | Career Coach              | Ground strengths, gaps, directions and actions in approved facts   |
-| R3 / UC3     | Job Matcher               | Rank disclosed jobs with evidence, gaps and source limitations     |
-| R4 / UC4     | Resume Tailor             | Select approved evidence and generate an extractive resume draft   |
-| R5 / UC5     | Interview Coach           | Prepare questions, save answers and return practice feedback       |
-| Optional O5  | Interview Coach extension | Practise one fictional salary negotiation after interview feedback |
+| Stage 1 role | Implemented identity | Main responsibility                                               |
+| ------------ | -------------------- | ----------------------------------------------------------------- |
+| R1 / UC1     | Profile Builder      | Turn user-supplied information into a reviewed, versioned profile |
+| R2 / UC2     | Career Coach         | Ground strengths, gaps, directions and actions in approved facts  |
+| R3 / UC3     | Job Matcher          | Rank disclosed jobs with evidence, gaps and source limitations    |
+| R4 / UC4     | Resume Tailor        | Select approved evidence and generate an extractive resume draft  |
+| R5 / UC5     | Interview Coach      | Prepare questions, save answers and return practice feedback      |
 
 The Orchestrator, queue, provider adapter and data services are supporting components. They are not
 additional specialist agents.
@@ -26,14 +25,12 @@ apps/
     app.ts             HTTP routes and middleware
     domain.ts          profile, mission and ownership operations
     interview.ts       saved-answer and completion rules
-    negotiation.ts     optional O5 practice and user decision
     queue.ts           durable pg-boss/LangGraph execution
     recruitment.ts     owner-scoped application package and self-reported history
-    tools.ts           optional status, reminder, cover-letter and role-play tools
+    applications.ts    long-lived roles (applications), runs on a role, status history
   web/src/
     main.tsx           React UI and interaction states
     recruitment.tsx    real-job application preparation, history and availability UI
-    tools.tsx          optional application dashboard and reminder UI
     style.css          responsive presentation
 packages/
   agents/src/          LangGraph workflow, specialist prompts and provider boundary
@@ -58,8 +55,8 @@ does not choose a work item, approve a profile or resume, or decide whether a wo
 ### API and services
 
 `apps/api` owns authentication, CSRF checks, user scoping, profile approvals, mission transitions,
-interview answers, optional negotiation practice, resume downloads, application preparation,
-self-reported application history and optional local tools. `packages/agents` owns the LangGraph
+interview answers, resume downloads, application preparation, the role board and
+self-reported application history. `packages/agents` owns the LangGraph
 workflow and model context handoff. `packages/matching` contains the deterministic matching function
 and disclosed sample jobs. `packages/recruitment` retrieves and normalises current employer-board
 records and optional Adzuna results. `packages/contracts` is the single source for shared Zod schemas.
@@ -76,8 +73,7 @@ PostgreSQL is the durable boundary:
 - PostgreSQL checkpoint tables and pg-boss tables support durable workflow execution.
 
 Approved facts and human decisions remain in domain rows. Model output is never silently promoted to
-a verified fact. Optional status, reminders, cover letters and practice negotiation state are stored
-inside the owner-scoped mission document. Application records are stored in mission history and are
+a verified fact. Role status and its history are stored on the owner-scoped `Application` row. Application records are stored in mission history and are
 labelled as user-reported unless they represent only an official-site handoff.
 
 ## Shared input and output schemas
@@ -92,13 +88,9 @@ Schemas live in `packages/contracts/src/index.ts`:
 | `questionsSchema`           | One to three unique role-specific interview questions                            |
 | `answerSchema`              | One saved answer bound to a question in the current interview                    |
 | `feedbackSchema`            | Non-empty strengths, improvements and next steps                                 |
-| `negotiationInputSchema`    | Practice offer, target, three-letter currency and candidate response             |
-| `negotiationOutputSchema`   | Recruiter reply plus structured practice feedback                                |
-| `negotiationDecisionSchema` | User-owned `accept` or `decline` practice choice                                 |
 | `decisionSchema`            | Discriminated job, resume and interview human decisions                          |
 | `jobSearchSchema`           | Job-source provider, country, region, keyword and optional manual listing        |
 
-`apps/api/src/tools.ts` defines the API-local discriminated `toolCommand` schema.
 `apps/api/src/recruitment.ts` defines `applicationRecordSchema`. These schemas are validated on the
 server before any persisted update.
 
@@ -152,83 +144,6 @@ pages from one Tavily search (at most eight, login-walled sites excluded) with o
 page; it needs Tavily and a live model, so only Scout sweeps in live mode use it. Title, company and
 location must be quoted from the page, the description is the page text, and the vacancy is marked
 unverified (`source.verified: false`).
-
-### Optional tools and reminders
-
-These routes require an authenticated `cf_session` and are limited to missions owned by the current
-user. `POST` requires the same `X-CSRF-Token` as every other mutation.
-
-| Method | Path                                               | Body          | Purpose                                               |
-| ------ | -------------------------------------------------- | ------------- | ----------------------------------------------------- |
-| GET    | `/api/tools/dashboard`                             | -             | Summarise owned application status and reminders      |
-| POST   | `/api/missions/:id/tools`                          | `toolCommand` | Persist a status, reminder, local letter or role-play |
-| GET    | `/api/missions/:id/reminders/:reminderId/calendar` | -             | Return an iCalendar document for one owned reminder   |
-
-`toolCommand` is a discriminated union:
-
-```json
-{ "kind": "status", "status": "applied" }
-{ "kind": "reminder", "title": "Follow up", "category": "follow-up", "dueAt": "2026-10-30T09:00:00.000Z" }
-{ "kind": "letter" }
-{ "kind": "negotiation", "offer": "Fictional offer context", "response": "Candidate practice response" }
-```
-
-Allowed statuses are `applied`, `interview`, `rejected` and `offer`. Reminder categories are
-`application`, `interview` and `follow-up`; `dueAt` must be an ISO date-time. Every tool command
-requires a selected target job on the owned mission and rejects a mission based on a stale approved
-profile.
-
-`GET /api/tools/dashboard` returns:
-
-```json
-{
-  "applications": [
-    {
-      "missionId": "uuid",
-      "title": "Data Analyst",
-      "status": "interview",
-      "updatedAt": "ISO-8601"
-    }
-  ],
-  "total": 1,
-  "interviewCount": 1,
-  "rejected": 0,
-  "interviewRate": 1,
-  "rejectionRate": 0,
-  "recurringGaps": [["Python", 2]],
-  "reminders": [
-    {
-      "id": "uuid",
-      "missionId": "uuid",
-      "title": "Follow up",
-      "category": "follow-up",
-      "dueAt": "ISO-8601",
-      "createdAt": "ISO-8601",
-      "jobId": "source-id"
-    }
-  ],
-  "limitations": ["Self-reported status limitation"]
-}
-```
-
-The dashboard contains only the current user's missions. Status values are self-reported, not
-employer-verified. Missing rates are `null`; offers count as having reached an interview.
-
-`POST /api/missions/:id/tools` returns the tool result that was persisted. A status result is
-`{ value, at }`; a reminder result is the reminder object; a letter result contains verbatim approved
-facts and `mode: "local-template"`; the local role-play result contains `reply`, `feedback` and
-`limitations`. No optional-tool endpoint contacts an employer or sends an external message.
-
-`GET /api/missions/:id/reminders/:reminderId/calendar` returns:
-
-```json
-{ "filename": "careerflow-reminder.ics", "content": "BEGIN:VCALENDAR\r\n..." }
-```
-
-The response is JSON containing calendar text, not a `text/calendar` file response. Calendar text is
-escaped and includes a 15-minute reminder alarm. A missing mission or reminder returns
-`404 NOT_FOUND`. Tool requests require a selected target and may return `409 STALE_PROFILE` or
-`409 TARGET_REQUIRED`.
 
 ### Application preparation and availability
 
@@ -311,16 +226,11 @@ the generic error boundary as `500 INTERNAL_ERROR`; it does not mutate selected-
 Selection uses a stricter flow and returns `503 VACANCY_CHECK_UNAVAILABLE` or
 `409 VACANCY_CLOSED` before persisting a choice.
 
-### Interview and optional negotiation
+### Interview
 
-| Method | Path                                     | Body                        | Purpose                                      |
-| ------ | ---------------------------------------- | --------------------------- | -------------------------------------------- |
-| PUT    | `/api/missions/:id/answers`              | `answerSchema`              | Save or replace one answer in question order |
-| POST   | `/api/missions/:id/negotiation`          | `negotiationInputSchema`    | Simulate one fictional salary negotiation    |
-| PUT    | `/api/missions/:id/negotiation/decision` | `negotiationDecisionSchema` | Record the user's final practice decision    |
-
-Negotiation is available only after the mission is `COMPLETE`, has a selected job and has interview
-feedback. The model cannot accept an offer or record the final decision.
+| Method | Path                        | Body           | Purpose                                      |
+| ------ | --------------------------- | -------------- | -------------------------------------------- |
+| PUT    | `/api/missions/:id/answers` | `answerSchema` | Save or replace one answer in question order |
 
 ### Resume
 
@@ -333,7 +243,7 @@ feedback. The model cannot accept an offer or record the final decision.
 Domain errors return JSON with `code` and `error`. Validation errors return `422 VALIDATION_ERROR`
 and field details. Important correction codes include `PROFILE_REQUIRED`, `SHARING_REQUIRED`,
 `STALE_DRAFT`, `DRAFT_USED`, `INVALID_JOB`, `STALE_APPROVAL`, `ANSWER_REQUIRED`,
-`INVALID_QUESTION`, `BUDGET_REACHED`, `STALE_PROFILE`, `NEGOTIATION_NOT_READY`,
+`INVALID_QUESTION`, `BUDGET_REACHED`, `STALE_PROFILE`,
 `TARGET_REQUIRED`, `REAL_JOB_REQUIRED`, `INVALID_DESTINATION`, `STALE_APPLICATION`,
 `CONFIRMATION_REQUIRED`, `VACANCY_CHECK_UNAVAILABLE` and `VACANCY_CLOSED`.
 
@@ -452,11 +362,3 @@ Conversational replies expose a short reply and one follow-up question. Grounded
 `POST .../:id/messages` optionally supports `retryMessageId` for the latest failed saved answer, or `recoverSavedAnswers:true` in review stage to prepare pending data from saved history. Both avoid duplicate user messages. Recovery keeps the interview finished. Conversation sources can cite up to 30 complete user messages within an 18,000-character context budget; commands are excluded from candidate evidence. Resume-import page limits remain unchanged.
 
 `POST /api/profile-threads/:id/organise`: body `{currentProfile, revision, recordSection: "workExperiences" | "projects", recordId, consent: true}`. Generates labelled source-index story groups, atomically saves a pending profile suggestion and DRAFT career memory, and returns `{memoryId, revision}`. GET the owned thread to review the new suggestion. Does not apply the suggestion, confirm memory or approve a profile. Concurrent/stale updates return 409; unsupported/empty sources return 422; provider failures return 503 with originals unchanged. Current records must include the selected section and ID. New complete labelled chat answers map to records without a second generative extraction; free-form answers continue through the conversational model.
-
-## Optional approved-resume cloud backups
-
-- `GET /api/cloud-backups`: returns whether optional cloud storage is configured and the signed-in user’s backed-up approved versions.
-- `POST /api/resumes/:id/cloud-backup`: exports the owned persisted approved resume to private storage as a PDF. It requires the existing session and CSRF token; no browser-supplied resume content or storage key is accepted.
-- `GET /api/cloud-backups/:id/download`: validates the opaque backup ID within the current user’s scope, verifies the object exists and redirects to a 60-second signed download URL with private/no-store headers.
-
-Local document downloads work independently of cloud configuration or storage failures. See [AWS_S3_BACKUPS.md](AWS_S3_BACKUPS.md) for configuration and operating instructions.

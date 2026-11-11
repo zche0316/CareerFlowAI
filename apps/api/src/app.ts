@@ -1,9 +1,7 @@
-import { registerCloudBackups } from './cloud-backups.js';
 import {
   JobRepository,
   recruitmentSettings,
 } from '../../../packages/recruitment/src/repository.js';
-import { toolsDashboard, runTool, toolCommand, exportReminder } from './tools.js';
 import { prepareApplication, recordApplication, applicationRecordSchema } from './recruitment.js';
 import express from 'express';
 import { resumeText, resumeDocx, resumePdf } from '../../../packages/documents/src/resume.js';
@@ -17,7 +15,11 @@ import {
   registerApplications,
   upsertApplication,
 } from './applications.js';
-import { registerCoach } from './coach.js';
+import { registerCoach, reusableAnalysis } from './coach.js';
+import { registerCapabilities } from './capability.js';
+import { registerRecruiterCheck } from './recruiter-check.js';
+import { registerProfileSources } from './profile-sources.js';
+import { registerInsights } from './insights.js';
 import { registerProfilePolish } from './profile-polish.js';
 import { registerResumeWording } from './resume-wording.js';
 import { registerResumeAgent } from './resume-agent.js';
@@ -57,7 +59,6 @@ import { AppError, requireValue } from './errors.js';
 import { enqueue, abortRun } from './queue.js';
 import { configuredMode } from '../../../packages/agents/src/provider.js';
 import { prepareProfileBuilderDraft } from './profile-builder.js';
-import { decideNegotiationPractice, runNegotiationPractice } from './negotiation.js';
 import {
   decisionSchema,
   jobSearchSchema,
@@ -175,22 +176,6 @@ export function createApp() {
     res.json({ profile, missions, resumes, applications, agents: AGENTS, mode: configuredMode() });
   });
 
-  app.get('/api/tools/dashboard', async (req, res) =>
-    res.json(await toolsDashboard(req.actor!.id)),
-  );
-  app.post('/api/missions/:id/tools', async (req, res) => {
-    const input = toolCommand.parse(req.body);
-    const result = await runTool(req.actor!.id, String(req.params.id), input);
-    if (input.kind === 'status')
-      await recordRunStatus(req.actor!.id, String(req.params.id), input.status);
-    res.json(result);
-  });
-  app.get('/api/missions/:id/reminders/:reminderId/calendar', async (req, res) =>
-    res.json(
-      await exportReminder(req.actor!.id, String(req.params.id), String(req.params.reminderId)),
-    ),
-  );
-
   // Profile editing and explicit approval are separate operations.
   app.post('/api/profiles/prepare', async (req, res) => {
     const { notes, currentProfile } = z
@@ -227,8 +212,11 @@ export function createApp() {
   registerCareerMemory(app);
   registerApplications(app);
   registerCoach(app);
+  registerCapabilities(app);
+  registerRecruiterCheck(app);
+  registerProfileSources(app);
+  registerInsights(app);
   registerResumeWording(app);
-  registerCloudBackups(app);
   registerResumeAgent(app);
   registerProfilePolish(app);
   registerJobFit(app);
@@ -287,7 +275,7 @@ export function createApp() {
       const source = await db.mission.findFirst({
         where: { id: sourceMissionId, userId: req.actor!.id },
       });
-      if (!source) throw new AppError(404, 'NOT_FOUND', 'Source mission unavailable.');
+      if (!source) throw new AppError(404, 'NOT_FOUND', 'That run is unavailable.');
       if (!(source.data as MissionData).analysis)
         throw new AppError(
           422,
@@ -298,7 +286,7 @@ export function createApp() {
         throw new AppError(
           409,
           'STALE_PROFILE',
-          'The source mission used a different profile version. Start a new mission.',
+          'That run used an older profile. Find roles again with your current profile.',
         );
       if (analysisFeedback.length < 3)
         throw new AppError(
@@ -326,6 +314,11 @@ export function createApp() {
           recordedAt: previous!.updatedAt.toISOString(),
         }
       : null;
+    // A plain search reuses advice already prepared for this profile; a refinement asks again.
+    const reused =
+      sourceMissionId || analysisFeedback.length
+        ? null
+        : await reusableAnalysis(req.actor!.id, profile.id, configuredMode());
     const mission = await db.mission.create({
       data: {
         userId: req.actor!.id,
@@ -342,6 +335,7 @@ export function createApp() {
           agentAccess: 'all-approved-profile',
           simulateSourceFailure: configuredMode() === 'fixture' && simulateSourceFailure,
           analysisFeedback,
+          ...(reused ? { analysis: reused, analysisReused: true } : {}),
           ...(sourceMissionId ? { refinedFromMissionId: sourceMissionId } : {}),
         }),
         events: json([
@@ -351,7 +345,7 @@ export function createApp() {
             action: 'queued',
             detail: sourceMissionId
               ? `Refinement mission queued from ${sourceMissionId} using approved profile v${profile.version}`
-              : 'Mission queued using approved profile v' + profile.version,
+              : 'Run queued using approved profile v' + profile.version,
           },
         ]),
       },
@@ -425,14 +419,6 @@ export function createApp() {
     await enqueue(m.id).catch(() => {});
     res.status(202).json(m);
   });
-  app.post('/api/missions/:id/negotiation', async (req, res) =>
-    res
-      .status(201)
-      .json(await runNegotiationPractice(req.actor!.id, String(req.params.id), req.body)),
-  );
-  app.put('/api/missions/:id/negotiation/decision', async (req, res) =>
-    res.json(await decideNegotiationPractice(req.actor!.id, String(req.params.id), req.body)),
-  );
   app.put('/api/missions/:id/answers', async (req, res) =>
     res.json(
       await saveInterviewAnswer(req.actor!.id, String(req.params.id), answerSchema.parse(req.body)),
@@ -450,7 +436,7 @@ export function createApp() {
       throw new AppError(
         409,
         'STALE_PROFILE',
-        'Start a new mission with your current approved profile.',
+        'Your profile changed. Tailor this role again from the Quest log.',
       );
     const changed = await db.mission.updateMany({
       where: { id: m.id, status: 'FAILED' },
