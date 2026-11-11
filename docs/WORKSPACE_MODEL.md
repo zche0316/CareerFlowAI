@@ -194,3 +194,9 @@ capability model uses for confidence and levels.
   positions, education, skills and certifications become a draft marked as self-reported.
 - Personal website: one page, read only where robots.txt allows; each heading with text becomes
   a project draft, with known skills as technologies. No model call.
+- Codeforces (official API): best rating and rated contests as Algorithms evidence (1900+ → 4,
+  1400+ → 3, any rated contest → 2).
+- Stack Overflow (official Stack Exchange API): answered top tags as per-skill evidence by answer
+  score (100+ → 4, 20+ → 3, else 2).
+- LeetCode (optional; no official API): the public profile is read when possible; otherwise the
+  user's own solved count is added as self-reported (300+ → 3, 50+ → 2, else 1).

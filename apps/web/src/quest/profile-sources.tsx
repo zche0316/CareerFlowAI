@@ -38,6 +38,33 @@ export const sourceConfigs: SourceConfig[] = [
     fields: [{ name: 'file', label: 'Export ZIP or CSV', type: 'file' }],
   },
   {
+    kind: 'codeforces',
+    title: 'Codeforces',
+    hint: 'Contest rating and history from the official Codeforces API.',
+    fields: [{ name: 'handle', label: 'Codeforces handle' }],
+  },
+  {
+    kind: 'stackoverflow',
+    title: 'Stack Overflow',
+    hint: 'Reputation and your top answer tags from the official Stack Exchange API.',
+    fields: [
+      {
+        name: 'user',
+        label: 'User number or profile link',
+        placeholder: 'https://stackoverflow.com/users/…',
+      },
+    ],
+  },
+  {
+    kind: 'leetcode',
+    title: 'LeetCode (optional)',
+    hint: 'LeetCode has no official API; the public profile is read when possible. If it cannot be read, your own solved count is added as self-reported.',
+    fields: [
+      { name: 'username', label: 'LeetCode username' },
+      { name: 'solved', label: 'Problems solved (used only if the profile cannot be read)' },
+    ],
+  },
+  {
     kind: 'website',
     title: 'Personal website',
     hint: 'Project sections (a heading followed by text) on one page. Pages the site asks robots not to read are skipped.',

@@ -2,7 +2,10 @@ import { expect, it } from 'vitest';
 import { strToU8, zipSync } from 'fflate';
 import {
   certificateProposal,
+  codeforcesProposal,
   githubProposal,
+  leetCodeProposal,
+  stackOverflowProposal,
   linkedInProposal,
   mergeProposal,
   parseCsv,
@@ -175,4 +178,77 @@ it('reads project sections from a personal site and respects robots.txt', async 
       u.endsWith('robots.txt') ? new Response('User-agent: *\nDisallow: /') : new Response(html),
     ),
   ).rejects.toMatchObject({ code: 'ROBOTS_DISALLOWED' });
+});
+
+it('reads algorithm evidence from Codeforces and per-tag evidence from Stack Overflow', async () => {
+  const cf = await codeforcesProposal(
+    'jordan_e',
+    fakeFetch({
+      'https://codeforces.com/api/user.info?handles=jordan_e': {
+        status: 'OK',
+        result: [
+          {
+            handle: 'jordan_e',
+            rating: 1420,
+            maxRating: 1510,
+            rank: 'specialist',
+            maxRank: 'specialist',
+          },
+        ],
+      },
+      'https://codeforces.com/api/user.rating?handle=jordan_e': {
+        status: 'OK',
+        result: [{ ratingUpdateTimeSeconds: 1760000000 }, { ratingUpdateTimeSeconds: 1762000000 }],
+      },
+    }),
+  );
+  expect(cf.verifiedEvidence[0]).toMatchObject({
+    skill: 'Algorithms',
+    verified: true,
+    supports: 3,
+  });
+  const so = await stackOverflowProposal(
+    '42',
+    fakeFetch({
+      'https://api.stackexchange.com/2.3/users/42?site=stackoverflow': {
+        items: [
+          { display_name: 'Jordan', reputation: 2100, link: 'https://stackoverflow.com/users/42' },
+        ],
+      },
+      'https://api.stackexchange.com/2.3/users/42/top-tags?site=stackoverflow&pagesize=8': {
+        items: [
+          { tag_name: 'postgresql', answer_count: 12, answer_score: 41 },
+          { tag_name: 'pandas', answer_count: 3, answer_score: 5 },
+          { tag_name: 'excel', answer_count: 0, answer_score: 0 },
+        ],
+      },
+    }),
+  );
+  expect(so.verifiedEvidence.map((e) => [e.skill, e.supports])).toEqual([
+    ['PostgreSQL', 3],
+    ['pandas', 2],
+  ]);
+});
+
+it('keeps LeetCode numbers self-reported when the profile cannot be read', async () => {
+  const fromSite = await leetCodeProposal(
+    { username: 'jordan' },
+    async () =>
+      new Response(
+        JSON.stringify({
+          data: {
+            matchedUser: {
+              submitStatsGlobal: { acSubmissionNum: [{ difficulty: 'All', count: 320 }] },
+            },
+          },
+        }),
+      ),
+  );
+  expect(fromSite.verifiedEvidence[0]).toMatchObject({ verified: true, supports: 3 });
+  const down = async () => new Response('blocked', { status: 403 });
+  const manual = await leetCodeProposal({ username: 'jordan', solved: 80 }, down);
+  expect(manual.verifiedEvidence[0]).toMatchObject({ verified: false, supports: 2 });
+  await expect(leetCodeProposal({ username: 'jordan' }, down)).rejects.toMatchObject({
+    code: 'SOURCE_UNAVAILABLE',
+  });
 });

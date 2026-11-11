@@ -4,6 +4,7 @@ import { db } from './db.js';
 import { AppError } from './errors.js';
 import { strFromU8, unzipSync } from 'fflate';
 import {
+  canonicalSkill,
   mentionsSkill,
   type ExternalEvidence,
 } from '../../../packages/contracts/src/capability.js';
@@ -564,6 +565,165 @@ const aliasesForSite = Object.fromEntries(
   ].map((k) => [k, true]),
 );
 
+// ---- Problem-solving sources (CFS-114) ---------------------------------------------------------
+
+const solvedLevel = (n: number) => (n >= 300 ? 3 : n >= 50 ? 2 : 1);
+
+/** Codeforces official API: rating, best rating and contests as algorithm evidence. */
+export async function codeforcesProposal(
+  handle: string,
+  fetcher: Fetcher = fetch,
+): Promise<Proposal> {
+  const base = 'https://codeforces.com/api';
+  const info = await getJson(
+    fetcher,
+    `${base}/user.info?handles=${encodeURIComponent(handle)}`,
+    'Codeforces',
+  );
+  const user = info?.result?.[0];
+  if (info?.status !== 'OK' || !user)
+    throw new AppError(404, 'SOURCE_NOT_FOUND', 'Codeforces: not found.');
+  const contests: any[] =
+    (
+      await getJson(
+        fetcher,
+        `${base}/user.rating?handle=${encodeURIComponent(handle)}`,
+        'Codeforces',
+      ).catch(() => ({ result: [] }))
+    ).result || [];
+  const best = Number(user.maxRating || 0);
+  const supports = best >= 1900 ? 4 : best >= 1400 ? 3 : contests.length ? 2 : 1;
+  const last = contests.at(-1)?.ratingUpdateTimeSeconds;
+  return {
+    source: 'codeforces',
+    summary: [
+      `${user.handle}: rating ${user.rating ?? 'unrated'}, best ${best || 'n/a'}, ${contests.length} rated contest${contests.length === 1 ? '' : 's'}`,
+    ],
+    projects: [],
+    workExperiences: [],
+    educations: [],
+    skills: ['Algorithms'],
+    verifiedEvidence: [
+      {
+        skill: 'Algorithms',
+        source: 'codeforces',
+        verified: true,
+        supports: supports as 1 | 2 | 3 | 4,
+        detail: `Codeforces best rating ${best || 'unrated'} (${user.maxRank || user.rank || 'unranked'}), ${contests.length} rated contests`,
+        lastUsed: last ? month(new Date(last * 1000).toISOString()) || undefined : undefined,
+        url: `https://codeforces.com/profile/${user.handle}`,
+      },
+    ],
+    warnings: contests.length ? [] : ['No rated contests yet; the evidence supports level 1 only.'],
+  };
+}
+
+/** Stack Exchange official API: reputation and top answer tags as per-skill evidence. */
+export async function stackOverflowProposal(
+  userId: string,
+  fetcher: Fetcher = fetch,
+): Promise<Proposal> {
+  const base = 'https://api.stackexchange.com/2.3';
+  const users = await getJson(
+    fetcher,
+    `${base}/users/${userId}?site=stackoverflow`,
+    'Stack Overflow',
+  );
+  const user = users?.items?.[0];
+  if (!user) throw new AppError(404, 'SOURCE_NOT_FOUND', 'Stack Overflow: user not found.');
+  const tags: any[] =
+    (
+      await getJson(
+        fetcher,
+        `${base}/users/${userId}/top-tags?site=stackoverflow&pagesize=8`,
+        'Stack Overflow',
+      )
+    ).items || [];
+  const verifiedEvidence = tags
+    .filter((t) => (t.answer_count || 0) > 0)
+    .map((t) => ({
+      skill: canonicalSkill(String(t.tag_name).replace(/-/g, ' ')),
+      source: 'stackoverflow',
+      verified: true,
+      supports: (t.answer_score >= 100 ? 4 : t.answer_score >= 20 ? 3 : 2) as 2 | 3 | 4,
+      detail: `${t.answer_count} Stack Overflow answer${t.answer_count === 1 ? '' : 's'} on ${t.tag_name}, score ${t.answer_score}`,
+      url: user.link,
+    }));
+  return {
+    source: 'stackoverflow',
+    summary: [
+      `${user.display_name}: reputation ${user.reputation}, ${verifiedEvidence.length} answered tag${verifiedEvidence.length === 1 ? '' : 's'}`,
+    ],
+    projects: [],
+    workExperiences: [],
+    educations: [],
+    skills: [],
+    verifiedEvidence,
+    warnings: verifiedEvidence.length ? [] : ['No answered tags yet.'],
+  };
+}
+
+/**
+ * LeetCode has no official API. The public profile is read through the site's own GraphQL
+ * endpoint; when that fails the user's own numbers are kept, marked self-reported.
+ */
+export async function leetCodeProposal(
+  input: { username: string; solved?: number },
+  fetcher: Fetcher = fetch,
+): Promise<Proposal> {
+  let solved: number | null = null;
+  let verified = false;
+  try {
+    const r = await fetcher('https://leetcode.com/graphql', {
+      method: 'POST',
+      headers: { ...UA, 'Content-Type': 'application/json', Referer: 'https://leetcode.com' },
+      body: JSON.stringify({
+        query:
+          'query p($u: String!) { matchedUser(username: $u) { submitStatsGlobal { acSubmissionNum { difficulty count } } } }',
+        variables: { u: input.username },
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
+    const data = r.ok ? await r.json() : null;
+    const all = data?.data?.matchedUser?.submitStatsGlobal?.acSubmissionNum?.find(
+      (x: any) => x.difficulty === 'All',
+    );
+    if (typeof all?.count === 'number') ((solved = all.count), (verified = true));
+  } catch {
+    /* fall back to the user's numbers */
+  }
+  const warnings: string[] = [];
+  if (solved === null) {
+    if (typeof input.solved !== 'number')
+      throw new AppError(
+        503,
+        'SOURCE_UNAVAILABLE',
+        'LeetCode could not be read. Enter your solved count to add it as self-reported.',
+      );
+    solved = input.solved;
+    warnings.push('LeetCode could not be read; your own number is added as self-reported.');
+  }
+  return {
+    source: 'leetcode',
+    summary: [`${input.username}: ${solved} problems solved${verified ? '' : ' (self-reported)'}`],
+    projects: [],
+    workExperiences: [],
+    educations: [],
+    skills: ['Algorithms'],
+    verifiedEvidence: [
+      {
+        skill: 'Algorithms',
+        source: 'leetcode',
+        verified,
+        supports: solvedLevel(solved) as 1 | 2 | 3,
+        detail: `${solved} LeetCode problems solved${verified ? '' : ' (self-reported)'}`,
+        url: `https://leetcode.com/u/${encodeURIComponent(input.username)}/`,
+      },
+    ],
+    warnings,
+  };
+}
+
 // ---- Merge into the approved profile ------------------------------------------------------------
 
 /** The approved profile with the proposal added: records by id, skills and evidence deduplicated. */
@@ -629,6 +789,40 @@ export async function readSource(kind: string, body: unknown, fetcher: Fetcher):
   if (kind === 'website') {
     const { url } = z.object({ url: z.string().trim().url().max(500) }).parse(body);
     return websiteProposal(url, fetcher);
+  }
+  if (kind === 'codeforces') {
+    const { handle } = z
+      .object({
+        handle: z
+          .string()
+          .trim()
+          .regex(/^[A-Za-z0-9_.-]{3,24}$/, 'Use a Codeforces handle.'),
+      })
+      .parse(body);
+    return codeforcesProposal(handle, fetcher);
+  }
+  if (kind === 'stackoverflow') {
+    const { user } = z.object({ user: z.string().trim().max(200) }).parse(body);
+    const id = /(?:users\/)?(\d{1,10})/.exec(user)?.[1];
+    if (!id)
+      throw new AppError(
+        422,
+        'INVALID_USER',
+        'Use your Stack Overflow user number or profile link.',
+      );
+    return stackOverflowProposal(id, fetcher);
+  }
+  if (kind === 'leetcode') {
+    const { username, solved } = z
+      .object({
+        username: z
+          .string()
+          .trim()
+          .regex(/^[A-Za-z0-9_-]{1,40}$/, 'Use a LeetCode username.'),
+        solved: z.union([z.literal(''), z.coerce.number().int().min(0).max(5000)]).optional(),
+      })
+      .parse(body);
+    return leetCodeProposal({ username, solved: solved === '' ? undefined : solved }, fetcher);
   }
   throw new AppError(404, 'NOT_FOUND', 'Unknown profile source.');
 }
