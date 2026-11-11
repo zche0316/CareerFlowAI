@@ -24,6 +24,7 @@ model User {
   scoutSweeps ScoutSweep[]
   trackedJobs TrackedJob[]
   traceSpans TraceSpan[]
+  applications Application[]
 }
 model Session {
   id String @id @default(uuid())
@@ -69,11 +70,31 @@ model Mission {
   leaseToken String?
   leaseExpiresAt DateTime?
   pendingDecision Json?
+  // The long-lived application this run works on; a plain column so runs outlive edits to it.
+  applicationId String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   resumes ApprovedResume[]
   @@index([userId, createdAt])
   @@index([status])
+  @@index([applicationId])
+}
+// One role the user is pursuing, kept across runs and profile versions. Runs (Mission rows) point
+// here through applicationId; the same role found twice (same fingerprint) is one application.
+model Application {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fingerprint String
+  job Json
+  source String
+  status String @default("saved")
+  history Json
+  notes String @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([userId, fingerprint])
+  @@index([userId, updatedAt])
 }
 model ApprovedResume {
   id String @id @default(uuid())

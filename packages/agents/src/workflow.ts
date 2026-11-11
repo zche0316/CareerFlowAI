@@ -683,8 +683,9 @@ export async function createWorkflow() {
     // Interrupt nodes replay on resume: keep decision-dependent writes after interrupt().
     .addNode('select_job', async (s) => {
       const c = await context(s.missionId, 'matching');
-      // A Scout package arrives with its job already shortlisted; the human gate is the draft review.
-      if (c.d.scout && c.d.selectedJob) return {};
+      // A Scout package or a run on a saved role arrives with its job already chosen; the human
+      // gate is the draft review.
+      if ((c.d.scout || c.d.preselected) && c.d.selectedJob) return {};
       const choice = interrupt({
         kind: 'job',
         message: 'Choose a target job from this mission’s ranked results.',
