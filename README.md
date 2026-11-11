@@ -13,6 +13,7 @@ Progress, acceptance results, defects and delivery evidence are managed in [Jira
 - [Orchestration](docs/ORCHESTRATION.md): durable missions, lifecycle and approved context handoff.
 - [Multi-agent plan](docs/MULTI_AGENT_PLAN.md): resume team, human review gates and the reverse job search roadmap.
 - [Readiness for real users](docs/READINESS.md): what works end to end, latest live checks and remaining gaps.
+- [Local demo readiness](docs/LOCAL_DEMO.md): the short-term local demo workflow, its gaps and a checklist of every product feature.
 - [Deployment playbook](docs/WEEK13_DEPLOYMENT.md): source packaging, clean installation and course demonstration.
 - [Evaluation](docs/EVALUATION.md): labelled set, measured results and regression floors.
 - [Optional S3 backups](docs/AWS_S3_BACKUPS.md): private approved-PDF backup configuration and user flow.

@@ -6,6 +6,9 @@ can use CareerFlow end to end. Jira was not reachable from the review environmen
 Atlassian connector points at another host), so this page also carries the latest test record
 for CFS-41 until it is copied there.
 
+The short-term goal is a reliable local demo; its workflow, gaps and feature checklist are in
+[LOCAL_DEMO.md](LOCAL_DEMO.md).
+
 ## What works end to end today
 
 On a computer running the app (`npm run start:local` or Docker), with live model keys:
