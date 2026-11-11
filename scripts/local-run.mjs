@@ -8,7 +8,7 @@ const env = {
   ...process.env,
   DEV_DATABASE: 'portable',
   DATABASE_URL: database.url,
-  ...(process.argv.includes('--verify')
+  ...(process.argv.includes('--verify') || process.argv.includes('--quick')
     ? { JOB_SOURCE: 'fixtures', PROVIDER_MODE: 'fixture', OPENAI_NATIVE_API_KEY: '' }
     : {}),
 };
@@ -36,7 +36,11 @@ function run(args, executable = process.execPath) {
 try {
   await run(['node_modules/prisma/build/index.js', 'generate']);
   await run(['node_modules/prisma/build/index.js', 'migrate', 'deploy']);
-  if (process.argv.includes('--verify')) {
+  if (process.argv.includes('--quick')) {
+    // While iterating: types, then only the vitest files affected by changes since main.
+    await run(['node_modules/typescript/bin/tsc', '--noEmit']);
+    await run(['node_modules/vitest/vitest.mjs', 'run', '--changed', 'origin/main']);
+  } else if (process.argv.includes('--verify')) {
     await run(['node_modules/typescript/bin/tsc', '--noEmit']);
     await run(['--test', 'packages/matching/original.test.js']);
     await run(['-B', '-m', 'unittest', 'discover', '-s', 'tests', '-p', 'test_*.py'], 'python3');

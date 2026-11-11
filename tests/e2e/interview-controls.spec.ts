@@ -29,8 +29,11 @@ test('interview controls stop and skip without model calls, survive reload and l
   await expect(
     page.getByRole('button', { name: 'Finish this experience', exact: true }),
   ).toHaveCount(0);
+  const finish = page.getByRole('button', { name: 'Finish this experience', exact: true });
   for (let i = 0; i < 10; i++) {
     const skip = page.getByRole('button', { name: 'Skip this question', exact: true });
+    // Both buttons are hidden while a skip is saving; decide only once one of them is back.
+    await expect(skip.or(finish).first()).toBeVisible();
     if (!(await skip.count())) break;
     await Promise.all([
       page.waitForResponse((r) => r.url().includes('/controls') && r.request().method() === 'POST'),
@@ -39,9 +42,7 @@ test('interview controls stop and skip without model calls, survive reload and l
       skip.click({ force: true }),
     ]);
   }
-  await page
-    .getByRole('button', { name: 'Finish this experience', exact: true })
-    .click({ force: true });
+  await finish.click({ force: true });
   await expect(page.getByRole('log').locator('article').last()).toContainText(
     'This experience is finished',
   );
@@ -121,8 +122,11 @@ test('finishing a pending experience retains suggestions without a hidden model 
   await expect(
     page.getByRole('button', { name: 'Use these details in my draft', exact: true }),
   ).toBeVisible();
+  const finish = page.getByRole('button', { name: 'Finish this experience', exact: true });
   for (let i = 0; i < 12; i++) {
     const skip = page.getByRole('button', { name: 'Skip this question', exact: true });
+    // Both buttons are hidden while a skip is saving; decide only once one of them is back.
+    await expect(skip.or(finish).first()).toBeVisible();
     if (!(await skip.count())) break;
     await Promise.all([
       page.waitForResponse((r) => r.url().includes('/controls') && r.request().method() === 'POST'),
@@ -131,9 +135,7 @@ test('finishing a pending experience retains suggestions without a hidden model 
       skip.click({ force: true }),
     ]);
   }
-  await page
-    .getByRole('button', { name: 'Finish this experience', exact: true })
-    .click({ force: true });
+  await finish.click({ force: true });
   await expect(page.getByRole('log').locator('article').last()).toContainText(
     'This experience is finished',
   );
