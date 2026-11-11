@@ -25,6 +25,7 @@ model User {
   trackedJobs TrackedJob[]
   traceSpans TraceSpan[]
   applications Application[]
+  coachReviews CoachReview[]
 }
 model Session {
   id String @id @default(uuid())
@@ -95,6 +96,20 @@ model Application {
   updatedAt DateTime @updatedAt
   @@unique([userId, fingerprint])
   @@index([userId, updatedAt])
+}
+// Workspace-level Career Coach advice, kept per profile version so it outlives any one run.
+model CoachReview {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profileId String
+  mode String
+  analysis Json
+  calls Int @default(0)
+  inputTokens Int @default(0)
+  outputTokens Int @default(0)
+  createdAt DateTime @default(now())
+  @@index([userId, createdAt])
 }
 model ApprovedResume {
   id String @id @default(uuid())

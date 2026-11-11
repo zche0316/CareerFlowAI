@@ -44,17 +44,24 @@ One story, in this order. Each step names the Quest page where it happens.
 
 1. **Sign in** → Home.
 2. **Build the profile** (My profile): chat or import a resume, review the STAR stories, approve version 1.
-3. **Find roles** (Jobs, or Scout):
-   - Jobs: a search or a pasted job link.
+3. **Find roles** (Quests → Find roles, or Scout):
+   - Find roles: official job boards, a pasted listing, or demo roles in fixture mode.
    - Scout: a sweep that ranks roles and lists leads.
-4. **Choose one role** and read the fit and gap analysis.
+4. **Choose one role** and read the fit and gap analysis. Save a second role to the Quest log for
+   later.
 5. **Resume team** (Quests → quest page, Battle log): Rewriter, Evidence Selector and Critic
    rounds, then the draft stops for review.
 6. **Review** (Decision inbox / Party review): return once with a comment, then approve.
 7. **Interview practice**: one round, finish early, read the feedback.
 8. **Export** (My documents): PDF and DOCX.
-9. **Applications**: record that you applied (applying stays manual).
-10. **Scout lead**: open a SEEK lead, paste the ad, open the package (repeats steps 5–6 for that role).
+9. **Applications**: record that you applied (applying stays manual). The role moves to Applied in
+   the Quest log.
+10. **Tailor a saved role** (Quest log → Tailor resume): a new run starts at the resume team.
+11. **Coach** (Home): next steps across all roles; Refresh advice makes one model call.
+12. **Scout lead**: open a SEEK lead, paste the ad, open the package (repeats steps 5–6 for that role).
+
+The Quest log lists roles, not searches: each role keeps every resume and practice run made for
+it (see [WORKSPACE_MODEL.md](WORKSPACE_MODEL.md)).
 
 Rehearse the whole route in fixture mode. Then run it once in live mode the day before the demo.
 
@@ -124,7 +131,10 @@ How to read the columns:
 
 | Feature                                      | Quest page | Auto                       | Fixture | Live |
 | -------------------------------------------- | ---------- | -------------------------- | ------- | ---- |
-| New mission uses profile search defaults     | Jobs       | Q agent-native             | [ ]     | [ ]  |
+| Find roles uses profile search defaults      | Quests     | Q agent-native             | [ ]     | [ ]  |
+| Save a role for later; tailor it later       | Quests     | D; I applications          | [ ]     | [ ]  |
+| Role status and history across runs          | Quests     | D; I applications          | [ ]     | [ ]  |
+| Coach next steps and refreshed advice        | Home       | D; I coach                 | [ ]     | [ ]  |
 | Ranked jobs, compare, choose one             | Jobs       | Q journey; D               | [ ]     | [ ]  |
 | Paste a job link into a reviewable candidate | Jobs       | Q agent-native; I job-link | [ ]     | [ ]  |
 | Job availability check                       | Jobs       | I recruitment              | [ ]     | [ ]  |

@@ -1,6 +1,6 @@
 # Workspace model: long-lived applications instead of one-shot missions
 
-Jira: CFS-102 · Status: in development
+Jira: CFS-102 · Status: phases 1–3 implemented
 
 ## Problem
 
