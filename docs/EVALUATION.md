@@ -201,3 +201,35 @@ exactly 1 and login-walled pages must never reach the model. If a rule change im
 re-run `npm run eval`, update this page and raise the floor to just below the new value. Never set
 a floor above a measured value, and never edit the labelled data to make a floor pass; a label
 that is wrong should be corrected with a note explaining why.
+
+## Discovery comparison (prototype, 2026-11-11)
+
+`scripts/discovery-compare.ts` runs two discovery approaches on the same search and judges both
+with one server-side check. It is live only (Tavily credits, model tokens, web search calls) and
+not wired into Scout.
+
+- **A, current pipeline**: one Tavily search, screening, one model read per page (`discoverWeb`).
+- **B, model-driven**: the configured OpenAI model runs its own `web_search` tool in a loop
+  (search, open page, search again) and returns jobs with URLs and quotes.
+- **Shared check**: reads `robots.txt` first and never fetches a page the site disallows for all
+  agents (those jobs stay "unverified"); other pages are read through Tavily extract and must
+  show the title and company and no closed notice.
+
+| Search                              | Arm | Tool use                           | Tokens in / out | Time    | Listed | Verified open | Unverified (robots) | Other                                       |
+| ----------------------------------- | --- | ---------------------------------- | --------------- | ------- | ------ | ------------- | ------------------- | ------------------------------------------- |
+| graduate data analyst, Sydney       | A   | 1 search, 3 model reads            | 10k / 1k        | 13 s    | 1      | 1             | 0                   | 0                                           |
+| graduate data analyst, Sydney       | B   | 22 searches, 9 page opens, 2 finds | 277k / 18k      | 4.9 min | 15     | 6             | 4                   | 3 unreadable (Prosple), 2 title not on page |
+| junior software engineer, Melbourne | A   | 1 search, 2 model reads            | 11k / 0.5k      | 10 s    | 0      | 0             | 0                   | 0                                           |
+| junior software engineer, Melbourne | B   | 9 searches, 8 page opens           | 151k / 9k       | 3.2 min | 15     | 1             | 14                  | 0                                           |
+
+Notes:
+
+- Without an explicit breadth target ("aim for 15 to 25 roles") the model stopped after 13 tool
+  calls and 2 jobs, so the instruction matters as much as the tool.
+- In the Melbourne run 14 of 15 roles were on SEEK, LinkedIn or Indeed. Their `robots.txt`
+  disallows automated reading of job pages for all agents (SEEK `*/job/`, LinkedIn `/`), so the
+  check does not read them. A manual spot check of 4 of the SEEK roles in a browser found all 4
+  real and open. Where entry-level jobs are concentrated on those boards, a compliant product can
+  list them as unverified leads with the user opening the link, but cannot verify them itself.
+- One run per search; result counts will vary between runs. Ranking quality, duplicates against
+  roles already tracked, and the price of web search calls were not measured.
