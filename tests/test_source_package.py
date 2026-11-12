@@ -1,4 +1,4 @@
-"""Source delivery regression: include infrastructure, exclude credentials/runtime files."""
+"""Source delivery regression: include source and configuration, exclude credentials/runtime files."""
 import contextlib
 import importlib.util
 import io
@@ -18,9 +18,8 @@ class SourcePackageTest(unittest.TestCase):
     def test_source_archive_includes_infrastructure_and_excludes_private_files(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            included = ['package-lock.json', '.env.example', 'compose.yaml', 'compose.aws.yaml', 'compose.aws-profile.yaml', 'prisma/schema.prisma',
-                        'scripts/local-run.mjs', 'packages/matching/jobs.json',
-                        'infra/aws/resume-backups.yaml', 'infra/aws/application-policy.example.json']
+            included = ['package-lock.json', '.env.example', 'compose.yaml', 'prisma/schema.prisma',
+                        'scripts/local-run.mjs', 'packages/matching/jobs.json']
             excluded = ['.env', 'infra/aws/private.key', 'scripts/__pycache__/cached.pyc',
                         '.runtime/database/private.json', 'output/private.json']
             for name in included + excluded:

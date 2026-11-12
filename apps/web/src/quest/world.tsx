@@ -1,3 +1,4 @@
+import { MarketInsight } from './market-insight.js';
 import { useState, type ReactNode } from 'react';
 import { ExternalLink, Plane } from 'lucide-react';
 import { countries } from '../../../../packages/recruitment/src/geography.js';
@@ -110,8 +111,10 @@ export function QuestWorld({
   onTravel,
   onNewQuest,
   onSeason,
+  request,
 }: {
   workspace: any;
+  request?: (path: string) => Promise<any>;
   realm: string;
   onTravel: (code: string) => void;
   onNewQuest: () => void;
@@ -323,6 +326,7 @@ export function QuestWorld({
           </div>
         </section>
       )}
+      {request && <MarketInsight request={request} country={picked} />}
     </div>
   );
 }

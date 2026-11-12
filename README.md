@@ -1,6 +1,8 @@
 # CareerFlow AI
 
-A local career workspace with five specialist agents: Profile Builder, Career Coach, Job Matcher, Resume Tailor and Interview Coach. Approved profile versions, background missions, human decisions and evidence-grounded application documents persist in PostgreSQL.
+CareerFlow AI narrows the information gap for people looking for technical roles across regions. It finds roles on official job boards and verifiable sources, shows what each region's roles actually ask for, rates your capability per skill from evidence you approve (including GitHub, certificates and contest profiles), and tailors an evidence-grounded resume for each role you pursue, with interview practice.
+
+Under the hood, a team of agents (Profile Builder, Career Coach, Scout, Job Matcher, a resume team and Interview Coach) works on a long-lived workspace: approved profile versions, one quest per role, durable runs, human decisions and documents persist in PostgreSQL.
 
 Progress, acceptance results, defects and delivery evidence are managed in [Jira](https://careerflow-elec5620-group2.atlassian.net/jira/software/projects/CFS/boards/2). Repository documentation covers how to use, run and maintain the application.
 
@@ -16,7 +18,6 @@ Progress, acceptance results, defects and delivery evidence are managed in [Jira
 - [Local demo readiness](docs/LOCAL_DEMO.md): the short-term local demo workflow, its gaps and a checklist of every product feature.
 - [Deployment playbook](docs/WEEK13_DEPLOYMENT.md): source packaging, clean installation and course demonstration.
 - [Evaluation](docs/EVALUATION.md): labelled set, measured results and regression floors.
-- [Optional S3 backups](docs/AWS_S3_BACKUPS.md): private approved-PDF backup configuration and user flow.
 
 Member 3 matching-source provenance is retained in [NOTICE.md](packages/matching/NOTICE.md).
 
@@ -35,24 +36,7 @@ Open **http://localhost:8787** and create an account. The image installs locked 
 
 Default host ports are 8787/55432. Stop the old local instance before using them, or set `APP_PORT`/`DB_PORT` in the private `.env`; the browser origin follows `APP_PORT`. Use a distinct Compose project and fresh data volume for an independent rehearsal. Docker builds need access to the base image, OS packages and npm dependencies unless these have already been cached on the demonstration machine.
 
-For deterministic offline verification, explicitly set `PROVIDER_MODE=fixture` and `JOB_SOURCE=fixtures`. For the actual AI demonstration, configure your provider in the private `.env`; native `OPENAI_NATIVE_*` settings are forwarded too. Internet access is required for live model/job requests and S3.
-
-### Optional S3 inside Docker
-
-Existing private S3 buckets can be reused. On your demo computer, add the following to the private `.env` (use the existing bucket's actual name):
-
-```dotenv
-S3_BACKUP_BUCKET=<existing-bucket-name>
-AWS_REGION=ap-southeast-2
-AWS_PROFILE=careerflow
-COMPOSE_FILE=compose.yaml:compose.aws-profile.yaml
-```
-
-Then use the same normal startup command: `docker compose up -d --build --wait`. No Python session helper is required. The optional override mounts the host AWS config read-only and login cache read/write at runtime so the installed SDK can use and refresh the existing `aws login` session. It does not mount static credentials or copy credentials into source/image. This grants the local app access to the mounted login cache; use it only on your own trusted demo computer. A fully expired login still needs browser sign-in again. Optional `AWS_HOST_CONFIG` and `AWS_HOST_LOGIN_CACHE` select different absolute host paths; defaults use your home directory. The colon-separated `COMPOSE_FILE` example is for macOS/Linux.
-
-The older `scripts/docker-aws-session.py` / `compose.aws.yaml` session-export route remains an alternative for hosts where cache mounting is unsuitable; do not combine both overrides.
-
-Without AWS, leave `S3_BACKUP_BUCKET` blank, leave `COMPOSE_FILE` unset, and run only `compose.yaml`; local PDF/DOCX exports and the rest of the journey remain available. See the [deployment playbook](docs/WEEK13_DEPLOYMENT.md) and [S3 guide](docs/AWS_S3_BACKUPS.md).
+For deterministic offline verification, explicitly set `PROVIDER_MODE=fixture` and `JOB_SOURCE=fixtures`. For the actual AI demonstration, configure your provider in the private `.env`; native `OPENAI_NATIVE_*` settings are forwarded too. Internet access is required for live model and job requests.
 
 ## Optional local development
 
@@ -94,7 +78,6 @@ Use `.env.example` for supported settings; never overwrite a populated `.env` or
 - **AI:** `PROVIDER_MODE=openai` uses the configured provider. Set the appropriate key, model and endpoint in `.env`; model routing can distinguish text, light text and vision tasks. A compatible model must support the tools and structured outputs used by the workflow. Resume vision processing requires explicit consent. Restart the app and any separate worker after changes.
 - **Offline verification:** `PROVIDER_MODE=fixture` with `JOB_SOURCE=fixtures` uses labelled fictional data and deterministic outputs. This is not a local LLM or proof of live provider availability. A failed live mission does not silently switch to fixtures.
 - **Recruitment:** official employer APIs, optional Tavily discovery and optional Adzuna use separate configuration. Pasted listings retain user-provided provenance. New live missions use source-quoted LLM requirements mapped to approved facts, with inspectable code scoring and coverage for unknown categories. Fixture missions retain the original rule-based baseline. Search results expose source and missing information; a match score is not a hiring probability.
-- **Cloud backup:** set `S3_BACKUP_BUCKET`, `AWS_REGION` and `AWS_PROFILE` as described in the [S3 guide](docs/AWS_S3_BACKUPS.md). A blank bucket disables cloud backup. Local DOCX/PDF downloads remain available independently.
 - **Separate worker:** the API embeds a worker by default. With native PostgreSQL, set `EMBEDDED_WORKER=false`, start the API, and run `npm run worker` separately. Portable mode must retain a single app process.
 
 Closing the browser does not stop a running server mission. A stopped server cannot continue work. Cancellation and profile-version changes guard against stale writes.

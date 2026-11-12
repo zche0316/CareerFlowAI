@@ -48,19 +48,19 @@ for (const calls of [12, 59, 60]) {
       await expect(page.getByRole('button', { name: 'Retry failed step' })).toHaveCount(0);
       await expect(page.getByRole('alert')).toContainText('Your saved results are still available');
       await page.setViewportSize({ width: 390, height: 844 });
-      await page.getByRole('button', { name: 'Start a new mission', exact: true }).click();
+      await page.getByRole('button', { name: 'Find roles again', exact: true }).click();
       await expect(
         page.getByRole('heading', { name: 'What’s your next career goal?' }),
       ).toBeVisible();
       expect(
         await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
       ).toBe(true);
-      await page.getByRole('button', { name: 'Close mission form' }).click();
+      await page.getByRole('button', { name: 'Close Find roles form' }).click();
       await page.screenshot({ path: 'output/ui-tightening/recovery-mobile.png', fullPage: true });
     } else {
       await expect(page.getByRole('button', { name: 'Retry failed step' })).toBeEnabled();
       await expect(
-        page.getByRole('button', { name: 'Start a new mission', exact: true }),
+        page.getByRole('button', { name: 'Find roles again', exact: true }),
       ).toHaveCount(0);
     }
   });

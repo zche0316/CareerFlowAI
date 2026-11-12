@@ -129,5 +129,84 @@ for the Coach (later issue), calendar sync.
   turn out to be the same role: runs move to the earlier application, histories combine and the furthest
   status wins. Each application records its provider mode; the board shows the current mode only.
 - Shortlists and the Scout table mark roles already on the board; Scout can save a role it
-  recorded. Application statistics in Optional tools come from the board.
+  recorded.
 
+
+## Per-role actions (CFS-104)
+
+- `POST /api/applications` adds a role straight to the board from a public job link (at most one
+  model call to read the page) or a pasted advertisement, scored against the current profile.
+- `POST /api/applications/:id/practice` starts an interview-only run that reuses the latest
+  approved resume made for this role with the current profile; the resume team is skipped.
+- `DELETE /api/applications/:id` removes a role with no runs. A role with runs and documents is
+  archived by setting its status to Closed.
+- Older runs stay tied to the profile version they used; their error messages point to the Quest
+  log, where the role can be tailored again with the current profile.
+
+## Cost and Coach (CFS-105)
+
+- A Find roles run reuses career advice already prepared for the current profile version and
+  mode (the workspace Coach's latest review, else an earlier run's analysis) instead of a new
+  Career Coach call. A refinement with feedback still asks the Coach again.
+- Scout is discover-first: a sweep scores new roles and puts the shortlist on the board as
+  "New from Scout". Resume teams start only for roles the user tailors, or for every shortlisted
+  role when "Also start a resume team" is switched on. A pasted lead still gets its package.
+- The Find roles form offers the Coach's directions as goals.
+
+## Capability levels (CFS-111)
+
+`packages/contracts/src/capability.ts` gives each skill a level from approved data only:
+0 no evidence · 1 aware (listed, or studied in a course) · 2 used (one project or role) ·
+3 proficient (several projects or a delivered outcome, or a meaningful public repository) ·
+4 advanced (over a year in roles, or external recognition). Confidence comes from the strongest
+source (verified external evidence, STAR story, described record, listing); skills unused for
+three years show one level lower. Role requirements are read as skill plus required level
+(years, "strong", "familiarity" wording), and the gap drives role cards, the Coach and the
+Character page. The Evidence Selector sees facts from records with a stated result first. There
+is no overall score and no hiring prediction.
+
+## Recruiter view (CFS-116)
+
+`GET /api/resumes/:id/recruiter-check` (My documents → Recruiter view) reads an approved resume
+the way screening systems and recruiters do: it re-reads the exported PDF (contact, sections,
+dates, lines), checks required and preferred terms literally and by known synonym and whether they
+appear in experience lines or only in the skills list, reads knock-out conditions (work rights,
+location, years, degree) and shows level gaps. Results are a checklist with sub-scores, not a
+pass probability. The employer's exact term is suggested only where an approved line already
+names the same skill. Open-source references: Resume-Matcher (Apache-2.0) for keyword-gap ideas;
+OpenResume's parser (AGPL-3.0) only as an outside readability reference, no code copied.
+
+## Profile sources (CFS-112 to CFS-114)
+
+`POST /api/profile-sources/:kind/preview` reads one public source and returns a proposal plus the
+approved profile with the proposal merged in. Nothing is saved: the Character page shows the
+proposal, and the user approves it as a new profile version through the normal draft flow.
+Imported facts carry their source and whether they were verified (`verifiedEvidence`), which the
+capability model uses for confidence and levels.
+
+- GitHub (official REST API, optional server `GITHUB_TOKEN`): up to six recent non-fork public
+  repositories become personal projects; languages, tests and CI become verified evidence.
+- Certificates: badge or verification links. An Open Badges assertion (most Credly badges) that
+  can be fetched and has not expired is verified; others are skipped with a warning. Certificates
+  join Education; named skills (AWS, Azure, Power BI, ...) get evidence at level 2, or 3 for
+  professional, expert or specialty certificates.
+- LinkedIn: no API scraping. The user uploads the official data export ZIP (or one CSV);
+  positions, education, skills and certifications become a draft marked as self-reported.
+- Personal website: one page, read only where robots.txt allows; each heading with text becomes
+  a project draft, with known skills as technologies. No model call.
+- Codeforces (official API): best rating and rated contests as Algorithms evidence (1900+ → 4,
+  1400+ → 3, any rated contest → 2).
+- Stack Overflow (official Stack Exchange API): answered top tags as per-skill evidence by answer
+  score (100+ → 4, 20+ → 3, else 2).
+- LeetCode (optional; no official API): the public profile is read when possible; otherwise the
+  user's own solved count is added as self-reported (300+ → 3, 50+ → 2, else 1).
+
+## Regional insight and positioning (CFS-115)
+
+`GET /api/insights?country=&family=` (World page) counts, from the roles this user's searches and
+Scout sweeps found in the current provider mode: roles per city, salary middle half from listings
+that state one (yearly), visa sponsorship and citizen/PR-only counts, remote and hybrid counts, and
+the most requested skills with example listings. It is a sample of what the searches found, not
+the whole market. Role families: data, software, ML/AI, cloud/DevOps, product/business analysis.
+The product is positioned as narrowing the information gap for technical roles across regions
+(README, footer, demo pitch).

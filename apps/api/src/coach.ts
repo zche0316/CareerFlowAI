@@ -33,6 +33,7 @@ type AppSummary = {
   updatedAt: Date | string;
   history: { status: string; at: string }[];
   gaps?: string[];
+  levelGaps?: { skill: string; need: number; have: number; level: string }[];
 };
 
 const DAY = 86400000;
@@ -77,13 +78,15 @@ export function coachActions(input: {
       action: { kind: 'quests' },
     });
   for (const a of apps
-    .filter((a) => a.stage === 'saved')
+    .filter((a) => a.stage === 'saved' || a.stage === 'discovered')
     .sort((x, y) => (y.score ?? -1) - (x.score ?? -1))
     .slice(0, 2))
     out.push({
       id: `tailor-${a.id}`,
       text: `Tailor a resume for ${a.title} at ${a.company}.`,
-      reason: a.score !== null ? `Saved role with a match of ${a.score}.` : 'Saved role.',
+      reason:
+        (a.stage === 'discovered' ? 'Found by Scout' : 'Saved role') +
+        (a.score !== null ? ` with a match of ${a.score}.` : '.'),
       action: { kind: 'tailor', applicationId: a.id },
     });
   for (const a of apps.filter((a) => a.stage === 'interview'))
@@ -110,12 +113,29 @@ export function coachActions(input: {
       reason: `From your last interview practice for ${input.lastFeedback.jobTitle}.`,
       action: { kind: 'quests' },
     });
+  // A skill several open roles need at a higher level than the profile shows (CFS-111).
+  const open = apps.filter((a) => !['rejected', 'closed'].includes(a.stage));
+  const short = new Map<string, { roles: number; need: number; have: number }>();
+  for (const a of open)
+    for (const g of a.levelGaps || [])
+      if (g.level === 'required') {
+        const e = short.get(g.skill) || { roles: 0, need: 0, have: g.have };
+        short.set(g.skill, { roles: e.roles + 1, need: Math.max(e.need, g.need), have: g.have });
+      }
+  const top = [...short].filter(([, e]) => e.roles >= 2).sort((x, y) => y[1].roles - x[1].roles)[0];
+  if (top)
+    out.push({
+      id: 'level-gap',
+      text: `${top[1].roles} of your roles need ${top[0]} at level ${top[1].need}; you are at ${top[1].have}. Add a project or story that uses it, if you have real evidence.`,
+      reason: 'The most common required level gap across your open roles.',
+      action: { kind: 'profile' },
+    });
   // A requirement several roles ask for that the profile has no evidence for.
   const counts = new Map<string, number>();
   for (const a of apps)
     for (const g of new Set(a.gaps || [])) counts.set(g, (counts.get(g) || 0) + 1);
   const common = [...counts].filter(([, n]) => n >= 2).sort((x, y) => y[1] - x[1])[0];
-  if (common)
+  if (common && !top)
     out.push({
       id: 'gap',
       text: `${common[1]} of your roles ask for ${common[0]}. Add it to your profile if you have real evidence.`,
@@ -140,6 +160,27 @@ async function latestFeedback(userId: string) {
     nextSteps: d.feedback.nextSteps || [],
     recordedAt: m.updatedAt.toISOString(),
   };
+}
+
+/**
+ * Career advice already paid for on this profile version and provider mode: the workspace Coach's
+ * latest review, else the analysis from an earlier run. New runs reuse it instead of a new call.
+ */
+export async function reusableAnalysis(userId: string, profileId: string, mode: string) {
+  const review = await db.coachReview.findFirst({
+    where: { userId, profileId, mode },
+    orderBy: { createdAt: 'desc' },
+  });
+  if (review) return review.analysis as MissionData['analysis'];
+  const run = (
+    await db.mission.findMany({
+      where: { userId, profileId, mode },
+      orderBy: { createdAt: 'desc' },
+      select: { data: true },
+      take: 20,
+    })
+  ).find((m) => (m.data as MissionData).analysis);
+  return run ? (run.data as MissionData).analysis : null;
 }
 
 /** The Coach panel: latest advice for the current profile version plus the next actions. */

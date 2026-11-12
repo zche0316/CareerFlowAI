@@ -94,6 +94,7 @@ it('a sweep records new roles, tailors the shortlist in parallel and never repea
     enabled: true,
     topK: 2,
     minScore: 30,
+    autoPackage: true,
   });
   expect(saved.body).toMatchObject({ enabled: true, topK: 2, minScore: 30 });
   expect(

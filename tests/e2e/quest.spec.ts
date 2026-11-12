@@ -168,6 +168,9 @@ test('a Scout sweep fills the batch review and each package opens at its draft r
 }) => {
   const api = await signUp(page);
   await approveProfile(api);
+  // This spec covers the opt-in mode where each shortlisted role also gets a resume team.
+  const setting = (await api('/scout')).setting;
+  await api('/scout/settings', 'PUT', { ...setting, autoPackage: true });
   await page.goto('/?view=scout');
   await expect(
     page.getByRole('heading', { name: 'Scout finds the roles. You make the calls.' }),

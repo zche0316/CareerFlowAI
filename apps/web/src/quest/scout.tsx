@@ -30,6 +30,7 @@ type Sweep = {
   alreadySeen: number | null;
   duplicates: number | null;
   reposted: number | null;
+  discovered: number;
   reviewed: number | null;
   notReviewed: number | null;
   failures: { provider: string; message: string }[];
@@ -57,6 +58,7 @@ type Setting = {
   enabled: boolean;
   topK: number;
   minScore: number;
+  autoPackage: boolean;
   search: {
     provider: string;
     country: string;
@@ -321,8 +323,9 @@ export function QuestScout({
         </div>
         {open.length === 0 ? (
           <p className="quest-fine dark">
-            When a sweep finds new roles above your minimum match, one resume team per role starts
-            in parallel and their drafts land here together.
+            By default a sweep puts new roles above your minimum match on your Quest log, and you
+            choose which to tailor. Switch on “Also start a resume team” below to have drafts land
+            here together.
           </p>
         ) : (
           <ul className="sc-packs">
@@ -454,6 +457,7 @@ export function QuestScout({
                     before · {s.duplicates} duplicate{s.duplicates === 1 ? '' : 's'} across boards
                     {s.reviewed !== null && ` · ${s.reviewed} scored`}
                     {s.notReviewed ? ` · ${s.notReviewed} not scored (call limit)` : ''}
+                    {s.discovered ? ` · ${s.discovered} put on your Quest log` : ''}
                     {s.mode !== 'fixture' && ` · ${s.calls} model calls`}
                   </p>
                 )}
@@ -513,6 +517,7 @@ export function QuestScout({
                   enabled: form.enabled,
                   topK: form.topK,
                   minScore: form.minScore,
+                  autoPackage: form.autoPackage,
                   search: {
                     provider: form.search.provider,
                     board: form.search.board,
@@ -627,7 +632,7 @@ export function QuestScout({
             </div>
             <div className="sc-form-row">
               <label className="quest-field">
-                Packages per sweep
+                Roles per sweep
                 <select
                   value={form.topK}
                   onChange={(e) => setForm({ ...form, topK: Number(e.target.value) })}
@@ -650,6 +655,17 @@ export function QuestScout({
                 />
               </label>
             </div>
+            <label className="sc-auto">
+              <input
+                type="checkbox"
+                checked={form.autoPackage}
+                onChange={(e) => setForm({ ...form, autoPackage: e.target.checked })}
+              />
+              <span>
+                Also start a resume team for each role. Off: Scout puts the roles on your board and
+                you choose which to tailor (no resume-team model calls until you do).
+              </span>
+            </label>
             <button type="submit" className="quest-press ink" disabled={busy}>
               Save orders
             </button>

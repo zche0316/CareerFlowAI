@@ -1,4 +1,3 @@
-import { CloudBackups } from './cloud-backups.js';
 import { MISSION_MODEL_CALL_LIMIT } from '../../../packages/contracts/src/mission-limits.js';
 import { nextMissionStep } from './mission-step.js';
 import { FlowNavigation } from './flow-navigation.js';
@@ -33,7 +32,6 @@ import { ProfileConversation } from './profile-conversation.js';
 import { CareerMemoryPanel } from './career-memory.js';
 import { DocumentWorkspace } from './document-workspace.js';
 import { recordKeys } from '../../../packages/contracts/src/profile-records.js';
-import { OptionalTools } from './tools.js';
 import {
   JobSearchFields,
   defaultJobSearch,
@@ -97,7 +95,7 @@ const phaseNames = [
   'Resume tailoring',
   'Interview practice',
   'Activity',
-  'Optional tools',
+  'Follow-up',
   'Real jobs & applications',
 ];
 type Tab =
@@ -107,7 +105,6 @@ type Tab =
   | 'approvals'
   | 'library'
   | 'activity'
-  | 'tools'
   | 'character'
   | 'home'
   | 'world'
@@ -134,7 +131,6 @@ const readWorkspaceRoute = () => {
     'approvals',
     'library',
     'activity',
-    'tools',
     'character',
     'home',
     'party',
@@ -162,6 +158,7 @@ function App() {
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
     [creating, setCreating] = useState(false),
+    [directions, setDirections] = useState<{ text: string; reason: string }[]>([]),
     [minScore, setMinScore] = useState(40),
     [jobSearch, setJobSearch] = useState(defaultJobSearch),
     [goal, setGoal] = useState(''),
@@ -172,6 +169,14 @@ function App() {
     [agentPrompt, setAgentPrompt] = useState<{ id: string; text: string; label: string } | null>(
       null,
     );
+
+  // Coach directions for this profile version, offered as goals when the Find roles form opens.
+  useEffect(() => {
+    if (!creating || !session?.user) return;
+    api('/coach')
+      .then((c) => setDirections(Array.isArray(c?.analysis?.directions) ? c.analysis.directions : []))
+      .catch(() => setDirections([]));
+  }, [creating]);
 
   useEffect(() => {
     const restore = () => {
@@ -590,6 +595,7 @@ function App() {
           ) : tab === 'world' ? (
             <QuestWorld
               workspace={workspace}
+              request={api}
               realm={jobSearch.country}
               onTravel={(country) => {
                 setJobSearch((j: any) => ({ ...j, country, region: '', location: '' }));
@@ -631,6 +637,8 @@ function App() {
           ) : tab === 'character' ? (
             <CharacterSheet
               workspace={workspace}
+              request={api}
+              onProfileChanged={() => void refresh()}
               userName={session.user.name}
               onBuildProfile={() => setTab('profile')}
               onOpenMission={(id) => {
@@ -639,8 +647,6 @@ function App() {
                 setPhase(1);
               }}
             />
-          ) : tab === 'tools' ? (
-            <OptionalTools missions={workspace?.missions || []} request={api} onRefresh={refresh} />
           ) : tab === 'profile' ? (
             renderProfile('build')
           ) : tab === 'missions' ? (
@@ -707,18 +713,6 @@ function App() {
                       await api(`/missions/${mission.id}/answers`, 'PUT', a);
                     })
                   }
-                  onNegotiation={(input) =>
-                    act(async () => {
-                      await api(`/missions/${mission.id}/negotiation`, 'POST', input);
-                    })
-                  }
-                  onNegotiationDecision={(decision) =>
-                    act(async () => {
-                      await api(`/missions/${mission.id}/negotiation/decision`, 'PUT', {
-                        decision,
-                      });
-                    })
-                  }
                   onRefineAnalysis={(feedback) =>
                     act(async () => {
                       const refined = await api('/missions', 'POST', {
@@ -769,6 +763,29 @@ function App() {
                       await api(`/applications/${applicationId}`, 'PATCH', { status });
                     })
                   }
+                  onPractice={(applicationId) =>
+                    void act(async () => {
+                      const run = await api(`/applications/${applicationId}/practice`, 'POST');
+                      setSelected(run.id);
+                      setPhase(4);
+                      setNotice('Your interview panel is preparing questions for this role…');
+                    })
+                  }
+                  onRemove={(applicationId) =>
+                    void act(async () => {
+                      await api(`/applications/${applicationId}`, 'DELETE');
+                      setNotice('Role removed from your quests.');
+                    })
+                  }
+                  onAdd={async (body) => {
+                    let ok = false;
+                    await act(async () => {
+                      await api('/applications', 'POST', body);
+                      ok = true;
+                      setNotice('Role added to your quests. Tailor a resume when you are ready.');
+                    });
+                    return ok;
+                  }}
                   onOpen={(m, targetPhase) => {
                     setSelected(m.id);
                     setPhase(targetPhase);
@@ -884,7 +901,7 @@ function App() {
               <PageTitle
                 eyebrow="VISIBLE EVERY STEP OF THE WAY"
                 title="Activity timeline"
-                text="See completed actions, tool use and the decisions that moved your missions forward."
+                text="See completed actions, tool use and the decisions that moved your runs forward."
               />
               {workspace?.missions
                 .flatMap((m: any) =>
@@ -916,14 +933,14 @@ function App() {
                 <div className="empty-state">
                   <Activity size={30} />
                   <h3>Your story will unfold here.</h3>
-                  <p>Start a mission to see your team in action.</p>
+                  <p>Find roles to see your party in action.</p>
                 </div>
               )}
             </>
           )}
         </main>
         <footer>
-          CareerFlow AI <span>Built around your evidence. Guided by your decisions.</span>
+          CareerFlow AI <span>Technical roles across regions, matched to evidence you approve.</span>
         </footer>
       </div>
       {creating && (
@@ -956,7 +973,7 @@ function App() {
           >
             <button
               className="modal-close"
-              aria-label="Close mission form"
+              aria-label="Close Find roles form"
               onClick={() => setCreating(false)}
             >
               <X />
@@ -976,6 +993,22 @@ function App() {
                 onChange={(e) => setGoal(e.target.value)}
               />
             </label>
+            {directions.length > 0 && (
+              <div className="coach-directions">
+                <span className="small muted">The Coach suggests:</span>
+                {directions.slice(0, 3).map((d) => (
+                  <button
+                    key={d.text}
+                    type="button"
+                    className="text-button"
+                    title={d.reason}
+                    onClick={() => setGoal(d.text)}
+                  >
+                    Use as goal: {d.text.length > 90 ? d.text.slice(0, 87) + '…' : d.text}
+                  </button>
+                ))}
+              </div>
+            )}
             <JobSearchFields
               value={jobSearch}
               onChange={setJobSearch}
@@ -1623,7 +1656,7 @@ function Profile({
                 </div>
               </details>
               <p className="small muted">
-                Your career team uses approved profile facts when you start a mission. Profile
+                Your party uses approved profile facts in every run. Profile
                 changes and resume versions still require your approval.
               </p>
               <div className="form-actions">
@@ -1694,8 +1727,6 @@ function MissionDetail({
   onBack,
   onAction,
   onSaveAnswer,
-  onNegotiation,
-  onNegotiationDecision,
   onRefineAnalysis,
   onOpenMission,
   userName = 'You',
@@ -1711,8 +1742,6 @@ function MissionDetail({
   onBack: () => void;
   onAction: (kind: string, body?: unknown) => Promise<void>;
   onSaveAnswer: (a: unknown) => Promise<void>;
-  onNegotiation: (input: unknown) => Promise<void>;
-  onNegotiationDecision: (decision: 'accept' | 'decline') => Promise<void>;
   onRefineAnalysis: (feedback: string) => Promise<void>;
 }) {
   const d = m.data,
@@ -1723,10 +1752,6 @@ function MissionDetail({
     [manualDirty, setManualDirty] = useState(false),
     [confirm, setConfirm] = useState(false),
     [compareIds, setCompareIds] = useState<string[]>([]),
-    [offerSalary, setOfferSalary] = useState(''),
-    [targetSalary, setTargetSalary] = useState(''),
-    [currency, setCurrency] = useState('AUD'),
-    [negotiationMessage, setNegotiationMessage] = useState(''),
     [viewJobId, setViewJobId] = useState('');
   const questions = d.questions || [],
     q = questions[question],
@@ -1746,14 +1771,6 @@ function MissionDetail({
   useEffect(() => {
     setAnalysisFeedback('');
   }, [m.id]);
-
-  useEffect(() => {
-    const salary = d.selectedJob?.job.salary;
-    setOfferSalary(salary ? String(salary.min) : '');
-    setTargetSalary(salary ? String(salary.max) : '');
-    setCurrency(salary?.currency || 'AUD');
-    setNegotiationMessage('');
-  }, [m.id, d.selectedJob?.job.id]);
 
   const completed = m.status === 'COMPLETE';
   if (completed && (phase === null || (phase > 4 && phase !== 8 && phase !== 9)))
@@ -1885,7 +1902,7 @@ function MissionDetail({
           <AlertCircle size={18} />
           <span>
             {budgetExhausted && m.status === 'FAILED'
-              ? 'This mission has reached its AI usage limit. Start a new mission to continue. Your saved results are still available.'
+              ? 'This run has reached its AI usage limit. Find roles again or tailor the role again from the Quest log. Your saved results are still available.'
               : m.error}
           </span>
         </div>
@@ -1893,7 +1910,7 @@ function MissionDetail({
       <div className="mission-actions">
         {m.status === 'FAILED' && budgetExhausted && (
           <button className="primary" disabled={busy} onClick={onNewSearch}>
-            Start a new mission
+            Find roles again
             <ArrowRight size={15} />
           </button>
         )}
@@ -1983,21 +2000,21 @@ function MissionDetail({
             <p>
               {phase === 3
                 ? d.selectedJob
-                  ? `Target: ${d.selectedJob.job.title}. ${isWorking ? 'Your resume is being prepared.' : 'Your resume is not ready yet. Continue after resolving the mission status above.'}`
+                  ? `Target: ${d.selectedJob.job.title}. ${isWorking ? 'Your resume is being prepared.' : 'Your resume is not ready yet. Continue after resolving the run status above.'}`
                   : 'Target: Select a target in Job matching first.'
                 : phase === 4
                   ? d.approvedResumeId
                     ? isWorking
                       ? 'Your approved resume is saved. Interview questions are being prepared.'
-                      : 'Your approved resume is saved. Continue after resolving the mission status above.'
+                      : 'Your approved resume is saved. Continue after resolving the run status above.'
                     : 'Approve your evidence-based resume before starting interview practice.'
                   : phase === 7
                     ? d.selectedJob && d.approvedResumeId
                       ? 'This role has no application link, so there is nothing to apply to. Demo roles never have one; choose a live or pasted listing to prepare an application.'
                       : 'Select a real target job and approve your resume before preparing an application.'
                     : isWorking
-                      ? 'Your career team is preparing this step. Results are saved with this mission.'
-                      : 'This step has no results yet. Check the mission status above to continue.'}
+                      ? 'Your career team is preparing this step. Results are saved with this run.'
+                      : 'This step has no results yet. Check the run status above to continue.'}
             </p>
             {(phase === 3 || phase === 7) && (
               <>
@@ -2819,141 +2836,6 @@ function MissionDetail({
           ))}
         </details>
       )}
-      {!completed && (phase === null || phase === 5) && d.feedback && d.selectedJob && (
-        <section className="panel negotiation">
-          <div className="section-heading">
-            <h2>
-              <MessageSquare size={20} />
-              Salary negotiation practice
-            </h2>
-            <span className="tag">Optional · Interview Coach</span>
-          </div>
-          <p className="muted">
-            Practise one fictional negotiation for {d.selectedJob.job.title}. The coach simulates a
-            recruiter reply and gives feedback; you record the final practice decision. No real
-            offer is accepted or changed.
-          </p>
-          {d.negotiationRun?.status === 'FAILED' && (
-            <div className="error-banner">
-              <AlertCircle size={18} />
-              <span>{d.negotiationRun.error}</span>
-            </div>
-          )}
-          {d.negotiation && (
-            <div className="negotiation-result">
-              <h3>Simulated recruiter reply</h3>
-              <p>{d.negotiation.recruiterReply}</p>
-              <div className="feedback-grid">
-                {[
-                  ['Negotiation strengths', d.negotiation.feedback.strengths],
-                  ['Improvement areas', d.negotiation.feedback.improvements],
-                  ['Next steps', d.negotiation.feedback.nextSteps],
-                ].map(([label, items]: any) => (
-                  <div key={label}>
-                    <h3>{label}</h3>
-                    <ul>
-                      {items.map((item: string) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-              {d.negotiation.status === 'REVIEW' ? (
-                <div className="form-actions">
-                  <button
-                    className="secondary"
-                    disabled={busy}
-                    onClick={() => void onNegotiationDecision('accept')}
-                  >
-                    Record my choice: accept
-                  </button>
-                  <button
-                    className="secondary"
-                    disabled={busy}
-                    onClick={() => void onNegotiationDecision('decline')}
-                  >
-                    Record my choice: decline
-                  </button>
-                </div>
-              ) : (
-                <p>
-                  Practice decision recorded:{' '}
-                  <strong>{d.negotiation.userDecision === 'accept' ? 'accept' : 'decline'}</strong>.
-                </p>
-              )}
-            </div>
-          )}
-          {(!d.negotiation || d.negotiation.status === 'REVIEW') && (
-            <details open={!d.negotiation}>
-              <summary>
-                {d.negotiation ? 'Try another response' : 'Start negotiation practice'}
-              </summary>
-              <div className="form-grid">
-                <label>
-                  Practice offer salary
-                  <input
-                    type="number"
-                    min="1"
-                    value={offerSalary}
-                    onChange={(event) => setOfferSalary(event.target.value)}
-                  />
-                </label>
-                <label>
-                  Your target salary
-                  <input
-                    type="number"
-                    min="1"
-                    value={targetSalary}
-                    onChange={(event) => setTargetSalary(event.target.value)}
-                  />
-                </label>
-                <label>
-                  Currency
-                  <input
-                    value={currency}
-                    maxLength={3}
-                    onChange={(event) => setCurrency(event.target.value.toUpperCase())}
-                  />
-                </label>
-              </div>
-              <label>
-                Your negotiation response
-                <textarea
-                  rows={5}
-                  value={negotiationMessage}
-                  onChange={(event) => setNegotiationMessage(event.target.value)}
-                  placeholder="Explain the value you can bring, state your request and keep the decision yours."
-                />
-              </label>
-              <button
-                className="primary"
-                disabled={
-                  busy ||
-                  d.negotiationRun?.status === 'RUNNING' ||
-                  !Number.isFinite(Number(offerSalary)) ||
-                  !Number.isFinite(Number(targetSalary)) ||
-                  currency.trim().length !== 3 ||
-                  negotiationMessage.trim().length < 10
-                }
-                onClick={() =>
-                  void onNegotiation({
-                    offerSalary: Number(offerSalary),
-                    targetSalary: Number(targetSalary),
-                    currency,
-                    candidateMessage: negotiationMessage,
-                  })
-                }
-              >
-                {d.negotiationRun?.status === 'RUNNING'
-                  ? 'Simulating negotiation…'
-                  : 'Practice salary negotiation'}
-                <ArrowRight size={16} />
-              </button>
-            </details>
-          )}
-        </section>
-      )}
       {phase === null && (
         <details className="panel mission-activity">
           <summary>Activity and agent details</summary>
@@ -3023,7 +2905,6 @@ function ResumeDownloads({ id }: { id: string }) {
           Download PDF
         </a>
       </span>
-      <CloudBackups key={id} id={id} api={api} />
     </>
   );
 }

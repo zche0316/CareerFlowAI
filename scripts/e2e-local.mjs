@@ -17,10 +17,9 @@ const env = {
   LOCAL_DB_DIR: dataDir,
   PROVIDER_MODE: 'fixture',
   JOB_SOURCE: 'fixtures',
-  // Defined-but-empty values stop dotenv from loading live keys or the backup bucket.
+  // Defined-but-empty values stop dotenv from loading live keys.
   OPENAI_API_KEY: '',
   OPENAI_NATIVE_API_KEY: '',
-  S3_BACKUP_BUCKET: '',
 };
 const app = spawn(process.execPath, ['scripts/local-run.mjs'], {
   cwd: root,

@@ -59,6 +59,25 @@ it('turns the board into next actions without a model call', () => {
     applicationId: 'high',
   });
   expect(actions.at(-1)!.text).toContain('2 of your roles ask for dbt');
+  const gapped = coachActions({
+    analysis: 'current',
+    lastFeedback: null,
+    applications: [
+      app({
+        id: 'x',
+        stage: 'applied',
+        levelGaps: [{ skill: 'SQL', need: 3, have: 2, level: 'required' }],
+      }),
+      app({
+        id: 'y',
+        stage: 'ready',
+        levelGaps: [{ skill: 'SQL', need: 4, have: 2, level: 'required' }],
+      }),
+    ],
+  });
+  expect(gapped.find((a) => a.id === 'level-gap')!.text).toContain(
+    '2 of your roles need SQL at level 4; you are at 2',
+  );
   expect(
     coachActions({ applications: [app({})], analysis: 'stale', lastFeedback: null })[0].text,
   ).toContain('updated profile');
@@ -111,6 +130,9 @@ it('keeps Coach advice per profile version and limits refreshes', async () => {
   const draft = await call('/profiles/drafts', 'POST', sampleProfile);
   await call(`/profiles/drafts/${draft.body.id}/approve`, 'POST', { reviewed: true });
 
+  const caps = (await call('/capabilities')).body.skills;
+  expect(caps.length).toBeGreaterThan(0);
+  expect(caps.every((c: any) => c.level >= 0 && c.level <= 4 && c.evidence.length)).toBe(true);
   const before = (await call('/coach')).body;
   expect(before).toMatchObject({ profileVersion: 1, analysis: null });
   expect(before.actions.map((a: any) => a.id)).toEqual(['refresh', 'find']);

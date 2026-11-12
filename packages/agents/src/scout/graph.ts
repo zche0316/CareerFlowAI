@@ -16,6 +16,10 @@ export interface ScoutGraphPorts {
   rank(sweepId: string): Promise<{ jobId: string; score: number }[]>;
   /** Start one tailoring package for a shortlisted job. Must be idempotent per (sweep, job). */
   tailor(sweepId: string, jobId: string): Promise<ScoutPackage>;
+  /** Whether this sweep starts resume teams itself (opt-in); otherwise it only discovers. */
+  autoPackage?(sweepId: string): Promise<boolean>;
+  /** Put shortlisted roles on the user's board without starting a resume team. */
+  discover?(sweepId: string, jobIds: string[]): Promise<number>;
   /** Store the finished sweep with its packages and handoff log. */
   report(sweepId: string, packages: ScoutPackage[], handoffs: Handoff[]): Promise<void>;
 }
@@ -49,6 +53,20 @@ export function buildScoutGraph(ports: ScoutGraphPorts, checkpointer?: BaseCheck
     .addNode('job_matcher', async (s) => {
       const ranked = await ports.rank(s.sweepId);
       const shortlist = ranked.slice(0, MAX_PARALLEL_TAILORING).map((r) => r.jobId);
+      // Discover-first: the roles go on the board and the user decides what to spend on.
+      if (ports.autoPackage && !(await ports.autoPackage(s.sweepId))) {
+        const added = shortlist.length && ports.discover ? await ports.discover(s.sweepId, shortlist) : 0;
+        return {
+          shortlist: [],
+          handoffs: handoff(
+            'job_matcher',
+            'report',
+            shortlist.length
+              ? `Put ${added} role(s) on your board as new from Scout; no resume team started`
+              : 'No new role reached the minimum match score',
+          ),
+        };
+      }
       return {
         shortlist,
         handoffs: handoff(

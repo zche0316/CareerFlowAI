@@ -43,7 +43,7 @@ export function registerResumeAgent(app: Express) {
       throw new AppError(
         429,
         'RESUME_EDIT_LIMIT',
-        'This draft has reached its editing limit. Start a new mission to continue.',
+        'This draft has reached its editing limit. Tailor this role again from the Quest log.',
       );
     const facts = (m.profile.facts as unknown as Fact[]).filter(
       (f) => ['skill', 'education', 'experience'].includes(f.kind) && !/^none yet$/i.test(f.text),
@@ -85,7 +85,7 @@ export function registerResumeAgent(app: Express) {
               throw new AppError(
                 429,
                 'RESUME_EDIT_LIMIT',
-                'This mission has reached its editing limit.',
+                'This run has reached its editing limit.',
               );
             await tx.mission.update({
               where: { id },

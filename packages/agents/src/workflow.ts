@@ -61,6 +61,18 @@ const jobFile = new URL('../../matching/jobs.json', import.meta.url);
 
 export const readJobs = async () => JSON.parse(await readFile(jobFile, 'utf8'));
 
+// The Evidence Selector sees the strongest evidence first (CFS-111): facts from records with a
+// stated result (a STAR story) before other records, then everything else in profile order.
+function byConfidence(facts: Fact[], profile: CareerProfile) {
+  const records = [...(profile.workExperiences || []), ...(profile.projects || [])];
+  const strong = new Set(records.filter((r: any) => r.starStory?.result?.trim()).map((r) => r.id));
+  const rank = (f: Fact) => (f.recordId && strong.has(f.recordId) ? 0 : f.recordId ? 1 : 2);
+  return facts
+    .map((f, i) => ({ f, i }))
+    .sort((a, b) => rank(a.f) - rank(b.f) || a.i - b.i)
+    .map((x) => x.f);
+}
+
 export async function createWorkflow() {
   const saver = portablePool
     ? new PostgresSaver(portablePool)
@@ -135,8 +147,11 @@ export async function createWorkflow() {
                   c.d.resumeDraft.claims.some((claim: any) => claim.factId === f.id),
                 )
               : role === 'resume'
-                ? c.facts.filter(
-                    (f) => !f.recordId || f.kind !== 'experience' || isResumeContribution(f),
+                ? byConfidence(
+                    c.facts.filter(
+                      (f) => !f.recordId || f.kind !== 'experience' || isResumeContribution(f),
+                    ),
+                    c.p,
                   )
                 : c.facts,
         profileBase: role === 'resume' ? { records: resumeRecordIndex(c.p) } : undefined,
@@ -617,6 +632,7 @@ export async function createWorkflow() {
         jobRetrieval.llmReviewed = shortlist.length;
         jobRetrieval.notLlmReviewed = Math.max(0, jobs.length - shortlist.length);
         const saved = c.d.requirementMappings || {};
+        const unmapped: unknown[] = [];
         matches = [];
         for (let offset = 0; offset < shortlist.length; offset += 2) {
           const batch = await Promise.allSettled(
@@ -658,12 +674,23 @@ export async function createWorkflow() {
               return scoreJobMapping(job, mapping, c.facts, c.p);
             }),
           );
-          const failed = batch.find((result) => result.status === 'rejected');
-          if (failed?.status === 'rejected') throw failed.reason;
+          // A role the Job Matcher could not map is left out with a recorded limitation (CFS-117);
+          // the search fails only when no role could be mapped.
+          batch.forEach((result, i) => {
+            if (result.status === 'rejected') {
+              unmapped.push(result.reason);
+              const job = shortlist[offset + i].job;
+              jobRetrieval.limitations = [
+                ...(jobRetrieval.limitations || []),
+                `Could not map the requirements of ${job.title}${job.company ? ` at ${job.company}` : ''}; it was left out.`,
+              ];
+            }
+          });
           matches.push(
             ...batch.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : [])),
           );
         }
+        if (!matches.length && unmapped.length) throw unmapped[0];
       }
       matches = matches
         .map((r: any) => ({
@@ -786,7 +813,15 @@ export async function createWorkflow() {
       ['select_job', END],
     )
     // The resume team ends only after explicit approval of an exact draft.
-    .addEdge('select_job', 'resume_team')
+    // A practice run reuses an approved resume for this role and goes straight to the interview.
+    .addConditionalEdges(
+      'select_job',
+      async (s) => {
+        const d = (await freshMission(s.missionId)).data as MissionData;
+        return d.practiceOnly && d.approvedResumeId ? 'interview_questions' : 'resume_team';
+      },
+      ['resume_team', 'interview_questions'],
+    )
     .addEdge('resume_team', 'interview_questions')
     .addEdge('interview_questions', 'conduct_interview')
     .addEdge('conduct_interview', 'interview_feedback')

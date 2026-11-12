@@ -16,7 +16,6 @@ const agentNames: Record<string, string> = {
   questions: 'Interview Coach',
   feedback: 'Interview Coach',
   evaluator: 'Interview Coach',
-  negotiation: 'Interview Coach',
   'job-page': 'Scout',
 };
 export const agentForRole = (role: string) => agentNames[role] || role;

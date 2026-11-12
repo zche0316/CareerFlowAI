@@ -162,20 +162,6 @@ async function app(page: Page) {
           missions: [],
         },
       });
-    if (path === '/api/tools/dashboard')
-      return route.fulfill({
-        json: {
-          total: 0,
-          interviewCount: 0,
-          rejected: 0,
-          interviewRate: null,
-          rejectionRate: null,
-          applications: [],
-          recurringGaps: [],
-          limitations: [],
-          reminders: [],
-        },
-      });
     return route.fulfill({ json: [] });
   });
   return { errors, bodies, mission };
@@ -306,16 +292,6 @@ test('output workspaces stay compact and usable across stages and mobile', async
   await step(page, 4);
   await expect(page.getByRole('article', { name: 'Resume preview' })).toHaveCount(1);
   await page.screenshot({ path: 'output/agent-native/resume-desktop.png' });
-  await page.goto('/?view=tools');
-  await expect(
-    page.getByRole('heading', { name: 'Application progress', exact: true }),
-  ).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Cover letter', exact: true })).not.toBeVisible();
-  await page.getByRole('button', { name: 'Cover letter', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Cover letter', exact: true })).toBeVisible();
-  await expect(
-    page.getByRole('heading', { name: 'Application progress', exact: true }),
-  ).not.toBeVisible();
   for (const width of [1024, 390]) {
     await page.setViewportSize({ width, height: 844 });
     await page.goto('/?view=profile');
