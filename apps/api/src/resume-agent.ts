@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { db } from './db.js';
 import { AppError, requireValue } from './errors.js';
 import { digest, json, validateResumeClaims, includeRecordHeaders } from './domain.js';
-import { composeSelection } from './resume-composition.js';
+import { applyResumeEdits, resumeEditSchema } from './resume-edits.js';
+import { resumeObjective } from '../../../packages/contracts/src/resume-layout.js';
 import { generate, type Mode } from '../../../packages/agents/src/provider.js';
 import { checkResumeWording } from '../../../packages/contracts/src/resume-grounding.js';
 import type { Fact } from '../../../packages/contracts/src/index.js';
@@ -61,19 +62,7 @@ export function registerResumeAgent(app: Express) {
           },
         }),
       },
-      z.object({
-        message: z.string().max(1200),
-        claims: z
-          .array(
-            z.object({
-              factId: z.string(),
-              text: z.string().min(1).max(8000),
-              reason: z.string().max(1000),
-            }),
-          )
-          .min(1)
-          .max(20),
-      }),
+      resumeEditSchema,
       m.mode as Mode,
       {
         onCall: async () => {
@@ -123,19 +112,25 @@ export function registerResumeAgent(app: Express) {
           );
         },
       },
-    );
-    const claims = validateResumeClaims(
-      composeSelection(result.claims, facts, d.selectedJob?.job?.description || ''),
-      facts,
-    ).map((c) => {
-      const proposed = result.claims.find((p) => p.factId === c.factId);
-      const previous = d.resumeDraft.claims.find((p: any) => p.factId === c.factId);
-      return proposed && !checkResumeWording(c.text, proposed.text)
-        ? { ...c, factText: c.text, text: proposed.text }
-        : previous && !checkResumeWording(c.text, previous.text)
-          ? { ...c, factText: c.text, text: previous.text }
-          : c;
-    });
+    )
+      .then((result) => resumeEditSchema.parse(result))
+      .catch((error) => {
+        if (error instanceof z.ZodError || error instanceof SyntaxError)
+          throw new AppError(
+            502,
+            'RESUME_EDIT_INVALID_RESPONSE',
+            'The AI returned an incomplete edit. Your draft is unchanged. Please try again with a shorter request.',
+          );
+        if (error?.status === 429)
+          throw new AppError(
+            429,
+            'AI_RATE_LIMIT',
+            'The AI provider rate limit was reached. Your draft is unchanged. Please wait before trying again.',
+          );
+        throw error;
+      });
+    // Only the lines the AI returned change; every other line stays as it was (CFS-100).
+    const claims = applyResumeEdits(d.resumeDraft.claims, result, facts);
     const { hash: _, ...old } = d.resumeDraft;
     const wordingChanges = claims.filter((c) =>
       d.resumeDraft.claims.some(
@@ -146,7 +141,12 @@ export function registerResumeAgent(app: Express) {
       JSON.stringify(claims.map((c) => c.factId)) !==
       JSON.stringify(d.resumeDraft.claims.map((c: any) => c.factId));
     const changed = wordingChanges > 0 || selectionChanged;
-    const content = { ...old, claims, editRevision: (old.editRevision || 0) + 1 };
+    const content = {
+      ...old,
+      claims,
+      summary: resumeObjective(old.jobTitle, claims),
+      editRevision: (old.editRevision || 0) + 1,
+    };
     const resumeDraft = changed ? { ...content, hash: digest(content) } : d.resumeDraft;
     const changes = resumeChanges(
       d.resumeDraft.claims,
@@ -159,8 +159,12 @@ export function registerResumeAgent(app: Express) {
         role: 'assistant',
         text:
           wordingChanges || selectionChanged
-            ? `${wordingChanges ? `Refined wording in ${wordingChanges} ${wordingChanges === 1 ? 'item' : 'items'}. ` : ''}${selectionChanged ? 'Adjusted the content and ordering for this role. ' : ''}Review the preview before saving.`
-            : 'No wording changes needed. The visible resume is unchanged.',
+            ? `${wordingChanges ? `Refined wording in ${wordingChanges} ${wordingChanges === 1 ? 'item' : 'items'}. ` : ''}${selectionChanged ? 'Updated the selected resume content. ' : ''}Review the preview before saving.`
+            : /cannot|can't|unsupported|not supported|not in|no evidence|unverified|would invent|missing evidence/i.test(
+                  result.message,
+                )
+              ? `No changes were applied. ${result.message}`
+              : 'No wording changes needed. The visible resume is unchanged.',
       },
     ];
     await db.$transaction(async (tx) => {
@@ -241,7 +245,12 @@ export function registerResumeAgent(app: Express) {
         c.factId === input.factId ? { ...c, factText: fact.text, text: input.text } : c,
       );
       const { hash: _, ...old } = d.resumeDraft;
-      const content = { ...old, claims, editRevision: (old.editRevision || 0) + 1 };
+      const content = {
+        ...old,
+        claims,
+        summary: resumeObjective(old.jobTitle, claims),
+        editRevision: (old.editRevision || 0) + 1,
+      };
       const resumeDraft = { ...content, hash: digest(content) };
       await tx.mission.update({
         where: { id },
@@ -302,7 +311,12 @@ export function registerResumeAgent(app: Express) {
       const grounded = validateResumeClaims(includeRecordHeaders(claims, facts), facts);
       claims = grounded.map((c) => claims.find((old: any) => old.factId === c.factId) || c);
       const { hash: _, ...old } = d.resumeDraft;
-      const content = { ...old, claims, editRevision: (old.editRevision || 0) + 1 };
+      const content = {
+        ...old,
+        claims,
+        summary: resumeObjective(old.jobTitle, claims),
+        editRevision: (old.editRevision || 0) + 1,
+      };
       const resumeDraft = { ...content, hash: digest(content) };
       await tx.mission.update({
         where: { id },

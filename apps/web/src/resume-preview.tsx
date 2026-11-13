@@ -1,6 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
-import { resumeLayout, type ResumeView } from '../../../packages/contracts/src/resume-layout.js';
+import {
+  resumeLayout,
+  resumeLabels,
+  type ResumeView,
+} from '../../../packages/contracts/src/resume-layout.js';
 import type { ResumeChange } from '../../../packages/contracts/src/resume-review.js';
+import { resumeTextDiff, resumeInlineDiff, type TextPart } from './resume-text-diff.js';
+
+// Changed words are marked: green for what the draft now says, struck red for what it said before.
+const diffText = (parts: TextPart[], side: 'before' | 'after') =>
+  parts.map((part, i) =>
+    part.changed ? (
+      <mark key={i} className={`resume-diff-${side}`}>
+        {part.text}
+      </mark>
+    ) : (
+      part.text
+    ),
+  );
+
 export function ResumePreview({
   content,
   changes = [],
@@ -15,6 +33,7 @@ export function ResumePreview({
   const [opened, setOpened] = useState('');
   const preview = useRef<HTMLElement>(null);
   useEffect(() => {
+    setOpened('');
     if (!changes.length) return;
     const first = preview.current?.querySelector<HTMLButtonElement>('[data-resume-change]');
     first?.focus({ preventScroll: true });
@@ -23,10 +42,17 @@ export function ResumePreview({
       behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
     });
   }, [(content as any).hash]);
-  const review = (text: string) => {
-    const matching = changes.filter(
-      (change) => change.after && (change.after === text || text.includes(change.after)),
-    );
+  // A change is shown only in the section of the line it belongs to.
+  const review = (text: string, section: string) => {
+    const matching = changes.filter((change) => {
+      const claim = content.claims.find((c) => c.factId === change.factId);
+      return (
+        claim &&
+        resumeLabels[claim.section || claim.kind] === section &&
+        change.after &&
+        (change.after === text || text.includes(change.after))
+      );
+    });
     if (!matching.length) return text;
     return (
       <span className="resume-change">
@@ -38,7 +64,7 @@ export function ResumePreview({
           onClick={() => setOpened(opened === text ? '' : text)}
         >
           <span className="resume-change-label">Changed</span>
-          {text}
+          {diffText(resumeInlineDiff(text, matching), 'after')}
         </button>
         {opened === text &&
           matching.map((change) => (
@@ -49,9 +75,13 @@ export function ResumePreview({
               aria-label="Wording comparison"
             >
               <span className="resume-change-label">Before</span>
-              <span>{change.before || 'Not included'}</span>
+              <span>
+                {change.before
+                  ? diffText(resumeTextDiff(change.before, change.after).before, 'before')
+                  : 'Not included'}
+              </span>
               <span className="resume-change-label">After</span>
-              <span>{change.after}</span>
+              <span>{diffText(resumeTextDiff(change.before, change.after).after, 'after')}</span>
               {onRestore && (
                 <button
                   type="button"
@@ -80,7 +110,7 @@ export function ResumePreview({
         .map((change) => (
           <details className="resume-removed-change" key={change.factId}>
             <summary data-resume-change>Removed from this draft</summary>
-            <p>{change.before}</p>
+            <p>{diffText(resumeTextDiff(change.before, '').before, 'before')}</p>
             {onRestore && (
               <button
                 className="secondary"
@@ -116,15 +146,15 @@ export function ResumePreview({
             return (
               <div className="career-record-card" key={i}>
                 {['Skills', 'Career Objective'].includes(section.title) ? (
-                  <p>{review(title)}</p>
+                  <p>{review(title, section.title)}</p>
                 ) : (
-                  <h4>{review(title)}</h4>
+                  <h4>{review(title, section.title)}</h4>
                 )}
                 {lines
                   .filter((s) => !s.startsWith('• '))
                   .map((s, j) => (
                     <p className="muted" key={j}>
-                      {review(s)}
+                      {review(s, section.title)}
                     </p>
                   ))}
                 {lines.some((s) => s.startsWith('• ')) && (
@@ -132,7 +162,7 @@ export function ResumePreview({
                     {lines
                       .filter((s) => s.startsWith('• '))
                       .map((s, j) => (
-                        <li key={j}>{review(s.slice(2))}</li>
+                        <li key={j}>{review(s.slice(2), section.title)}</li>
                       ))}
                   </ul>
                 )}
