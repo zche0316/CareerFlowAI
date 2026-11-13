@@ -5,7 +5,7 @@ import { AppError, requireValue } from './errors.js';
 import { digest, json, validateResumeClaims, includeRecordHeaders } from './domain.js';
 import { composeSelection } from './resume-composition.js';
 import { generate, type Mode } from '../../../packages/agents/src/provider.js';
-import { checkWording } from '../../../packages/contracts/src/career-evidence.js';
+import { checkResumeWording } from '../../../packages/contracts/src/resume-grounding.js';
 import type { Fact } from '../../../packages/contracts/src/index.js';
 import { searchProfileHistory } from './profile-context.js';
 import { memoryText } from '../../../packages/contracts/src/career-evidence.js';
@@ -130,9 +130,9 @@ export function registerResumeAgent(app: Express) {
     ).map((c) => {
       const proposed = result.claims.find((p) => p.factId === c.factId);
       const previous = d.resumeDraft.claims.find((p: any) => p.factId === c.factId);
-      return proposed && !checkWording(c.text, proposed.text)
+      return proposed && !checkResumeWording(c.text, proposed.text)
         ? { ...c, factText: c.text, text: proposed.text }
-        : previous && !checkWording(c.text, previous.text)
+        : previous && !checkResumeWording(c.text, previous.text)
           ? { ...c, factText: c.text, text: previous.text }
           : c;
     });
@@ -230,7 +230,7 @@ export function registerResumeAgent(app: Express) {
       const fact = requireValue(
         (m.profile.facts as unknown as Fact[]).find((f) => f.id === input.factId),
       );
-      const reason = checkWording(fact.text, input.text);
+      const reason = checkResumeWording(fact.text, input.text);
       if (reason)
         throw new AppError(
           422,
