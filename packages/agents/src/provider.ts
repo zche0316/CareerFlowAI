@@ -11,6 +11,8 @@ export type ProviderContext = {
   goal: string;
   facts: Pick<Fact, 'id' | 'kind' | 'text'>[];
   analysisFeedback?: string;
+  /** Coach only: reference passages about occupations (CFS-125), never facts about the user. */
+  publicSources?: { id: string; title: string; text: string }[];
   profileNotes?: string;
   extractionRules?: string;
   educationRules?: string;
@@ -500,7 +502,8 @@ async function generateOnce<T>(
   }[role];
   const coachFormat =
     role === 'coach'
-      ? ' Return strengths, gaps, directions and actions arrays with at most three items each. Every item must contain text, evidenceIds and reason. Use one to three exact IDs copied from facts per item; never invent IDs or use an empty evidenceIds array. Keep text and reason to one short sentence each. Be concise so the complete JSON finishes within the output limit.'
+      ? ' publicSources, when supplied, are reference descriptions of occupations from O*NET: what the work involves and common software. Use them to explain directions, gaps and actions, and add a source id to evidenceIds only after at least one approved fact ID, and only when that item uses the source. They describe jobs, never the candidate; do not present them as the candidate\'s skills or experience.' +
+        ' Return strengths, gaps, directions and actions arrays with at most three items each. Every item must contain text, evidenceIds and reason. Use one to three exact IDs copied from facts per item; never invent IDs or use an empty evidenceIds array. Keep text and reason to one short sentence each. Be concise so the complete JSON finishes within the output limit.'
       : '';
   const instruction =
     rolePreamble(role) +

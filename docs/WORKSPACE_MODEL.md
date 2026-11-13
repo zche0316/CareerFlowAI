@@ -297,3 +297,18 @@ role-changing messages in one in-character sentence before steering back. Free-t
 through `guardIdentity`, which replaces a vendor self-description with the persona's introduction.
 Personas shape tone only; evidence, schema and approval rules are unchanged. The Profile Builder
 is on the Party page and its chat uses the party's avatars and Quest bubbles.
+
+## Coach sources (CFS-125)
+
+- Corpus: the O*NET 31.0 database (U.S. Department of Labor, CC BY 4.0): descriptions, up to six
+  core tasks and up to ten software examples for computer and mathematical occupations and a few
+  analyst and engineering roles. `npm run coach:sources` downloads three CSV files from
+  onetcenter.org and writes `data/coach-sources/onet-31.json` with O*NET's attribution and a note
+  that CareerFlow shortened the lists. No fine-tuning and no embeddings.
+- Retrieval: BM25 over that file with the user's goal, skills, revisit request and the roles on
+  the board; up to four passages go to the Coach as `publicSources`.
+- The Coach may add a source id (`onet:<code>`) to an item's evidence only after at least one
+  approved fact ID; the server rejects any other unknown ID. Sources describe jobs, never the
+  candidate. The Coach page links each cited source to O*NET OnLine and shows the attribution.
+- Without the corpus file the Coach works as before. O*NET describes US occupations; regional
+  requirements still come from the role library and World insight.

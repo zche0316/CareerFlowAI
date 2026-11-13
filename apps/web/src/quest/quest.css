@@ -4427,3 +4427,11 @@ body:has(.quest) {
 .voice-transcript li.you {
   padding-left: 18px;
 }
+.coach-refs {
+  display: block;
+  margin-top: 4px;
+}
+.coach-attribution {
+  margin-top: 18px;
+  max-width: 980px;
+}

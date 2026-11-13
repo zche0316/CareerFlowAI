@@ -24,6 +24,7 @@
     "postinstall": "node scripts/generate-client.mjs",
     "start:local": "node scripts/local-run.mjs",
     "demo:account": "node scripts/demo-account.mjs",
+    "coach:sources": "node scripts/coach-sources.mjs",
     "verify:local": "node scripts/local-run.mjs --verify",
     "verify:quick": "node scripts/local-run.mjs --quick"
   },

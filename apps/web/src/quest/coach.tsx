@@ -242,11 +242,7 @@ export function CoachPage({
                           <details>
                             <summary>Why this fits</summary>
                             <p>{item.reason}</p>
-                            {item.evidenceIds.length > 0 && (
-                              <small className="muted">
-                                Evidence: {item.evidenceIds.join(', ')}
-                              </small>
-                            )}
+                            <CoachCitations ids={item.evidenceIds} sources={coach.sources} />
                           </details>
                         )}
                       </li>
@@ -298,6 +294,36 @@ export function CoachPage({
           )}
         </aside>
       </div>
+      {coach.sources?.docs?.length > 0 && (
+        <p className="coach-attribution small muted">{coach.sources.attribution}</p>
+      )}
     </div>
+  );
+}
+
+// Your evidence and the public sources a point cites, kept apart (CFS-125).
+function CoachCitations({ ids, sources }: { ids: string[]; sources: any }) {
+  const facts = ids.filter((id) => !id.startsWith('onet:'));
+  const refs = ids
+    .filter((id) => id.startsWith('onet:'))
+    .map((id) => sources?.docs?.find((d: any) => d.id === id))
+    .filter(Boolean);
+  return (
+    <>
+      {facts.length > 0 && <small className="muted">Your evidence: {facts.join(', ')}</small>}
+      {refs.length > 0 && (
+        <small className="coach-refs">
+          Source:{' '}
+          {refs.map((d: any, i: number) => (
+            <span key={d.id}>
+              {i > 0 && ', '}
+              <a href={d.url} target="_blank" rel="noopener noreferrer">
+                {d.title} (O*NET)
+              </a>
+            </span>
+          ))}
+        </small>
+      )}
+    </>
   );
 }

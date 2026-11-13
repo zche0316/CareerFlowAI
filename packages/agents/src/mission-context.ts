@@ -17,6 +17,7 @@ export function missionContext(role: string, input: ProviderContext): ProviderCo
     return {
       ...base,
       ...(input.analysisFeedback ? { analysisFeedback: input.analysisFeedback } : {}),
+      ...(input.publicSources?.length ? { publicSources: input.publicSources } : {}),
     };
   if (role === 'resume')
     return {

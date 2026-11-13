@@ -5,6 +5,7 @@ import { json, type MissionData } from './domain.js';
 import { AppError } from './errors.js';
 import { spanHook } from './trace.js';
 import { listApplications } from './applications.js';
+import { coachSources, loadCorpus } from './coach-sources.js';
 import { configuredMode, generate, type Mode } from '../../../packages/agents/src/provider.js';
 import { missionContext } from '../../../packages/agents/src/mission-context.js';
 import { coachSchema, type Fact } from '../../../packages/contracts/src/index.js';
@@ -210,6 +211,7 @@ export async function coachOverview(userId: string, applications?: any[]) {
   return {
     profileVersion: profile.version,
     analysis,
+    sources: citedSources(analysis),
     analysedAt: review?.createdAt || fromRun?.createdAt || null,
     actions: coachActions({
       applications: apps.map((a) => ({ ...a, gaps: (a.gaps as string[]) || [] })),
@@ -236,29 +238,42 @@ export async function refreshCoach(userId: string, feedback = '') {
     );
   const mode = configuredMode() as Mode;
   const facts = profile.facts as unknown as Fact[];
-  const known = new Set(facts.map((f) => f.id));
-  const grounded = coachSchema.superRefine((analysis, ctx) => {
-    for (const [section, items] of Object.entries(analysis))
-      items.forEach((item, index) => {
-        if (!item.evidenceIds.length || item.evidenceIds.some((id) => !known.has(id)))
-          ctx.addIssue({
-            code: 'custom',
-            path: [section, index, 'evidenceIds'],
-            message: 'Every evidence ID must come from the supplied approved facts.',
-          });
-      });
-  });
   const apps = await listApplications(userId);
   const board = apps
     .slice(0, 12)
     .map((a) => `${a.title} at ${a.company} (${a.stage})`)
     .join('; ');
+  // Reference passages for what the user is aiming at (CFS-125); empty until the corpus is built.
+  const data = profile.data as any;
+  const publicSources = coachSources(
+    [data?.goals, feedback, ...(data?.skills || []), ...apps.slice(0, 6).map((a) => a.title)]
+      .filter(Boolean)
+      .join(' '),
+  );
+  const known = new Set(facts.map((f) => f.id));
+  const sourceIds = new Set(publicSources.map((s) => s.id));
+  const grounded = coachSchema.superRefine((analysis, ctx) => {
+    for (const [section, items] of Object.entries(analysis))
+      items.forEach((item, index) => {
+        if (
+          !item.evidenceIds.some((id) => known.has(id)) ||
+          item.evidenceIds.some((id) => !known.has(id) && !sourceIds.has(id))
+        )
+          ctx.addIssue({
+            code: 'custom',
+            path: [section, index, 'evidenceIds'],
+            message:
+              'Cite at least one supplied approved fact ID; other IDs must be supplied public source IDs.',
+          });
+      });
+  });
   let usage = { calls: 0, input: 0, output: 0 };
   const analysis = await generate(
     'coach',
     missionContext('coach', {
       goal: String((profile.data as any)?.goals || 'Plan my next career step.'),
       facts,
+      publicSources,
       // The roles being pursued, and what the user asked the Coach to revisit.
       ...(board || feedback
         ? {
@@ -304,4 +319,24 @@ export function registerCoach(app: Express) {
       .parse(req.body || {});
     res.json(await refreshCoach(req.actor!.id, feedback));
   });
+}
+
+/** Titles, links and attribution for the public sources an analysis cites (CFS-125). */
+function citedSources(analysis: any) {
+  const corpus = loadCorpus();
+  if (!corpus || !analysis) return null;
+  const ids = new Set<string>(
+    Object.values(analysis as Record<string, any[]>)
+      .flat()
+      .flatMap((item: any) => item?.evidenceIds || [])
+      .filter((id: string) => String(id).startsWith('onet:')),
+  );
+  if (!ids.size) return null;
+  return {
+    attribution: corpus.attribution,
+    licence: corpus.licence,
+    docs: corpus.docs
+      .filter((d) => ids.has(d.id))
+      .map(({ id, title, url }) => ({ id, title, url })),
+  };
 }
