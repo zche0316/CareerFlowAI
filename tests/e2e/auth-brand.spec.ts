@@ -6,7 +6,7 @@ test('authentication matches the workspace and offers no demo or sample bypass',
   await expect(page.getByRole('heading', { name: 'Welcome back.', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Open demo workspace' })).toHaveCount(0);
   await expect(page.getByText('Live AI enabled', { exact: true })).toHaveCount(0);
-  await expect(page.getByLabel('Career paths for every stage')).toBeVisible();
+  await expect(page.getByLabel('What CareerFlow does')).toBeVisible();
   const signIn = page.getByRole('button', { name: 'Sign in', exact: true });
   await expect(signIn).toHaveCSS('border-radius', '999px');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

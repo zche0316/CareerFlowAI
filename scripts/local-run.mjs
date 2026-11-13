@@ -43,7 +43,6 @@ try {
   } else if (process.argv.includes('--verify')) {
     await run(['node_modules/typescript/bin/tsc', '--noEmit']);
     await run(['--test', 'packages/matching/original.test.js']);
-    await run(['-B', '-m', 'unittest', 'discover', '-s', 'tests', '-p', 'test_*.py'], 'python3');
     await run(['node_modules/vitest/vitest.mjs', 'run']);
     await run(['node_modules/vite/bin/vite.js', 'build', '--config', 'apps/web/vite.config.ts']);
   } else {

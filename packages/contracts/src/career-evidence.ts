@@ -124,27 +124,6 @@ export function rankEvidence<
     .slice(0, 8);
 }
 
-export function nextProfileQuestions(p: any) {
-  const q: string[] = [];
-  if (!p.name) q.push('What name would you like on your resume?');
-  if (!p.goals) q.push('Which role or career direction would you like to target?');
-  if (!p.skills?.length) q.push('Which skills have you used, and in which project or role?');
-  if (!p.education && !p.educations?.length)
-    q.push('What did you study, where, and when? State none yet if applicable.');
-  if (!p.experience && !p.projects?.length && !p.workExperiences?.length)
-    q.push('Describe one project or work experience, your own contribution and the actual result.');
-  for (const key of recordKeys)
-    for (const r of p[key] || []) {
-      if (!r.startMonth) q.push(`When did ${r.title} start (YYYY-MM)?`);
-      if (!r.current && !r.endMonth) q.push(`When did ${r.title} end, or is it ongoing?`);
-      if (key === 'educations') {
-        if (!r.organisation) q.push(`Which institution is ${r.title} with?`);
-      } else if (!r.details?.length) q.push(`What was your own contribution to ${r.title}?`);
-    }
-  if (!p.location) q.push('Which locations or work arrangements would you prefer?');
-  return q.slice(0, 4);
-}
-
 // Constrained editing, not a semantic truth detector. Unsupported rewrites require
 // a factual profile correction instead of bypassing review with fluent wording.
 export function checkWording(before: string, after: string) {

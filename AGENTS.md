@@ -1,23 +1,30 @@
 # CareerFlow AI working conventions
 
-- This checkout is the user's ELEC5620 group repository. Implement future improvements here; the older standalone prototype on port 8791 is a reference, not the working delivery target.
-- The Quest interface (`apps/web/src/quest/`, top pill navigation) is the only UI. The group's navy header and numbered 01–08 stage interface (the submitted baseline, formerly `?classic=1`) was removed on 2026-11-11; build new flows in Quest. Preserve the group account system, PostgreSQL schemas, versioned approvals, durable missions and evidence-grounded resume workflow.
-- Local startup: `npm run start:local`, or VS Code F5 → CareerFlow: database + app. Group UI: http://localhost:8787.
-- Browser checks: `npm run test:e2e:local` starts a fixture-mode app on a disposable database (`.runtime/pglite-e2e`) and runs every Playwright spec against the Quest interface; `tests/e2e/demo-workflow.spec.ts` is the local demo route. It needs ports 8787/55432 free (or set `PORT` and `LOCAL_DB_PORT`) and never touches `.runtime/pglite`.
-- Full local checks: stop the app, then `npm run verify:local`. Portable mode uses one shared database connection; do not run another app/test process against that instance. Native PostgreSQL/Docker remain available for concurrent deployments.
-- Test routine (keep it light, CFS-107):
-  - While iterating: `npm run verify:quick` (types plus the vitest files affected since `origin/main`) and the one or two browser specs for the page you changed: `npm run test:e2e:local -- tests/e2e/<spec>.spec.ts --reporter=line`.
-  - Before pushing: `npm run verify:local` once and `npm run test:e2e:smoke` (demo route and Quest pages, under a minute). Run the full browser suite locally only when a change touches shared navigation, the start form or many pages.
-  - CI runs the full checks and every browser spec in parallel jobs on each PR; let it be the full gate. Report only the summary lines of test output.
-- The user authorized progress comments on Jira CFS-41 after meaningful implementation/validation milestones. Report checks actually run, limitations and available evidence. Keep assignees and workflow status unchanged unless separately requested; do not claim reviews, submissions, commits or deployments that did not occur.
+## Product and code
 
-## Post-development issue workflow
+- This checkout is the CareerFlow repository, started as the ELEC5620 group project and now developed on its own. The product: find technical roles across regions, show what each region asks for, rate capability per skill from approved evidence, and tailor an evidence-grounded resume per role. Applying stays manual.
+- The Quest interface (`apps/web/src/quest/`, top pill navigation) is the only UI. Build new pages there.
+- Keep the core guarantees: versioned profile approvals, facts only from approved data, human gates bound to the exact version shown, durable runs, owner scoping on every query. See `docs/architecture.md` and `docs/WORKSPACE_MODEL.md`.
+- Every API route has a row in `docs/API.md` (`tests/api-docs.test.ts` enforces it). Add design notes for a new feature to `docs/WORKSPACE_MODEL.md`.
 
-- The user has accepted the current implementation as the completed development baseline. Track subsequent defects or requested fixes as separate Jira CFS issues rather than reopening the broad implementation task by default.
-- For each reported problem: check for an existing issue, create or update an issue with reproduction steps and expected/actual behavior, link the fix branch/commit/PR with its issue key, and record the checks actually run before resolving it.
-- Keep unrelated assignees and non-development deliverables unchanged. A development-complete status does not imply a PR was reviewed, merged, deployed, or submitted.
+## Running and checking
 
-<!-- BEGIN AWS Agent Toolkit rules -->
+- Local startup: `npm run start:local`, or VS Code F5 → CareerFlow: database + app. UI: http://localhost:8787. `npm run demo:account` creates a ready account.
+- Portable mode uses one shared database connection: one app process per database. For a second instance use other ports (`PORT`, `LOCAL_DB_PORT`) and another `LOCAL_DB_DIR`; never touch the user's `.runtime/pglite`.
+- Test routine (keep it light):
+  - While iterating: `npm run verify:quick` and the one or two browser specs for the page you changed: `npm run test:e2e:local -- tests/e2e/<spec>.spec.ts --reporter=line`.
+  - Before pushing, with the app stopped: `npm run verify:local` once and `npm run test:e2e:smoke`. Run the full browser suite locally only when a change touches shared navigation, the start form or many pages.
+  - CI runs the full checks and every browser spec in parallel on each pull request; it is the full gate. Report only summary lines of test output.
+- Live mode costs money: use it for a planned validation run on a separate database, and record the numbers.
+
+## Jira and Git
+
+- Every change starts from a Jira CFS issue (check for an existing one first). Bugs get reproduction steps and expected and actual behaviour.
+- One commit per issue, with the issue key in the commit message and branch (`feat/CFS-123-...`). Do not squash a batch into one commit.
+- Commit locally until a module or feature is complete, then push once and open a pull request. Batch later changes into one push.
+- Commit messages: `feat:`/`fix:`/`docs:`/`test:`/`chore:`/`ci:` prefix; one line for a small change, dot points otherwise; no AI or co-author lines.
+- After meaningful milestones, comment on the issue with the commit or PR, the checks actually run and any limitations. Keep assignees and workflow status unchanged unless asked; never claim reviews, merges or deployments that did not happen.
+- Do not watch passing CI; act when a run fails. `main` accepts changes only through pull requests.
 
 # AWS Guidance
 

@@ -3659,3 +3659,192 @@ body:has(.quest) {
   background: var(--q-soft);
   font-size: 13px;
 }
+
+/* ---------- Sign-in (CFS-120) ---------- */
+.quest.auth {
+  min-height: 100vh;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: 16px;
+  padding: clamp(16px, 3vw, 32px);
+  background: var(--q-ground);
+}
+.auth-story {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: clamp(24px, 4vw, 48px);
+  border-radius: 32px;
+  background: var(--q-ink);
+  color: #fff;
+  min-width: 0;
+}
+.auth-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #fff;
+  font: 800 22px/1 var(--q-display);
+  text-decoration: none;
+}
+.auth-brand img {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--q-lime);
+  padding: 4px;
+  box-sizing: border-box;
+}
+.auth-story .quest-chip {
+  align-self: flex-start;
+}
+.quest.auth .auth-story h1 {
+  margin: 12px 0 0;
+  font-size: clamp(44px, 6vw, 84px);
+  line-height: 0.95;
+  color: #fff;
+}
+.auth-story > p {
+  margin: 0;
+  max-width: 560px;
+  font-size: 17px;
+  line-height: 1.5;
+  color: #c9cbd6;
+}
+.auth-promises {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.auth-promises li {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  border-radius: 20px;
+  background: #1d1f29;
+}
+.auth-promises li:first-child {
+  background: var(--q-lime);
+  color: var(--q-ink);
+}
+.auth-promises strong {
+  font: 800 17px/1.15 var(--q-display);
+}
+.auth-promises span {
+  font-size: 13px;
+  line-height: 1.45;
+  opacity: 0.85;
+}
+.auth-party {
+  margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.auth-party span {
+  display: inline-flex;
+  border-radius: 999px;
+  background: #fff;
+  padding: 2px;
+}
+.auth-party small {
+  margin-left: 6px;
+  color: #c9cbd6;
+}
+.auth-card {
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: clamp(24px, 4vw, 44px);
+  border-radius: 32px;
+  background: #fff;
+  min-width: 0;
+}
+.quest.auth .auth-card h2 {
+  margin: 0;
+  font-size: clamp(32px, 3.4vw, 44px);
+}
+.auth-card > p {
+  margin: 0;
+  color: var(--q-muted);
+}
+.auth-card form {
+  display: grid;
+  gap: 14px;
+  margin-top: 6px;
+}
+.auth-card label {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 14px;
+}
+.auth-card input {
+  min-height: 48px;
+  padding: 0 14px;
+  border: 2px solid var(--q-rail);
+  border-radius: 14px;
+  background: var(--q-soft);
+  font: 500 16px var(--q-body);
+  color: var(--q-ink);
+  box-sizing: border-box;
+  width: 100%;
+}
+.auth-card input:focus {
+  outline: none;
+  border-color: var(--q-ink);
+  background: #fff;
+}
+.quest .quest-press.auth-submit {
+  width: 100%;
+  margin-top: 4px;
+  border-radius: 999px;
+}
+.auth-switch {
+  align-self: center;
+  border: 0;
+  background: none;
+  color: var(--q-violet);
+  font: 700 14px var(--q-body);
+  cursor: pointer;
+  padding: 8px;
+}
+.auth-error {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--q-coral-soft);
+  color: var(--q-ink);
+  font-size: 14px;
+}
+@media (max-width: 900px) {
+  .quest.auth {
+    grid-template-columns: 1fr;
+  }
+  .auth-promises {
+    grid-template-columns: 1fr;
+  }
+  .auth-party {
+    margin-top: 0;
+  }
+}
+@media (max-width: 600px) {
+  /* On a phone the form comes first in view: the pitch keeps its headline and drops the cards. */
+  .auth-story {
+    gap: 12px;
+  }
+  .auth-promises,
+  .auth-party,
+  .auth-story > p {
+    display: none;
+  }
+  .quest.auth .auth-story h1 {
+    font-size: 40px;
+  }
+}

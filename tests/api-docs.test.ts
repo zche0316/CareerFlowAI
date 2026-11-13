@@ -1,10 +1,15 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 type Endpoint = `${Uppercase<HttpMethod>} ${string}`;
 type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
 
-const appSource = readFileSync(new URL('../apps/api/src/app.ts', import.meta.url), 'utf8');
+// Every API module registers routes on the same Express app, so all of them are checked.
+const apiDir = new URL('../apps/api/src/', import.meta.url);
+const appSource = readdirSync(apiDir)
+  .filter((f) => f.endsWith('.ts'))
+  .map((f) => readFileSync(new URL(f, apiDir), 'utf8'))
+  .join('\n');
 const apiDocs = readFileSync(new URL('../docs/API.md', import.meta.url), 'utf8');
 
 function sourceEndpoints(): Endpoint[] {
@@ -41,13 +46,14 @@ describe('API documentation contract', () => {
     const implemented = new Set(sourceEndpoints());
     const stale = documentedEndpoints().filter((endpoint) => !implemented.has(endpoint));
 
-    expect(stale, `Documented routes missing from app.ts: ${stale.join(', ')}`).toEqual([]);
+    expect(stale, `Documented routes missing from the API: ${stale.join(', ')}`).toEqual([]);
   });
 
   it('keeps the application routes explicit', () => {
     expect(sourceEndpoints()).toEqual(
       expect.arrayContaining([
         'GET /api/missions/:id/application',
+        'GET /api/applications',
         'POST /api/missions/:id/applications',
         'GET /api/missions/:id/jobs/:jobId/availability',
       ]),

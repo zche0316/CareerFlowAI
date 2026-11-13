@@ -1,8 +1,9 @@
-# Local demo readiness
+# Local run and demo guide
 
-Short-term goal (set 2026-11-11): CareerFlow runs on one computer and every product feature
-works for a live demo, in the default Quest interface, along one clear workflow. Hosted
-deployment is out of scope for now; the longer list is in [READINESS.md](READINESS.md).
+CareerFlow runs on one computer. It narrows the information gap for technical roles across
+regions: it finds roles, shows what each region's roles ask for, rates capability per skill from
+evidence you approve, and tailors an evidence-grounded resume for each role you pursue. Hosted
+deployment is not in scope yet (see "Before real users" below).
 
 ## Demo setup
 
@@ -11,7 +12,7 @@ deployment is out of scope for now; the longer list is in [READINESS.md](READINE
 | Start          | `npm run start:local`, open http://localhost:8787. The embedded worker runs missions and the Scout schedule in the same process. |
 | Rehearsal mode | `PROVIDER_MODE=fixture`: deterministic, free, no keys. The top bar shows the fixture badge.                                      |
 | Demo mode      | Live keys in `.env`. Model web search in Scout needs `OPENAI_NATIVE_API_KEY` and `OPENAI_NATIVE_TEXT_MODEL`.                     |
-| Mode rule      | A mission keeps the mode it was created in. After switching mode, create a new mission.                                          |
+| Mode rule      | A run keeps the mode it was created in; the role board shows the current mode's roles only.                                      |
 | Data           | Portable database in `.runtime/pglite`. One app process at a time.                                                               |
 
 ## Demo account
@@ -40,66 +41,52 @@ account by hand.
 
 ## The demo workflow
 
-Pitch in one line: CareerFlow narrows the information gap for technical roles across regions.
-It finds roles, shows what each region asks for, rates capability per skill from approved
-evidence, and tailors an evidence-grounded resume per role.
-
 One story, in this order. Each step names the Quest page where it happens.
 
 1. **Sign in** → Home.
-2. **Build the profile** (My profile): chat or import a resume, review the STAR stories, approve version 1.
-3. **Find roles** (Quests → Find roles, or Scout):
-   - Find roles: official job boards, a pasted listing, or demo roles in fixture mode.
-   - Scout: a sweep that ranks roles and lists leads.
-4. **Choose one role** and read the fit and gap analysis. Save a second role to the Quest log for
-   later.
-5. **Resume team** (Quests → quest page, Battle log): Rewriter, Evidence Selector and Critic
-   rounds, then the draft stops for review.
-6. **Review** (Decision inbox / Party review): return once with a comment, then approve.
-7. **Interview practice**: one round, finish early, read the feedback.
-8. **Export** (My documents): PDF and DOCX.
-9. **Applications**: record that you applied (applying stays manual). The role moves to Applied in
-   the Quest log.
-10. **Tailor a saved role** (Quest log → Tailor resume): a new run starts at the resume team.
-11. **Coach** (Home): next steps across all roles; Refresh advice makes one model call.
-12. **Scout lead**: open a SEEK lead, paste the ad, open the package (repeats steps 5–6 for that role).
+2. **Build the profile** (My profile): chat or import a resume, review the STAR stories, approve
+   version 1. Optionally add evidence from GitHub, certificates, a LinkedIn export, a personal
+   site, Codeforces, Stack Overflow or LeetCode (Character → Add evidence), then approve.
+3. **Capability levels** (Character): levels 0–4 per skill with confidence and evidence.
+4. **Market insight** (World): what roles in the chosen country ask for.
+5. **Find roles** (Quests → Find roles) and choose one; save another for later. Scout can run a
+   sweep that puts new roles on the board as "New from Scout".
+6. **Resume team** (quest page, Battle log): Gap Analyzer, Evidence Selector, Rewriter and Critic,
+   then the draft stops for review. Return once with a comment, then approve.
+7. **Interview practice**: answer, finish early, read the feedback.
+8. **Recruiter view and export** (My documents): read-back, keywords, knock-outs, level gaps; PDF
+   and DOCX.
+9. **Record applied** on the role card (applying stays manual).
+10. **Tailor the saved role** or **Practise interview** from its card; **Coach** on Home shows the
+    next steps across all roles.
 
-The Quest log lists roles, not searches: each role keeps every resume and practice run made for
-it (see [WORKSPACE_MODEL.md](WORKSPACE_MODEL.md)).
+Each role keeps every resume and practice run made for it ([WORKSPACE_MODEL.md](WORKSPACE_MODEL.md)).
+Rehearse in fixture mode, then run once in live mode the day before a demo.
 
-Rehearse the whole route in fixture mode. Then run it once in live mode the day before the demo.
+## Known limits
 
-## Gaps for this goal
+- Live interview practice sometimes generates one question (fixture mode always has three).
+- Scout leads from sites it may not read (SEEK, LinkedIn) need the advertisement pasted; leads are
+  not filtered by seniority.
+- The daily Scout schedule and the LangSmith passthrough have not been observed live.
+- External profile sources were tested against recorded responses, not the live services.
+- A 1px per-frame layout shift in the profile builder conversation makes two browser specs click
+  with `force`.
 
-Ordered by demo risk. Each gap has a "done when" check.
+## Live runs
 
-| #   | Gap                                                                                                                                                                                                                                                                                                     | Done when                                                                                                                             |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| G1  | **Done 2026-11-11.** The classic interface is removed; every Playwright spec runs in Quest. `tests/e2e/demo-workflow.spec.ts` drives steps 1–9 and the Scout sweep through the Quest UI only, in fixture mode.                                                                                          | Met. Step 10 (pasted SEEK lead) needs live model search, so it stays a manual live check.                                             |
-| G2  | **Walked by the ported specs; styling still mixed.** Every page and step in the checklist opens and works in Quest. The More-menu pages and parts of the quest steps still use the older panel styling inside the Quest shell.                                                                          | Each page uses Quest styling. That is a visual change, not a functional gap; the boxes below still need a manual run.                 |
-| G3  | **Done 2026-11-11.** `npm run demo:account` creates a fresh account through the app's API with the fictional graduate Jordan Ellis approved as profile v1 and three confirmed career memories. No model calls; existing accounts are untouched.                                                         | Met. Each run makes a new account; sign-in details go to `.runtime/demo-account.json`.                                                |
-| G4  | **Done 2026-11-11.** One live pass of the whole route with the demo account; numbers in [READINESS.md](READINESS.md). It found the Critic loop below (fixed).                                                                                                                                           | Met. Repeat the day before a demo.                                                                                                    |
-| G5  | **Partly open.** Live Scout with model search returned only SEEK and LinkedIn leads for "data analyst", so nothing was checked or packaged; two leads were senior roles. The low-cost search found 2 roles. Job Matcher mapping did not fail in this run.                                               | For the demo, use a quest with the low-cost search, or a pasted lead. Still open: filter leads by level; retry a failed mapping once. |
-| G6  | **Partly checked.** Battle log cost table: works with live data. Not checked: the daily schedule (needs a 07:00 run), LangSmith (no key configured). S3 backup, reminders and negotiation were removed in CFS-108.                                                                                      | Hide or skip the unchecked ones in the demo.                                                                                          |
-| G7  | **Checked with every key blank.** A quest stops with "Live AI requires either the compatible-provider key/model settings or the native OpenAI override settings" and keeps saved data. Scout used to report "0 fetched" with no reason; it now says web pages are skipped because no Tavily key is set. | Met for quests and Scout. The quest message is still technical wording.                                                               |
+| Date       | Route                              | Result                                                                                                                                                                                                                                                                                                                                       |
+| ---------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-11 | Mission flow with the demo account | 20 calls (42 of 60 requests), 49k in / 23k out tokens, 4 min 32 s. Found the Critic and Evidence Selector loop; fixed (1 return then pass, 5 calls, 52 s).                                                                                                                                                                                   |
+| 2026-11-12 | Role-centred flow (CFS-109)        | First attempt failed on an unquotable requirement (CFS-117, fixed). Rerun: Find roles 2 roles in 66 s (6 calls, reused Coach advice); first role complete in 165 s (20 calls, 25.9k in / 15.5k out); saved role tailored in 141 s (16 calls); practice-only run 15 s (2 calls); Scout 0 new of 3 (discover-first); recruiter read-back 100%. |
 
-G1–G4 are done; G5–G7 are partly open, as listed.
+## Before real users
 
-### Found while doing G1 and G2
-
-Fixed:
-
-- At phone width the Quest top bar covered the new-quest form, so its close button could not be clicked.
-- Home showed "Start your first quest." when the latest quest had failed. It now offers "Review and retry", or "Review saved results" once the model-call budget is spent. The Quest log uses the same labels.
-- The completed-quest results page had no Quest header or route; it now has both.
-- Stage buttons still said "Go to 03 Job matching" and "Go to 04 Resume tailoring". They now say "Go to the Shortlist" and "Go to the Review".
-- The Applications step now explains that demo roles have no application link.
-
-Still open:
-
-- Live interview practice generated a single question for this role (fixture mode always has three).
-- In the profile builder conversation, the layout shifts by 1px every frame (headless Chromium; it also happens with the stylesheets from `main`). Two clicks in `interview-controls.spec.ts` skip Playwright's stability wait because of it. The cause is not found yet; deleting any one of several unrelated CSS rules stops it, so it looks like a layout feedback loop.
-- A Scout sweep run after a quest skips the roles that quest already saw. With the demo roles this can leave no new role above the minimum match, so no package starts. For the demo, run Scout before the quest or lower the minimum match.
+1. Hosting: HTTPS host, managed PostgreSQL with backups, server-side secrets, an always-on worker.
+2. Account recovery: password reset and email verification.
+3. A per-user daily spending cap and an operator view of spend.
+4. Re-checking tracked roles so closed ones drop off the board.
+5. Terms and privacy review (privacy notice, account deletion).
 
 ## Feature checklist
 
@@ -112,11 +99,11 @@ How to read the columns:
 
 ### Account and workspace
 
-| Feature                                                 | Quest page   | Auto                              | Fixture | Live |
-| ------------------------------------------------------- | ------------ | --------------------------------- | ------- | ---- |
-| Register, sign in, sign out                             | sign-in page | Q auth-brand; D                   | [ ]     | [ ]  |
-| Home overview: recent journeys, level/XP, waiting count | Home         | Q page render; Q agent-native     | [ ]     | [ ]  |
-| Phone width without sideways scroll                     | all          | Q page render (7 pages); Q mobile | [ ]     | [ ]  |
+| Feature                                             | Quest page   | Auto                              | Fixture | Live |
+| --------------------------------------------------- | ------------ | --------------------------------- | ------- | ---- |
+| Register, sign in, sign out                         | sign-in page | Q auth-brand; D                   | [ ]     | [ ]  |
+| Home overview: hero, Coach, level/XP, waiting count | Home         | Q page render; Q agent-native; D  | [ ]     | [ ]  |
+| Phone width without sideways scroll                 | all          | Q page render (7 pages); Q mobile | [ ]     | [ ]  |
 
 ### Profile
 
@@ -130,6 +117,9 @@ How to read the columns:
 | Review then approve a version; failed save keeps the draft | My profile | Q profile, profile-workbench; D          | [ ]     | [ ]  |
 | Career memories: add, edit, delete                         | My profile | I integration; Q agent-native            | [ ]     | [ ]  |
 | Character sheet from the approved profile                  | Character  | Q page render                            | [ ]     | [ ]  |
+| Capability levels with confidence and evidence             | Character  | I capability, coach                      | [ ]     | [ ]  |
+| Evidence from GitHub, certificates, LinkedIn export, site  | Character  | I profile-sources                        | [ ]     | [ ]  |
+| Evidence from Codeforces, Stack Overflow, LeetCode         | Character  | I profile-sources                        | [ ]     | [ ]  |
 
 ### Finding roles
 
@@ -144,13 +134,18 @@ How to read the columns:
 | Job availability check                       | Jobs       | I recruitment              | [ ]     | [ ]  |
 | Fit and gap analysis                         | quest page | I job-fit                  | [ ]     | [ ]  |
 | World page: country rules                    | World      | Q page render              | [ ]     | [ ]  |
+| Market insight by country and role family    | World      | I role-library             | [ ]     | [ ]  |
+| Add a role from a link or pasted ad          | Quests     | I applications             | [ ]     | [ ]  |
+| Practise interview with an approved resume   | Quests     | I applications             | [ ]     | [ ]  |
+| One role across Find roles, Scout and board  | Quests     | I role-library             | [ ]     | [ ]  |
 
 ### Scout
 
 | Feature                                                | Quest page | Auto                   | Fixture | Live |
 | ------------------------------------------------------ | ---------- | ---------------------- | ------- | ---- |
 | Settings: keywords, source tier, minimum score         | Scout      | I scout                | [ ]     | [ ]  |
-| Manual sweep → ranked shortlist → one package per role | Scout      | Q Scout batch; I scout | [ ]     | [ ]  |
+| Manual sweep → roles on the board (discover-first)     | Scout      | I role-library         | [ ]     | [ ]  |
+| Opt-in: one package per shortlisted role               | Scout      | Q Scout batch; I scout | [ ]     | [ ]  |
 | Model web search tier (native OpenAI only)             | Scout      | I agent-discovery      | n/a     | [ ]  |
 | Leads listed with reason and "Open to check"           | Scout      | I agent-discovery      | [ ]     | [ ]  |
 | Paste the ad → scored → package → open at draft review | Scout      | I scout (pasted lead)  | [ ]     | [ ]  |
@@ -181,6 +176,7 @@ How to read the columns:
 | Interview: answer all questions, receive feedback | quest page   | Q journey; Q quest page (opens only)                                 | [ ]     | [ ]  |
 | Interview: stop, skip, finish early               | quest page   | Q interview-controls, journey; D                                     | [ ]     | [ ]  |
 | Multiple interview rounds                         | quest page   | I integration                                                        | [ ]     | [ ]  |
+| Recruiter view: read-back, keywords, knock-outs   | My documents | I recruiter-check, applications                                      | [ ]     | [ ]  |
 | Export PDF and DOCX                               | My documents | Q zero-resume; D                                                     | [ ]     | [ ]  |
 | Applications: record and track                    | Quests       | D (status only; needs a live listing link to prepare an application) | [ ]     | [ ]  |
 | Activity timeline                                 | Activity     | none                                                                 | [ ]     | [ ]  |

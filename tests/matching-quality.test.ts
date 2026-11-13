@@ -3,9 +3,13 @@ import {
   compare,
   extractRequirements,
   experienceRequirement,
-  educationMeets,
-  locationMatches,
+  educationAssessment,
+  locationAssessment,
 } from '../packages/matching/domain.js';
+
+// The matching baseline checks a requirement through these assessments.
+const educationMeets = (e: string, r: string) => educationAssessment(e, r).status === 'met';
+const locationMatches = (p: string, l: string) => locationAssessment(p, l).status === 'met';
 const profile = {
   skills: ['Python'],
   experienceYears: 0,

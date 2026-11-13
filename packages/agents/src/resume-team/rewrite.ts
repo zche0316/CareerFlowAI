@@ -17,8 +17,6 @@ export type RewriteProposal = { factId: string; text: string; reason: string };
 export const isRewritable = (c: DraftClaim) =>
   c.kind === 'experience' && Boolean(c.recordHeaderId || !c.recordId);
 
-export const rewriteCandidates = (claims: DraftClaim[]) => claims.filter(isRewritable);
-
 // Rewriter output is a proposal. Each wording must pass the same deterministic guard as manual
 // edits (checkWording): same numbers, qualifiers and source terms. Blocked wording keeps the fact.
 export function applyRewrites(

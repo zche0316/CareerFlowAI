@@ -5,9 +5,6 @@ import {
   locationAssessment,
 } from './requirements.js';
 export { experienceRequirement, educationAssessment, locationAssessment } from './requirements.js';
-import fs from 'node:fs/promises';
-import path from 'node:path';
-import crypto from 'node:crypto';
 
 export const vocabulary = [
   'python',
@@ -71,10 +68,6 @@ export const scoringWeights = Object.freeze({
   preference: 0.15,
   semantic: 0.15,
 });
-export const educationMeets = (evidence, requirement) =>
-  educationAssessment(evidence, requirement).status === 'met';
-export const locationMatches = (preference, location) =>
-  locationAssessment(preference, location).status === 'met';
 
 // Finite vocabulary and explicit clause evidence keep this local fallback auditable.
 export function extractRequirements(job) {
@@ -264,154 +257,4 @@ export function compare(profile, job, corpus) {
     explanation: `${matches.length}/${requirements.required.length} required skills evidenced; ${preferredMatches.length}/${requirements.preferred.length} preferred skills evidenced (optional). Experience ${profile.experienceYears}/${requirements.experienceYears ?? 'unknown'} years. Review gaps and score components before choosing.`,
     limitations,
   };
-}
-
-// Legacy file-backed services support the original regression suite.
-// The integrated API uses authenticated PostgreSQL domain services instead.
-export class CareerDataService {
-  constructor(dir) {
-    this.dir = dir;
-  }
-  async saveProfile(p) {
-    p = validateProfile(p);
-    await fs.mkdir(this.dir, { recursive: true });
-    await fs.writeFile(path.join(this.dir, p.id + '.json'), JSON.stringify(p));
-    return p;
-  }
-  async getProfile(id) {
-    if (!/^[a-zA-Z0-9_-]{1,80}$/.test(id || '')) throw new Error('Profile unavailable');
-    try {
-      return validateProfile(
-        JSON.parse(await fs.readFile(path.join(this.dir, id + '.json'), 'utf8')),
-      );
-    } catch {
-      throw new Error('Profile unavailable: create and approve a profile.');
-    }
-  }
-  async getTarget(id) {
-    await this.getProfile(id);
-    const target = JSON.parse(await fs.readFile(path.join(this.dir, id + '-target.json'), 'utf8'));
-    const current = await this.getProfile(id);
-    if (JSON.stringify(current) !== JSON.stringify(target.careerProfile))
-      throw new Error('Profile changed: select a target again.');
-    return target;
-  }
-  async saveTarget(id, target) {
-    await fs.writeFile(path.join(this.dir, id + '-target.json'), JSON.stringify(target, null, 2));
-    return target;
-  }
-}
-
-export class JobRepository {
-  constructor(file) {
-    this.file = file;
-  }
-  async retrieve(failure) {
-    if (failure) throw new Error('Job Source unavailable. Retry the request.');
-    return JSON.parse(await fs.readFile(this.file, 'utf8'));
-  }
-}
-
-export class JobMatchingAgent {
-  async run(profile, jobs, options = {}) {
-    const corpus = jobs.map((j) => j.title + ' ' + j.description);
-    let ranked = jobs
-      .map((j) => compare(profile, j, corpus))
-      .filter((r) => r.score >= options.minScore)
-      .sort((a, b) => b.score - a.score || a.job.id.localeCompare(b.job.id));
-    return ranked;
-  }
-}
-
-export class AgentOrchestrator {
-  constructor(data, repository) {
-    this.data = data;
-    this.repository = repository;
-    this.agent = new JobMatchingAgent();
-    this.runs = new Map();
-  }
-  async match(id, options) {
-    const trace = ['Created'];
-    const profile = await this.data.getProfile(id);
-    trace.push('Profile Loaded');
-    const jobs = await this.repository.retrieve(options.simulateFailure);
-    trace.push('Jobs Retrieved', 'Analysing');
-    const ranked = await this.agent.run(profile, jobs, options);
-    trace.push('Scored', 'Ranked', ranked.length ? 'Presented' : 'No Suitable Jobs');
-    const run = {
-      id: crypto.randomUUID(),
-      profileId: id,
-      profileSnapshot: profile,
-      ranked,
-      trace,
-      mode: 'local-tfidf',
-      createdAt: new Date().toISOString(),
-    };
-    this.runs.set(run.id, run);
-    if (this.runs.size > 100) this.runs.delete(this.runs.keys().next().value);
-    return run;
-  }
-  async compareSelected(runId, jobIds) {
-    const run = this.runs.get(runId);
-    if (!run) throw new Error('Run expired: run matching again.');
-    if (
-      !Array.isArray(jobIds) ||
-      jobIds.length < 2 ||
-      jobIds.length > 4 ||
-      new Set(jobIds).size !== jobIds.length
-    )
-      throw new Error('Select 2–4 distinct jobs for comparison.');
-    const current = await this.data.getProfile(run.profileId);
-    if (JSON.stringify(current) !== JSON.stringify(run.profileSnapshot))
-      throw new Error('Profile changed: run matching again.');
-    const rows = jobIds.map((id) => {
-      const item = run.ranked.find((r) => r.job.id === id);
-      if (!item) throw new Error('Compare jobs from the current ranked result only.');
-      return {
-        jobId: id,
-        title: item.job.title,
-        salary: item.job.salary ?? null,
-        skills: item.requirements.required,
-        location: item.job.location,
-        score: item.score,
-        growth: item.job.growth ?? null,
-        gaps: item.gaps,
-        source: item.job.source,
-      };
-    });
-    return {
-      runId,
-      rows,
-      limitations: [
-        'Salary and growth values are fictional fixtures, not market estimates.',
-        'Unavailable values remain null and must not be inferred.',
-      ],
-    };
-  }
-  async select(runId, jobId) {
-    const run = this.runs.get(runId);
-    if (!run) throw new Error('Run expired: run matching again.');
-    const match = run.ranked.find((r) => r.job.id === jobId);
-    if (!match) throw new Error('Select a job from the current ranked result.');
-    const current = await this.data.getProfile(run.profileId);
-    if (JSON.stringify(current) !== JSON.stringify(run.profileSnapshot))
-      throw new Error('Profile changed: run matching again before selection.');
-    const target = {
-      schemaVersion: '1.0',
-      profileId: run.profileId,
-      careerProfile: current,
-      job: match.job,
-      requirements: match.requirements,
-      analysis: match,
-      runId,
-      selectedAt: new Date().toISOString(),
-      selectedBy: 'Job Seeker',
-      handoffTo: ['Resume Tailoring Agent', 'Interview Coach Agent'],
-    };
-    await this.data.saveTarget(run.profileId, target);
-    return {
-      ...target,
-      trace: [...run.trace, 'Target Job Selected', 'Completed'],
-    };
-  }
 }
