@@ -70,8 +70,6 @@ Rehearse in fixture mode, then run once in live mode the day before a demo.
 
 - Live interview practice sometimes generates one question (fixture mode always has three); the
   2026-11-13 run produced three.
-- Each specialist call is two requests (the model first asks for the approved context through a
-  tool), so request counts and the call budget are about twice the number of agent steps.
 - On real postings the evidence question lists phrased requirements, including soft skills such as
   "Creative problem-solving"; an answer with no chosen experience lists that phrase with the skills.
 - Scout leads from sites it may not read (SEEK, LinkedIn) need the advertisement pasted; leads are
