@@ -3976,3 +3976,22 @@ body:has(.quest) {
   display: block;
   margin: 4px 0;
 }
+
+/* Speech input and read-aloud in interview practice (CFS-98). */
+.voice-input {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  margin: 4px 0 12px;
+}
+.voice-input small {
+  flex: 1 1 220px;
+}
+.voice-error {
+  flex-basis: 100%;
+  color: #b42318;
+}
+.voice-read {
+  margin-top: 6px;
+}

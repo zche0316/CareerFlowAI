@@ -27,6 +27,7 @@ import { adviceItem, CoachPage, QuestCoach } from './quest/coach.js';
 import { runPhase, runRoute } from './quest/run-route.js';
 import { reloadEstimates, RunEstimate } from './quest/run-estimate.js';
 import { EvidenceQuestion } from './quest/evidence-question.js';
+import { ReadAloud } from './quest/voice.js';
 import { SignIn } from './quest/sign-in.js';
 import { boardStage, stageCopy } from './quest/applications.js';
 import { PartyRoster } from './quest/roster.js';
@@ -2701,6 +2702,7 @@ function MissionDetail({
                 </button>
               )}
               {d.feedback && (
+                <>
                 <div className="feedback-grid">
                   {[
                     ['Strengths', d.feedback.strengths],
@@ -2717,6 +2719,18 @@ function MissionDetail({
                     </div>
                   ))}
                 </div>
+                  <ReadAloud
+                    label="Read the feedback aloud"
+                    text={[
+                      'Strengths.',
+                      ...(d.feedback.strengths || []),
+                      'Areas to improve.',
+                      ...(d.feedback.improvements || []),
+                      'Next practice.',
+                      ...(d.feedback.nextSteps || []),
+                    ].join(' ')}
+                  />
+                </>
               )}
             </section>
             <aside className="panel interview-guidance">

@@ -259,3 +259,14 @@ says there is no model cost.
 - The last check is kept on the role (`listingCheck`) and shown on the board and in the Scout table.
 - The Scout table offers Save only for roles whose full listing is kept (ranked by a search or seen
   in a sweep); a role a search showed without ranking it says so (CFS-128).
+
+## Speech in interview practice (CFS-98, phase 1)
+
+- "Speak your answer" dictates into the editable answer box with the browser's speech recognition;
+  it starts only on a press and never submits. "Read aloud" speaks the question, the Evaluator's
+  verdict and the final feedback with the browser's speech synthesis.
+- No model cost and no server change: CareerFlow receives only the text the user submits and
+  stores no audio. The browser's speech service may send audio to its vendor (Chrome does); the
+  control says so. Controls are hidden where the browser lacks the APIs.
+- Phase 2 (not built): a live interviewer through a realtime voice model with a short-lived key
+  issued by the server.
