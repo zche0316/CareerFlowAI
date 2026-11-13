@@ -2174,82 +2174,9 @@ summary:focus-visible {
   }
 }
 
-/* The journey scale is navigation, not a measure of completion. */
-.flow-ruler-live {
-  margin: 8px 0 28px;
-  padding: 14px 16px;
-  border-bottom: 1px solid #dbe2e6;
-}
-.flow-ruler-ticks {
-  height: 34px;
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 2px;
-}
-.flow-ruler-ticks span {
-  background: #d8dadd;
-  width: 2px;
-  height: calc(8px + var(--weight, 0) * 15px);
-  border-radius: 2px;
-  transition:
-    height 150ms ease,
-    background-color 200ms ease;
-}
-.flow-ruler-ticks span.major {
-  height: calc(16px + var(--weight, 0) * 12px);
-}
-.flow-ruler-ticks span.on {
-  background: #dd5a29;
-}
-.flow-ruler-labels {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 8px;
-}
-.flow-ruler-labels button {
-  border: 0;
-  background: transparent;
-  color: #5a6876;
-  padding: 7px 3px;
-  text-align: left;
-  font-size: 13px;
-  display: flex;
-  gap: 7px;
-  cursor: pointer;
-}
-.flow-ruler-labels button span:first-child {
-  color: #7a8993;
-  font-variant-numeric: tabular-nums;
-}
-.flow-ruler-labels button[aria-current='step'] {
-  color: #a83a11;
-  font-weight: 700;
-}
-.flow-ruler-labels button[aria-current='step'] span:first-child {
-  color: #c84919;
-}
-.flow-ruler-labels button:focus-visible {
-  outline: 3px solid #ca4d1f;
-  outline-offset: 3px;
-  border-radius: 4px;
-}
 @media (max-width: 680px) {
-  .flow-ruler-live {
-    padding: 8px 2px 12px;
-  }
-  .flow-ruler-labels button {
-    font-size: 12px;
-  }
-  .flow-ruler-labels button:not([aria-current='step']) span:last-child {
-    display: none;
-  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .flow-ruler-ticks span {
-    transition: none;
-  }
 }
 
 /* Overview surfaces follow the approved prototype while retaining live mission data. */
@@ -2283,43 +2210,6 @@ body {
   grid-template-columns: 248px minmax(0, 1fr);
   flex-direction: unset;
   min-height: 100vh;
-}
-.flow-vertical .flow-ruler-ticks {
-  position: absolute;
-  inset: 0 auto 0 0;
-  height: auto;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0;
-}
-.flow-vertical .flow-ruler-ticks span {
-  width: calc(6px + var(--weight, 0) * 14px);
-  height: 2px;
-  background: #dfdcd6;
-}
-.flow-vertical .flow-ruler-ticks span.major {
-  width: calc(12px + var(--weight, 0) * 10px);
-  height: 2px;
-}
-.flow-vertical .flow-ruler-ticks span.on {
-  background: #ff5a1f;
-}
-.flow-vertical .flow-ruler-labels {
-  position: absolute;
-  inset: 0 0 0 36px;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 0;
-}
-.flow-vertical .flow-ruler-labels button {
-  min-height: 28px;
-  font-size: 12px;
-  padding: 3px 0;
-  align-items: center;
 }
 .content {
   width: auto;
@@ -2623,10 +2513,6 @@ summary:focus-visible {
     grid-template-columns: 1fr;
   }
 }
-.content main > .flow-ruler-live {
-  margin: 0 0 18px;
-  padding: 4px 0 12px;
-}
 .content main > .back {
   margin-bottom: 12px;
   color: #63717b;
@@ -2727,25 +2613,6 @@ summary:focus-visible {
   -webkit-font-smoothing: antialiased;
   letter-spacing: -0.011em;
 }
-.flow-ruler-ticks span.on,
-.flow-vertical .flow-ruler-ticks span.on {
-  background: #ff5a1f;
-}
-.flow-ruler-ticks span.current {
-  width: 3px;
-  height: 26px;
-}
-.flow-vertical .flow-ruler-ticks span.current {
-  width: 18px;
-  height: 3px;
-}
-.flow-ruler-labels button[aria-current='step'] {
-  color: #121417;
-  font-weight: 600;
-}
-.flow-ruler-labels button[aria-current='step'] span:first-child {
-  color: #ff5a1f;
-}
 .content main .primary {
   background: #ff5a1f;
   color: #fff;
@@ -2768,25 +2635,6 @@ summary:focus-visible {
   border-radius: 50%;
   background: #ff5a1f;
   vertical-align: middle;
-}
-.flow-ruler-ticks span {
-  background: #dfdcd6;
-}
-.content main > .flow-ruler-live {
-  margin: 0 0 28px;
-  padding: 0 0 10px;
-  border: 0;
-}
-.flow-ruler-ticks {
-  height: 36px;
-}
-.flow-ruler-labels {
-  margin-top: 10px;
-}
-.flow-ruler-labels button {
-  font-size: 13px;
-  font-weight: 500;
-  color: #8c9199;
 }
 .content main #resume-tailoring.panel {
   border: 0;

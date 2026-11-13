@@ -317,18 +317,6 @@ body:has(.quest) {
   outline-offset: 3px;
 }
 
-/* ---------- Journey ruler ---------- */
-.quest .flow-ruler-ticks span.on,
-.quest .flow-vertical .flow-ruler-ticks span.on {
-  background: var(--q-ink);
-}
-.quest .flow-ruler-ticks span.current {
-  background: var(--q-violet);
-}
-.quest .flow-ruler-labels button[aria-current='step'] span:first-child {
-  color: var(--q-violet);
-}
-
 /* ---------- Overview hero ---------- */
 .quest .job-gap-notice {
   border-left-color: var(--q-coral);

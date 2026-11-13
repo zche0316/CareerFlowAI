@@ -1,6 +1,5 @@
 import { MISSION_MODEL_CALL_LIMIT } from '../../../packages/contracts/src/mission-limits.js';
 import { nextMissionStep } from './mission-step.js';
-import { FlowNavigation } from './flow-navigation.js';
 import { ResumePreview } from './resume-preview.js';
 import { pendingResumeChanges } from '../../../packages/contracts/src/resume-review.js';
 import { CompanyAvatar, SourceIcon } from './company-avatar.js';
@@ -294,24 +293,6 @@ function App() {
       setPhase(null);
     }
   }, [tab, workspace?.profile?.id]);
-  const selectJourneyStep = (i: number) => {
-    const active = mission || workspace?.missions[0];
-    if (i > 0 && active && i > nextMissionStep(active)) {
-      setNotice(
-        'Complete the current step before continuing. Earlier steps remain available to review.',
-      );
-      return;
-    }
-    setPhase(i);
-    setError('');
-    if (i === 0 && !mission) setTab('profile');
-    else {
-      setTab('missions');
-      const latest = mission || workspace?.missions[0];
-      setSelected(latest?.id || null);
-    }
-    window.scrollTo({ top: 0, behavior: 'auto' });
-  };
   useEffect(() => {
     if (interviewHandoff.current !== mission?.id || mission?.status !== 'AWAITING_INTERVIEW')
       return;
@@ -541,18 +522,6 @@ function App() {
                 <X size={14} />
               </button>
             </div>
-          )}
-          {tab === 'profile' && (
-            <FlowNavigation
-              current={
-                tab === 'profile'
-                  ? 0
-                  : phase === null && mission?.status === 'COMPLETE'
-                    ? -1
-                    : (phase ?? 0)
-              }
-              onSelect={selectJourneyStep}
-            />
           )}
           {tab === 'approved-profile' ? (
             <div className="approved-profile-page" aria-label="Approved profile">
