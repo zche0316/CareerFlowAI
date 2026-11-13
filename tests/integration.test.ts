@@ -128,7 +128,8 @@ it('scores interview rounds with STAR, asks one follow-up and still completes wi
 
   const follow = await c.request(`/missions/${id}/interview/rounds`, 'POST', {
     questionId: q.id,
-    answer: 'At my internship I built 3 SQL reports, which reduced manual exports by 2 hours a week.',
+    answer:
+      'At my internship I built 3 SQL reports, which reduced manual exports by 2 hours a week.',
     followUp: true,
   });
   expect(follow.status).toBe(200);
@@ -192,9 +193,7 @@ it('lists checkpoint save points and branches a quest from the shortlist without
   expect(points.body.branchable).toEqual({ analysis: true, shortlist: true });
   expect(points.body.checkpoints.length).toBeGreaterThan(2);
   expect(points.body.checkpoints.at(-1).next).toEqual(['select_job']);
-  expect(
-    points.body.checkpoints.some((p: any) => p.next.includes('job_matching')),
-  ).toBe(true);
+  expect(points.body.checkpoints.some((p: any) => p.next.includes('job_matching'))).toBe(true);
 
   const branch = await c.request(`/missions/${source.id}/branch`, 'POST', { from: 'shortlist' });
   expect(branch.status).toBe(202);
@@ -1402,7 +1401,69 @@ describe('Zero-resume product journey', () => {
       kind: 'job',
       jobId: jobs.data.matches[0].job.id,
     });
+    // CFS-123: the role requires skills this profile has no evidence for, so the team asks once.
+    const asked = await wait(c, made.body.id, 'AWAITING_EVIDENCE');
+    const skills: string[] = asked.data.evidenceQuestion.skills;
+    expect(skills.length).toBeGreaterThan(0);
+    expect(skills.length).toBeLessThanOrEqual(3);
+    expect(asked.data.evidenceQuestion.records.map((r: any) => r.id)).toEqual([recordId]);
+    const decide = (answers: unknown[]) =>
+      c.request(`/missions/${made.body.id}/decisions`, 'POST', { kind: 'evidence', answers });
+    const answer = 'I used it in the fictional course data project to check the data quality.';
+    expect((await decide([{ skill: 'Not asked', text: answer, confirmed: true }])).status).toBe(
+      422,
+    );
+    expect(
+      (await decide([{ skill: skills[0], text: answer, recordId: 'not-mine', confirmed: true }]))
+        .status,
+    ).toBe(422);
+    expect(
+      (
+        await other.request(`/missions/${made.body.id}/decisions`, 'POST', {
+          kind: 'evidence',
+          answers: [],
+        })
+      ).status,
+    ).toBe(404);
+    expect(
+      (
+        await decide([
+          { skill: skills[0], text: answer, recordId, confirmed: true },
+          ...(skills[1]
+            ? [{ skill: skills[1], text: 'Only read about it.', confirmed: false }]
+            : []),
+        ])
+      ).status,
+    ).toBe(202);
     const draft = await wait(c, made.body.id, 'AWAITING_APPROVAL');
+    // The confirmed answer is evidence for this run only, placed under the chosen project.
+    const answered = draft.data.evidenceAnswers.facts[0];
+    expect(answered).toMatchObject({
+      text: answer,
+      recordId,
+      recordHeaderId: `projects-${recordId}`,
+    });
+    expect(draft.data.resumeTeam.gaps.gaps).not.toContain(skills[0]);
+    expect(
+      draft.data.resumeTeam.gaps.requirements.find((r: any) => r.term === skills[0]).factIds,
+    ).toEqual([answered.id]);
+    const saved = await db.careerMemory.findMany({
+      where: { missionId: made.body.id },
+      orderBy: { createdAt: 'asc' },
+    });
+    expect(saved.map((m) => m.status)).toEqual(skills[1] ? ['CONFIRMED', 'DRAFT'] : ['CONFIRMED']);
+    // The approved profile itself is unchanged.
+    expect(
+      JSON.stringify((await db.profile.findUniqueOrThrow({ where: { id: approved.id } })).facts),
+    ).not.toContain(answered.id);
+    const caps = (await c.request('/capabilities')).body.skills;
+    expect(
+      caps.some((k: any) =>
+        k.evidence.some((e: any) => e.label?.startsWith('Your answer while tailoring')),
+      ),
+    ).toBe(true);
+    // The run asks only once: the question is answered and not shown again.
+    expect((await decide([])).status).toBe(409);
     const detailId = `projects-${recordId}-detail-3`;
     const chosen = await c.request(`/missions/${made.body.id}/resume-selection`, 'POST', {
       draftHash: draft.data.resumeDraft.hash,

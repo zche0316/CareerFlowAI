@@ -2,7 +2,7 @@ import type { Express } from 'express';
 import { z } from 'zod';
 import { db } from './db.js';
 import { AppError, requireValue } from './errors.js';
-import { digest, json, validateResumeClaims, includeRecordHeaders } from './domain.js';
+import { digest, json, validateResumeClaims, includeRecordHeaders, runFacts } from './domain.js';
 import { applyResumeEdits, resumeEditSchema } from './resume-edits.js';
 import { resumeObjective } from '../../../packages/contracts/src/resume-layout.js';
 import { generate, type Mode } from '../../../packages/agents/src/provider.js';
@@ -46,7 +46,7 @@ export function registerResumeAgent(app: Express) {
         'RESUME_EDIT_LIMIT',
         'This draft has reached its editing limit. Tailor this role again from the Quest log.',
       );
-    const facts = (m.profile.facts as unknown as Fact[]).filter(
+    const facts = runFacts(m).filter(
       (f) => ['skill', 'education', 'experience'].includes(f.kind) && !/^none yet$/i.test(f.text),
     );
     const result = await generate(
@@ -232,7 +232,7 @@ export function registerResumeAgent(app: Express) {
         );
       requireValue(d.resumeDraft.claims.find((c: any) => c.factId === input.factId));
       const fact = requireValue(
-        (m.profile.facts as unknown as Fact[]).find((f) => f.id === input.factId),
+        runFacts(m).find((f) => f.id === input.factId),
       );
       const reason = checkResumeWording(fact.text, input.text);
       if (reason)
@@ -307,7 +307,7 @@ export function registerResumeAgent(app: Express) {
       const change = requireValue(pending.find((c: any) => c.factId === input.factId));
       let claims = d.resumeDraft.claims.filter((c: any) => c.factId !== input.factId);
       if (change.beforeClaim) claims.splice(Math.max(0, change.beforeIndex), 0, change.beforeClaim);
-      const facts = m.profile.facts as unknown as Fact[];
+      const facts = runFacts(m);
       const grounded = validateResumeClaims(includeRecordHeaders(claims, facts), facts);
       claims = grounded.map((c) => claims.find((old: any) => old.factId === c.factId) || c);
       const { hash: _, ...old } = d.resumeDraft;

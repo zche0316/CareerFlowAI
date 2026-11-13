@@ -22,5 +22,6 @@ export const agentLabels: Record<string, string> = {
   rewriter: 'Rewriter',
   critic: 'Critic',
   human_review: 'You',
+  ask_evidence: 'Your evidence answers',
   end: 'Approved',
 };

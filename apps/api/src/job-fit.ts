@@ -1,5 +1,5 @@
 import type { Express } from 'express';
-import { ownedMission } from './domain.js';
+import { ownedMission, runFacts } from './domain.js';
 import { AppError } from './errors.js';
 
 /** Literal overlap is an aid to review, never evidence of proficiency or an ATS verdict. */
@@ -112,7 +112,7 @@ export function registerJobFit(app: Express) {
     const mission = await ownedMission(req.actor!.id, String(req.params.id));
     const result = jobFitEvidence(
       (mission.data as any).selectedJob,
-      mission.profile.facts as any[],
+      runFacts(mission),
     );
     res.json({ ...result, profileVersion: mission.profile.version });
   });

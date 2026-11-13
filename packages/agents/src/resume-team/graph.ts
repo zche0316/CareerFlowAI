@@ -28,9 +28,17 @@ export interface ResumeTeamPorts {
   // Called after interrupt() returns; validates and persists the human decision.
   applyHumanDecision(missionId: string, decision: unknown): Promise<HumanOutcome>;
   recordHandoff(missionId: string, handoff: Handoff): Promise<void>;
+  // CFS-123: the required skills to ask about once per run, or null when there is nothing to ask.
+  // Must return the same question when the node replays after the user answers.
+  evidenceQuestion?(missionId: string): Promise<{ skills: string[] } | null>;
+  // Called after interrupt() returns; saves the answers and says how many became run evidence.
+  applyEvidenceAnswers?(
+    missionId: string,
+    decision: unknown,
+  ): Promise<{ added: number; summary: string }>;
 }
 
-type Next = ResumeReturnTarget | 'critic' | 'human_review' | typeof END;
+type Next = ResumeReturnTarget | 'ask_evidence' | 'critic' | 'human_review' | typeof END;
 
 export function buildResumeTeamGraph(ports: ResumeTeamPorts) {
   const notesFor = (s: ResumeTeamStateType, agent: ResumeReturnTarget) =>
@@ -59,9 +67,36 @@ export function buildResumeTeamGraph(ports: ResumeTeamPorts) {
           const forwarded = notesFor(s, 'gap_analyzer')
             .filter((f) => f.from === 'human')
             .map((f) => ({ ...f, to: 'selector' as const }));
-          return route(s, 'gap_analyzer', 'selector', r.summary, { feedback: forwarded });
+          // A required skill with no approved evidence: ask the user once before selecting.
+          const question = await ports.evidenceQuestion?.(s.missionId);
+          return route(s, 'gap_analyzer', question ? 'ask_evidence' : 'selector', r.summary, {
+            feedback: forwarded,
+          });
         },
-        { ends: ['selector'] },
+        { ends: ['selector', 'ask_evidence'] },
+      )
+      // Human gate (CFS-123). Answers the user confirms become evidence for this run, so the Gap
+      // Analyzer runs again; skipped skills stay gaps. Writes happen after interrupt() (replay).
+      .addNode(
+        'ask_evidence',
+        async (s: ResumeTeamStateType) => {
+          const question = await ports.evidenceQuestion?.(s.missionId);
+          if (!question || !ports.applyEvidenceAnswers)
+            return route(s, 'ask_evidence', 'selector', 'No evidence question to ask.', {
+              feedback: s.feedback,
+            });
+          const decision = interrupt({
+            kind: 'evidence',
+            skills: question.skills,
+            message:
+              'The role asks for these skills and your approved profile has no evidence for them. Tell the team where you used them, or skip.',
+          });
+          const r = await ports.applyEvidenceAnswers(s.missionId, decision);
+          return route(s, 'ask_evidence', r.added ? 'gap_analyzer' : 'selector', r.summary, {
+            feedback: s.feedback,
+          });
+        },
+        { ends: ['gap_analyzer', 'selector'] },
       )
       .addNode(
         'selector',
@@ -100,7 +135,13 @@ export function buildResumeTeamGraph(ports: ResumeTeamPorts) {
             : 'rewriter';
           const feedback: TeamFeedback[] = c.issues
             .filter((i) => i.target === target)
-            .map((i) => ({ from: 'critic', to: target, message: i.message, factId: i.factId, code: i.code }));
+            .map((i) => ({
+              from: 'critic',
+              to: target,
+              message: i.message,
+              factId: i.factId,
+              code: i.code,
+            }));
           return route(s, 'critic', target, `${feedback.length} issue(s): ${feedback[0].message}`, {
             round: s.round + 1,
             feedback,

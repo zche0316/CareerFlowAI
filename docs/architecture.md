@@ -60,7 +60,7 @@ exposed to models, except the opt-in model web search in Scout.
 
 - **Evidence**: every resume line cites an approved fact; requirement mappings must quote the
   listing, and an unquotable item is dropped, never accepted.
-- **Human decisions**: role choice, draft approval and profile approval are explicit and bound to
+- **Human decisions**: role choice, evidence answers, draft approval and profile approval are explicit and bound to
   the exact version shown (hash or revision checks).
 - **Durability**: PostgreSQL row locks, worker leases and checkpoint replay let a run survive a
   reload or a worker restart; cancelled or superseded runs cannot commit late results.

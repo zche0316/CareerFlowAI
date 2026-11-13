@@ -31,7 +31,14 @@ export const applicationStatuses = [
 export type ApplicationStatus = (typeof applicationStatuses)[number];
 type HistoryEntry = { status: string; at: string; note?: string };
 
-const ACTIVE = ['QUEUED', 'RUNNING', 'AWAITING_JOB', 'AWAITING_APPROVAL', 'AWAITING_INTERVIEW'];
+const ACTIVE = [
+  'QUEUED',
+  'RUNNING',
+  'AWAITING_JOB',
+  'AWAITING_EVIDENCE',
+  'AWAITING_APPROVAL',
+  'AWAITING_INTERVIEW',
+];
 const slim = (match: any) => ({
   ...match,
   job: { ...match.job, description: String(match.job?.description || '').slice(0, 20000) },

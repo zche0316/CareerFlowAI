@@ -256,12 +256,28 @@ export async function ownedMission(userId: string, id: string) {
   );
 }
 
+/**
+ * The facts a run may cite: its approved profile version, plus the answers the user confirmed for
+ * this run's evidence question (CFS-123). Answers are snapshotted on the run, so a later edit to
+ * the career memory never changes an existing draft.
+ */
+export function runFacts(m: { profile: { facts: unknown }; data: unknown }): Fact[] {
+  return [
+    ...(m.profile.facts as Fact[]),
+    ...(((m.data as MissionData)?.evidenceAnswers?.facts || []) as Fact[]),
+  ];
+}
+
 export async function freshMission(id: string) {
   const m = requireValue(
     await db.mission.findUnique({ where: { id }, include: { profile: true, user: true } }),
   );
   if (m.user.profileVersion !== m.profile.version || m.status === 'STALE')
-    throw new AppError(409, 'STALE_PROFILE', 'Your profile changed. Tailor this role again from the Quest log.');
+    throw new AppError(
+      409,
+      'STALE_PROFILE',
+      'Your profile changed. Tailor this role again from the Quest log.',
+    );
   return m;
 }
 
@@ -416,13 +432,18 @@ export async function queueDecision(
     );
     const d = m.data as MissionData;
     if (m.profile.version !== m.user.profileVersion)
-      throw new AppError(409, 'STALE_PROFILE', 'Your profile changed. Tailor this role again from the Quest log.');
+      throw new AppError(
+        409,
+        'STALE_PROFILE',
+        'Your profile changed. Tailor this role again from the Quest log.',
+      );
 
     // Each human decision is accepted only at its corresponding pause point.
     const expected = {
       job: 'AWAITING_JOB',
       resume: 'AWAITING_APPROVAL',
       interview: 'AWAITING_INTERVIEW',
+      evidence: 'AWAITING_EVIDENCE',
     }[decision.kind];
     if (m.status !== expected)
       throw new AppError(
@@ -456,6 +477,22 @@ export async function queueDecision(
         'REVISION_LIMIT',
         'Two revisions have been reached. Tailor this role again from the Quest log.',
       );
+    if (decision.kind === 'evidence') {
+      const asked = new Set<string>(d.evidenceQuestion?.skills || []);
+      if (decision.answers.some((a) => !asked.has(a.skill)))
+        throw new AppError(422, 'INVALID_SKILL', 'Answer only the skills this run asked about.');
+      if (new Set(decision.answers.map((a) => a.skill)).size !== decision.answers.length)
+        throw new AppError(422, 'INVALID_SKILL', 'Answer each skill once.');
+      const records = new Set(
+        (m.profile.facts as unknown as Fact[]).map((f) => f.recordId).filter(Boolean),
+      );
+      if (decision.answers.some((a) => a.recordId && !records.has(a.recordId)))
+        throw new AppError(
+          422,
+          'INVALID_RECORD',
+          'Choose an experience from your approved profile.',
+        );
+    }
     let persistedDecision = decision;
     if (decision.kind === 'interview') {
       const completion = getInterviewCompletion(

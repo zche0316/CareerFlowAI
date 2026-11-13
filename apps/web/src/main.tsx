@@ -26,6 +26,7 @@ import { QuestHome } from './quest/home.js';
 import { adviceItem, CoachPage, QuestCoach } from './quest/coach.js';
 import { runPhase, runRoute } from './quest/run-route.js';
 import { RunEstimate } from './quest/run-estimate.js';
+import { EvidenceQuestion } from './quest/evidence-question.js';
 import { SignIn } from './quest/sign-in.js';
 import { boardStage, stageCopy } from './quest/applications.js';
 import { PartyRoster } from './quest/roster.js';
@@ -340,7 +341,9 @@ function App() {
       setNotice(
         mission.status === 'AWAITING_JOB'
           ? 'Your matches are ready. Review the gaps and choose a job.'
-          : mission.status === 'AWAITING_APPROVAL'
+          : mission.status === 'AWAITING_EVIDENCE'
+            ? 'Your resume team has a question about skills the role requires.'
+            : mission.status === 'AWAITING_APPROVAL'
             ? 'Your resume is ready. Review the changes before saving.'
             : mission.status === 'AWAITING_INTERVIEW'
               ? 'Your interview is ready. Practise your first answer.'
@@ -352,7 +355,7 @@ function App() {
 
   const approvals =
     workspace?.missions.filter((m: any) =>
-      ['AWAITING_JOB', 'AWAITING_APPROVAL'].includes(m.status),
+      ['AWAITING_JOB', 'AWAITING_EVIDENCE', 'AWAITING_APPROVAL'].includes(m.status),
     ) || [];
   useEffect(() => {
     if (!creating || !workspace?.profile?.data) return;
@@ -405,9 +408,14 @@ function App() {
       const candidate = mission || workspace?.missions[0];
       const live =
         candidate &&
-        ['QUEUED', 'RUNNING', 'AWAITING_JOB', 'AWAITING_APPROVAL', 'AWAITING_INTERVIEW'].includes(
-          candidate.status,
-        );
+        [
+          'QUEUED',
+          'RUNNING',
+          'AWAITING_JOB',
+          'AWAITING_EVIDENCE',
+          'AWAITING_APPROVAL',
+          'AWAITING_INTERVIEW',
+        ].includes(candidate.status);
       if (live) {
         setSelected(candidate.id);
         setTab('missions');
@@ -849,7 +857,9 @@ function App() {
                       <strong>
                         {m.status === 'AWAITING_JOB'
                           ? 'Choose a target opportunity'
-                          : 'Review your resume draft'}
+                          : m.status === 'AWAITING_EVIDENCE'
+                            ? 'Answer the evidence question'
+                            : 'Review your resume draft'}
                       </strong>
                       <div className="approval-actions">
                         <button
@@ -1875,7 +1885,7 @@ function MissionDetail({
       )}
       {phase !== null &&
         ((phase === 2 && !d.matches?.length && m.status !== 'NO_MATCHES') ||
-          (phase === 3 && !d.resumeDraft) ||
+          (phase === 3 && !d.resumeDraft && m.status !== 'AWAITING_EVIDENCE') ||
           (phase === 4 && !questions.length) ||
           (phase === 7 && (!d.selectedJob?.job?.applicationUrl || !d.approvedResumeId))) && (
           <section className="panel stage-prerequisite">
@@ -2388,6 +2398,15 @@ function MissionDetail({
             mission={m}
             request={api}
             onRecord={(body) => onAction('applications', body)}
+          />
+        )}
+      {(phase === null || phase === 3) &&
+        m.status === 'AWAITING_EVIDENCE' &&
+        d.evidenceQuestion?.skills?.length > 0 && (
+          <EvidenceQuestion
+            question={d.evidenceQuestion}
+            busy={busy}
+            onSubmit={(answers) => void onAction('decisions', { kind: 'evidence', answers })}
           />
         )}
       {(phase === null || phase === 3) && d.resumeDraft && (

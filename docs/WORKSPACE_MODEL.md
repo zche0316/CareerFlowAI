@@ -230,3 +230,18 @@ average and largest of the user's last five finished runs of that kind (calls an
 run, Coach review or sweep and its trace spans); with no finished run it shows a typical figure and
 says so. Failed and unfinished runs are left out because they understate the cost. Rehearsal mode
 says there is no model cost.
+
+## Evidence questions during tailoring (CFS-123)
+
+- After the Gap Analyzer, a run pauses once (`AWAITING_EVIDENCE`) when the role requires skills
+  the approved profile has no evidence for: up to three, most important first. Skills the user
+  already answered in an earlier run are not asked again.
+- For each skill the user writes where and how they used it, optionally picks the experience or
+  project, and ticks that it is true. Every answer is saved as a career memory: confirmed answers
+  as `CONFIRMED`, the rest as `DRAFT` for later review. Skipping keeps the skill as a gap.
+- Confirmed answers are snapshotted on the run (`evidenceAnswers`) as facts the team may cite: a
+  line under the chosen record, or the skill alone. The Gap Analyzer runs again with them. The
+  approved profile is not changed; a later run reuses a confirmed answer for the same skill
+  without asking.
+- Capability levels count confirmed answers as self-reported, unverified evidence: level 2 when
+  tied to an experience, else 1.

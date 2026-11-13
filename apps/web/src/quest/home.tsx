@@ -27,6 +27,11 @@ const heroCopy: Record<string, { title: string; text: string; cta: string }> = {
     text: 'Job Matcher ranked the roles against your approved evidence. Nothing moves until you choose.',
     cta: 'Choose a job',
   },
+  AWAITING_EVIDENCE: {
+    title: 'One question before the draft.',
+    text: 'The role requires skills your approved profile has no evidence for. Tell the team where you used them, or skip.',
+    cta: 'Answer the question',
+  },
   AWAITING_APPROVAL: {
     title: 'Your party built a draft. Your call.',
     text: 'The resume team finished and the Critic has had its say. It only moves on when you approve it.',
@@ -97,7 +102,7 @@ export function QuestHome({
   const board: any[] = workspace?.applications || [];
   // The run that needs you first, then one still working, then the latest one.
   const active =
-    missions.find((m) => ['AWAITING_JOB', 'AWAITING_APPROVAL', 'AWAITING_INTERVIEW'].includes(m.status)) ||
+    missions.find((m) => ['AWAITING_JOB', 'AWAITING_EVIDENCE', 'AWAITING_APPROVAL', 'AWAITING_INTERVIEW'].includes(m.status)) ||
     missions.find((m) => ['QUEUED', 'RUNNING'].includes(m.status)) ||
     missions[0];
   const idle = !active || ['COMPLETE', 'CANCELLED', 'STALE'].includes(active.status);
@@ -142,7 +147,9 @@ export function QuestHome({
   };
 
   const waiting = missions.filter((m) =>
-    ['AWAITING_JOB', 'AWAITING_APPROVAL', 'AWAITING_INTERVIEW'].includes(m.status),
+    ['AWAITING_JOB', 'AWAITING_EVIDENCE', 'AWAITING_APPROVAL', 'AWAITING_INTERVIEW'].includes(
+      m.status,
+    ),
   );
   const locked = skillBoard(workspace).filter((t) => t.status === 'locked');
   const quests = [
@@ -151,11 +158,15 @@ export function QuestHome({
       title:
         m.status === 'AWAITING_JOB'
           ? 'Choose a target job'
-          : m.status === 'AWAITING_APPROVAL'
+          : m.status === 'AWAITING_EVIDENCE'
+            ? `Answer a question for ${m.data?.selectedJob?.job?.title || 'your resume'}`
+            : m.status === 'AWAITING_APPROVAL'
             ? `Review the ${m.data?.selectedJob?.job?.title || 'resume'} draft`
             : `Practise for ${m.data?.selectedJob?.job?.title || 'your interview'}`,
       text:
-        m.status === 'AWAITING_APPROVAL'
+        m.status === 'AWAITING_EVIDENCE'
+          ? 'Say where you used the skills the role requires, or skip.'
+          : m.status === 'AWAITING_APPROVAL'
           ? 'Approve it, or send it back to one teammate.'
           : m.status === 'AWAITING_JOB'
             ? `${m.data?.matches?.length || 0} ranked roles are waiting.`
