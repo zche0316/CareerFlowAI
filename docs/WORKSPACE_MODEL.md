@@ -22,14 +22,14 @@ match how people look for work.
 
 ## Target model
 
-| Layer | Lives | Holds |
-|---|---|---|
-| Workspace | long | the user |
-| Profile | long, versioned | the full evidence library (unchanged) |
-| Career memory | long | STAR stories and notes (unchanged) |
-| **Application** | long, one per role | the job snapshot, where it came from, status and history, every run for this role |
-| **Run** (the existing `Mission` row) | short | one agent workflow: find roles, or tailor a resume and practise the interview, with its budget, approvals, trace and save points |
-| Coach | long | reads the profile, all applications and memories; keeps the next actions |
+| Layer                                | Lives              | Holds                                                                                                                            |
+| ------------------------------------ | ------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| Workspace                            | long               | the user                                                                                                                         |
+| Profile                              | long, versioned    | the full evidence library (unchanged)                                                                                            |
+| Career memory                        | long               | STAR stories and notes (unchanged)                                                                                               |
+| **Application**                      | long, one per role | the job snapshot, where it came from, status and history, every run for this role                                                |
+| **Run** (the existing `Mission` row) | short              | one agent workflow: find roles, or tailor a resume and practise the interview, with its budget, approvals, trace and save points |
+| Coach                                | long               | reads the profile, all applications and memories; keeps the next actions                                                         |
 
 A per-role resume is still made the same way: the resume team picks evidence from the approved
 profile for that role's requirements and tightens it. What changes is where the result lives: on the
@@ -76,31 +76,31 @@ No mission data is deleted or rewritten.
 
 ## Flows
 
-| Action | Before | After |
-|---|---|---|
-| Find roles | start a mission | start a search run; the user saves roles to the board (`saved`) or starts tailoring one |
-| Choose a role in a search run | `select_job` in that mission | same, and the run is linked to the role's application (created if new) |
-| Tailor a resume for a saved role | not possible | `POST /api/applications/:id/runs` starts a run at the resume team with the current profile |
-| Tailor again / after a profile update | branch a save point | start another run on the same application |
-| Scout package | new mission | new run on the role's application (`source: scout`) |
-| Record status | per mission, two places | `PATCH /api/applications/:id` with history; the old mission endpoints write through |
-| Career advice | per mission | Coach page: latest analysis for the current profile, plus next actions from the applications |
+| Action                                | Before                       | After                                                                                        |
+| ------------------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------- |
+| Find roles                            | start a mission              | start a search run; the user saves roles to the board (`saved`) or starts tailoring one      |
+| Choose a role in a search run         | `select_job` in that mission | same, and the run is linked to the role's application (created if new)                       |
+| Tailor a resume for a saved role      | not possible                 | `POST /api/applications/:id/runs` starts a run at the resume team with the current profile   |
+| Tailor again / after a profile update | branch a save point          | start another run on the same application                                                    |
+| Scout package                         | new mission                  | new run on the role's application (`source: scout`)                                          |
+| Record status                         | per mission, two places      | `PATCH /api/applications/:id` with history; the old mission endpoints write through          |
+| Career advice                         | per mission                  | Coach page: latest analysis for the current profile, plus next actions from the applications |
 
 ## Delivery (one branch, one commit per phase, verify per phase)
 
 1. **Data + API**: table, migration, backfill, linking on job choice / Scout / save points,
    `GET/PATCH /api/applications`, `POST /api/applications/:id/runs`, status write-through.
-   *Done when* integration tests show a role found twice gives one application, two runs on one
+   _Done when_ integration tests show a role found twice gives one application, two runs on one
    application keep both resumes, and an old mission is backfilled.
 2. **Quest UI**: Quests page lists applications (status, runs, resumes, next step); shortlist has
    "Save to board" next to "Select"; an application has "Tailor resume" / "Tailor again"; the
    start form becomes a Quest-styled "Find roles" form with plain source choices and the cost note;
    "mission" wording goes.
-   *Done when* the demo route e2e runs through the new pages and the full e2e suite passes.
+   _Done when_ the demo route e2e runs through the new pages and the full e2e suite passes.
 3. **Coach**: workspace-level Coach panel on Home: latest analysis for the current profile version,
    next actions derived from applications (saved but not tailored, ready but not applied, last
    interview feedback), and a button to refresh advice (one counted model call).
-   *Done when* a unit test covers the action rules and the panel shows in fixture mode.
+   _Done when_ a unit test covers the action rules and the panel shows in fixture mode.
 
 Each phase: `verify:local` and the affected e2e specs; the full e2e suite and one live smoke at the end.
 
@@ -130,7 +130,6 @@ for the Coach (later issue), calendar sync.
   status wins. Each application records its provider mode; the board shows the current mode only.
 - Shortlists and the Scout table mark roles already on the board; Scout can save a role it
   recorded.
-
 
 ## Per-role actions (CFS-104)
 
@@ -185,7 +184,12 @@ Imported facts carry their source and whether they were verified (`verifiedEvide
 capability model uses for confidence and levels.
 
 - GitHub (official REST API, optional server `GITHUB_TOKEN`): up to six recent non-fork public
-  repositories become personal projects; languages, tests and CI become verified evidence.
+  repositories become personal projects; languages, tests and CI become verified evidence. Each
+  project also quotes up to five plain lines from its README (badges, code, links and set-up
+  sections skipped; long paragraphs cut after the first sentence) and is dated by the user's own
+  commits (latest 100). No model call; the user reviews the lines before approving (CFS-126).
+  An import makes about four requests per repository, so without a token a second import in the
+  same hour can reach GitHub's limit of 60 requests.
 - Certificates: badge or verification links. An Open Badges assertion (most Credly badges) that
   can be fetched and has not expired is verified; others are skipped with a warning. Certificates
   join Education; named skills (AWS, Azure, Power BI, ...) get evidence at level 2, or 3 for
@@ -245,3 +249,29 @@ says there is no model cost.
   without asking.
 - Capability levels count confirmed answers as self-reported, unverified evidence: level 2 when
   tied to an experience, else 1.
+
+## Listing re-checks (CFS-122)
+
+- Saved, discovered, applied and interview roles are re-checked daily (06:30 Sydney, pg-boss) and
+  from Quest log → Re-check listings, at most every 20 hours per role and 20 roles per run.
+- Greenhouse, Lever and Ashby listings are asked again through their public APIs. Other roles are
+  checked by opening their link where robots.txt allows; a page that still loads is reported as
+  "link still opens", not as an open role. Demo roles are skipped.
+- A gone listing (board says removed, or the link returns 404 or 410) closes a role the user has
+  not applied to, with a history note. Applied and interview roles are only flagged on the card;
+  their status and history are not changed. A check that cannot reach the source is reported and
+  changes nothing.
+- The last check is kept on the role (`listingCheck`) and shown on the board and in the Scout table.
+- The Scout table offers Save only for roles whose full listing is kept (ranked by a search or seen
+  in a sweep); a role a search showed without ranking it says so (CFS-128).
+
+## Speech in interview practice (CFS-98, phase 1)
+
+- "Speak your answer" dictates into the editable answer box with the browser's speech recognition;
+  it starts only on a press and never submits. "Read aloud" speaks the question, the Evaluator's
+  verdict and the final feedback with the browser's speech synthesis.
+- No model cost and no server change: CareerFlow receives only the text the user submits and
+  stores no audio. The browser's speech service may send audio to its vendor (Chrome does); the
+  control says so. Controls are hidden where the browser lacks the APIs.
+- Phase 2 (not built): a live interviewer through a realtime voice model with a short-lived key
+  issued by the server.

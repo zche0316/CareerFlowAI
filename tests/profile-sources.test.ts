@@ -3,7 +3,9 @@ import { strToU8, zipSync } from 'fflate';
 import {
   certificateProposal,
   codeforcesProposal,
+  commitActivity,
   githubProposal,
+  readmeLines,
   leetCodeProposal,
   stackOverflowProposal,
   linkedInProposal,
@@ -26,6 +28,26 @@ export const fakeFetch =
       : new Response('{}', { status: 404 });
 
 const gh = 'https://api.github.com';
+const TRANSIT_README = `# transit-delays
+
+[![build](https://img.shields.io/badge/build-passing-green)](https://ci.example)
+
+Analyses public train arrival data to show which lines run late and when.
+
+## Features
+
+- Cleans a year of arrival records and flags missing timestamps per station.
+- Fits a regression of delay against time of day and weather.
+- See the [docs](https://example.com) for more.
+
+## Installation
+
+\`\`\`bash
+pip install -r requirements.txt
+\`\`\`
+
+- Run setup.py before anything else on a fresh machine.
+`;
 const recent = new Date(Date.now() - 20 * 86400000).toISOString();
 const githubRoutes = {
   [`${gh}/users/jordan`]: { login: 'jordan', html_url: 'https://github.com/jordan' },
@@ -68,6 +90,15 @@ const githubRoutes = {
   [`${gh}/repos/jordan/transit-delays/contents`]: [{ name: 'tests' }, { name: '.github' }],
   [`${gh}/repos/jordan/churn/languages`]: { Python: 3000 },
   [`${gh}/repos/jordan/churn/contents`]: [{ name: 'README.md' }],
+  [`${gh}/repos/jordan/transit-delays/readme`]: {
+    encoding: 'base64',
+    content: Buffer.from(TRANSIT_README).toString('base64'),
+  },
+  [`${gh}/repos/jordan/transit-delays/commits?author=jordan&per_page=100`]: [
+    { commit: { author: { date: '2024-09-10T00:00:00Z' } } },
+    { commit: { author: { date: '2024-06-03T00:00:00Z' } } },
+    { commit: { author: { date: recent } } },
+  ],
 };
 
 it('turns public GitHub repositories into projects and verified evidence', async () => {
@@ -82,6 +113,20 @@ it('turns public GitHub repositories into projects and verified evidence', async
   expect(p.verifiedEvidence.map((e) => e.skill)).toEqual(
     expect.arrayContaining(['Testing', 'CI/CD']),
   );
+  // CFS-126: README lines are quoted as written and the user's own commits date the project.
+  const transit = p.projects.find((r) => r.id === 'gh-transit-delays')!;
+  expect(transit.overview).toBe('Train delay analysis');
+  expect(transit.startMonth).toBe('2024-06');
+  expect(transit.details).toEqual([
+    'Analyses public train arrival data to show which lines run late and when.',
+    'Cleans a year of arrival records and flags missing timestamps per station.',
+    'Fits a regression of delay against time of day and weather.',
+    'Public repository with 7 stars, automated tests and CI.',
+    expect.stringMatching(/^3 commits by jordan from 2024-06 to \d{4}-\d{2}\.$/),
+  ]);
+  for (const line of transit.details.slice(0, 3)) expect(TRANSIT_README).toContain(line);
+  // A repository without a README or commits keeps the basic draft.
+  expect(p.projects.find((r) => r.id === 'gh-churn')!.details).toEqual(['Public repository.']);
   await expect(githubProposal('nobody', fakeFetch({}))).rejects.toMatchObject({
     code: 'SOURCE_NOT_FOUND',
   });
@@ -251,4 +296,30 @@ it('keeps LeetCode numbers self-reported when the profile cannot be read', async
   await expect(leetCodeProposal({ username: 'jordan' }, down)).rejects.toMatchObject({
     code: 'SOURCE_UNAVAILABLE',
   });
+});
+
+it('quotes only plain README prose and skips badges, code, links and set-up sections', () => {
+  const r = readmeLines(
+    [
+      '<!-- hidden -->',
+      '[![ci](https://x)](https://y)',
+      '# Tool',
+      'Short.',
+      '',
+      'A command-line tool that turns bank exports into monthly spending reports. It also flags duplicates and odd charges so that you can review them before filing taxes at the end of the year, which saves a lot of time.',
+      '',
+      '## Usage',
+      '- Run `tool report` in the export folder.',
+      '## Highlights',
+      '* Reads CSV exports from three Australian banks without manual mapping.',
+      '* Uses **bold** marketing words in this line.',
+      '| a | b |',
+    ].join('\n'),
+  );
+  expect(r.overview).toBe(
+    'A command-line tool that turns bank exports into monthly spending reports.',
+  );
+  expect(r.details).toEqual(['Reads CSV exports from three Australian banks without manual mapping.']);
+  expect(readmeLines('')).toEqual({ overview: '', details: [] });
+  expect(commitActivity([])).toEqual({ count: 0, first: null, last: null });
 });

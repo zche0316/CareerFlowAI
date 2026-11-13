@@ -3,11 +3,13 @@ import { createApp } from './app.js';
 import { initQueue, closeQueue } from './queue.js';
 import { db } from './db.js';
 import { initScout, closeScout } from './scout.js';
+import { initRecheck } from './role-recheck.js';
 import { migrateRoleLibrary } from './role-library.js';
 // Bring saved roles up to the current fingerprint before anything reads the board.
 await migrateRoleLibrary();
 await initQueue(process.env.EMBEDDED_WORKER !== 'false');
 await initScout(process.env.EMBEDDED_WORKER !== 'false');
+await initRecheck(process.env.EMBEDDED_WORKER !== 'false');
 
 const server = createApp().listen(
   Number(process.env.PORT || 8787),

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, Flag, Swords } from 'lucide-react';
 import { XP_RULES } from './progress.js';
+import { ReadAloud, SpeakAnswer } from './voice.js';
 
 type Mark = 'critical' | 'hit' | 'partial' | 'miss';
 type Round = {
@@ -231,6 +232,7 @@ export function QuestBossBattle({
                 {pendingFollow ? 'The panel counters' : `Question ${index + 1} · ${q.focus}`}
               </span>
               <p className="boss-bubble">“{prompt}”</p>
+              <ReadAloud text={prompt || ''} label="Read the question aloud" />
               <small className="boss-fine">
                 The Evaluator can follow up once per answer. Practice answers never become profile
                 facts.
@@ -263,6 +265,10 @@ export function QuestBossBattle({
                 placeholder="Situation, what you were asked to do, what you personally did, and what changed. Real experience only."
               />
             </label>
+            <SpeakAnswer
+              disabled={busy}
+              onText={(words) => setText((t) => (t ? `${t} ` : '') + words)}
+            />
             {showChoices && (
               <div className="boss-items">
                 <span>Use an item</span>
@@ -345,6 +351,10 @@ export function QuestBossBattle({
                 ))}
               </div>
               <p className="boss-note">{last.evaluation.note}</p>
+              <ReadAloud
+                text={[last.evaluation.note, last.evaluation.followUp].filter(Boolean).join(' ')}
+                label="Read the verdict aloud"
+              />
               {last.evaluation.followUp && (
                 <div className="boss-counter">
                   <span>THE PANEL COUNTERS</span>

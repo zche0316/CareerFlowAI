@@ -294,7 +294,8 @@ body:has(.quest) {
 .agent-app.quest .content main .primary:hover:not(:disabled),
 .agent-app.quest .content main .secondary:hover:not(:disabled),
 .quest .quest-press:hover:not(:disabled) {
-  transform: translateY(1px);
+  /* Hover changes only the shadow. Moving the box made it jitter under a pointer resting on its
+     edge: it slid out from under the pointer, lost hover and slid back every frame (CFS-128). */
   box-shadow: 0 3px 0 var(--q-ink);
 }
 .agent-app.quest .content main .primary:active:not(:disabled),
@@ -314,18 +315,6 @@ body:has(.quest) {
 .quest :focus-visible {
   outline: 3px solid var(--q-violet);
   outline-offset: 3px;
-}
-
-/* ---------- Journey ruler ---------- */
-.quest .flow-ruler-ticks span.on,
-.quest .flow-vertical .flow-ruler-ticks span.on {
-  background: var(--q-ink);
-}
-.quest .flow-ruler-ticks span.current {
-  background: var(--q-violet);
-}
-.quest .flow-ruler-labels button[aria-current='step'] span:first-child {
-  color: var(--q-violet);
 }
 
 /* ---------- Overview hero ---------- */
@@ -2659,7 +2648,8 @@ body:has(.quest) {
   transition: transform 0.12s;
 }
 .wm-isle:hover {
-  transform: translateY(-2px);
+  /* Shadow only: a moving box can jitter under a resting pointer (CFS-128). */
+  box-shadow: 0 8px 0 #0a0b10;
 }
 .wm-isle strong {
   font: 800 clamp(12px, 1.4vw, 18px) var(--q-display);
@@ -3960,4 +3950,36 @@ body:has(.quest) {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+/* Quest board toolbar and listing re-checks (CFS-122). */
+.qa-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.qa-check {
+  display: block;
+  margin: 4px 0;
+}
+
+/* Speech input and read-aloud in interview practice (CFS-98). */
+.voice-input {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  margin: 4px 0 12px;
+}
+.voice-input small {
+  flex: 1 1 220px;
+}
+.voice-error {
+  flex-basis: 100%;
+  color: #b42318;
+}
+.voice-read {
+  margin-top: 6px;
 }

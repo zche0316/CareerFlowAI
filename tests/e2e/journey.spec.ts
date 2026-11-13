@@ -251,3 +251,55 @@ test('mobile workspace stays usable without horizontal scrolling', async ({ page
   );
   await page.screenshot({ path: 'output/acceptance/mobile-workspace.png', fullPage: true });
 });
+
+test('speech input fills an editable answer and read-aloud speaks the question (CFS-98)', async ({
+  page,
+}) => {
+  // The browser's speech services are replaced with fakes: no microphone or audio in CI.
+  await page.addInitScript(() => {
+    const w = window as any;
+    w.__spoken = [];
+    const synth = {
+      speak: (u: any) => {
+        w.__spoken.push(u.text);
+        setTimeout(() => u.onend?.(), 10);
+      },
+      cancel: () => {},
+    };
+    Object.defineProperty(window, 'speechSynthesis', { value: synth, configurable: true });
+    class FakeRecognition {
+      onresult: any = null;
+      onerror: any = null;
+      onend: any = null;
+      start() {
+        setTimeout(() => {
+          const result: any = [{ transcript: 'I cleaned the delivery data with SQL' }];
+          result.isFinal = true;
+          this.onresult?.({ resultIndex: 0, results: [result] });
+        }, 50);
+      }
+      stop() {
+        this.onend?.();
+      }
+    }
+    w.SpeechRecognition = FakeRecognition;
+    w.webkitSpeechRecognition = FakeRecognition;
+  });
+  await openInterview(page);
+  const question = (await page.locator('.boss-bubble').innerText()).replace(/[“”]/g, '');
+  await page.getByRole('button', { name: 'Read the question aloud', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => (window as any).__spoken[0])).toBe(question);
+
+  // A label's accessible name includes the text inside it, so locate the box itself.
+  const box = page.locator('.boss-turn textarea');
+  await box.fill('Context first.');
+  await page.getByRole('button', { name: 'Speak your answer', exact: true }).click();
+  await expect(box).toHaveValue('Context first. I cleaned the delivery data with SQL');
+  await page.getByRole('button', { name: 'Stop speaking', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Speak your answer', exact: true })).toBeVisible();
+  // Dictation never submits: the answer stays editable and nothing was scored.
+  await box.fill('Edited after speaking.');
+  await expect(
+    page.getByText('Answer a question and the Evaluator’s STAR verdict appears here.'),
+  ).toBeVisible();
+});

@@ -4,7 +4,7 @@ import { MISSION_MODEL_CALL_LIMIT } from '../../../../packages/contracts/src/mis
 import { nextMissionStep } from '../mission-step.js';
 import { AgentAvatar, LeaderBadge, type AgentId } from './characters.js';
 import { XP_PER_LEVEL, XP_RULES, progressFrom, skillBoard } from './progress.js';
-import { prettyTerm } from './character-sheet.js';
+import { prettyTerm } from './terms.js';
 import { runRoute, stepState } from './run-route.js';
 
 // Maps the agent names written into mission events onto party members.

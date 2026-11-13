@@ -1,25 +1,13 @@
 import { MISSION_MODEL_CALL_LIMIT } from '../../../packages/contracts/src/mission-limits.js';
 import { nextMissionStep } from './mission-step.js';
-import { FlowNavigation } from './flow-navigation.js';
 import { ResumePreview } from './resume-preview.js';
 import { pendingResumeChanges } from '../../../packages/contracts/src/resume-review.js';
 import { CompanyAvatar, SourceIcon } from './company-avatar.js';
 import { JobFit } from './job-fit.js';
 import { suggestJobSearch } from '../../../packages/contracts/src/job-search.js';
-import { ProfileRecords } from './profile-records.js';
-import { ProfileImport } from './profile-import.js';
-import { ResumeManualEdit } from './resume-manual-edit.js';
-import { ResumeAgent } from './resume-agent.js';
 import { PartyDecision, PartyTrack } from './quest/party-review.js';
 import { QuestLog, QuestMissionHeader } from './quest/quest-log.js';
 import { QuestJobTable, RequirementChips } from './quest/job-board.js';
-import { QuestBattleLog } from './quest/battle-log.js';
-import { QuestSavePoints } from './quest/save-points.js';
-import { QuestBossBattle } from './quest/boss-battle.js';
-import { QuestWorld } from './quest/world.js';
-import { QuestSeason } from './quest/season.js';
-import { QuestScout } from './quest/scout.js';
-import { CharacterSheet } from './quest/character-sheet.js';
 import { progressFrom } from './quest/progress.js';
 import { QuestTopBar, type QuestNavId } from './quest/top-bar.js';
 import { QuestHome } from './quest/home.js';
@@ -27,13 +15,10 @@ import { adviceItem, CoachPage, QuestCoach } from './quest/coach.js';
 import { runPhase, runRoute } from './quest/run-route.js';
 import { reloadEstimates, RunEstimate } from './quest/run-estimate.js';
 import { EvidenceQuestion } from './quest/evidence-question.js';
+import { ReadAloud } from './quest/voice.js';
 import { SignIn } from './quest/sign-in.js';
 import { boardStage, stageCopy } from './quest/applications.js';
-import { PartyRoster } from './quest/roster.js';
 import './quest/fonts.js';
-import { ProfileConversation } from './profile-conversation.js';
-import { CareerMemoryPanel } from './career-memory.js';
-import { DocumentWorkspace } from './document-workspace.js';
 import { recordKeys } from '../../../packages/contracts/src/profile-records.js';
 import {
   JobSearchFields,
@@ -41,7 +26,7 @@ import {
   ApplicationPanel,
   JobSourceActions,
 } from './recruitment.js';
-import React, { useEffect, useState, useRef } from 'react';
+import React, { lazy, Suspense, useEffect, useState, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   ArrowRight,
@@ -62,6 +47,35 @@ import {
 import { blankProfile, type CareerProfile } from '../../../packages/contracts/src/index.js';
 import './style.css';
 import './quest/quest.css';
+
+// Pages that only open on demand load in their own chunk (CFS-129), so the first page needs less
+// code. Each keeps its props type and shows a short loading line while its chunk arrives.
+function lazyPage<M extends Record<string, any>, K extends keyof M & string>(
+  load: () => Promise<M>,
+  name: K,
+) {
+  const Page = lazy(() => load().then((m) => ({ default: m[name] })));
+  return (props: React.ComponentProps<M[K]>) => (
+    <Suspense fallback={<p className="quest-fine dark">Loading…</p>}>
+      <Page {...props} />
+    </Suspense>
+  );
+}
+const ProfileImport = lazyPage(() => import('./profile-import.js'), 'ProfileImport');
+const QuestBattleLog = lazyPage(() => import('./quest/battle-log.js'), 'QuestBattleLog');
+const QuestSavePoints = lazyPage(() => import('./quest/save-points.js'), 'QuestSavePoints');
+const QuestBossBattle = lazyPage(() => import('./quest/boss-battle.js'), 'QuestBossBattle');
+const QuestWorld = lazyPage(() => import('./quest/world.js'), 'QuestWorld');
+const QuestSeason = lazyPage(() => import('./quest/season.js'), 'QuestSeason');
+const QuestScout = lazyPage(() => import('./quest/scout.js'), 'QuestScout');
+const PartyRoster = lazyPage(() => import('./quest/roster.js'), 'PartyRoster');
+const ProfileConversation = lazyPage(() => import('./profile-conversation.js'), 'ProfileConversation');
+const CareerMemoryPanel = lazyPage(() => import('./career-memory.js'), 'CareerMemoryPanel');
+const DocumentWorkspace = lazyPage(() => import('./document-workspace.js'), 'DocumentWorkspace');
+const CharacterSheet = lazyPage(() => import('./quest/character-sheet.js'), 'CharacterSheet');
+const ProfileRecords = lazyPage(() => import('./profile-records.js'), 'ProfileRecords');
+const ResumeManualEdit = lazyPage(() => import('./resume-manual-edit.js'), 'ResumeManualEdit');
+const ResumeAgent = lazyPage(() => import('./resume-agent.js'), 'ResumeAgent');
 
 // The session endpoint supplies this token; all JSON mutations share the same request wrapper.
 let csrf = '';
@@ -279,24 +293,6 @@ function App() {
       setPhase(null);
     }
   }, [tab, workspace?.profile?.id]);
-  const selectJourneyStep = (i: number) => {
-    const active = mission || workspace?.missions[0];
-    if (i > 0 && active && i > nextMissionStep(active)) {
-      setNotice(
-        'Complete the current step before continuing. Earlier steps remain available to review.',
-      );
-      return;
-    }
-    setPhase(i);
-    setError('');
-    if (i === 0 && !mission) setTab('profile');
-    else {
-      setTab('missions');
-      const latest = mission || workspace?.missions[0];
-      setSelected(latest?.id || null);
-    }
-    window.scrollTo({ top: 0, behavior: 'auto' });
-  };
   useEffect(() => {
     if (interviewHandoff.current !== mission?.id || mission?.status !== 'AWAITING_INTERVIEW')
       return;
@@ -526,18 +522,6 @@ function App() {
                 <X size={14} />
               </button>
             </div>
-          )}
-          {tab === 'profile' && (
-            <FlowNavigation
-              current={
-                tab === 'profile'
-                  ? 0
-                  : phase === null && mission?.status === 'COMPLETE'
-                    ? -1
-                    : (phase ?? 0)
-              }
-              onSelect={selectJourneyStep}
-            />
           )}
           {tab === 'approved-profile' ? (
             <div className="approved-profile-page" aria-label="Approved profile">
@@ -804,6 +788,16 @@ function App() {
                     void act(async () => {
                       await api(`/applications/${applicationId}`, 'DELETE');
                       setNotice('Role removed from your quests.');
+                    })
+                  }
+                  onRecheck={() =>
+                    void act(async () => {
+                      const r = await api('/applications/recheck', 'POST');
+                      setNotice(
+                        r.checked
+                          ? `Checked ${r.checked} listing${r.checked === 1 ? '' : 's'}: ${r.closed} closed, ${r.flagged} applied role${r.flagged === 1 ? '' : 's'} flagged.`
+                          : 'Every listing was checked in the last day.',
+                      );
                     })
                   }
                   onAdd={async (body) => {
@@ -2691,6 +2685,7 @@ function MissionDetail({
                 </button>
               )}
               {d.feedback && (
+                <>
                 <div className="feedback-grid">
                   {[
                     ['Strengths', d.feedback.strengths],
@@ -2707,6 +2702,18 @@ function MissionDetail({
                     </div>
                   ))}
                 </div>
+                  <ReadAloud
+                    label="Read the feedback aloud"
+                    text={[
+                      'Strengths.',
+                      ...(d.feedback.strengths || []),
+                      'Areas to improve.',
+                      ...(d.feedback.improvements || []),
+                      'Next practice.',
+                      ...(d.feedback.nextSteps || []),
+                    ].join(' ')}
+                  />
+                </>
               )}
             </section>
             <aside className="panel interview-guidance">

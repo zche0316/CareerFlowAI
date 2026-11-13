@@ -79,7 +79,9 @@ type Overview = {
     fingerprint: string;
     firstSeenAt: string;
     record: JobRecord;
-    board: { id: string; stage: string } | null;
+    board: { id: string; stage: string; checkedAt?: string | null } | null;
+    /** False when a search showed the role without ranking it, so no full listing is kept. */
+    saveable?: boolean;
   }[];
   sweeps: Sweep[];
 };
@@ -726,7 +728,15 @@ export function QuestScout({
                           {t.board ? (
                             <span className="quest-chip lime sc-board">
                               In your quests · {stageCopy[t.board.stage]?.label || t.board.stage}
+                              {t.board.checkedAt
+                                ? ` · listing checked ${new Date(t.board.checkedAt).toLocaleDateString()}`
+                                : ''}
                             </span>
+                          ) : !r.lead && t.saveable === false ? (
+                            <small className="muted sc-unsaveable">
+                              Seen in a search but not shortlisted, so its full listing is not
+                              kept. Find it again or paste its link to save it.
+                            </small>
                           ) : (
                             !r.lead && (
                               <button

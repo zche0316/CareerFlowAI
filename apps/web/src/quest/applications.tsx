@@ -112,10 +112,14 @@ function ApplicationCard({
       {a.history?.some((h: any) => h.note === 'Re-advertised') && (
         <span className="quest-chip coral">Re-advertised · seen again after a while</span>
       )}
+      <ListingStatus check={a.listingCheck} applied={['applied', 'interview'].includes(a.status)} />
       {a.levelGaps?.length > 0 && (
         <div className="qa-gaps" aria-label="Level gaps">
           {a.levelGaps.slice(0, 3).map((g: any) => (
-            <span key={g.term} className={`quest-chip ${g.level === 'required' ? 'coral' : 'outline'}`}>
+            <span
+              key={g.term}
+              className={`quest-chip ${g.level === 'required' ? 'coral' : 'outline'}`}
+            >
               {g.skill} {g.have}→{g.need}
             </span>
           ))}
@@ -219,6 +223,7 @@ function ApplicationCard({
 export function QuestApplications({
   applications,
   busy,
+  onRecheck,
   onOpenRun,
   onTailor,
   onStatus,
@@ -227,6 +232,7 @@ export function QuestApplications({
 }: {
   applications: any[];
   busy: boolean;
+  onRecheck?: () => void;
   onOpenRun: (missionId: string) => void;
   onTailor: (applicationId: string) => void;
   onStatus: (applicationId: string, status: string) => void;
@@ -245,7 +251,14 @@ export function QuestApplications({
     );
   return (
     <>
-      <TailorEstimate />
+      <div className="qa-toolbar">
+        <TailorEstimate />
+        {onRecheck && (
+          <button type="button" className="text-button" disabled={busy} onClick={onRecheck}>
+            Re-check listings
+          </button>
+        )}
+      </div>
       {groups.map((g) => {
         const items = applications.filter((a) => g.stages.includes(a.stage));
         if (!items.length) return null;
@@ -385,5 +398,33 @@ function TailorEstimate() {
         ? `Tailor resume: ${estimateText(data, 'tailor', '')} Practise interview: ${estimateText(data, 'practice', '')}`
         : estimateText(data, 'tailor')}
     </p>
+  );
+}
+
+const ago = (iso: string) => {
+  const h = Math.round((Date.now() - new Date(iso).getTime()) / 3600000);
+  return h < 1 ? 'just now' : h < 48 ? `${h} h ago` : `${Math.round(h / 24)} days ago`;
+};
+
+// The last listing re-check for a role (CFS-122). A closed listing never changes an applied role.
+function ListingStatus({ check, applied }: { check: any; applied: boolean }) {
+  // Demo roles have no real listing, so there is nothing to report.
+  if (!check?.checkedAt || check.method === 'none') return null;
+  const when = `checked ${ago(check.checkedAt)}`;
+  if (check.status === 'closed')
+    return (
+      <span className="quest-chip coral" title={check.reason}>
+        Listing closed{applied ? ' · your application record is unchanged' : ''} · {when}
+      </span>
+    );
+  return (
+    <small className="muted qa-check" title={check.reason}>
+      {check.status === 'published'
+        ? 'Still listed on the employer’s job board'
+        : check.status === 'reachable'
+          ? 'Link still opens'
+          : 'Listing not checked'}{' '}
+      · {when}
+    </small>
   );
 }

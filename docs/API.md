@@ -79,6 +79,7 @@ off it.
 | ------ | -------------------------------- | --------------------------------------------------------------- |
 | GET    | `/api/applications`              | The role board: stage, runs, resumes, level gaps                |
 | POST   | `/api/applications`              | Add a role from a public link or a pasted advertisement         |
+| POST   | `/api/applications/recheck`      | Re-check tracked listings not checked in the last 20 hours      |
 | PATCH  | `/api/applications/:id`          | Record a status (saved to closed) or notes, with history        |
 | DELETE | `/api/applications/:id`          | Remove a role that has no runs                                  |
 | POST   | `/api/applications/:id/runs`     | Tailor a resume for the role with the current profile           |
