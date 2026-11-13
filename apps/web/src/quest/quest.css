@@ -4288,3 +4288,94 @@ body:has(.quest) {
   border: 2px solid var(--q-ink);
   border-radius: 16px;
 }
+
+/* ---------- Character page (CFS-133) ---------- */
+.cs-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+.cs-col {
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: #fff;
+  border: 2px solid var(--q-ink);
+}
+.cs-col.unlocked {
+  background: #f1fbd2;
+}
+.cs-col.locked {
+  background: #f4f1ff;
+}
+.cs-col h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  display: flex;
+  justify-content: space-between;
+}
+.cs-col ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.cs-col li {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  font-size: 14px;
+  line-height: 1.35;
+}
+.cs-col li b {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--q-muted);
+}
+.ps-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 10px;
+}
+.ps-tile {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  padding: 12px;
+  border: 2px solid var(--q-ink);
+  border-radius: 16px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+.ps-tile[aria-pressed='true'] {
+  background: var(--q-lime);
+  box-shadow: 0 3px 0 var(--q-ink);
+}
+.ps-tile small {
+  color: var(--q-muted);
+  font-size: 12px;
+}
+.ps-mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  color: #fff;
+}
+.ps-in {
+  font: 800 16px/1 var(--q-body);
+}
+.profile-sources .ps-card {
+  margin-top: 14px;
+  max-width: 640px;
+}
+.cs-fact {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.45;
+}

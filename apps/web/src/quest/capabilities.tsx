@@ -20,12 +20,16 @@ const dimensionLabel: Record<string, string> = {
 export function CapabilityLevels({
   request,
   profileVersion,
+  compact = false,
 }: {
   request: (path: string) => Promise<any>;
   profileVersion: number;
+  /** On the Character page: the strongest skills first, the rest behind "Show all". */
+  compact?: boolean;
 }) {
   const [skills, setSkills] = useState<any[] | null>(null);
   const [open, setOpen] = useState<string | null>(null);
+  const [all, setAll] = useState(!compact);
   useEffect(() => {
     request('/capabilities')
       .then((r) => setSkills(Array.isArray(r?.skills) ? r.skills : []))
@@ -36,16 +40,15 @@ export function CapabilityLevels({
     <section className="quest-tile cap-levels" aria-labelledby="cap-title">
       <div className="quest-tile-head">
         <h2 id="cap-title">Capability levels</h2>
-        <span>
-          0 none · 1 aware · 2 used · 3 proficient · 4 advanced. Skills unused for three years show
-          one level lower.
+        <span title="Skills unused for three years show one level lower.">
+          From the evidence you approved · 1 aware · 2 used · 3 proficient · 4 advanced
         </span>
       </div>
       {skills.length === 0 ? (
         <p className="qh-empty">No skills with evidence yet.</p>
       ) : (
         <ul className="cap-list">
-          {skills.map((s) => (
+          {(all ? skills : skills.slice(0, 8)).map((s) => (
             <li key={s.skill}>
               <button
                 type="button"
@@ -86,6 +89,11 @@ export function CapabilityLevels({
             </li>
           ))}
         </ul>
+      )}
+      {skills.length > 8 && (
+        <button type="button" className="text-button" onClick={() => setAll(!all)}>
+          {all ? 'Show the strongest 8' : `Show all ${skills.length} skills`}
+        </button>
       )}
     </section>
   );

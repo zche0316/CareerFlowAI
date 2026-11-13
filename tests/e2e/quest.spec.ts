@@ -160,6 +160,16 @@ test('quest pages render from real records at desktop and phone width', async ({
       expect(await noSidewaysScroll(page), `${view} at ${size.width}px`).toBe(true);
     }
   }
+  // The Character page shows one level model and opens one public source at a time (CFS-133).
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/?view=character');
+  await expect(page.getByRole('heading', { name: 'Capability levels' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Attributes' })).toHaveCount(0);
+  const sources = page.getByRole('group', { name: 'Evidence sources' }).getByRole('button');
+  await expect(sources).toHaveCount(7);
+  await expect(page.getByLabel('GitHub username')).toHaveCount(0);
+  await sources.first().click();
+  await expect(page.getByLabel('GitHub username')).toBeVisible();
   expect(errors).toEqual([]);
 });
 
