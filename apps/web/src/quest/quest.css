@@ -3983,3 +3983,250 @@ body:has(.quest) {
 .voice-read {
   margin-top: 6px;
 }
+
+/* ---------- Role card (CFS-131) ---------- */
+.quest .prototype-job-layout {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 18px;
+}
+.quest .prototype-job-layout > .job-coverage {
+  order: 2;
+  border-radius: 18px;
+}
+.quest .prototype-job-layout #job-matching.qj-section:has(.rc) {
+  max-width: none;
+}
+.rc {
+  display: grid;
+  gap: 16px;
+  padding: 22px 24px;
+  border: 2px solid var(--q-ink);
+  border-radius: 28px;
+  box-shadow: 0 4px 0 var(--q-ink);
+  background: var(--q-surface);
+  max-width: 980px;
+}
+.rc-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+}
+.rc-title {
+  min-width: 0;
+}
+.rc-title h3 {
+  margin: 2px 0 6px;
+  font: 800 clamp(20px, 2.2vw, 26px) / 1.1 var(--q-display);
+}
+.rc-company {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--q-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+.rc-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 14px;
+}
+.rc-facts span + span::before {
+  content: '·';
+  margin-right: 14px;
+  color: var(--q-muted);
+}
+.rc-facts .quest-chip::before {
+  display: none;
+}
+.rc-fit {
+  --ring: var(--q-violet);
+  display: grid;
+  place-items: center;
+  align-content: center;
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  background:
+    radial-gradient(closest-side, #fff 76%, transparent 77%),
+    conic-gradient(var(--ring) var(--fit), var(--q-rail) 0);
+}
+.rc-fit.high {
+  --ring: #3a9b2e;
+}
+.rc-fit.low {
+  --ring: var(--q-coral);
+}
+.rc-fit b {
+  font: 800 26px/1 var(--q-display);
+}
+.rc-fit small {
+  font-size: 11px;
+  color: var(--q-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.rc-summary {
+  margin: 0;
+  font-size: 14px;
+  color: var(--q-muted);
+}
+.rc-summary b {
+  color: var(--q-ink);
+}
+.rc-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+.rc-group {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: var(--q-soft);
+}
+.rc-group.evidenced {
+  background: #f1fbd2;
+}
+.rc-group h4 {
+  margin: 0;
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+}
+.rc-group ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.rc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: center;
+}
+.rc-actions .secondary.full {
+  width: auto;
+}
+.rc-more {
+  display: grid;
+  gap: 4px;
+  border-top: 1.5px solid var(--q-rail);
+  padding-top: 10px;
+}
+.rc-more details {
+  padding: 4px 0;
+}
+.rc-more summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+}
+.rc-more details > *:not(summary) {
+  margin-top: 10px;
+}
+.rc-description {
+  max-height: 260px;
+  overflow: auto;
+  white-space: pre-line;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.rc-score ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 4px;
+}
+.rc-score li {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) auto auto;
+  gap: 12px;
+  font-size: 14px;
+}
+.rc-mapping {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.rc-mapping blockquote {
+  margin: 4px 0;
+  padding-left: 10px;
+  border-left: 3px solid var(--q-lilac);
+  color: var(--q-muted);
+}
+.quest .content main .rc-next,
+.rc-next {
+  display: flex;
+  flex-direction: row;
+  text-align: left;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 22px;
+  max-width: 980px;
+}
+.rc-next > div {
+  flex: 1 1 280px;
+  text-align: left;
+}
+.rc-next p {
+  margin: 4px 0 0;
+  font-weight: 600;
+}
+@media (max-width: 640px) {
+  .rc-head {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .rc-fit {
+    grid-column: 1 / -1;
+    justify-self: start;
+    width: 68px;
+    height: 68px;
+  }
+}
+/* A role card in the narrow shortlist side panel stacks its header (CFS-131). */
+.rc {
+  container-type: inline-size;
+}
+@container (max-width: 520px) {
+  .rc-head {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+  .rc-head > :first-child {
+    display: none;
+  }
+  .rc-title h3 {
+    font-size: 21px;
+  }
+  .rc-facts span + span::before {
+    margin-right: 8px;
+  }
+  .rc-facts {
+    gap: 4px 8px;
+  }
+  .rc-fit {
+    width: 64px;
+    height: 64px;
+  }
+  .rc-fit b {
+    font-size: 21px;
+  }
+  .rc-groups {
+    grid-template-columns: 1fr;
+  }
+}

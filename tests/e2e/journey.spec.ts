@@ -93,16 +93,15 @@ test('a user compares ranked jobs and selects one for downstream context', async
   expect(scores).toEqual([...scores].sort((left, right) => right - left));
   await roles.nth(1).click();
   await expect(roles.nth(1)).toHaveAttribute('aria-pressed', 'true');
-  const detail = page.locator('article.job-card').first();
+  const detail = page.locator('article.rc').first();
   await expect(detail.locator('h3')).toHaveText(await roles.nth(1).locator('strong').innerText());
   await roles.first().click();
-  await detail.getByText('Evidence, gaps & source', { exact: true }).click();
+  await detail.getByText('How the fit score works', { exact: true }).click();
   await expect(detail).toContainText('Preferred skills (optional)');
   await expect(detail).toContainText('40% required skills');
   await expect(detail.getByRole('list', { name: 'Suitability score components' })).toContainText(
     'preferred: 5% weight',
   );
-  await detail.getByText('Skill extraction evidence', { exact: true }).click();
   await expect(detail).toContainText('Required skills:');
   await page.screenshot({ path: 'output/acceptance/cfs-21-ranked-jobs.png', fullPage: true });
 
@@ -115,9 +114,9 @@ test('a user compares ranked jobs and selects one for downstream context', async
   // The chosen role stays on the Shortlist step.
   await step(page, 'Shortlist');
   await expect(page.getByRole('heading', { name: 'Target locked in.' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Your selected opportunity' })).toBeVisible();
-  await expect(page.locator('article.job-card')).toHaveCount(1);
-  await expect(page.locator('article.job-card h3')).toHaveText(selectedTitle);
+  await expect(page.getByRole('heading', { name: 'Your chosen role' })).toBeVisible();
+  await expect(page.locator('article.rc')).toHaveCount(1);
+  await expect(page.locator('article.rc h3')).toHaveText(selectedTitle);
   // Verify persisted context rather than a transient selection notice.
   await page.reload();
   await step(page, 'Review');

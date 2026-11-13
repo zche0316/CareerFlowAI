@@ -2,12 +2,12 @@ import { MISSION_MODEL_CALL_LIMIT } from '../../../packages/contracts/src/missio
 import { nextMissionStep } from './mission-step.js';
 import { ResumePreview } from './resume-preview.js';
 import { pendingResumeChanges } from '../../../packages/contracts/src/resume-review.js';
-import { CompanyAvatar, SourceIcon } from './company-avatar.js';
 import { JobFit } from './job-fit.js';
 import { suggestJobSearch } from '../../../packages/contracts/src/job-search.js';
 import { PartyDecision, PartyTrack } from './quest/party-review.js';
 import { QuestLog, QuestMissionHeader } from './quest/quest-log.js';
-import { QuestJobTable, RequirementChips } from './quest/job-board.js';
+import { QuestJobTable } from './quest/job-board.js';
+import { RoleCard } from './quest/role-card.js';
 import { progressFrom } from './quest/progress.js';
 import { QuestTopBar, type QuestNavId } from './quest/top-bar.js';
 import { QuestHome } from './quest/home.js';
@@ -1783,16 +1783,24 @@ function MissionDetail({
         </button>
       )}
       {phase === 2 && d.selectedJob && !completed && (
-        <div className="info">
-          <span>
-            {d.resumeDraft
-              ? 'Your resume is ready for review.'
-              : 'Your selected job is saved. Preparing your resume…'}
-          </span>
-          <button className="primary" onClick={() => onNavigate(3)}>
-            Review your resume <ArrowRight size={15} />
+        <section className="quest-tile rc-next" aria-label="Next for this role">
+          <div>
+            <span className="quest-sub dark">NEXT FOR THIS ROLE</span>
+            <p>
+              {d.approvedResumeId
+                ? 'Your resume for this role is approved.'
+                : d.resumeDraft
+                  ? 'Your tailored resume is ready to review.'
+                  : m.status === 'AWAITING_EVIDENCE'
+                    ? 'The resume team has one question for you first.'
+                    : 'The resume team is tailoring your resume.'}
+            </p>
+          </div>
+          <button className="quest-press lime" onClick={() => onNavigate(3)}>
+            {d.resumeDraft && !d.approvedResumeId ? 'Review the resume' : 'Open the resume'}{' '}
+            <ArrowRight size={15} />
           </button>
-        </div>
+        </section>
       )}
       {m.error && (
         <div className="error-banner" role="alert">
@@ -2097,9 +2105,7 @@ function MissionDetail({
             {d.selectedJob && (
               <div className="section-heading">
                 <h2>
-                  {d.selectedJob
-                    ? 'Your selected opportunity'
-                    : 'Opportunities that fit your direction'}
+                  {d.selectedJob ? 'Your chosen role' : 'Opportunities that fit your direction'}
                 </h2>
                 <span className="muted">
                   {d.jobRetrieval?.source === 'fixtures'
@@ -2133,170 +2139,19 @@ function MissionDetail({
                   ? [d.selectedJob]
                   : [d.matches.find((r: any) => r.job.id === viewJobId) || d.matches[0]]
                 ).map((r: any) => (
-                  <article className="job-card" key={r.job.id}>
-                    <div className="job-card-top">
-                      <CompanyAvatar job={r.job} />
-                      <div
-                        className="score"
-                        role="img"
-                        aria-label={`Estimated match score ${r.score} out of 100`}
-                        style={
-                          {
-                            '--score': `${Math.max(0, Math.min(100, Number(r.score) || 0))}%`,
-                          } as React.CSSProperties
-                        }
-                      >
-                        <span>{r.score}</span>
-                        <small>/ 100</small>
-                      </div>
-                    </div>
-                    <span className="small muted job-choice-identity">
-                      <SourceIcon job={r.job} />
-                      {r.job.company}
-                    </span>
-                    <h3>{r.job.title}</h3>
-                    <p className="small muted">
-                      {r.job.location} · {r.job.employmentType}
-                    </p>
-                    <p className="small muted">
-                      Salary:{' '}
-                      {r.job.salary
-                        ? `${r.job.salary.currency} ${r.job.salary.min?.toLocaleString() ?? '?'}–${r.job.salary.max?.toLocaleString() ?? '?'} / year · ${r.job.salary.basis || 'source supplied'}`
-                        : 'Unknown — not supplied by source'}
-                    </p>
-                    {<RequirementChips r={r} />}
-                    <p>{r.explanation}</p>
-                    {r.scoringVersion === 'matching-v2' && (
-                      <p className="small muted">
-                        Saved rule-based score. A new live mission uses source-quoted LLM
-                        requirement mapping.
-                      </p>
-                    )}
-                    {!completed && <JobSourceActions job={r.job} missionId={m.id} request={api} />}
-                    <details>
-                      <summary>Evidence, gaps & source</summary>
-                      <p>
-                        <strong>Gaps:</strong> {r.gaps.join('; ') || 'No explicit gaps identified.'}
-                      </p>
-                      {r.scoringVersion === 'llm-evidence-v1' && (
-                        <>
-                          <p>
-                            LLM evidence mapping · Coverage: {r.coverage}% · Confidence:{' '}
-                            {r.confidence}
-                          </p>
-                          <ul aria-label="Suitability score components">
-                            {Object.entries(r.scoringWeights as Record<string, number>).map(
-                              ([key, weight]) => (
-                                <li key={key}>
-                                  {key}: {Math.round(weight * 100)}% policy weight ·{' '}
-                                  {r.components[key] === null
-                                    ? 'Unknown — unscored'
-                                    : `${Math.round(r.components[key] * 100)}% evidenced`}
-                                </li>
-                              ),
-                            )}
-                          </ul>
-                          {r.mapping.items.map((item: any, index: number) => (
-                            <article key={index}>
-                              <strong>
-                                {item.term} · {item.level} · {item.status.replaceAll('_', ' ')}
-                              </strong>
-                              <blockquote>{item.excerpt}</blockquote>
-                              <p>{item.reason}</p>
-                              <ul>
-                                {item.evidence.map((e: any) => (
-                                  <li key={e.factId}>
-                                    {e.factId}: {e.quote}
-                                  </li>
-                                ))}
-                              </ul>
-                            </article>
-                          ))}
-                        </>
-                      )}
-                      {r.scoringVersion === 'matching-v2' && (
-                        <>
-                          <p>
-                            <strong>Required skills:</strong>{' '}
-                            {r.requirements.required.join(', ') ||
-                              'Unknown — not explicitly stated'}
-                          </p>
-                          <p>
-                            <strong>Preferred skills (optional):</strong>{' '}
-                            {r.requirements.preferred.join(', ') || 'Not stated'}. Evidenced:{' '}
-                            {r.preferredMatches?.join(', ') || 'None identified'}.
-                          </p>
-                          <p>
-                            <strong>Other skill mentions:</strong>{' '}
-                            {r.requirements.mentioned?.join(', ') || 'None'}. These are excluded
-                            from skill requirement scoring.
-                          </p>
-                          <p>
-                            <strong>Education:</strong>{' '}
-                            {r.assessment.education.status.replace('_', ' ')} —{' '}
-                            {r.assessment.education.reason}
-                          </p>
-                          <p>
-                            <strong>Location:</strong>{' '}
-                            {r.assessment.location.status.replace('_', ' ')} —{' '}
-                            {r.assessment.location.reason}
-                          </p>
-                          <p>
-                            <strong>Experience:</strong> {r.assessment.experience.replace('_', ' ')}
-                            . Unknown requirements receive neutral half-credit.
-                          </p>
-                          <ul aria-label="Suitability score components">
-                            {Object.entries(r.scoringWeights as Record<string, number>).map(
-                              ([key, weight]) => (
-                                <li key={key}>
-                                  {key === 'semantic' ? 'TF-IDF overlap' : key}:{' '}
-                                  {Math.round(weight * 100)}% weight ·{' '}
-                                  {Math.round(r.components[key] * 100)}% component
-                                </li>
-                              ),
-                            )}
-                          </ul>
-                          <details>
-                            <summary>Skill extraction evidence</summary>
-                            <ul>
-                              {r.requirements.skillEvidence?.map((item: any, index: number) => (
-                                <li key={index}>
-                                  {item.kind}: {item.skills.join(', ')} — {item.text}
-                                </li>
-                              ))}
-                            </ul>
-                          </details>
-                        </>
-                      )}
-                      <p>{r.job.description}</p>
-                      <ul>
-                        {r.limitations?.map((limit: string) => (
-                          <li key={limit}>{limit}</li>
-                        ))}
-                      </ul>
-                      {r.job.applicationUrl && (
-                        <a href={r.job.applicationUrl} target="_blank" rel="noopener noreferrer">
-                          View source listing ↗
-                        </a>
-                      )}
-                      <p>
-                        Source: {r.job.source.name} · {r.job.source.version}.{' '}
-                        {r.job.source.liveVacancy
-                          ? 'Retrieved vacancy; availability may change.'
-                          : r.job.source.externalListing
-                            ? 'User-pasted listing; availability unverified.'
-                            : 'Fictional sample vacancy.'}
-                      </p>
-                      <p>
-                        {r.scoringVersion === 'llm-evidence-v1'
-                          ? 'LLM extracts requirements and maps approved facts; code scores evidenced/partial/missing items. Unknown categories are excluded, not awarded half-credit. Coverage reports the weighted categories actually assessed.'
-                          : r.scoringVersion === 'matching-v2'
-                            ? '40% required skills · 5% preferred skills · 15% experience · 10% education · 15% preferences · 15% TF-IDF overlap. Unknown components receive neutral half-credit.'
-                            : '45% skills · 15% experience · 10% education · 15% preferences · 15% TF-IDF overlap (saved legacy result).'}
-                      </p>
-                      <p>Scores indicate heuristic suitability, not hiring probabilities.</p>
-                    </details>
-                    {m.status === 'AWAITING_JOB' && (
+                  <RoleCard
+                    key={r.job.id}
+                    r={r}
+                    evidence={
+                      d.selectedJob ? <JobFit key={m.id} missionId={m.id} api={api} /> : undefined
+                    }
+                    source={
+                      !completed ? (
+                        <JobSourceActions job={r.job} missionId={m.id} request={api} />
+                      ) : undefined
+                    }
+                    actions={
+                      m.status === 'AWAITING_JOB' ? (
                       <>
                         <button
                           className="secondary full"
@@ -2337,8 +2192,9 @@ function MissionDetail({
                           Compare this job
                         </label>
                       </>
-                    )}
-                  </article>
+                                          ) : undefined
+                    }
+                  />
                 ))}
               </div>
             </div>
@@ -2388,9 +2244,6 @@ function MissionDetail({
               </div>
             )}
           </section>
-        )}
-        {d.selectedJob && (phase === null || phase === 2) && (
-          <JobFit key={m.id} missionId={m.id} api={api} />
         )}
       </div>
       <div id="real-applications" />
