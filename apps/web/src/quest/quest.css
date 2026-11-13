@@ -4384,3 +4384,46 @@ body:has(.quest) {
   flex-wrap: wrap;
   gap: 10px;
 }
+
+/* ---------- Live voice interview (CFS-136) ---------- */
+.voice-live {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 14px;
+  background: var(--q-soft);
+}
+.voice-live-head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.voice-live-head h3 {
+  margin: 0 0 2px;
+}
+.voice-live-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: center;
+  font-weight: 700;
+}
+.voice-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e5484d;
+  box-shadow: 0 0 0 4px #e5484d33;
+}
+.voice-transcript {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  max-height: 240px;
+  overflow: auto;
+  font-size: 14px;
+}
+.voice-transcript li.you {
+  padding-left: 18px;
+}

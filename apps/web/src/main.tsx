@@ -2458,6 +2458,9 @@ function MissionDetail({
           busy={busy}
           onRound={(body) => onAction('interview/rounds', body)}
           onFinish={(endedEarly) => onAction('decisions', { kind: 'interview', endedEarly })}
+          startVoice={
+            m.mode === 'fixture' ? undefined : () => api(`/missions/${m.id}/voice-session`, 'POST')
+          }
         />
       )}
       {(phase === null || phase === 4) &&

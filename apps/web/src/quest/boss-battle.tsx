@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ArrowRight, Flag, Swords } from 'lucide-react';
 import { XP_RULES } from './progress.js';
 import { ReadAloud, SpeakAnswer } from './voice.js';
+import { VoiceInterviewer } from './voice-interviewer.js';
 
 type Mark = 'critical' | 'hit' | 'partial' | 'miss';
 type Round = {
@@ -107,7 +108,10 @@ export function QuestBossBattle({
   busy,
   onRound,
   onFinish,
+  startVoice,
 }: {
+  /** Live mode only: a key for the realtime voice interviewer (CFS-136). */
+  startVoice?: () => Promise<any>;
   mission: any;
   busy: boolean;
   onRound: (body: { questionId: string; answer: string; followUp: boolean }) => Promise<void>;
@@ -254,6 +258,13 @@ export function QuestBossBattle({
                 You answered this one. Answer again to replace it, or pick another question.
               </p>
             ) : null}
+            {startVoice && !pendingFollow && (
+              <VoiceInterviewer
+                start={startVoice}
+                disabled={busy}
+                onAnswer={(questionId, answer) => onRound({ questionId, answer, followUp: false })}
+              />
+            )}
             <label className="quest-field">
               {pendingFollow ? 'Your follow-up answer' : 'Your answer'}
               <textarea

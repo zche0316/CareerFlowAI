@@ -97,6 +97,7 @@ off it.
 | POST   | `/api/missions`                              | Find roles: start a search run                                                                              |
 | GET    | `/api/missions/:id`                          | Run state, results and events                                                                               |
 | POST   | `/api/missions/:id/decisions`                | Human decision: choose a role, answer the evidence question, approve or return a draft, finish an interview |
+| POST   | `/api/missions/:id/voice-session`            | Short-lived key for a live voice interview (live mode only)                                                 |
 | POST   | `/api/missions/:id/cancel`                   | Cancel a run                                                                                                |
 | POST   | `/api/missions/:id/retry`                    | Retry a failed step                                                                                         |
 | GET    | `/api/missions/:id/save-points`              | Checkpoints of the run                                                                                      |

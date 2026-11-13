@@ -276,8 +276,16 @@ says there is no model cost.
 - No model cost and no server change: CareerFlow receives only the text the user submits and
   stores no audio. The browser's speech service may send audio to its vendor (Chrome does); the
   control says so. Controls are hidden where the browser lacks the APIs.
-- Phase 2 (not built): a live interviewer through a realtime voice model with a short-lived key
-  issued by the server.
+- Phase 2 (CFS-136): in live mode the interview offers "Start the voice interview".
+  `POST /api/missions/:id/voice-session` asks OpenAI for a one-minute client secret
+  (`/v1/realtime/client_secrets`, model `OPENAI_REALTIME_MODEL`, default `gpt-realtime-2.1`,
+  input transcription and the `marin` voice) for a session that already carries the Panel's
+  instructions and this run's questions; the server key never reaches the browser. The browser
+  connects over WebRTC (`/v1/realtime/calls`; the page's CSP allows only that origin), the panel
+  says "Question N" before each question so answers are filed under the right one, and on "End
+  and score my answers" (or after 10 minutes, enforced in the browser) each answer's transcript is
+  submitted as an interview round and scored by the Evaluator. At most three sessions per practice
+  run; no audio is stored.
 
 ## Party personas (CFS-132)
 
