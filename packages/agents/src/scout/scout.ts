@@ -92,20 +92,3 @@ export function jobFingerprint(job: Pick<ScoutJob, 'title' | 'company' | 'locati
     .digest('hex')
     .slice(0, 32);
 }
-
-/** Split fetched jobs into ones never seen before (deduplicated across boards) and repeats. */
-export function freshJobs<T extends Pick<ScoutJob, 'title' | 'company' | 'location'>>(
-  jobs: T[],
-  seen: Set<string>,
-) {
-  const fresh = new Map<string, T>();
-  const seenAgain = new Set<string>();
-  let duplicates = 0;
-  for (const job of jobs) {
-    const fp = jobFingerprint(job);
-    if (seen.has(fp)) seenAgain.add(fp);
-    else if (fresh.has(fp)) duplicates++;
-    else fresh.set(fp, job);
-  }
-  return { fresh: [...fresh.values()], seenAgain: [...seenAgain], duplicates };
-}

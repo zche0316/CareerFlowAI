@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   rankEvidence,
   checkWording,
-  nextProfileQuestions,
   matchingProfileView,
 } from '../packages/contracts/src/career-evidence.js';
 import {
@@ -20,18 +19,6 @@ describe('Scoped lexical retrieval baseline', () => {
     expect(rankEvidence(rows, 'SQL', { missionId: 'application-1' })).toHaveLength(2);
     expect(rankEvidence(rows, 'SQL', { recordId: 'other' })).toEqual([]);
     expect(rankEvidence(rows, 'Kubernetes')).toEqual([]);
-  });
-  it('asks for actual dates and contributions without inferring experience', () => {
-    const qs = nextProfileQuestions({
-      name: 'Alex',
-      goals: 'Analyst',
-      skills: ['SQL'],
-      education: 'BSc',
-      projects: [{ title: 'Atlas', details: [], current: false }],
-      location: 'Sydney',
-    });
-    expect(qs.join(' ')).toContain('YYYY-MM');
-    expect(qs.join(' ')).toContain('own contribution');
   });
 });
 describe('Conservative expression boundary', () => {
@@ -174,14 +161,4 @@ it('does not use a conflicting legacy education summary when structured educatio
   });
   expect(view.education).toContain('Bachelor of IT');
   expect(view.education).not.toContain('PhD');
-});
-
-it('asks education-specific missing details but never demands a contribution to a qualification', () => {
-  const base = { name: 'Alex', goals: 'Analyst', skills: ['SQL'], education: '', experience: 'none yet', location: 'Sydney' };
-  const degree = { title: 'Bachelor of IT', organisation: 'Example University', startMonth: '2022-02', endMonth: '2025-11', current: false, details: [] };
-  expect(nextProfileQuestions({ ...base, educations: [degree] })).toEqual([]);
-  const missing = nextProfileQuestions({ ...base, educations: [{ ...degree, organisation: '', startMonth: null, endMonth: null }] });
-  expect(missing.join(' ')).toContain('institution');
-  expect(missing.join(' ')).not.toMatch(/contribution|outcome|achievement/i);
-  expect(nextProfileQuestions({ ...base, educations: [degree], projects: [{ ...degree, title: 'SQL Project' }] }).join(' ')).toContain('contribution to SQL Project');
 });
