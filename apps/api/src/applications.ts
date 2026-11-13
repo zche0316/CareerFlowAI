@@ -210,6 +210,8 @@ export async function listApplications(userId: string) {
         ? match.gaps.filter((g: unknown): g is string => typeof g === 'string').slice(0, 20)
         : [],
       source: a.source,
+      // When the listing was last re-checked and what was found (CFS-122).
+      listingCheck: match.listingCheck || null,
       status: a.status,
       stage: applicationStage(a.status, runs),
       history: a.history as { status: string; at: string; note?: string }[],

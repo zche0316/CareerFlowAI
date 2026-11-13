@@ -806,6 +806,16 @@ function App() {
                       setNotice('Role removed from your quests.');
                     })
                   }
+                  onRecheck={() =>
+                    void act(async () => {
+                      const r = await api('/applications/recheck', 'POST');
+                      setNotice(
+                        r.checked
+                          ? `Checked ${r.checked} listing${r.checked === 1 ? '' : 's'}: ${r.closed} closed, ${r.flagged} applied role${r.flagged === 1 ? '' : 's'} flagged.`
+                          : 'Every listing was checked in the last day.',
+                      );
+                    })
+                  }
                   onAdd={async (body) => {
                     let ok = false;
                     await act(async () => {

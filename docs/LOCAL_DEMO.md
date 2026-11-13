@@ -92,8 +92,7 @@ Rehearse in fixture mode, then run once in live mode the day before a demo.
 1. Hosting: HTTPS host, managed PostgreSQL with backups, server-side secrets, an always-on worker.
 2. Account recovery: password reset and email verification.
 3. A per-user daily spending cap and an operator view of spend.
-4. Re-checking tracked roles so closed ones drop off the board.
-5. Terms and privacy review (privacy notice, account deletion).
+4. Terms and privacy review (privacy notice, account deletion).
 
 ## Feature checklist
 

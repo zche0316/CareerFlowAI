@@ -134,7 +134,9 @@ export function QuestLog({
   onPractice,
   onRemove,
   onAdd,
+  onRecheck,
 }: {
+  onRecheck?: () => void;
   workspace: any;
   busy?: boolean;
   onPractice?: (applicationId: string) => void;
@@ -209,6 +211,7 @@ export function QuestLog({
           onStatus={onStatus}
           onPractice={onPractice}
           onRemove={onRemove}
+          onRecheck={onRecheck}
         />
       )}
       {missions.length > 0 && (

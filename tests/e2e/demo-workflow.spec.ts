@@ -119,6 +119,11 @@ test('the demo workflow runs end to end in the Quest interface', async ({ page }
   const later = page.locator('li.qa-card', { hasText: saved });
   await expect(later.locator('.qa-card-top .quest-chip')).toHaveText('Saved');
   await expect(page.locator('section.ql-group.ended')).toContainText(title);
+  // Listings can be re-checked from the board; demo roles have no real listing, so nothing closes.
+  await page.getByRole('button', { name: 'Re-check listings', exact: true }).click();
+  await expect(
+    page.getByText(/Checked 2 listings: 0 closed, 0 applied roles flagged\./),
+  ).toBeVisible();
 
   // A saved role starts its own run at the resume team with the role already chosen.
   await later.getByRole('button', { name: 'Tailor resume' }).click();

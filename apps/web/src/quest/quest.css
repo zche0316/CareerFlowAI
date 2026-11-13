@@ -3963,3 +3963,16 @@ body:has(.quest) {
   flex-wrap: wrap;
   gap: 10px;
 }
+
+/* Quest board toolbar and listing re-checks (CFS-122). */
+.qa-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.qa-check {
+  display: block;
+  margin: 4px 0;
+}

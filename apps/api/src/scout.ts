@@ -716,7 +716,10 @@ async function overview(userId: string) {
   const saveable = await saveableRoles(userId, tracked);
   // Roles already on the board show their stage instead of a Save button.
   const board = new Map(
-    (await listApplications(userId)).map((a) => [a.fingerprint, { id: a.id, stage: a.stage }]),
+    (await listApplications(userId)).map((a) => [
+      a.fingerprint,
+      { id: a.id, stage: a.stage, checkedAt: a.listingCheck?.checkedAt || null },
+    ]),
   );
   // Per-sweep model work from the stored spans; sweeps before tracing simply show zeros.
   const spans = await db.traceSpan.findMany({
