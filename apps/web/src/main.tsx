@@ -682,6 +682,14 @@ function App() {
                   mission={mission}
                   phase={phase}
                   onNavigate={setPhase}
+                  onPractise={(applicationId) =>
+                    void act(async () => {
+                      const run = await api(`/applications/${applicationId}/practice`, 'POST');
+                      setSelected(run.id);
+                      setPhase(4);
+                      setNotice('Your interview panel is preparing questions for this role…');
+                    })
+                  }
                   onNewSearch={() => {
                     setGoal(mission.goal);
                     setMinScore(mission.data.minScore ?? 40);
@@ -1626,6 +1634,7 @@ function MissionDetail({
   phase,
   onNavigate,
   onNewSearch,
+  onPractise,
   busy,
   onBack,
   onAction,
@@ -1641,6 +1650,8 @@ function MissionDetail({
   phase: number | null;
   onNavigate: (phase: number | null) => void;
   onNewSearch: () => void;
+  /** Start interview practice for this run's role without waiting for the resume (CFS-134). */
+  onPractise?: (applicationId: string) => void;
   busy: boolean;
   onBack: () => void;
   onAction: (kind: string, body?: unknown) => Promise<void>;
@@ -1796,10 +1807,21 @@ function MissionDetail({
                     : 'The resume team is tailoring your resume.'}
             </p>
           </div>
-          <button className="quest-press lime" onClick={() => onNavigate(3)}>
-            {d.resumeDraft && !d.approvedResumeId ? 'Review the resume' : 'Open the resume'}{' '}
-            <ArrowRight size={15} />
-          </button>
+          <div className="rc-next-actions">
+            <button className="quest-press lime" onClick={() => onNavigate(3)}>
+              {d.resumeDraft && !d.approvedResumeId ? 'Review the resume' : 'Open the resume'}{' '}
+              <ArrowRight size={15} />
+            </button>
+            {m.applicationId && onPractise && !d.practiceOnly && (
+              <button
+                className="quest-press"
+                disabled={busy}
+                onClick={() => onPractise(m.applicationId)}
+              >
+                Practise the interview now
+              </button>
+            )}
+          </div>
         </section>
       )}
       {m.error && (

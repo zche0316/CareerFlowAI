@@ -256,10 +256,28 @@ it('adds roles directly, practises with an approved resume and removes only unto
     runs: [],
   });
 
-  // Practice needs an approved resume for the role.
-  expect((await call(`/applications/${added.body.id}/practice`, 'POST')).body.code).toBe(
-    'RESUME_REQUIRED',
-  );
+  // Practice does not wait for a resume (CFS-134): it uses the approved profile, and a
+  // tailoring run can run beside it. Only a second practice run for the role is refused.
+  const early = (await call('/applications', 'POST', ad('Data Quality Analyst'))).body;
+  const first = await call(`/applications/${early.id}/practice`, 'POST');
+  expect(first.status).toBe(202);
+  const fromProfile = await wait(call, first.body.id, 'AWAITING_INTERVIEW');
+  expect(fromProfile.data).toMatchObject({ practiceOnly: true });
+  expect(fromProfile.data.approvedResumeId).toBeUndefined();
+  expect(fromProfile.data.resumeTeam).toBeUndefined();
+  expect(fromProfile.data.questions.length).toBeGreaterThan(0);
+  expect((await call(`/applications/${early.id}/practice`, 'POST')).body.code).toBe('RUN_ACTIVE');
+  const beside = await call(`/applications/${early.id}/runs`, 'POST');
+  expect(beside.status).toBe(202);
+  const earlyCard = (await call('/applications')).body.find((x: any) => x.id === early.id);
+  expect(earlyCard).toMatchObject({
+    activeRunId: beside.body.id,
+    activePracticeId: first.body.id,
+    stage: 'tailoring',
+  });
+  await call(`/missions/${beside.body.id}/cancel`, 'POST', {});
+  await call(`/missions/${first.body.id}/cancel`, 'POST', {});
+
   const run = (await call(`/applications/${added.body.id}/runs`, 'POST')).body;
   await approve(call, run.id);
   await call(`/missions/${run.id}/cancel`, 'POST', {});
@@ -288,5 +306,5 @@ it('adds roles directly, practises with an approved resume and removes only unto
   expect((await call(`/applications/${added.body.id}`, 'DELETE')).body.code).toBe('ROLE_HAS_RUNS');
   expect((await call(`/applications/${spare.id}`, 'DELETE')).status).toBe(200);
   board = (await call('/applications')).body;
-  expect(board.map((a: any) => a.id)).toEqual([added.body.id]);
+  expect(board.map((a: any) => a.id).sort()).toEqual([added.body.id, early.id].sort());
 });

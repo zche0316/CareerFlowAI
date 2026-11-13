@@ -135,8 +135,11 @@ for the Coach (later issue), calendar sync.
 
 - `POST /api/applications` adds a role straight to the board from a public job link (at most one
   model call to read the page) or a pasted advertisement, scored against the current profile.
-- `POST /api/applications/:id/practice` starts an interview-only run that reuses the latest
-  approved resume made for this role with the current profile; the resume team is skipped.
+- `POST /api/applications/:id/practice` starts an interview-only run. It reuses the latest
+  approved resume made for this role with the current profile when there is one, and otherwise
+  works from the approved profile alone; the resume team is skipped. Practice and tailoring are
+  independent: each can run beside the other, and only a second open run of the same kind is
+  refused (CFS-134). The run page offers "Practise the interview now" next to the resume.
 - `DELETE /api/applications/:id` removes a role with no runs. A role with runs and documents is
   archived by setting its status to Closed.
 - Older runs stay tied to the profile version they used; their error messages point to the Quest

@@ -4379,3 +4379,8 @@ body:has(.quest) {
   font-size: 14px;
   line-height: 1.45;
 }
+.rc-next-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}

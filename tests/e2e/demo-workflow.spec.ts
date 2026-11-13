@@ -125,6 +125,8 @@ test('the demo workflow runs end to end in the Quest interface', async ({ page }
     page.getByText(/Checked 2 listings: 0 closed, 0 applied roles flagged\./),
   ).toBeVisible();
 
+  // Practice is available before any resume for the saved role (CFS-134).
+  await expect(later.getByRole('button', { name: 'Practise interview', exact: true })).toBeEnabled();
   // A saved role starts its own run at the resume team with the role already chosen.
   await later.getByRole('button', { name: 'Tailor resume' }).click();
   await expect(

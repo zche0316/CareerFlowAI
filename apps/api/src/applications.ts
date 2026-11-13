@@ -143,6 +143,7 @@ type RunSummary = {
   approvedResumeId: string | null;
   interviewFeedback: boolean;
   scout: boolean;
+  practice: boolean;
 };
 
 /**
@@ -151,12 +152,12 @@ type RunSummary = {
  */
 export function applicationStage(
   status: string,
-  runs: Pick<RunSummary, 'status' | 'approvedResumeId'>[],
+  runs: (Pick<RunSummary, 'status' | 'approvedResumeId'> & { practice?: boolean })[],
 ) {
   // Before the user records an application, the runs decide the stage.
   if (status !== 'saved' && status !== 'discovered') return status;
   if (runs.some((r) => r.approvedResumeId)) return 'ready';
-  if (runs.some((r) => ACTIVE.includes(r.status))) return 'tailoring';
+  if (runs.some((r) => !r.practice && ACTIVE.includes(r.status))) return 'tailoring';
   return status;
 }
 
@@ -193,6 +194,7 @@ export async function listApplications(userId: string) {
           approvedResumeId: d.approvedResumeId || null,
           interviewFeedback: Boolean(d.feedback),
           scout: Boolean(d.scout),
+          practice: Boolean(d.practiceOnly),
         };
       });
     const match = a.job as any;
@@ -218,7 +220,9 @@ export async function listApplications(userId: string) {
       notes: a.notes,
       createdAt: a.createdAt,
       updatedAt: a.updatedAt,
-      activeRunId: runs.find((r) => ACTIVE.includes(r.status))?.id || null,
+      // Tailoring and practice can run side by side (CFS-134).
+      activeRunId: runs.find((r) => !r.practice && ACTIVE.includes(r.status))?.id || null,
+      activePracticeId: runs.find((r) => r.practice && ACTIVE.includes(r.status))?.id || null,
       latestResumeId: runs.find((r) => r.approvedResumeId)?.approvedResumeId || null,
       runs,
     };
@@ -334,12 +338,19 @@ export async function startApplicationRun(
     where: { userId, applicationId: id },
     orderBy: { createdAt: 'desc' },
   });
-  const active = runs.find((r) => ACTIVE.includes(r.status));
+  // Tailoring and practice are independent (CFS-134): only a run of the same kind blocks.
+  const active = runs.find(
+    (r) =>
+      ACTIVE.includes(r.status) &&
+      Boolean((r.data as MissionData).practiceOnly) === (kind === 'practice'),
+  );
   if (active)
     throw new AppError(
       409,
       'RUN_ACTIVE',
-      'This role already has a run in progress. Open it instead.',
+      kind === 'practice'
+        ? 'A practice run for this role is already open. Continue it instead.'
+        : 'This role already has a tailoring run in progress. Open it instead.',
     );
   const mode = configuredMode();
   // Reuse a career analysis for this profile version and mode instead of paying for it again.
@@ -355,7 +366,8 @@ export async function startApplicationRun(
   const at = new Date().toISOString();
   const stored = a.job as any;
   const missionId = randomUUID();
-  // Practice reuses the latest approved resume for this role made with the current profile.
+  // Practice reuses the latest approved resume for this role made with the current profile when
+  // there is one; otherwise the interview works from the approved profile alone (CFS-134).
   const source =
     kind === 'practice'
       ? runs.find(
@@ -365,12 +377,6 @@ export async function startApplicationRun(
             (r.data as MissionData).approvedResumeId,
         )
       : undefined;
-  if (kind === 'practice' && !source)
-    throw new AppError(
-      409,
-      'RESUME_REQUIRED',
-      'Tailor and approve a resume for this role with your current profile before practising.',
-    );
   let match = (source || previous)?.data
     ? ((source || previous)!.data as MissionData).selectedJob
     : null;
@@ -406,9 +412,9 @@ export async function startApplicationRun(
         selectedJob: match,
         preselected: true,
         jobRetrieval: { source: 'application', applicationId: a.id, count: 1, fetchedAt: at },
+        ...(kind === 'practice' ? { practiceOnly: true } : {}),
         ...(kept
           ? {
-              practiceOnly: true,
               resumeDraft: kept.resumeDraft,
               approvedResumeId: kept.approvedResumeId,
               practiceFromRunId: source!.id,
