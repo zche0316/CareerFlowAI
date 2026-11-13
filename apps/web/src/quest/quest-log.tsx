@@ -3,9 +3,8 @@ import { MISSION_MODEL_CALL_LIMIT } from '../../../../packages/contracts/src/mis
 import { nextMissionStep } from '../mission-step.js';
 import { AgentAvatar, type AgentId } from './characters.js';
 import { XP_RULES } from './progress.js';
+import { reachedPhase, runRoute, stepState } from './run-route.js';
 import { AddRole, QuestApplications } from './applications.js';
-
-export const questRoute = ['Profile', 'Analysis', 'Shortlist', 'Review', 'Practice'];
 
 const waitingStatus = ['AWAITING_JOB', 'AWAITING_APPROVAL', 'AWAITING_INTERVIEW'];
 const workingStatus = ['QUEUED', 'RUNNING'];
@@ -50,7 +49,7 @@ const nextText: Record<string, { text: string; cta: string; xp?: number }> = {
 
 function QuestCard({ m, onOpen }: { m: any; onOpen: (m: any, phase: number | null) => void }) {
   const d = m.data || {};
-  const step = m.status === 'COMPLETE' ? questRoute.length : nextMissionStep(m);
+  const route = runRoute(m);
   const who = holder(m);
   const copy = nextText[m.status] || { text: m.status, cta: 'Open' };
   const cta =
@@ -79,15 +78,18 @@ function QuestCard({ m, onOpen }: { m: any; onOpen: (m: any, phase: number | nul
         </div>
         {copy.xp && waiting && <span className="quest-chip lime">+{copy.xp} XP</span>}
       </div>
-      <ol className="ql-route" aria-label={`Progress: step ${Math.min(step + 1, 5)} of 5`}>
-        {questRoute.map((label, i) => (
-          <li key={label} className={i < step ? 'done' : i === step ? 'now' : ''} title={label}>
-            <span className="sr-only">
-              {label}
-              {i < step ? ' (done)' : i === step ? ' (current)' : ''}
-            </span>
-          </li>
-        ))}
+      <ol className="ql-route" aria-label="Run progress">
+        {route.map((step) => {
+          const { state } = stepState(m, step);
+          return (
+            <li key={step.label} className={state === 'todo' ? '' : state} title={step.label}>
+              <span className="sr-only">
+                {step.label}
+                {state === 'done' ? ' (done)' : state === 'now' ? ' (current)' : ''}
+              </span>
+            </li>
+          );
+        })}
       </ol>
       <p className="ql-next">{copy.text}</p>
       <div className="ql-card-foot">
@@ -287,7 +289,7 @@ export function QuestMissionHeader({
   onBack: () => void;
   onSelect: (step: number) => void;
 }) {
-  const reached = m.status === 'COMPLETE' ? questRoute.length - 1 : nextMissionStep(m);
+  const reached = reachedPhase(m);
   const chip = statusChip[m.status] || {
     label: m.status.toLowerCase().replace(/_/g, ' '),
     tone: '',
@@ -340,22 +342,21 @@ export function QuestMissionHeader({
         </div>
       </div>
       <ol className="qm-route" aria-label="Quest route">
-        {questRoute.map((label, i) => {
-          const state =
-            i < reached || m.status === 'COMPLETE' ? 'done' : i === reached ? 'now' : 'todo';
+        {runRoute(m).map((step, i) => {
+          const { state, open } = stepState(m, step);
           return (
-            <li key={label}>
+            <li key={step.label}>
               <button
                 type="button"
-                className={`qm-step ${state}${phase === i ? ' viewing' : ''}`}
-                aria-current={phase === i ? 'step' : undefined}
-                disabled={i > reached}
-                onClick={() => onSelect(i)}
+                className={`qm-step ${state}${phase === step.phase ? ' viewing' : ''}`}
+                aria-current={phase === step.phase ? 'step' : undefined}
+                disabled={!open}
+                onClick={() => onSelect(step.phase)}
               >
                 <span className="qm-dot" aria-hidden="true">
                   {state === 'done' ? <Check size={14} strokeWidth={3.2} /> : i + 1}
                 </span>
-                {label}
+                {step.label}
               </button>
             </li>
           );

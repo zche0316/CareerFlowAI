@@ -1,4 +1,4 @@
-import { checkWording } from '../../../contracts/src/career-evidence.js';
+import { checkResumeWording } from '../../../contracts/src/resume-grounding.js';
 import type { Fact } from '../../../contracts/src/index.js';
 import { coversTerm } from './gap-analysis.js';
 import type { DraftClaim } from './rewrite.js';
@@ -41,9 +41,14 @@ export function reviewDraft(input: {
     const drift =
       claim.factText !== undefined && claim.factText !== fact.text
         ? 'The recorded source text does not match the approved fact.'
-        : checkWording(fact.text, claim.text);
+        : checkResumeWording(fact.text, claim.text);
     if (drift)
-      issues.push({ target: 'rewriter', code: 'WORDING_DRIFT', factId: claim.factId, message: drift });
+      issues.push({
+        target: 'rewriter',
+        code: 'WORDING_DRIFT',
+        factId: claim.factId,
+        message: drift,
+      });
   }
 
   const selected = new Set(input.claims.map((c) => c.factId));
@@ -78,7 +83,10 @@ export function reviewDraft(input: {
       ),
       supportedRequirements: supported.length,
       totalRequirements: allTerms.length,
-      keywordCoverage: ratio(allTerms.filter((t) => coversTerm(draftText, t)).length, allTerms.length),
+      keywordCoverage: ratio(
+        allTerms.filter((t) => coversTerm(draftText, t)).length,
+        allTerms.length,
+      ),
       rewrittenClaims: input.rewrites?.accepted ?? 0,
       blockedRewrites: input.rewrites?.blocked.length ?? 0,
     },

@@ -8,17 +8,18 @@ export async function go(page: Page, label: string) {
   const nav = page.getByRole('navigation', { name: 'Main', exact: true });
   // Home carries a "N waiting for you" badge in its accessible name while a run waits.
   if (primary.includes(label))
-    return nav.getByRole('button', { name: new RegExp(`^${label}( \\d+ waiting for you)?$`) }).click();
+    return nav
+      .getByRole('button', { name: new RegExp(`^${label}( \\d+ waiting for you)?$`) })
+      .click();
   await nav.getByRole('button', { name: /^More/ }).click();
   await page.getByRole('menuitem', { name: label, exact: true }).click();
 }
 
-// The five-step route in a quest's header.
-const steps = ['Profile', 'Analysis', 'Shortlist', 'Review', 'Practice'];
-export async function step(page: Page, n: 1 | 2 | 3 | 4 | 5) {
+// A run's route in its header: only the steps that run has (CFS-121).
+export async function step(page: Page, label: 'Shortlist' | 'Review' | 'Practice' | 'Apply') {
   const route = page.getByRole('list', { name: 'Quest route' });
   await expect(route).toBeVisible();
-  await route.getByRole('button', { name: steps[n - 1], exact: true }).click();
+  await route.getByRole('button', { name: label, exact: true }).click();
 }
 
 // The profile page a user opens to work on their profile: the builder before the first approval,

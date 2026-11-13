@@ -86,7 +86,7 @@ off it.
 | POST   | `/api/missions/:id/saved-roles`  | Save a role from a run's shortlist to the board                 |
 | GET    | `/api/insights`                  | Market insight for `country` and role `family` from found roles |
 | GET    | `/api/coach`                     | Coach advice for the profile version and next steps             |
-| POST   | `/api/coach/refresh`             | Ask the Coach again (one counted model call)                    |
+| POST   | `/api/coach/refresh`             | Ask the Coach again, optionally with what to revisit (one call) |
 
 ## Runs
 

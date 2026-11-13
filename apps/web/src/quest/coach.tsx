@@ -20,7 +20,9 @@ export function QuestCoach({
   onTailor,
   onQuests,
   onProfile,
+  onOpen,
 }: {
+  onOpen?: () => void;
   request: (path: string, method?: string, body?: unknown) => Promise<any>;
   live: boolean;
   /** Changes when the board changes, so the actions reload. */
@@ -117,7 +119,7 @@ export function QuestCoach({
               {highlights.map(([label, item]: any) => (
                 <div key={label}>
                   <dt>{label}</dt>
-                  <dd>{item.text}</dd>
+                  <dd>{adviceItem(item).text}</dd>
                 </div>
               ))}
             </dl>
@@ -131,6 +133,11 @@ export function QuestCoach({
           <small className="qh-coach-cost">
             {live ? 'One model call on your approved profile.' : 'Rehearsal mode: no model cost.'}
           </small>
+          {onOpen && (
+            <button type="button" className="auth-switch" onClick={onOpen}>
+              Open the Coach: full advice and what to revisit
+            </button>
+          )}
           {error && (
             <p role="alert" className="qh-empty">
               {error}
@@ -139,5 +146,163 @@ export function QuestCoach({
         </div>
       </div>
     </section>
+  );
+}
+
+// Older saved analyses hold plain strings; current ones hold { text, reason, evidenceIds }.
+export const adviceItem = (item: any) =>
+  typeof item === 'string'
+    ? { text: item, reason: '', evidenceIds: [] as string[] }
+    : {
+        text: String(item?.text || ''),
+        reason: String(item?.reason || ''),
+        evidenceIds: item?.evidenceIds || [],
+      };
+
+const sections: [key: string, title: string][] = [
+  ['strengths', 'Strengths to build on'],
+  ['gaps', 'Development opportunities'],
+  ['directions', 'Suitable career directions'],
+  ['actions', 'Recommended actions'],
+];
+
+/**
+ * The Coach page (CFS-121): the workspace's career advice for the current profile version, with
+ * the reason and evidence behind each point, and a request to revisit that refreshes the advice.
+ * It replaces the analysis step that every run used to repeat.
+ */
+export function CoachPage({
+  request,
+  live,
+  onProfile,
+}: {
+  request: (path: string, method?: string, body?: unknown) => Promise<any>;
+  live: boolean;
+  onProfile: () => void;
+}) {
+  const [coach, setCoach] = useState<any>(null);
+  const [feedback, setFeedback] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    request('/coach')
+      .then(setCoach)
+      .catch((e) => setError((e as Error).message));
+  }, []);
+  const refresh = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      setCoach(await request('/coach/refresh', 'POST', { feedback }));
+      setFeedback('');
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (!coach && !error) return <p className="quest-fine dark">Loading your Coach…</p>;
+  if (!coach || typeof coach !== 'object' || Array.isArray(coach))
+    return (
+      <section className="quest-tile">
+        <p role="alert">{error}</p>
+      </section>
+    );
+  const a = coach.analysis;
+  const actions: Action[] = Array.isArray(coach.actions) ? coach.actions : [];
+  return (
+    <div className="quest-page coach-page">
+      <div className="ql-head">
+        <div>
+          <span className="quest-sub dark">
+            {coach.analysedAt
+              ? `Advice for profile v${coach.profileVersion} · ${new Date(coach.analysedAt).toLocaleDateString()}`
+              : `Profile v${coach.profileVersion}`}
+          </span>
+          <h1 className="quest-display">Your Coach</h1>
+          <p>
+            Advice for your whole career search, from your approved profile and the roles you
+            pursue. Every point cites your own evidence.
+          </p>
+        </div>
+        <AgentAvatar agent="coach" size={72} />
+      </div>
+      <div className="coach-grid">
+        <section className="quest-tile" aria-labelledby="coach-advice">
+          <h2 id="coach-advice">Career direction</h2>
+          {!a ? (
+            <p className="qh-empty">No advice for this profile version yet. Ask the Coach below.</p>
+          ) : (
+            sections.map(([key, title]) =>
+              a[key]?.length ? (
+                <div key={key} className="coach-section">
+                  <h3>{title}</h3>
+                  <ul>
+                    {a[key].map(adviceItem).map((item: ReturnType<typeof adviceItem>) => (
+                      <li key={item.text}>
+                        {item.text}
+                        {item.reason && (
+                          <details>
+                            <summary>Why this fits</summary>
+                            <p>{item.reason}</p>
+                            {item.evidenceIds.length > 0 && (
+                              <small className="muted">
+                                Evidence: {item.evidenceIds.join(', ')}
+                              </small>
+                            )}
+                          </details>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null,
+            )
+          )}
+        </section>
+        <aside className="quest-tile coach-ask" aria-labelledby="coach-ask">
+          <h2 id="coach-ask">Ask the Coach again</h2>
+          <label>
+            What should the Coach revisit?
+            <textarea
+              value={feedback}
+              maxLength={2000}
+              placeholder="For example: focus on data engineering roles, or explain why a direction fits."
+              onChange={(e) => setFeedback(e.target.value)}
+            />
+          </label>
+          <button
+            type="button"
+            className="quest-press lime ql-go"
+            disabled={busy}
+            onClick={refresh}
+          >
+            <RefreshCw size={15} strokeWidth={2.6} />
+            {busy ? 'Coach is reading…' : 'Refresh advice'}
+          </button>
+          <small className="muted">
+            {live ? 'One model call on your approved profile.' : 'Rehearsal mode: no model cost.'}{' '}
+            The previous advice stays saved.
+          </small>
+          {error && <p role="alert">{error}</p>}
+          <button type="button" className="auth-switch" onClick={onProfile}>
+            Add evidence to my profile
+          </button>
+          {actions.length > 0 && (
+            <>
+              <h3>Next steps</h3>
+              <ul className="coach-next">
+                {actions.map((x: Action) => (
+                  <li key={x.id}>
+                    <strong>{x.text}</strong>
+                    <span>{x.reason}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </aside>
+      </div>
+    </div>
   );
 }

@@ -50,7 +50,7 @@ test('background completion preserves deliberate earlier-stage review and blocks
   await expect(page.getByRole('list', { name: 'Agent progress' })).toContainText(
     'Target job selected',
   );
-  await step(page, 3);
+  await step(page, 'Shortlist');
   await expect(page).toHaveURL(/step=2/);
   mission.status = 'AWAITING_APPROVAL';
   mission.data.resumeDraft = {

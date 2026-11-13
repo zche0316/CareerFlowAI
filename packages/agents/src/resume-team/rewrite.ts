@@ -1,4 +1,4 @@
-import { checkWording } from '../../../contracts/src/career-evidence.js';
+import { checkResumeWording } from '../../../contracts/src/resume-grounding.js';
 import type { Fact } from '../../../contracts/src/index.js';
 
 export type DraftClaim = {
@@ -37,7 +37,7 @@ export function applyRewrites(
       const { factText: _, ...verbatim } = claim;
       return { ...verbatim, text: fact.text };
     }
-    const reason = checkWording(fact.text, text);
+    const reason = checkResumeWording(fact.text, text);
     if (reason) {
       blocked.push({ factId: claim.factId, reason });
       return claim;

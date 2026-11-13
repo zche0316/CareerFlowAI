@@ -4,7 +4,6 @@ import { FlowNavigation } from './flow-navigation.js';
 import { ResumePreview } from './resume-preview.js';
 import { pendingResumeChanges } from '../../../packages/contracts/src/resume-review.js';
 import { CompanyAvatar, SourceIcon } from './company-avatar.js';
-import { MissionProfile } from './mission-profile.js';
 import { JobFit } from './job-fit.js';
 import { suggestJobSearch } from '../../../packages/contracts/src/job-search.js';
 import { ProfileRecords } from './profile-records.js';
@@ -24,7 +23,8 @@ import { CharacterSheet } from './quest/character-sheet.js';
 import { progressFrom } from './quest/progress.js';
 import { QuestTopBar, type QuestNavId } from './quest/top-bar.js';
 import { QuestHome } from './quest/home.js';
-import { QuestCoach } from './quest/coach.js';
+import { adviceItem, CoachPage, QuestCoach } from './quest/coach.js';
+import { runPhase, runRoute } from './quest/run-route.js';
 import { SignIn } from './quest/sign-in.js';
 import { boardStage, stageCopy } from './quest/applications.js';
 import { PartyRoster } from './quest/roster.js';
@@ -109,6 +109,7 @@ type Tab =
   | 'home'
   | 'world'
   | 'season'
+  | 'coach'
   | 'scout'
   | 'party';
 
@@ -137,6 +138,7 @@ const readWorkspaceRoute = () => {
     'world',
     'season',
     'scout',
+    'coach',
   ];
   const fallback = 'home';
   const value = query.get('view') || fallback;
@@ -174,7 +176,11 @@ function App() {
   useEffect(() => {
     if (!creating || !session?.user) return;
     api('/coach')
-      .then((c) => setDirections(Array.isArray(c?.analysis?.directions) ? c.analysis.directions : []))
+      .then((c) =>
+        setDirections(
+          Array.isArray(c?.analysis?.directions) ? c.analysis.directions.map(adviceItem) : [],
+        ),
+      )
       .catch(() => setDirections([]));
   }, [creating]);
 
@@ -578,6 +584,7 @@ function App() {
                     }
                     onQuests={() => goQuest('quests')}
                     onProfile={() => goQuest('approved-profile')}
+                    onOpen={() => goQuest('coach')}
                   />
                 )
               }
@@ -606,6 +613,12 @@ function App() {
               }}
               onNewQuest={() => (workspace?.profile ? setCreating(true) : setTab('profile'))}
               onSeason={() => goQuest('season')}
+            />
+          ) : tab === 'coach' ? (
+            <CoachPage
+              request={api}
+              live={session?.mode !== 'fixture'}
+              onProfile={() => goQuest('approved-profile')}
             />
           ) : tab === 'season' ? (
             <QuestSeason
@@ -940,7 +953,8 @@ function App() {
           )}
         </main>
         <footer>
-          CareerFlow AI <span>Technical roles across regions, matched to evidence you approve.</span>
+          CareerFlow AI{' '}
+          <span>Technical roles across regions, matched to evidence you approve.</span>
         </footer>
       </div>
       {creating && (
@@ -1532,8 +1546,8 @@ function Profile({
                 </div>
               </details>
               <p className="small muted">
-                Your party uses approved profile facts in every run. Profile
-                changes and resume versions still require your approval.
+                Your party uses approved profile facts in every run. Profile changes and resume
+                versions still require your approval.
               </p>
               <div className="form-actions">
                 <button
@@ -1620,6 +1634,8 @@ function MissionDetail({
   onSaveAnswer: (a: unknown) => Promise<void>;
   onRefineAnalysis: (feedback: string) => Promise<void>;
 }) {
+  // Profile and advice are workspace pages now; old links to those steps open the first run step.
+  phase = runPhase(m, phase);
   const d = m.data,
     [answer, setAnswer] = useState(''),
     [jobURL, setJobURL] = useState(''),
@@ -1655,7 +1671,7 @@ function MissionDetail({
         <QuestMissionHeader mission={m} phase={phase} onBack={onBack} onSelect={onNavigate} />
         <div className="page-heading">
           <div>
-            <span className="eyebrow">QUEST COMPLETE · 5 OF 5</span>
+            <span className="eyebrow">RUN COMPLETE</span>
             <h2>Your journey results</h2>
             <p>{m.goal}</p>
           </div>
@@ -1717,14 +1733,6 @@ function MissionDetail({
       )}
       {phase === 8 && <QuestBattleLog mission={m} userName={userName} request={api} />}
       {phase === 9 && <QuestSavePoints mission={m} request={api} onOpenMission={onOpenMission} />}
-      {phase === 0 && (
-        <MissionProfile
-          missionId={m.id}
-          api={api}
-          onContinue={() => onNavigate(completed ? null : nextMissionStep(m))}
-          completed={completed}
-        />
-      )}
       {phase === 2 && ['AWAITING_JOB', 'NO_MATCHES'].includes(m.status) && !d.selectedJob && (
         <QuestAddLink>
           <section className="panel" aria-label="Read a job link">
@@ -1866,8 +1874,7 @@ function MissionDetail({
         </div>
       )}
       {phase !== null &&
-        ((phase === 1 && !d.analysis) ||
-          (phase === 2 && !d.matches?.length && m.status !== 'NO_MATCHES') ||
+        ((phase === 2 && !d.matches?.length && m.status !== 'NO_MATCHES') ||
           (phase === 3 && !d.resumeDraft) ||
           (phase === 4 && !questions.length) ||
           (phase === 7 && (!d.selectedJob?.job?.applicationUrl || !d.approvedResumeId))) && (
@@ -1894,9 +1901,11 @@ function MissionDetail({
             </p>
             {(phase === 3 || phase === 7) && (
               <>
-                <button className="secondary" onClick={() => onNavigate(2)}>
-                  Go to the Shortlist
-                </button>
+                {runRoute(m).some((s) => s.phase === 2) && (
+                  <button className="secondary" onClick={() => onNavigate(2)}>
+                    Go to the Shortlist
+                  </button>
+                )}
                 <details className="stage-evidence-help">
                   <summary>How profile evidence is used</summary>
                   <p className="muted">
@@ -1914,7 +1923,7 @@ function MissionDetail({
           </section>
         )}
       <div id="career-analysis" />
-      {(phase === null || phase === 1) && d.analysis && (
+      {phase === null && d.analysis && (
         <section className="panel analysis agent-output-layout">
           <div className="analysis-output">
             <div className="section-heading">

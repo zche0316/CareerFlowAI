@@ -113,14 +113,14 @@ test('a user compares ranked jobs and selects one for downstream context', async
   ).toBeVisible({ timeout: 45000 });
   await expect(page.locator('.qm-crumb')).toContainText(selectedTitle);
   // The chosen role stays on the Shortlist step.
-  await step(page, 3);
+  await step(page, 'Shortlist');
   await expect(page.getByRole('heading', { name: 'Target locked in.' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Your selected opportunity' })).toBeVisible();
   await expect(page.locator('article.job-card')).toHaveCount(1);
   await expect(page.locator('article.job-card h3')).toHaveText(selectedTitle);
   // Verify persisted context rather than a transient selection notice.
   await page.reload();
-  await step(page, 4);
+  await step(page, 'Review');
   await expect(
     page.getByRole('heading', { name: 'Your party built a draft. Now it’s your call.' }),
   ).toBeVisible({ timeout: 45000 });
@@ -213,8 +213,8 @@ test('a user answers every interview question and receives complete feedback', a
     path: 'output/acceptance/completed-journey-results.png',
     fullPage: true,
   });
-  for (let i = 1; i <= 5; i++) {
-    await step(page, i as 1 | 2 | 3 | 4 | 5);
+  for (const label of ['Shortlist', 'Review', 'Practice'] as const) {
+    await step(page, label);
     await expect(
       page.getByText('Saved journey · Read-only history', { exact: true }),
     ).toBeVisible();
