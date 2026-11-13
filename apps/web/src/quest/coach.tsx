@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, RefreshCw } from 'lucide-react';
 import { AgentAvatar } from './characters.js';
+import { RunEstimate } from './run-estimate.js';
 
 // The Career Coach on Home: advice that belongs to the profile version, not to one run, and the
 // next actions across every role on the board. Refreshing makes one counted model call.
@@ -14,7 +15,6 @@ type Action = {
 
 export function QuestCoach({
   request,
-  live,
   boardKey,
   onFind,
   onTailor,
@@ -24,7 +24,6 @@ export function QuestCoach({
 }: {
   onOpen?: () => void;
   request: (path: string, method?: string, body?: unknown) => Promise<any>;
-  live: boolean;
   /** Changes when the board changes, so the actions reload. */
   boardKey: string;
   onFind: () => void;
@@ -130,9 +129,7 @@ export function QuestCoach({
             <RefreshCw size={15} strokeWidth={2.6} />
             {busy ? 'Coach is reading…' : 'Refresh advice'}
           </button>
-          <small className="qh-coach-cost">
-            {live ? 'One model call on your approved profile.' : 'Rehearsal mode: no model cost.'}
-          </small>
+          <RunEstimate kind="coach" className="qh-coach-cost" />
           {onOpen && (
             <button type="button" className="auth-switch" onClick={onOpen}>
               Open the Coach: full advice and what to revisit
@@ -173,11 +170,9 @@ const sections: [key: string, title: string][] = [
  */
 export function CoachPage({
   request,
-  live,
   onProfile,
 }: {
   request: (path: string, method?: string, body?: unknown) => Promise<any>;
-  live: boolean;
   onProfile: () => void;
 }) {
   const [coach, setCoach] = useState<any>(null);
@@ -280,10 +275,8 @@ export function CoachPage({
             <RefreshCw size={15} strokeWidth={2.6} />
             {busy ? 'Coach is reading…' : 'Refresh advice'}
           </button>
-          <small className="muted">
-            {live ? 'One model call on your approved profile.' : 'Rehearsal mode: no model cost.'}{' '}
-            The previous advice stays saved.
-          </small>
+          <RunEstimate kind="coach" />
+          <small className="muted">The previous advice stays saved.</small>
           {error && <p role="alert">{error}</p>}
           <button type="button" className="auth-switch" onClick={onProfile}>
             Add evidence to my profile

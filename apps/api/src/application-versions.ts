@@ -6,8 +6,7 @@ import {
 import type { Express } from 'express';
 import { z } from 'zod';
 import { db } from './db.js';
-import { digest, json, validateResumeClaims } from './domain.js';
-import type { Fact } from '../../../packages/contracts/src/index.js';
+import { digest, json, validateResumeClaims, runFacts } from './domain.js';
 import { AppError, requireValue } from './errors.js';
 export function registerApplicationVersions(app: Express) {
   app.post('/api/missions/:id/resume-selection', async (req, res) => {
@@ -37,7 +36,7 @@ export function registerApplicationVersions(app: Express) {
           d.resumeDraft?.hash !== input.draftHash
         )
           throw new AppError(409, 'STALE_APPROVAL', 'Review the current unapproved resume draft.');
-        const facts = m.profile.facts as unknown as Fact[];
+        const facts = runFacts(m);
         const claims = validateResumeClaims(
           composeSelection(
             input.orderedFactIds.map((factId) => ({

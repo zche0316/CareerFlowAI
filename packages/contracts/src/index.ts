@@ -294,6 +294,22 @@ export const decisionSchema = z.discriminatedUnion('kind', [
     target: z.enum(resumeReturnTargets).optional(),
   }),
   z.object({ kind: z.literal('interview'), endedEarly: z.boolean().default(false) }),
+  // CFS-123: answers to the run's evidence question. A skill left out is skipped and stays a gap.
+  z.object({
+    kind: z.literal('evidence'),
+    answers: z
+      .array(
+        z.object({
+          skill: z.string().trim().min(1).max(200),
+          text: z.string().trim().min(1).max(1500),
+          recordId: z.string().max(80).nullable().default(null),
+          // Confirmed answers are used in this run; unconfirmed ones stay as draft memories.
+          confirmed: z.boolean(),
+        }),
+      )
+      .max(3)
+      .default([]),
+  }),
 ]);
 
 // Fictional development data; using it still requires explicit profile review.

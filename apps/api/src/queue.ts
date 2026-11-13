@@ -117,7 +117,9 @@ async function executeMission(id: string) {
           ? 'AWAITING_APPROVAL'
           : waiting === 'interview'
             ? 'AWAITING_INTERVIEW'
-            : 'COMPLETE';
+            : waiting === 'evidence'
+              ? 'AWAITING_EVIDENCE'
+              : 'COMPLETE';
     await mutateRun(id, lease, async (tx, current) => {
       if (
         !waiting &&

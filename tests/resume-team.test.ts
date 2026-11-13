@@ -25,7 +25,7 @@ const critique = (pass: boolean, target: 'selector' | 'rewriter' = 'selector'): 
 });
 
 // Fake ports record the order specialists ran in; the real graph decides the order.
-function harness(critiques: Critique[], decisions: HumanOutcome[]) {
+function harness(critiques: Critique[], decisions: HumanOutcome[], evidence?: { skills: string[]; added: number }) {
   const calls: string[] = [];
   const notes: Record<string, string[]> = {};
   const ports: ResumeTeamPorts = {
@@ -36,7 +36,13 @@ function harness(critiques: Critique[], decisions: HumanOutcome[]) {
     reviewRequest: async () => ({ draftHash: 'h1', critique: null }),
     applyHumanDecision: async () => (calls.push('human'), decisions.shift()!),
     recordHandoff: async () => {},
+    ...(evidence && {
+      // Same question on replay until answered, like the stored question in production.
+      evidenceQuestion: async () => (asked ? null : { skills: evidence.skills }),
+      applyEvidenceAnswers: async () => (calls.push('answers'), (asked = true), { added: evidence.added, summary: 'answered' }),
+    }),
   };
+  let asked = false;
   // Mirror production: the team is a compiled subgraph node inside the mission graph.
   const Parent = Annotation.Root({ missionId: Annotation<string>() });
   const graph = new StateGraph(Parent)
@@ -192,5 +198,22 @@ describe('resume team evidence reporting', () => {
     expect(c.pass).toBe(true);
     expect(c.metrics).toMatchObject({ supportedRequirements: 0, totalRequirements: 1 });
     expect(lacksJobEvidence(c)).toBe(true);
+  });
+
+  it('asks one evidence question after the Gap Analyzer, then re-analyses confirmed answers (CFS-123)', async () => {
+    const { graph, calls } = harness([], [{ type: 'approved' }], { skills: ['Tableau'], added: 1 });
+    const paused: any = await graph.invoke({ missionId: 'm1' }, config);
+    expect(calls).toEqual(['gap_analyzer']);
+    expect(paused.__interrupt__[0].value).toMatchObject({ kind: 'evidence', skills: ['Tableau'] });
+    const draft: any = await graph.invoke(new Command({ resume: { kind: 'evidence' } }), config);
+    expect(calls).toEqual(['gap_analyzer', 'answers', 'gap_analyzer', 'selector', 'rewriter', 'critic:0']);
+    expect(draft.__interrupt__[0].value.kind).toBe('resume');
+  });
+
+  it('goes straight to the selector when every answer is skipped', async () => {
+    const { graph, calls } = harness([], [{ type: 'approved' }], { skills: ['Tableau'], added: 0 });
+    await graph.invoke({ missionId: 'm1' }, config);
+    await graph.invoke(new Command({ resume: { kind: 'evidence', answers: [] } }), config);
+    expect(calls).toEqual(['gap_analyzer', 'answers', 'selector', 'rewriter', 'critic:0']);
   });
 });

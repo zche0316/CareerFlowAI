@@ -179,7 +179,11 @@ test('a Scout sweep fills the batch review and each package opens at its draft r
 
   await page.getByRole('button', { name: 'Send Scout out now', exact: true }).click();
   const ready = page.getByRole('button', { name: 'Review the draft' });
-  await expect(ready).toHaveCount(3, { timeout: 45000 });
+  // A package whose role requires a skill with no approved evidence waits on one question first.
+  const asking = page.getByText('Question for you', { exact: true });
+  const waiting = async () => (await ready.count()) + (await asking.count());
+  await expect.poll(waiting, { timeout: 45000 }).toBe(3);
+  await expect(ready.first()).toBeVisible();
   await expect(page.getByText(/8 fetched · 8 new · 0 seen before/)).toBeVisible();
   await expect(page.getByText(/Job Matcher → Resume team/)).toBeVisible();
   await expect(page.getByRole('table')).toContainText('demo role');
@@ -188,7 +192,7 @@ test('a Scout sweep fills the batch review and each package opens at its draft r
   // Discarding one package cancels only that quest.
   await page.getByRole('button', { name: 'Discard' }).first().click();
   await page.getByRole('button', { name: 'Yes, discard', exact: true }).click();
-  await expect(ready).toHaveCount(2);
+  await expect.poll(waiting).toBe(2);
 
   await ready.first().click();
   await expect(page).toHaveURL(/step=3/);
@@ -200,9 +204,9 @@ test('a Scout sweep fills the batch review and each package opens at its draft r
   ).toBeDisabled();
 
   const scout = await api('/scout');
-  expect(scout.sweeps[0].packages.map((p: any) => p.status).sort()).toEqual([
-    'AWAITING_APPROVAL',
-    'AWAITING_APPROVAL',
-    'CANCELLED',
-  ]);
+  const statuses = scout.sweeps[0].packages.map((p: any) => p.status);
+  expect(statuses.filter((s: string) => s === 'CANCELLED')).toHaveLength(1);
+  expect(
+    statuses.filter((s: string) => ['AWAITING_APPROVAL', 'AWAITING_EVIDENCE'].includes(s)),
+  ).toHaveLength(2);
 });

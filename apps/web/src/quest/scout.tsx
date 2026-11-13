@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
+import { RunEstimate } from './run-estimate.js';
 import { ArrowRight, Radar, Trash2 } from 'lucide-react';
 import { countries } from '../../../../packages/recruitment/src/geography.js';
 import { workRightsLabels, type JobRecord } from '../../../../packages/contracts/src/job-record.js';
@@ -130,6 +131,7 @@ function packageState(p: Package): { label: string; tone: string } {
   if (!p.missionId || !p.status) return { label: 'Starting', tone: 'outline' };
   if (p.status === 'CANCELLED') return { label: 'Discarded', tone: 'outline' };
   if (p.status === 'FAILED') return { label: 'Needs a retry', tone: 'coral' };
+  if (p.status === 'AWAITING_EVIDENCE') return { label: 'Question for you', tone: 'coral' };
   if (p.status === 'AWAITING_APPROVAL') return { label: 'Draft ready · your call', tone: 'lime' };
   if (p.approved) return { label: 'Approved by you', tone: 'ink' };
   if (busyStatus(p.status)) return { label: 'Resume team at work', tone: 'lilac' };
@@ -289,6 +291,7 @@ export function QuestScout({
                 ? ` · the model scores at most ${data.limits.reviewPerSweep} roles per sweep`
                 : ''}
             </span>
+            <RunEstimate kind="scout" className="quest-sub" />
           </div>
         </div>
         <div className="sc-hero-side">

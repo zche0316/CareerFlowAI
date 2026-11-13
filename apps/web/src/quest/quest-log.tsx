@@ -6,7 +6,12 @@ import { XP_RULES } from './progress.js';
 import { reachedPhase, runRoute, stepState } from './run-route.js';
 import { AddRole, QuestApplications } from './applications.js';
 
-const waitingStatus = ['AWAITING_JOB', 'AWAITING_APPROVAL', 'AWAITING_INTERVIEW'];
+const waitingStatus = [
+  'AWAITING_JOB',
+  'AWAITING_EVIDENCE',
+  'AWAITING_APPROVAL',
+  'AWAITING_INTERVIEW',
+];
 const workingStatus = ['QUEUED', 'RUNNING'];
 
 /** The party member whose turn it is, so each quest card shows who holds the ball. */
@@ -28,6 +33,10 @@ export function questTitle(m: any) {
 
 const nextText: Record<string, { text: string; cta: string; xp?: number }> = {
   AWAITING_JOB: { text: 'Ranked roles are waiting for your pick.', cta: 'Choose a job' },
+  AWAITING_EVIDENCE: {
+    text: 'The Gap Analyzer has one question about required skills.',
+    cta: 'Answer the question',
+  },
   AWAITING_APPROVAL: {
     text: 'A Critic-reviewed draft is waiting for your call.',
     cta: 'Review the draft',
@@ -246,6 +255,7 @@ export function QuestLog({
 
 const statusChip: Record<string, { label: string; tone: string }> = {
   AWAITING_JOB: { label: 'Your call', tone: 'coral' },
+  AWAITING_EVIDENCE: { label: 'Your answer', tone: 'coral' },
   AWAITING_APPROVAL: { label: 'Your call', tone: 'coral' },
   AWAITING_INTERVIEW: { label: 'Your turn', tone: 'coral' },
   QUEUED: { label: 'Queued', tone: 'lilac' },
@@ -264,7 +274,9 @@ const headline = (m: any, phase: number | null) => {
         ? 'Target locked in.'
         : 'Job Matcher is ranking roles.';
   if (phase === 3)
-    return m.status === 'AWAITING_APPROVAL'
+    return m.status === 'AWAITING_EVIDENCE'
+      ? 'One question before the draft.'
+      : m.status === 'AWAITING_APPROVAL'
       ? 'Your party built a draft. Now it’s your call.'
       : m.data?.approvedResumeId
         ? 'Resume approved and saved.'

@@ -21,8 +21,11 @@ import {
   mutateRun,
   digest,
   json,
+  runFacts,
   type MissionData,
 } from '../../../apps/api/src/domain.js';
+import { db } from '../../../apps/api/src/db.js';
+import { evidenceFacts, gapSkills, markAnswered } from './resume-team/evidence-question.js';
 import {
   coachSchema,
   questionsSchema,
@@ -73,6 +76,32 @@ function byConfidence(facts: Fact[], profile: CareerProfile) {
     .map((x) => x.f);
 }
 
+// Confirmed answers from earlier runs that cover a skill this run lacks (CFS-123).
+async function reusableAnswers(userId: string, gaps: string[], d: MissionData) {
+  if (!gaps.length) return [];
+  const have = new Set(
+    ((d.evidenceAnswers?.answers || []) as { skill: string }[]).map((a) => a.skill.toLowerCase()),
+  );
+  const wanted = new Set(gaps.map((g) => g.toLowerCase()).filter((g) => !have.has(g)));
+  if (!wanted.size) return [];
+  const memories = await db.careerMemory.findMany({
+    where: {
+      userId,
+      status: 'CONFIRMED',
+      source: { path: ['id'], string_starts_with: 'gap:' },
+    },
+    orderBy: { updatedAt: 'desc' },
+  });
+  const out: { skill: string; text: string; recordId: string | null; memoryId: string }[] = [];
+  for (const m of memories) {
+    const skill = String((m.source as any).id).slice(4);
+    if (!wanted.has(skill.toLowerCase())) continue;
+    wanted.delete(skill.toLowerCase());
+    out.push({ skill, text: m.text, recordId: m.recordId, memoryId: m.id });
+  }
+  return out;
+}
+
 export async function createWorkflow() {
   const saver = portablePool
     ? new PostgresSaver(portablePool)
@@ -97,7 +126,7 @@ export async function createWorkflow() {
     return {
       m,
       p,
-      facts: m.profile.facts as unknown as Fact[],
+      facts: runFacts(m),
       d: m.data as MissionData,
       ...current,
     };
@@ -228,6 +257,31 @@ export async function createWorkflow() {
           .map((f) => f.message)
           .join(' '),
       );
+      // Earlier confirmed answers about the same skill join this run without asking again.
+      const reuse = await reusableAnswers(c.m.userId, gaps.gaps, c.d);
+      if (reuse.length) {
+        const facts = evidenceFacts(reuse, c.facts);
+        c.facts.push(...facts);
+        await patchRun(
+          id,
+          c.token,
+          {
+            evidenceAnswers: {
+              ...(c.d.evidenceAnswers || {}),
+              answers: [...(c.d.evidenceAnswers?.answers || []), ...reuse],
+              facts: [...(c.d.evidenceAnswers?.facts || []), ...facts],
+            },
+          },
+          'Gap Analyzer',
+          'context',
+          `Used your earlier confirmed answer for ${reuse.map((a) => a.skill).join(', ')}.`,
+        );
+        c.d.evidenceAnswers = {
+          answers: [...(c.d.evidenceAnswers?.answers || []), ...reuse],
+          facts: [...(c.d.evidenceAnswers?.facts || []), ...facts],
+        };
+      }
+      markAnswered(gaps, c.d.evidenceAnswers);
       const supported = gaps.requirements.length - gaps.gaps.length;
       const summary =
         `${supported} of ${gaps.requirements.length} job requirements have approved evidence; ` +
@@ -515,6 +569,124 @@ export async function createWorkflow() {
         });
       });
       return { type: 'approved' };
+    },
+
+    // CFS-123: one question per run about required skills with no approved evidence.
+    async evidenceQuestion(id) {
+      const c = await context(id, 'resume');
+      if (c.d.evidenceQuestion)
+        return c.d.evidenceQuestion.answeredAt ? null : c.d.evidenceQuestion;
+      // Skills the user already answered for another run (draft or confirmed) are not asked again.
+      const earlier = await db.careerMemory.findMany({
+        where: { userId: c.m.userId, source: { path: ['id'], string_starts_with: 'gap:' } },
+        select: { source: true },
+      });
+      const answered = new Set(
+        earlier.map((m) =>
+          String((m.source as any).id)
+            .slice(4)
+            .toLowerCase(),
+        ),
+      );
+      const skills = gapSkills(c.d.resumeTeam?.gaps).filter((x) => !answered.has(x.toLowerCase()));
+      if (!skills.length) return null;
+      // Where the user may say they used each skill: the experiences and projects in this profile.
+      const records = c.facts
+        .filter((f) => f.recordId && !f.recordHeaderId && f.kind === 'experience')
+        .map((f) => ({
+          id: f.recordId!,
+          label: f.text.split('\n').slice(0, 2).join(' · ').slice(0, 120),
+        }));
+      const question = { skills, records, askedAt: new Date().toISOString() };
+      await patchRun(
+        id,
+        c.token,
+        { evidenceQuestion: question },
+        'Gap Analyzer',
+        'asked',
+        `Asked you about ${skills.join(', ')}: required by the role, with no approved evidence.`,
+      );
+      return question;
+    },
+
+    async applyEvidenceAnswers(id, raw) {
+      const c = await context(id, 'resume');
+      const decision = raw as { kind?: string; answers?: any[] };
+      if (decision?.kind !== 'evidence') throw Error('Invalid evidence decision.');
+      const asked = new Set<string>(c.d.evidenceQuestion?.skills || []);
+      const answers = (decision.answers || []).filter((a) => asked.has(a.skill));
+      const saved: { skill: string; text: string; recordId: string | null; memoryId: string }[] =
+        [];
+      await mutateRun(id, c.token, async (tx, m) => {
+        for (const a of answers) {
+          // A replay after a crash finds the memory saved the first time instead of a second copy.
+          const key = `gap:${a.skill}`;
+          const existing = await tx.careerMemory.findFirst({
+            where: { userId: m.userId, missionId: m.id, source: { path: ['id'], equals: key } },
+          });
+          const memory =
+            existing ||
+            (await tx.careerMemory.create({
+              data: {
+                userId: m.userId,
+                kind: 'NOTE',
+                title: `${a.skill}: where I used it`,
+                text: a.text,
+                star: json({ situation: '', task: '', action: '', result: '' }),
+                source: json({ kind: 'user', id: key, quote: a.text }),
+                status: a.confirmed ? 'CONFIRMED' : 'DRAFT',
+                recordId: a.recordId || null,
+                missionId: m.id,
+              },
+            }));
+          if (memory.status === 'CONFIRMED')
+            saved.push({
+              skill: a.skill,
+              text: a.text,
+              recordId: a.recordId || null,
+              memoryId: memory.id,
+            });
+        }
+        const facts = evidenceFacts(saved, c.facts);
+        const data = m.data as MissionData;
+        await tx.mission.update({
+          where: { id: m.id },
+          data: {
+            data: json({
+              ...data,
+              evidenceQuestion: { ...data.evidenceQuestion, answeredAt: new Date().toISOString() },
+              evidenceAnswers: {
+                answers: [...(data.evidenceAnswers?.answers || []), ...saved],
+                facts: [...(data.evidenceAnswers?.facts || []), ...facts],
+              },
+            }),
+            events: json([
+              ...(m.events as any[]),
+              {
+                at: new Date().toISOString(),
+                agent: 'Job Seeker',
+                action: 'answered',
+                detail: answers.length
+                  ? `Answered ${answers.length} of ${asked.size} evidence question(s); ${saved.length} confirmed for this resume.`
+                  : 'Skipped the evidence question; the skills stay as gaps.',
+              },
+            ]),
+          },
+        });
+      });
+      const skipped = asked.size - answers.length;
+      const drafts = answers.length - saved.length;
+      return {
+        added: saved.length,
+        summary:
+          [
+            saved.length ? `${saved.length} confirmed answer(s) added as evidence` : '',
+            drafts ? `${drafts} kept as draft memories` : '',
+            skipped ? `${skipped} skipped and kept as gaps` : '',
+          ]
+            .filter(Boolean)
+            .join('; ') + '.',
+      };
     },
 
     async recordHandoff(id, h) {

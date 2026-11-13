@@ -141,6 +141,20 @@ test('a candidate with no resume or formal work builds a story, selects job cont
     timeout: 30000,
   });
   await page.getByRole('button', { name: 'Select this opportunity' }).first().click();
+  // CFS-123: the role requires a skill this profile has no evidence for, so the team asks once.
+  const question = page.getByRole('region', { name: 'Have you used these?' });
+  await expect(question).toBeVisible({ timeout: 30000 });
+  const continueButton = question.getByRole('button', { name: 'Continue with my answers' });
+  await expect(continueButton).toBeDisabled();
+  await question
+    .getByRole('textbox')
+    .first()
+    .fill('I used it in the fictional course data project to check the data quality.');
+  // The first option after "Not in my profile" is the course project.
+  await question.getByRole('combobox').first().selectOption({ index: 1 });
+  await question.getByRole('checkbox').first().check();
+  await page.screenshot({ path: 'output/agent-native/evidence-question.png', fullPage: true });
+  await continueButton.click();
   await expect(
     page.getByRole('heading', { name: 'Your party built a draft. Now it’s your call.' }),
   ).toBeVisible({ timeout: 45000 });

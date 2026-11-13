@@ -87,33 +87,34 @@ off it.
 | GET    | `/api/insights`                  | Market insight for `country` and role `family` from found roles |
 | GET    | `/api/coach`                     | Coach advice for the profile version and next steps             |
 | POST   | `/api/coach/refresh`             | Ask the Coach again, optionally with what to revisit (one call) |
+| GET    | `/api/estimates`                 | Expected model calls and tokens per run kind (live mode only)   |
 
 ## Runs
 
-| Method | Path                                         | Purpose                                                                       |
-| ------ | -------------------------------------------- | ----------------------------------------------------------------------------- |
-| POST   | `/api/missions`                              | Find roles: start a search run                                                |
-| GET    | `/api/missions/:id`                          | Run state, results and events                                                 |
-| POST   | `/api/missions/:id/decisions`                | Human decision: choose a role, approve or return a draft, finish an interview |
-| POST   | `/api/missions/:id/cancel`                   | Cancel a run                                                                  |
-| POST   | `/api/missions/:id/retry`                    | Retry a failed step                                                           |
-| GET    | `/api/missions/:id/save-points`              | Checkpoints of the run                                                        |
-| POST   | `/api/missions/:id/branch`                   | Start a new run from a save point, reusing saved results                      |
-| GET    | `/api/missions/:id/trace`                    | Model-call spans: agents, tokens, time                                        |
-| POST   | `/api/missions/:id/job-link`                 | Read a public job link into the run's shortlist                               |
-| GET    | `/api/missions/:id/jobs/:jobId/availability` | Recheck a vacancy with its source                                             |
-| GET    | `/api/missions/:id/job-fit`                  | Requirement-by-requirement fit for the chosen role                            |
-| POST   | `/api/missions/:id/resume-agent`             | Ask the resume agent for an edit to the draft                                 |
-| POST   | `/api/missions/:id/resume-agent/manual`      | Apply a manual edit (needs fresh review)                                      |
-| POST   | `/api/missions/:id/resume-agent/restore`     | Restore an earlier line                                                       |
-| POST   | `/api/missions/:id/resume-selection`         | Choose which approved resume version the run uses                             |
-| POST   | `/api/missions/:id/feedback-memory`          | Keep review feedback as a career memory                                       |
-| PUT    | `/api/missions/:id/answers`                  | Save an interview answer                                                      |
-| POST   | `/api/missions/:id/interview/rounds`         | One evaluated interview round, with at most one follow-up                     |
-| GET    | `/api/missions/:id/application`              | Application package for the chosen role                                       |
-| POST   | `/api/missions/:id/applications`             | Record an official-site handoff or that you applied                           |
-| GET    | `/api/missions/:id/application-readiness`    | Employer questions and readiness for the role                                 |
-| POST   | `/api/missions/:id/application-readiness`    | Save answers to employer questions                                            |
+| Method | Path                                         | Purpose                                                                                                     |
+| ------ | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| POST   | `/api/missions`                              | Find roles: start a search run                                                                              |
+| GET    | `/api/missions/:id`                          | Run state, results and events                                                                               |
+| POST   | `/api/missions/:id/decisions`                | Human decision: choose a role, answer the evidence question, approve or return a draft, finish an interview |
+| POST   | `/api/missions/:id/cancel`                   | Cancel a run                                                                                                |
+| POST   | `/api/missions/:id/retry`                    | Retry a failed step                                                                                         |
+| GET    | `/api/missions/:id/save-points`              | Checkpoints of the run                                                                                      |
+| POST   | `/api/missions/:id/branch`                   | Start a new run from a save point, reusing saved results                                                    |
+| GET    | `/api/missions/:id/trace`                    | Model-call spans: agents, tokens, time                                                                      |
+| POST   | `/api/missions/:id/job-link`                 | Read a public job link into the run's shortlist                                                             |
+| GET    | `/api/missions/:id/jobs/:jobId/availability` | Recheck a vacancy with its source                                                                           |
+| GET    | `/api/missions/:id/job-fit`                  | Requirement-by-requirement fit for the chosen role                                                          |
+| POST   | `/api/missions/:id/resume-agent`             | Ask the resume agent for an edit to the draft                                                               |
+| POST   | `/api/missions/:id/resume-agent/manual`      | Apply a manual edit (needs fresh review)                                                                    |
+| POST   | `/api/missions/:id/resume-agent/restore`     | Restore an earlier line                                                                                     |
+| POST   | `/api/missions/:id/resume-selection`         | Choose which approved resume version the run uses                                                           |
+| POST   | `/api/missions/:id/feedback-memory`          | Keep review feedback as a career memory                                                                     |
+| PUT    | `/api/missions/:id/answers`                  | Save an interview answer                                                                                    |
+| POST   | `/api/missions/:id/interview/rounds`         | One evaluated interview round, with at most one follow-up                                                   |
+| GET    | `/api/missions/:id/application`              | Application package for the chosen role                                                                     |
+| POST   | `/api/missions/:id/applications`             | Record an official-site handoff or that you applied                                                         |
+| GET    | `/api/missions/:id/application-readiness`    | Employer questions and readiness for the role                                                               |
+| POST   | `/api/missions/:id/application-readiness`    | Save answers to employer questions                                                                          |
 
 ## Resumes
 

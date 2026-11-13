@@ -3905,3 +3905,59 @@ body:has(.quest) {
     grid-template-columns: 1fr;
   }
 }
+
+/* Expected model calls before a run starts (CFS-124). */
+.qa-estimate {
+  margin: 0 0 12px;
+  font-size: 0.85rem;
+}
+
+/* The run's evidence question (CFS-123). */
+.panel.evidence-question {
+  display: grid;
+  gap: 16px;
+  padding: 24px;
+}
+.evidence-head {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.evidence-head h2 {
+  margin: 4px 0 6px;
+}
+.evidence-head p {
+  margin: 0;
+}
+.evidence-skill {
+  display: grid;
+  gap: 10px;
+  border: 1.5px solid var(--q-line, #d7d9e0);
+  border-radius: 16px;
+  padding: 14px 16px;
+  margin: 0;
+}
+.evidence-skill legend {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-weight: 700;
+  padding: 0 6px;
+}
+.evidence-skill label {
+  display: grid;
+  gap: 6px;
+}
+.evidence-skill label.checkbox {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.evidence-skill textarea {
+  min-height: 72px;
+}
+.evidence-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}

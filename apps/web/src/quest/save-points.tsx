@@ -97,7 +97,7 @@ export function QuestSavePoints({
 
   const slots = slotsFrom(data.checkpoints);
   const now = slots.length - 1;
-  const paused = ['AWAITING_JOB', 'AWAITING_APPROVAL', 'AWAITING_INTERVIEW'].includes(m.status);
+  const paused = ['AWAITING_JOB', 'AWAITING_EVIDENCE', 'AWAITING_APPROVAL', 'AWAITING_INTERVIEW'].includes(m.status);
   const label = (s: Slot) =>
     slotLabel[s === slots[now] && paused ? 'waiting' : s.key] || { title: s.key, who: 'party' };
   const firstFork = slots.findIndex((s) => branchFor[s.key]);
