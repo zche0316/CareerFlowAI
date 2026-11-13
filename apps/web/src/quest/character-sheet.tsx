@@ -2,15 +2,10 @@ import { CapabilityLevels } from './capabilities.js';
 import { ProfileSources } from './profile-sources.js';
 import { Lock } from 'lucide-react';
 import { AgentAvatar, LeaderBadge } from './characters.js';
+import { prettyTerm } from './terms.js';
 import { XP_PER_LEVEL, XP_RULES, attributes, factUsage, progressFrom, skillBoard } from './progress.js';
 
-const acronyms = new Set(['sql', 'aws', 'bi', 'api', 'etl', 'gcp', 'ui', 'ux', 'ml', 'ai', 'kpi', 'crm', 'erp', 'qa', 'ci', 'cd']);
-// Requirement terms arrive lowercase from matching; restore conventional casing for display.
-export const prettyTerm = (term: string) =>
-  term
-    .split(/(\s+|\/)/)
-    .map((w) => (acronyms.has(w.toLowerCase()) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1)))
-    .join('');
+export { prettyTerm } from './terms.js';
 
 const statusLabel = { unlocked: 'Unlocked', partial: 'Partial', locked: 'Locked' } as const;
 
