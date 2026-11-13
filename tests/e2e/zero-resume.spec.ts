@@ -144,6 +144,9 @@ test('a candidate with no resume or formal work builds a story, selects job cont
   // CFS-123: the role requires a skill this profile has no evidence for, so the team asks once.
   const question = page.getByRole('region', { name: 'Have you used these?' });
   await expect(question).toBeVisible({ timeout: 30000 });
+  await expect(
+    page.getByText('Your resume team has a question about skills the role requires.'),
+  ).toBeVisible();
   const continueButton = question.getByRole('button', { name: 'Continue with my answers' });
   await expect(continueButton).toBeDisabled();
   await question

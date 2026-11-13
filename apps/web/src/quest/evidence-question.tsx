@@ -41,10 +41,9 @@ export function EvidenceQuestion({
           <span className="quest-sub dark">GAP ANALYZER · ONE QUESTION</span>
           <h2 id="evidence-question">Have you used these?</h2>
           <p>
-            The role requires {question.skills.length === 1 ? 'this skill' : 'these skills'}, and
-            your approved profile has no evidence for {question.skills.length === 1 ? 'it' : 'them'}
-            . If you have real experience, say where and what you did. Leave a skill empty to skip
-            it; it stays a gap.
+            The role requires {question.skills.length === 1 ? 'this' : 'these'}, and your approved
+            profile has no evidence for {question.skills.length === 1 ? 'it' : 'them'}. If you have
+            real experience, say where and what you did. Leave one empty to skip it; it stays a gap.
           </p>
         </div>
       </div>
@@ -73,7 +72,7 @@ export function EvidenceQuestion({
                   value={a?.recordId || ''}
                   onChange={(e) => set(skill, { recordId: e.target.value })}
                 >
-                  <option value="">Not in my profile (add the skill only)</option>
+                  <option value="">Not in my profile (list it with my skills)</option>
                   {records.map((r) => (
                     <option key={r.id} value={r.id}>
                       {r.label}

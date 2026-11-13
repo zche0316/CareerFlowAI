@@ -25,7 +25,7 @@ import { QuestTopBar, type QuestNavId } from './quest/top-bar.js';
 import { QuestHome } from './quest/home.js';
 import { adviceItem, CoachPage, QuestCoach } from './quest/coach.js';
 import { runPhase, runRoute } from './quest/run-route.js';
-import { RunEstimate } from './quest/run-estimate.js';
+import { reloadEstimates, RunEstimate } from './quest/run-estimate.js';
 import { EvidenceQuestion } from './quest/evidence-question.js';
 import { SignIn } from './quest/sign-in.js';
 import { boardStage, stageCopy } from './quest/applications.js';
@@ -350,8 +350,17 @@ function App() {
               : 'Your results are ready.',
       );
       window.scrollTo({ top: 0, behavior: 'auto' });
+    } else if (mission.status === 'AWAITING_EVIDENCE' && phase === next) {
+      // The question appears on the Review step the user is already on; replace "Preparing…".
+      setNotice('Your resume team has a question about skills the role requires.');
     }
   }, [mission?.id, mission?.status, phase, tab]);
+
+  // A finished run adds cost history, so start buttons show the updated estimate (CFS-124).
+  const finishedRuns = (workspace?.missions || []).filter((m: any) => m.status === 'COMPLETE').length;
+  useEffect(() => {
+    if (finishedRuns) reloadEstimates();
+  }, [finishedRuns]);
 
   const approvals =
     workspace?.missions.filter((m: any) =>

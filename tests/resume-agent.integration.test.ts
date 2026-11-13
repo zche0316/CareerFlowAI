@@ -80,6 +80,8 @@ it('edits the preview from approved profile facts, searches memory only on deman
       expect(role).toBe('resume-edit');
       expect(context).not.toHaveProperty('conversationHistory');
       expect(context.facts[0].text).toBe(fact.text);
+      // AI edits are traced with the run, so they appear in its cost table (CFS-127).
+      expect(hooks.onSpan).toBeTypeOf('function');
       expect(await hooks.onSearchHistory!('SQL', 0)).toMatchObject({ hits: [] });
       return {
         message: 'Polished wording.',

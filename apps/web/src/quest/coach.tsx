@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, RefreshCw } from 'lucide-react';
 import { AgentAvatar } from './characters.js';
-import { RunEstimate } from './run-estimate.js';
+import { reloadEstimates, RunEstimate } from './run-estimate.js';
 
 // The Career Coach on Home: advice that belongs to the profile version, not to one run, and the
 // next actions across every role on the board. Refreshing makes one counted model call.
@@ -50,6 +50,7 @@ export function QuestCoach({
     setError('');
     try {
       setCoach(await request('/coach/refresh', 'POST'));
+      reloadEstimates();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -189,6 +190,7 @@ export function CoachPage({
     setError('');
     try {
       setCoach(await request('/coach/refresh', 'POST', { feedback }));
+      reloadEstimates();
       setFeedback('');
     } catch (e) {
       setError((e as Error).message);
