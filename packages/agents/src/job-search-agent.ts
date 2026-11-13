@@ -5,8 +5,8 @@ import { modelRoute } from './router.js';
 
 // A model that runs its own web search tool in a loop (search, open a page, search again) and
 // reports the jobs it found. Everything it returns is a claim: the caller checks each page on
-// the server before a role counts as a posting. The prototype comparison behind this design is
-// in docs/EVALUATION.md ("Discovery comparison").
+// the server before a role counts as a posting. A comparison run during development chose this
+// design over cheaper sources for coverage.
 
 // Budget per call. Each search and page open is billed by the model provider on top of tokens.
 export const JOB_SEARCH_MAX_TOOL_CALLS = 40;

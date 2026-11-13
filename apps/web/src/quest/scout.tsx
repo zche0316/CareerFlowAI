@@ -95,7 +95,7 @@ const busyStatus = (s: string | null) => s === 'QUEUED' || s === 'RUNNING';
 
 // Scout's own source choices; any other saved provider still shows under its raw name.
 // Two tiers: the Tavily-based sources are cheap and quick but find few roles; model web search
-// finds far more (see docs/EVALUATION.md, "Discovery comparison") and costs much more per sweep.
+// finds far more (measured during development) and costs much more per sweep.
 const sources: [string, string][] = [
   ['auto', 'Official boards + web pages · low cost'],
   ['employers', 'Official employer boards only · low cost'],

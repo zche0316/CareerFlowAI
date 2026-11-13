@@ -2,43 +2,20 @@
 
 CareerFlow AI narrows the information gap for people looking for technical roles across regions. It finds roles on official job boards and verifiable sources, shows what each region's roles actually ask for, rates your capability per skill from evidence you approve (including GitHub, certificates and contest profiles), and tailors an evidence-grounded resume for each role you pursue, with interview practice.
 
-Under the hood, a team of agents (Profile Builder, Career Coach, Scout, Job Matcher, a resume team and Interview Coach) works on a long-lived workspace: approved profile versions, one quest per role, durable runs, human decisions and documents persist in PostgreSQL.
+A team of agents (Profile Builder, Career Coach, Scout, Job Matcher, a resume team and Interview Coach) works on a long-lived workspace: approved profile versions, one quest per role, durable runs, human decisions and documents persist in PostgreSQL. Applying stays manual: nothing is sent to an employer.
 
-Progress, acceptance results, defects and delivery evidence are managed in [Jira](https://careerflow-elec5620-group2.atlassian.net/jira/software/projects/CFS/boards/2). Repository documentation covers how to use, run and maintain the application.
+Progress, acceptance evidence and defects are tracked in [Jira](https://careerflow-elec5620-group2.atlassian.net/jira/software/projects/CFS/boards/2).
 
 ## Documentation
 
-- [User journey](docs/english-user-journey.md): fictional walkthrough with messages and expected user actions.
-- [Product workflow](docs/PRODUCT_WORKFLOW.md): source material, approved profile and application version boundaries.
-- [Architecture](docs/architecture.md): components, agent workflow, ownership and persistence.
-- [API contract](docs/API.md): endpoints, schemas and repository boundaries.
-- [Orchestration](docs/ORCHESTRATION.md): durable missions, lifecycle and approved context handoff.
-- [Multi-agent plan](docs/MULTI_AGENT_PLAN.md): resume team, human review gates and the reverse job search roadmap.
-- [Readiness for real users](docs/READINESS.md): what works end to end, latest live checks and remaining gaps.
-- [Local demo readiness](docs/LOCAL_DEMO.md): the short-term local demo workflow, its gaps and a checklist of every product feature.
-- [Deployment playbook](docs/WEEK13_DEPLOYMENT.md): source packaging, clean installation and course demonstration.
-- [Evaluation](docs/EVALUATION.md): labelled set, measured results and regression floors.
+- [Local run and demo guide](docs/LOCAL_DEMO.md): setup, demo account, demo workflow, live runs and the feature checklist.
+- [Workspace model](docs/WORKSPACE_MODEL.md): design notes for roles, the role library, capability levels, recruiter view, profile sources and market insight.
+- [Architecture](docs/architecture.md): components, agents and guarantees.
+- [API](docs/API.md): every HTTP route, conventions and the data model.
 
 Member 3 matching-source provenance is retained in [NOTICE.md](packages/matching/NOTICE.md).
 
-## Docker deployment from the submitted source
-
-For the Week 13 on-site demonstration, download the submitted ZIP from Canvas, extract it into a new folder and open a terminal in the `CareerFlowAI` folder. Docker Desktop must be running. This path needs no host Node.js/npm installation.
-
-```sh
-cp .env.example .env # first setup only
-# Edit the private .env with your model/job settings; keep it outside the submitted ZIP.
-docker compose up -d --build --wait
-docker compose ps
-```
-
-Open **http://localhost:8787** and create an account. The image installs locked dependencies and builds the app from source; startup applies migrations to PostgreSQL. Local data persists in the Compose volume. `docker compose down` stops services while retaining it; `down -v` deletes that deployment's database.
-
-Default host ports are 8787/55432. Stop the old local instance before using them, or set `APP_PORT`/`DB_PORT` in the private `.env`; the browser origin follows `APP_PORT`. Use a distinct Compose project and fresh data volume for an independent rehearsal. Docker builds need access to the base image, OS packages and npm dependencies unless these have already been cached on the demonstration machine.
-
-For deterministic offline verification, explicitly set `PROVIDER_MODE=fixture` and `JOB_SOURCE=fixtures`. For the actual AI demonstration, configure your provider in the private `.env`; native `OPENAI_NATIVE_*` settings are forwarded too. Internet access is required for live model and job requests.
-
-## Optional local development
+## Run it locally
 
 Requires Node.js 22.13+ (Node 24 recommended) and npm.
 
@@ -48,72 +25,34 @@ npm ci
 npm run start:local
 ```
 
-Open **http://localhost:8787** and create an account. VS Code F5 → **CareerFlow: database + app** runs the same startup flow.
+Open **http://localhost:8787** and create an account, or run `npm run demo:account` in a second terminal for a ready account with a fictional graduate profile. VS Code F5 → **CareerFlow: database + app** runs the same startup.
 
-For a demo, `npm run demo:account` (in a second terminal, with the app running) creates a ready account with a fictional graduate profile; see [docs/LOCAL_DEMO.md](docs/LOCAL_DEMO.md).
+The runner starts a persistent portable PostgreSQL (PGlite) under `.runtime/pglite`, applies migrations, builds the client and starts the API with its background worker. Ctrl+C stops both; restarting keeps your records. Portable mode uses one shared connection, so run one app process at a time.
 
-The runner starts persistent PGlite under `.runtime/pglite`, applies Prisma migrations, builds the frontend and starts the API with its background worker. Ctrl+C stops the app and database. Restarting preserves local records; deleting `.runtime/pglite` removes them.
-
-Portable mode uses one shared PostgreSQL connection. Run one app process and stop it before testing; do not attach another app or test process to that instance. Use native PostgreSQL or Docker for concurrent deployments.
-
-## Native PostgreSQL
-
-Requires PostgreSQL 15+. Set `DATABASE_URL` in `.env` for your database, then run:
+### Docker
 
 ```sh
-npm ci
-npm run db:migrate
-npm run build
-npm start
+cp .env.example .env # first setup only
+docker compose up -d --build --wait
 ```
 
-Alternatively, `bash scripts/local-db.sh` starts the project-owned development database under `.runtime/postgres` on port 55432. It uses loopback binding and trust authentication for local development. Set `PG_BIN` if its binaries are not on PATH. It does not replace an existing PostgreSQL installation.
+Open **http://localhost:8787**. Data persists in the Compose volume; `docker compose down -v` deletes it. Set `APP_PORT`/`DB_PORT` in `.env` to move the default ports 8787/55432.
 
-For frontend development, run `npm run dev:web` and open http://localhost:5173. `npm run dev` watches API changes.
+### Native PostgreSQL
+
+With PostgreSQL 15+ and `DATABASE_URL` set: `npm ci && npm run db:migrate && npm run build && npm start`. `bash scripts/local-db.sh` starts a project-owned development database under `.runtime/postgres` on port 55432. With native PostgreSQL the worker can run separately (`EMBEDDED_WORKER=false`, then `npm run worker`).
 
 ## Configuration
 
-Use `.env.example` for supported settings; never overwrite a populated `.env` or commit credentials.
+See `.env.example`; never commit `.env`.
 
-- **AI:** `PROVIDER_MODE=openai` uses the configured provider. Set the appropriate key, model and endpoint in `.env`; model routing can distinguish text, light text and vision tasks. A compatible model must support the tools and structured outputs used by the workflow. Resume vision processing requires explicit consent. Restart the app and any separate worker after changes.
-- **Offline verification:** `PROVIDER_MODE=fixture` with `JOB_SOURCE=fixtures` uses labelled fictional data and deterministic outputs. This is not a local LLM or proof of live provider availability. A failed live mission does not silently switch to fixtures.
-- **Recruitment:** official employer APIs, optional Tavily discovery and optional Adzuna use separate configuration. Pasted listings retain user-provided provenance. New live missions use source-quoted LLM requirements mapped to approved facts, with inspectable code scoring and coverage for unknown categories. Fixture missions retain the original rule-based baseline. Search results expose source and missing information; a match score is not a hiring probability.
-- **Separate worker:** the API embeds a worker by default. With native PostgreSQL, set `EMBEDDED_WORKER=false`, start the API, and run `npm run worker` separately. Portable mode must retain a single app process.
+- **Mode:** `PROVIDER_MODE=fixture` (with `JOB_SOURCE=fixtures`) is deterministic, free and offline. `PROVIDER_MODE=openai` makes live model calls; a run keeps the mode it started in and never falls back to fixtures.
+- **Job sources:** official employer boards (Greenhouse, Lever, Ashby) need no key; Adzuna and Tavily web discovery are optional. Scout's model web search needs `OPENAI_NATIVE_API_KEY`.
+- **Profile sources:** GitHub works without a key; `GITHUB_TOKEN` raises the rate limit.
 
-Closing the browser does not stop a running server mission. A stopped server cannot continue work. Cancellation and profile-version changes guard against stale writes.
+## Development workflow
 
-## Checks
-
-With the portable app stopped:
-
-```sh
-npm run verify:local
-```
-
-This starts the database, applies migrations, runs type checking, source packaging checks (Python 3), matching/unit/integration tests and a production build, then stops the database.
-
-For browser tests, with the app stopped:
-
-```sh
-npx playwright install chromium # first time only
-npm run test:e2e:local
-```
-
-This starts a fixture-mode app on a disposable database under `.runtime/pglite-e2e` and runs the Playwright specs against the Quest interface, including `tests/e2e/demo-workflow.spec.ts`, the local demo route from [docs/LOCAL_DEMO.md](docs/LOCAL_DEMO.md). Your local records in `.runtime/pglite` are not opened.
-
-With a dedicated native test database configured:
-
-```sh
-npm run verify
-npx playwright install chromium
-# Start the app against that test database, then run:
-npm run test:e2e
-```
-
-Use disposable QA data and explicitly select fixture mode for offline checks. Clear live model keys when a check must not call an external provider. API tests clean their own records; browser tests may retain fictional QA records. Screenshots and reports belong in ignored `output/`, `playwright-report/` and `test-results/`, while results and delivery evidence belong in Jira.
-
-The optional retrieval experiment uses synthetic labels from `tests/fixtures/career-retrieval.json`. `npx tsx scripts/evaluate-career-retrieval.ts` prints keyword results; `python3 scripts/evaluate-career-vectors.py` writes vector results under `output/retrieval-evaluation/`. The latter requires PyTorch/Transformers and downloads a public model on first use. Neither experiment establishes production retrieval quality.
-
-## Source packaging
-
-Use a clean checkout of a fixed, verified GitHub `main` commit, then run `python3 scripts/package-source.py` (or `npm run package:source`). The script includes the optional Docker/AWS configuration and records source-file hashes. Inspect the ZIP and rehearse from its extracted contents using the [deployment playbook](docs/WEEK13_DEPLOYMENT.md). Keep credentials, databases, dependencies, generated builds, logs and personal documents outside the source archive. Record submission and verification outcomes in Jira.
+- Each change starts from a Jira CFS issue; one commit per issue, with the issue key in the commit and branch.
+- Commit locally until a module is complete, then push once and open a pull request; CI runs the full checks and every browser spec in parallel.
+- Checks while iterating: `npm run verify:quick` and the browser spec for the page you changed (`npm run test:e2e:local -- tests/e2e/<spec>.spec.ts`). Before pushing, with the app stopped: `npm run verify:local` and `npm run test:e2e:smoke`.
+- Browser tests run a fixture-mode app on a disposable database under `.runtime/pglite-e2e`; your records in `.runtime/pglite` are never opened. Set `PORT` and `LOCAL_DB_PORT` when the defaults are in use.

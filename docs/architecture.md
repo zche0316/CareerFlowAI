@@ -1,55 +1,77 @@
-# Architecture and delivery decisions
+# Architecture
 
-## Scope
+CareerFlow is one TypeScript application: a React/Vite client (the Quest interface), an Express
+API, PostgreSQL through Prisma, a pg-boss queue with a worker embedded in the API process, and
+LangGraph graphs with PostgreSQL checkpoints. Routes are listed in [API.md](API.md); feature
+design notes are in [WORKSPACE_MODEL.md](WORKSPACE_MODEL.md).
 
-Stage 1 requirements R1–R5 are represented by Profile Builder, Career Coach, Job Matcher, Resume Tailor and Interview Coach. The orchestrator, queue, provider adapter and data services are supporting components, not additional specialist agents.
+## Layout
 
-The first implementation is a modular TypeScript application: React/Vite client, Express API, PostgreSQL/Prisma domain persistence, pg-boss worker and LangGraph with PostgreSQL checkpoints. The worker can run in the API process for simple deployment or separately with `EMBEDDED_WORKER=false`. A page refresh or closed browser does not stop server work. A powered-off server cannot continue work.
+```text
+apps/api/src/        Express routes and domain services (one module per feature area)
+apps/web/src/        React client; apps/web/src/quest/ holds the Quest pages
+packages/agents/     LangGraph workflow, specialists, provider adapter, Scout graph
+packages/contracts/  Zod schemas and pure rules shared by API and client
+packages/recruitment/ job sources (official ATS boards, Adzuna, web discovery, links)
+packages/documents/  resume layout, PDF/DOCX export, PDF text extraction
+packages/matching/   the rule-based matching baseline used in fixture mode
+prisma/              schema and migrations
+scripts/             local run, portable database, demo account, e2e runner
+tests/               vitest unit and integration tests; tests/e2e/ Playwright specs
+```
 
-The repository layout, shared schemas, HTTP endpoints, sample data and local commands are
-specified in [API.md](API.md).
+## Workspace model
 
-Request IDs, lifecycle transitions and the approved-profile handoff are specified in
-[ORCHESTRATION.md](ORCHESTRATION.md).
+- **Profile**: append-only approved versions. Everything an agent sees comes from the approved
+  version; drafts, imports, conversations and external sources become facts only after approval.
+- **Application**: one role the user pursues, kept across runs and profile versions. A role found
+  by Find roles, Scout or a pasted link is the same application when the role library resolves it
+  to the same identity (posting id or cleaned link, else employer, title, city and a similar
+  description).
+- **Run** (`Mission` row): one durable workflow on a role or a search: budget of 60 model
+  requests, human gates, save points, trace spans.
+- **Coach**: workspace-level advice per profile version plus rule-based next steps across roles.
+- **Capability**: per-skill levels 0–4 computed on read from approved records, stories and
+  verified evidence; role requirements become required levels and gaps.
 
-## Requirement traceability
+## Agents
 
-- R1: `createDraft`, `approveProfile`, immutable `Profile` versions and manual form. Server-side review action, user ownership, date/salary validation and optimistic version checks prevent lost updates. Cancellation discards only the draft. Manual preparation works without a model.
-- R2: Career Coach uses approved evidence to prepare strengths, gaps, directions and actions; strength evidence IDs are validated.
-- R3: The original Member 3 matching algorithm, fixture jobs and regression tests are retained under `packages/matching`. Fixture missions call the original pure comparison function rather than its unauthenticated file-backed API. Live missions use source-quoted LLM requirement extraction and approved-fact mapping in packages/agents/src/job-mapping.ts, followed by deterministic evidence scoring; no fixed skill vocabulary is used in the live extraction path. Selected jobs are persisted in owned mission context. Optional job comparison preserves missing values and source disclosure.
-- R4: Resume Tailor chooses and orders evidence IDs; rendering is extractive. Initial candidate claims come from approved facts. Later wording suggestions/manual edits retain source evidence and require review; wording guards do not establish independent semantic truth. Unknown/duplicate evidence IDs are rejected. A hash binds explicit approval to the exact mission/profile/draft version. Drafts and approved resumes are separate, and revision never overwrites the previous approved document.
-- R5: Selected-job and approved context produce validated, uniquely identified questions; edited answers are saved in question order. The server derives early completion from persisted answers, and provider failure retains answers. Feedback is practice context, not a new qualification. Subsequent missions can reuse prior feedback as advisory context. Optional O5 salary practice simulates one fictional recruiter reply and persists feedback separately from approved facts; only the user records an accept/decline practice choice.
+The main graph for a run:
 
-## Agent workflow
+```text
+Career Coach (skipped when advice for this profile already exists)
+  -> Job Matcher (requirement mapping with quoted excerpts, evidence-based score)
+  -> choose a role (human; skipped for a run started on a saved role)
+  -> resume team: Gap Analyzer -> Evidence Selector -> Rewriter -> Critic (at most two returns)
+     -> human review: approve, or return to a named specialist (at most two per run)
+     (skipped for a practice-only run, which reuses the role's approved resume)
+  -> Interview Coach questions -> answers with per-answer evaluation -> feedback
+```
 
-Approved profile -> Career Coach -> Job Matcher -> interrupt for job selection -> resume team subgraph (Gap Analyzer -> Evidence Selector -> Rewriter -> Critic, with Command handoffs and a bounded Critic loop) -> interrupt for exact-draft approval or a return to a named specialist -> Interview Coach questions -> interrupt for saved responses -> Interview Coach feedback. See [MULTI_AGENT_PLAN.md](MULTI_AGENT_PLAN.md). A completed interview may then run an optional, single-round salary negotiation practice.
+Scout is a separate checkpointed graph: collect roles for the saved search, skip roles already
+seen or on the board, rank new ones, then put the shortlist on the board ("New from Scout") or,
+when the user opts in, start one resume team per role in parallel.
 
-Human returns route to the named specialist (gap analysis, evidence selection or wording), limited to two per mission; the Critic may return work at most twice per review cycle before escalating to the user. Provider work is capped at 60 model calls per mission. Live generation makes one authorised, argument-validated context tool call followed by a structured response; the complete specialist call has a shared 90-second default timeout, configurable up to 120 seconds. No arbitrary web/terminal tools are exposed to the model.
+Live specialists use the OpenAI Responses API with one authorised context-tool call and a Zod
+structured result; fixture mode returns deterministic outputs. No web, shell or file tools are
+exposed to models, except the opt-in model web search in Scout.
 
-Domain rows hold factual source versions and human approvals; checkpoints hold graph continuation state. PostgreSQL row locks, worker leases, current-version checks and task-state checks guard side effects. Cancelling or superseding a mission prevents late results from committing. Worker recovery re-enqueues queued work and expired leases. Generation/checkpoint recovery is idempotent at the business layer; this is not a claim that remote LLM billing is exactly once after an abrupt process crash.
+## Guarantees
 
-## Scout sweeps
+- **Evidence**: every resume line cites an approved fact; requirement mappings must quote the
+  listing, and an unquotable item is dropped, never accepted.
+- **Human decisions**: role choice, draft approval and profile approval are explicit and bound to
+  the exact version shown (hash or revision checks).
+- **Durability**: PostgreSQL row locks, worker leases and checkpoint replay let a run survive a
+  reload or a worker restart; cancelled or superseded runs cannot commit late results.
+- **Privacy**: scrypt password hashes, hashed session tokens, CSRF on every mutation, owner
+  scoping on every query. Models never receive credentials or the account email. Nothing is sent
+  to an employer: applying stays manual.
 
-A sweep runs as a separate checkpointed graph: Scout collects new public roles for the saved search and stores quoted job records, Job Matcher ranks them, and one resume team per shortlisted role starts in parallel as its own mission that stops at the draft review. Sweeps run daily for users who opt in, or on request. See [MULTI_AGENT_PLAN.md](MULTI_AGENT_PLAN.md) section 5.
+## Running it
 
-## Authentication and privacy
-
-Passwords use salted scrypt hashes. Sessions use random HTTP-only, SameSite=Strict cookies with hashed tokens stored in PostgreSQL. Mutations require the session CSRF token and validate supplied browser origins. All candidate data queries are scoped to the authenticated user. Models receive task context without login credentials or account email. Starting a mission grants the career team access to the owned approved-profile snapshot. Legacy sharing fields remain in stored profiles for compatibility; the interface does not require four specialist-sharing switches.
-
-The Operations/Activity views in this prototype cover the signed-in user's workspace, not a privileged cross-customer administration portal. Production requires HTTPS and an explicitly permitted origin. This classroom prototype is not a production security certification.
-
-## Honest modes and proof boundaries
-
-`fixture` is a deterministic development provider, not a local LLM. Fixture jobs and their salary/growth data are labelled fictional; external jobs retain source and retrieval metadata. `openai` uses the Responses API, a controlled context tool and Zod structured outputs. Live mode never silently falls back to fixtures. Missing configuration or provider failures become recoverable mission failures and preserve approved data.
-
-Live vacancy retrieval is implemented through supported official employer APIs and optional configured discovery/aggregator sources. Pasted listings remain unverified. Direct SEEK/Indeed API submission, browser auto-application, email/calendar connectors and hosted deployment are not claimed. Model choice is configured with `OPENAI_MODEL`; deterministic fixtures and locally exercised live-provider paths are kept separate.
-
-## Jira and ownership
-
-CFS-34/35/36/37: contracts, persistence and orchestration. CFS-12–18: profile and analysis. CFS-20–22: integrated matching. CFS-24–28: factual resume and approval. CFS-30–32: mock interview. CFS-33: optional salary negotiation practice. CFS-39/40/41/42: checks, CI, journey and clean deployment. Existing Jira completion claims are not changed merely because scaffolding exists.
-
-## Deployment
-
-Container services bind published ports to loopback for local demonstration. Docker Compose is supplied; verify it with a running Docker daemon before treating container deployment as tested. The native PostgreSQL helper is development-only and owns `.runtime/postgres` on port 55432. No existing course databases are modified.
-
-GitHub Enterprise Server installations may need an administrator-provided Actions runner and compatible versions of the checkout/setup-node/artifact actions. A committed workflow alone is not a successful CI run.
+- Local: `npm run start:local` (portable PostgreSQL in `.runtime/pglite`, one app process at a
+  time) or Docker Compose. See [LOCAL_DEMO.md](LOCAL_DEMO.md).
+- Checks: `npm run verify:quick` while iterating, `npm run verify:local` and
+  `npm run test:e2e:smoke` before pushing; CI runs the full checks and every browser spec in
+  parallel on each pull request.
