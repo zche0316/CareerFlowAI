@@ -25,6 +25,7 @@ import { progressFrom } from './quest/progress.js';
 import { QuestTopBar, type QuestNavId } from './quest/top-bar.js';
 import { QuestHome } from './quest/home.js';
 import { QuestCoach } from './quest/coach.js';
+import { SignIn } from './quest/sign-in.js';
 import { boardStage, stageCopy } from './quest/applications.js';
 import { PartyRoster } from './quest/roster.js';
 import './quest/fonts.js';
@@ -44,7 +45,6 @@ import {
   ArrowRight,
   Check,
   Compass,
-  Sparkles,
   FileCheck2,
   Activity,
   X,
@@ -1086,135 +1086,11 @@ function App() {
 }
 
 function Login({ error, onLogin }: { session: any; error: string; onLogin: (s: any) => void }) {
-  const [email, setEmail] = useState(''),
-    [password, setPassword] = useState(''),
-    [name, setName] = useState(''),
-    [register, setRegister] = useState(false),
-    [err, setErr] = useState(error),
-    [busy, setBusy] = useState(false);
-  const submit = async (path: string, body?: unknown) => {
-    setBusy(true);
-    setErr('');
-    try {
-      onLogin(await api('/auth/' + path, 'POST', body || {}));
-    } catch (e) {
-      setErr((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
   return (
-    <div className="login-page">
-      <section className="login-brand">
-        <a href="/" className="brand" aria-label="CareerFlow home">
-          <span className="brandmark">
-            <img src="/careerflow-logo.svg" alt="" />
-          </span>
-          CareerFlow
-        </a>
-        <div className="login-story">
-          <span className="eyebrow">YOUR NEXT CHAPTER</span>
-          <h1>
-            Your experience.
-            <br />
-            Your next move.
-          </h1>
-          <p>
-            A clearer direction, a stronger application.
-            <br />
-            Your career coach, with you at every step.
-          </p>
-          <div className="career-personas" aria-label="Career paths for every stage">
-            <div className="career-persona persona-student">
-              <span className="persona-avatar">JL</span>
-              <span className="persona-stage">Finding a first role</span>
-              <strong>Jordan’s next chapter</strong>
-              <span>Business Analytics student</span>
-              <div className="persona-path">
-                <i />
-                Profile built<span>→</span>Graduate Analyst
-              </div>
-            </div>
-            <div className="career-persona persona-professional">
-              <span className="persona-avatar">AM</span>
-              <span className="persona-stage">Ready for a change</span>
-              <strong>Alex’s next chapter</strong>
-              <span>Operations → Business Analysis</span>
-              <div className="persona-path">
-                <i />
-                Experience connected<span>→</span>New possibilities
-              </div>
-            </div>
-            <div className="persona-coach">
-              <Sparkles size={18} />
-              <span>Your story. A plan to move forward.</span>
-            </div>
-          </div>
-        </div>
-        <small>Your profile, applications and progress. In your own workspace.</small>
-      </section>
-      <section className="login-form">
-        <div>
-          <span className="eyebrow">WELCOME TO CAREERFLOW</span>
-          <h2>{register ? 'Create your workspace' : 'Welcome back.'}</h2>
-          <p>
-            {register
-              ? 'Keep your career context connected and under your control.'
-              : 'Sign in to continue your career journey.'}
-          </p>
-          {err && (
-            <div role="alert" className="error-banner">
-              {err}
-            </div>
-          )}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              void submit(register ? 'register' : 'login', {
-                email,
-                password,
-                ...(register ? { name } : {}),
-              });
-            }}
-          >
-            {register && (
-              <label>
-                Your name
-                <input required value={name} onChange={(e) => setName(e.target.value)} />
-              </label>
-            )}
-            <label>
-              Email address
-              <input
-                type="email"
-                required
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </label>
-            <label>
-              Password
-              <input
-                type="password"
-                minLength={10}
-                required
-                autoComplete={register ? 'new-password' : 'current-password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </label>
-            <button className="primary full" disabled={busy}>
-              {busy ? 'Opening…' : register ? 'Create workspace' : 'Sign in'}
-              <ArrowRight size={17} />
-            </button>
-          </form>
-          <button className="text-button" onClick={() => setRegister(!register)}>
-            {register ? 'Already have an account? Sign in' : 'New here? Create an account'}
-          </button>
-        </div>
-      </section>
-    </div>
+    <SignIn
+      error={error}
+      onSubmit={async (path, body) => onLogin(await api('/auth/' + path, 'POST', body))}
+    />
   );
 }
 
