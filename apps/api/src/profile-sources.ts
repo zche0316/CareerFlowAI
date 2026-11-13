@@ -66,6 +66,81 @@ async function getJson(fetcher: Fetcher, url: string, what: string) {
 const MAX_REPOS = 6;
 
 /**
+ * Lines from a repository README that can describe the project, quoted as written (CFS-126):
+ * the first prose paragraph as an overview and up to four bullet or prose lines as details.
+ * Badges, images, headings, code, tables, HTML and set-up instructions are skipped. Each line is
+ * an exact substring of the README, cut after its first sentence when long, so the user can check it.
+ */
+export function readmeLines(markdown: string): { overview: string; details: string[] } {
+  const lines = String(markdown || '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .split('\n');
+  let inCode = false;
+  const prose: string[] = [];
+  const bullets: string[] = [];
+  let paragraph: string[] = [];
+  let skipSection = false;
+  const flush = () => {
+    if (paragraph.length) prose.push(paragraph.join(' '));
+    paragraph = [];
+  };
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (/^(```|~~~)/.test(line)) {
+      inCode = !inCode;
+      flush();
+      continue;
+    }
+    if (inCode) continue;
+    if (/^#{1,6}\s/.test(line)) {
+      flush();
+      // Set-up, licence and contribution sections describe using the code, not the project.
+      skipSection =
+        /install|setup|set up|getting started|usage|run|build|licen[cs]e|contribut|requirements|prerequisites|deploy|test/i.test(
+          line,
+        );
+      continue;
+    }
+    if (!line) {
+      flush();
+      continue;
+    }
+    if (skipSection) continue;
+    if (/^(!\[|\[!\[|<|\||>|---|===|\$ |npm |pip |git |cd )/.test(line)) continue;
+    const bullet = /^([-*+]|\d+\.)\s+(.*)$/.exec(line);
+    if (bullet) {
+      flush();
+      bullets.push(bullet[2]);
+    } else paragraph.push(line);
+  }
+  flush();
+  const clean = (t: string) => {
+    const text = t.trim();
+    // Markdown links and emphasis make poor resume lines; keep only plain sentences.
+    if (/\]\(|`|\*\*|__|https?:\/\//.test(text) || text.length < 25) return '';
+    if (text.length <= 160) return text;
+    const cut = text.slice(0, 220).indexOf('. ');
+    return cut > 60 ? text.slice(0, cut + 1) : '';
+  };
+  const overview = prose.map(clean).find(Boolean) || '';
+  const details = [...bullets, ...prose]
+    .map(clean)
+    .filter((t) => t && t !== overview)
+    .filter((t, i, all) => all.indexOf(t) === i)
+    .slice(0, 4);
+  return { overview, details };
+}
+
+/** The user's own commits in a repository: how many (of the latest 100) and over which months. */
+export function commitActivity(commits: any[]) {
+  const dates = commits
+    .map((c) => month(c?.commit?.author?.date || c?.commit?.committer?.date))
+    .filter((d): d is string => Boolean(d))
+    .sort();
+  return { count: commits.length, first: dates[0] || null, last: dates.at(-1) || null };
+}
+
+/**
  * Public repositories through the official REST API: the most recently pushed non-fork
  * repositories become personal projects; languages, tests and CI become verified evidence.
  * Uses GITHUB_TOKEN when the server has one (higher rate limit), never the user's own token.
@@ -95,6 +170,17 @@ export async function githubProposal(
   for (const r of repos) {
     const languages: Record<string, number> = await get(r.languages_url).catch(() => ({}));
     const root: any[] = await get(`${api}/repos/${r.full_name}/contents`).catch(() => []);
+    // README text and the user's own commits (CFS-126). Either may be missing; neither is fatal.
+    const readme = await get(`${api}/repos/${r.full_name}/readme`)
+      .then((f: any) =>
+        f?.encoding === 'base64' ? Buffer.from(String(f.content), 'base64').toString('utf8') : '',
+      )
+      .catch(() => '');
+    const commits: any[] = await get(
+      `${api}/repos/${r.full_name}/commits?author=${encodeURIComponent(user.login)}&per_page=100`,
+    ).catch(() => []);
+    const activity = commitActivity(Array.isArray(commits) ? commits : []);
+    const fromReadme = readmeLines(readme);
     const names = new Set(root.map((f: any) => String(f.name).toLowerCase()));
     const hasCi = names.has('.github') || names.has('.gitlab-ci.yml') || names.has('.circleci');
     const hasTests = ['test', 'tests', '__tests__', 'spec', 'e2e'].some((n) => names.has(n));
@@ -105,18 +191,28 @@ export async function githubProposal(
       .map(([l]) => l)
       .slice(0, 4);
     const pushed = month(r.pushed_at);
+    // The user's own commits date the work better than the repository's creation and last push.
+    const last = activity.last || pushed;
     projects.push({
       id: `gh-${slug(r.name)}`,
       title: r.name,
       experienceType: 'personal',
       organisation: 'GitHub',
       location: '',
-      startMonth: month(r.created_at),
-      endMonth: monthsAgo(pushed) <= 3 ? null : pushed,
-      current: monthsAgo(pushed) <= 3,
-      overview: r.description || '',
+      startMonth: activity.first || month(r.created_at),
+      endMonth: monthsAgo(last) <= 3 ? null : last,
+      current: monthsAgo(last) <= 3,
+      overview: r.description || fromReadme.overview,
       details: [
+        // With a description as the overview, the README's opening line becomes a detail.
+        ...(r.description && fromReadme.overview ? [fromReadme.overview] : []),
+        ...fromReadme.details,
         `Public repository${r.stargazers_count ? ` with ${r.stargazers_count} star${r.stargazers_count === 1 ? '' : 's'}` : ''}${hasTests ? ', automated tests' : ''}${hasCi ? ' and CI' : ''}.`,
+        ...(activity.count
+          ? [
+              `${activity.count >= 100 ? '100 or more' : activity.count} commit${activity.count === 1 ? '' : 's'} by ${user.login}${activity.first ? ` from ${activity.first} to ${activity.last}` : ''}.`,
+            ]
+          : []),
       ],
       technologies: langs,
       url: r.html_url,

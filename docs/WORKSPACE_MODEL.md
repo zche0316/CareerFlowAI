@@ -184,7 +184,12 @@ Imported facts carry their source and whether they were verified (`verifiedEvide
 capability model uses for confidence and levels.
 
 - GitHub (official REST API, optional server `GITHUB_TOKEN`): up to six recent non-fork public
-  repositories become personal projects; languages, tests and CI become verified evidence.
+  repositories become personal projects; languages, tests and CI become verified evidence. Each
+  project also quotes up to five plain lines from its README (badges, code, links and set-up
+  sections skipped; long paragraphs cut after the first sentence) and is dated by the user's own
+  commits (latest 100). No model call; the user reviews the lines before approving (CFS-126).
+  An import makes about four requests per repository, so without a token a second import in the
+  same hour can reach GitHub's limit of 60 requests.
 - Certificates: badge or verification links. An Open Badges assertion (most Credly badges) that
   can be fetched and has not expired is verified; others are skipped with a warning. Certificates
   join Education; named skills (AWS, Azure, Power BI, ...) get evidence at level 2, or 3 for
