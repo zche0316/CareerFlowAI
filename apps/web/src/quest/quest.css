@@ -294,7 +294,8 @@ body:has(.quest) {
 .agent-app.quest .content main .primary:hover:not(:disabled),
 .agent-app.quest .content main .secondary:hover:not(:disabled),
 .quest .quest-press:hover:not(:disabled) {
-  transform: translateY(1px);
+  /* Hover changes only the shadow. Moving the box made it jitter under a pointer resting on its
+     edge: it slid out from under the pointer, lost hover and slid back every frame (CFS-128). */
   box-shadow: 0 3px 0 var(--q-ink);
 }
 .agent-app.quest .content main .primary:active:not(:disabled),
@@ -2659,7 +2660,8 @@ body:has(.quest) {
   transition: transform 0.12s;
 }
 .wm-isle:hover {
-  transform: translateY(-2px);
+  /* Shadow only: a moving box can jitter under a resting pointer (CFS-128). */
+  box-shadow: 0 8px 0 #0a0b10;
 }
 .wm-isle strong {
   font: 800 clamp(12px, 1.4vw, 18px) var(--q-display);

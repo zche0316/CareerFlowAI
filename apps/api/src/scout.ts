@@ -221,6 +221,61 @@ async function scoreRole(job: any, userId: string, mode: Mode, sweepId: string) 
  * Put a role from the Scout table on the board without starting a resume team. The full listing
  * comes from the sweep or search run that showed it; a lead has none until its ad is pasted.
  */
+// Listings carry the identity the role library gave them; older ones fall back to the names.
+const listingKey = (job: any, tag?: string) =>
+  job ? tag || job.fingerprint || jobFingerprint(job) : null;
+
+/**
+ * The full listing behind a tracked role: Scout keeps its sweep's shortlist and candidates, and a
+ * Find roles run keeps only the roles it ranked. A role a search showed but did not rank has a
+ * summary in the role library and nothing to save from (CFS-128).
+ */
+async function storedListing(userId: string, sweepId: string | null, fingerprint: string) {
+  let mode: string = configuredMode();
+  if (sweepId) {
+    const sweep = await db.scoutSweep.findUnique({ where: { id: sweepId } });
+    const d = (sweep?.data || {}) as unknown as SweepData;
+    const ranked = (d.shortlist || []).find((m: any) => listingKey(m.job) === fingerprint);
+    const seen = (d.candidates || []).find((job) => listingKey(job) === fingerprint);
+    if (sweep) mode = sweep.mode;
+    if (ranked || seen)
+      return { match: ranked || { job: seen, score: null }, source: 'scout' as const, mode };
+  }
+  for (const run of await recentRuns(userId)) {
+    const found = ((run.data as MissionData).matches || []).find(
+      (m: any) => listingKey(m.job, m.fingerprint) === fingerprint,
+    );
+    if (found) return { match: found, source: 'search' as const, mode: run.mode };
+  }
+  return null;
+}
+
+const recentRuns = (userId: string) =>
+  db.mission.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+    select: { data: true, mode: true },
+    take: 40,
+  });
+
+/** Fingerprints of tracked roles that can be saved to the board, for the Scout table. */
+async function saveableRoles(
+  userId: string,
+  rows: { fingerprint: string; sweepId: string | null }[],
+) {
+  const keys = new Set<string>();
+  const sweepIds = [...new Set(rows.map((r) => r.sweepId).filter(Boolean))] as string[];
+  for (const sweep of await db.scoutSweep.findMany({ where: { userId, id: { in: sweepIds } } })) {
+    const d = sweep.data as unknown as SweepData;
+    for (const m of d.shortlist || []) keys.add(String(listingKey((m as any).job)));
+    for (const job of d.candidates || []) keys.add(String(listingKey(job)));
+  }
+  for (const run of await recentRuns(userId))
+    for (const m of (run.data as MissionData).matches || [])
+      keys.add(String(listingKey(m.job, m.fingerprint)));
+  return keys;
+}
+
 export async function saveTrackedRole(userId: string, fingerprint: string) {
   const tracked = requireValue(
     await db.trackedJob.findUnique({ where: { userId_fingerprint: { userId, fingerprint } } }),
@@ -231,47 +286,14 @@ export async function saveTrackedRole(userId: string, fingerprint: string) {
       'LEAD_NEEDS_TEXT',
       'Scout could not read this page. Open it and paste the advertisement first.',
     );
-  // Listings carry the identity the role library gave them; older ones fall back to the names.
-  const same = (job: any, tag?: string) =>
-    Boolean(job) && (tag || job.fingerprint || jobFingerprint(job)) === fingerprint;
-  let match: any = null,
-    source: 'scout' | 'search' = 'scout',
-    mode: string = configuredMode();
-  if (tracked.sweepId) {
-    const sweep = await db.scoutSweep.findUnique({ where: { id: tracked.sweepId } });
-    const d = (sweep?.data || {}) as unknown as SweepData;
-    match =
-      (d.shortlist || []).find((m: any) => same(m.job)) ||
-      ((d.candidates || []).find((job) => same(job))
-        ? { job: (d.candidates || []).find((job) => same(job)), score: null }
-        : null);
-    if (sweep) mode = sweep.mode;
-  }
-  if (!match) {
-    const runs = await db.mission.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      select: { data: true, mode: true },
-      take: 40,
-    });
-    for (const run of runs) {
-      const found = ((run.data as MissionData).matches || []).find((m: any) =>
-        same(m.job, m.fingerprint),
-      );
-      if (found) {
-        match = found;
-        source = 'search';
-        mode = run.mode;
-        break;
-      }
-    }
-  }
-  if (!match)
+  const stored = await storedListing(userId, tracked.sweepId, fingerprint);
+  if (!stored)
     throw new AppError(
       409,
       'LISTING_NOT_STORED',
       'The full listing for this role is no longer stored. Find it again or paste its link.',
     );
+  const { match, source, mode } = stored;
   return upsertApplication(userId, match, source, mode);
 }
 
@@ -691,6 +713,7 @@ async function overview(userId: string) {
     orderBy: { firstSeenAt: 'desc' },
     take: 40,
   });
+  const saveable = await saveableRoles(userId, tracked);
   // Roles already on the board show their stage instead of a Save button.
   const board = new Map(
     (await listApplications(userId)).map((a) => [a.fingerprint, { id: a.id, stage: a.stage }]),
@@ -722,6 +745,7 @@ async function overview(userId: string) {
       lastSeenAt: t.lastSeenAt,
       record: t.record as unknown as JobRecord,
       board: board.get(t.fingerprint) || null,
+      saveable: saveable.has(t.fingerprint),
     })),
     sweeps: sweeps.map((s) => {
       const d = s.data as unknown as SweepData;

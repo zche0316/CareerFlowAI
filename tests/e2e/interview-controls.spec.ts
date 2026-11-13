@@ -37,12 +37,10 @@ test('interview controls stop and skip without model calls, survive reload and l
     if (!(await skip.count())) break;
     await Promise.all([
       page.waitForResponse((r) => r.url().includes('/controls') && r.request().method() === 'POST'),
-      // The profile builder's layout shifts by 1px every frame here (see docs/LOCAL_DEMO.md),
-      // so Playwright's stability wait never settles.
-      skip.click({ force: true }),
+      skip.click(),
     ]);
   }
-  await finish.click({ force: true });
+  await finish.click();
   await expect(page.getByRole('log').locator('article').last()).toContainText(
     'This experience is finished',
   );
@@ -130,12 +128,10 @@ test('finishing a pending experience retains suggestions without a hidden model 
     if (!(await skip.count())) break;
     await Promise.all([
       page.waitForResponse((r) => r.url().includes('/controls') && r.request().method() === 'POST'),
-      // The profile builder's layout shifts by 1px every frame here (see docs/LOCAL_DEMO.md),
-      // so Playwright's stability wait never settles.
-      skip.click({ force: true }),
+      skip.click(),
     ]);
   }
-  await finish.click({ force: true });
+  await finish.click();
   await expect(page.getByRole('log').locator('article').last()).toContainText(
     'This experience is finished',
   );

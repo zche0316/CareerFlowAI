@@ -225,8 +225,14 @@ it('shares one library between Find roles, Scout and the board', async () => {
   const onBoard = scout.tracked.find((t: any) => t.fingerprint === first.fingerprint);
   expect(onBoard.board).toMatchObject({ stage: 'saved' });
 
-  // A role Scout recorded can be saved to the board from its table, once.
-  const other = scout.tracked.find((t: any) => !t.board);
+  // A role Scout recorded can be saved to the board from its table, once. Only roles whose full
+  // listing is kept (ranked by a search or seen in a sweep) offer Save (CFS-128).
+  const unranked = scout.tracked.find((t: any) => !t.board && !t.saveable);
+  if (unranked)
+    expect((await call(`/scout/roles/${unranked.fingerprint}/save`, 'POST')).body.code).toBe(
+      'LISTING_NOT_STORED',
+    );
+  const other = scout.tracked.find((t: any) => !t.board && t.saveable);
   expect((await call(`/scout/roles/${other.fingerprint}/save`, 'POST')).status).toBe(201);
   await call(`/scout/roles/${other.fingerprint}/save`, 'POST');
   const board = (await call('/applications')).body;

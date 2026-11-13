@@ -78,8 +78,6 @@ Rehearse in fixture mode, then run once in live mode the day before a demo.
   not filtered by seniority.
 - The daily Scout schedule and the LangSmith passthrough have not been observed live.
 - External profile sources were tested against recorded responses, not the live services.
-- A 1px per-frame layout shift in the profile builder conversation makes two browser specs click
-  with `force`.
 
 ## Live runs
 

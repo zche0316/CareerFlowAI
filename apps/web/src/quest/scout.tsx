@@ -80,6 +80,8 @@ type Overview = {
     firstSeenAt: string;
     record: JobRecord;
     board: { id: string; stage: string } | null;
+    /** False when a search showed the role without ranking it, so no full listing is kept. */
+    saveable?: boolean;
   }[];
   sweeps: Sweep[];
 };
@@ -727,6 +729,11 @@ export function QuestScout({
                             <span className="quest-chip lime sc-board">
                               In your quests · {stageCopy[t.board.stage]?.label || t.board.stage}
                             </span>
+                          ) : !r.lead && t.saveable === false ? (
+                            <small className="muted sc-unsaveable">
+                              Seen in a search but not shortlisted, so its full listing is not
+                              kept. Find it again or paste its link to save it.
+                            </small>
                           ) : (
                             !r.lead && (
                               <button
