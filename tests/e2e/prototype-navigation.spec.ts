@@ -1,9 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { go } from './nav.js';
 
-test('prototype navigation keeps profile and memory reachable', async ({
-  page,
-}) => {
+test('prototype navigation keeps profile and memory reachable', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'New here? Create an account' }).click();
   await page.getByLabel('Your name', { exact: true }).fill('Navigation QA');

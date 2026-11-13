@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import type { Express } from 'express';
 import { db } from './db.js';
 import { json, type MissionData } from './domain.js';
@@ -219,7 +220,7 @@ export async function coachOverview(userId: string, applications?: any[]) {
 }
 
 /** One counted Coach call on the approved profile, saved for this profile version. */
-export async function refreshCoach(userId: string) {
+export async function refreshCoach(userId: string, feedback = '') {
   const profile = await db.profile.findFirst({ where: { userId }, orderBy: { version: 'desc' } });
   if (!profile) throw new AppError(409, 'PROFILE_REQUIRED', 'Approve your profile first.');
   if ((profile.data as any)?.sharing?.coach === false)
@@ -258,7 +259,17 @@ export async function refreshCoach(userId: string) {
     missionContext('coach', {
       goal: String((profile.data as any)?.goals || 'Plan my next career step.'),
       facts,
-      ...(board ? { analysisFeedback: `Roles the candidate is pursuing now: ${board}.` } : {}),
+      // The roles being pursued, and what the user asked the Coach to revisit.
+      ...(board || feedback
+        ? {
+            analysisFeedback: [
+              board ? `Roles the candidate is pursuing now: ${board}.` : '',
+              feedback ? `The candidate asks the Coach to revisit: ${feedback}` : '',
+            ]
+              .filter(Boolean)
+              .join(' '),
+          }
+        : {}),
     }),
     grounded,
     mode,
@@ -287,5 +298,10 @@ export async function refreshCoach(userId: string) {
 
 export function registerCoach(app: Express) {
   app.get('/api/coach', async (req, res) => res.json(await coachOverview(req.actor!.id)));
-  app.post('/api/coach/refresh', async (req, res) => res.json(await refreshCoach(req.actor!.id)));
+  app.post('/api/coach/refresh', async (req, res) => {
+    const { feedback } = z
+      .object({ feedback: z.string().trim().max(2000).default('') })
+      .parse(req.body || {});
+    res.json(await refreshCoach(req.actor!.id, feedback));
+  });
 }

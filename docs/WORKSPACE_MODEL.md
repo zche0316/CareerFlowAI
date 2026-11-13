@@ -210,3 +210,14 @@ the most requested skills with example listings. It is a sample of what the sear
 the whole market. Role families: data, software, ML/AI, cloud/DevOps, product/business analysis.
 The product is positioned as narrowing the information gap for technical roles across regions
 (README, footer, demo pitch).
+
+## Run route and Coach page (CFS-121)
+
+- A run shows only its own steps (`apps/web/src/quest/run-route.ts`): a Find roles run has
+  Shortlist, Review, Practice, Apply; a run on a saved or Scout role starts at Review; a practice
+  run has Practice and Apply. The profile and career advice are workspace-level, so they are not
+  run steps. Old links to the profile or analysis step open the run's first step.
+- The Coach page (More → Coach, `/?view=coach`) shows the advice for the current profile version
+  with the reason and cited evidence for each point. `POST /api/coach/refresh` takes an optional
+  `feedback` text (what to revisit), which is passed to the Coach with the roles on the board.
+  A run still reuses this advice when it needs it; it never asks the user to review it mid-run.

@@ -49,16 +49,19 @@ One story, in this order. Each step names the Quest page where it happens.
    site, Codeforces, Stack Overflow or LeetCode (Character → Add evidence), then approve.
 3. **Capability levels** (Character): levels 0–4 per skill with confidence and evidence.
 4. **Market insight** (World): what roles in the chosen country ask for.
-5. **Find roles** (Quests → Find roles) and choose one; save another for later. Scout can run a
-   sweep that puts new roles on the board as "New from Scout".
-6. **Resume team** (quest page, Battle log): Gap Analyzer, Evidence Selector, Rewriter and Critic,
+5. **Coach** (More → Coach): career advice for the approved profile with the reason and evidence
+   behind each point; ask it to revisit a point and refresh.
+6. **Find roles** (Quests → Find roles) and choose one; save another for later. Scout can run a
+   sweep that puts new roles on the board as "New from Scout". A search run shows Shortlist,
+   Review, Practice and Apply; a run on a saved role starts at Review.
+7. **Resume team** (quest page, Battle log): Gap Analyzer, Evidence Selector, Rewriter and Critic,
    then the draft stops for review. Return once with a comment, then approve.
-7. **Interview practice**: answer, finish early, read the feedback.
-8. **Recruiter view and export** (My documents): read-back, keywords, knock-outs, level gaps; PDF
+8. **Interview practice**: answer, finish early, read the feedback.
+9. **Recruiter view and export** (My documents): read-back, keywords, knock-outs, level gaps; PDF
    and DOCX.
-9. **Record applied** on the role card (applying stays manual).
-10. **Tailor the saved role** or **Practise interview** from its card; **Coach** on Home shows the
-    next steps across all roles.
+10. **Record applied** on the role card (applying stays manual).
+11. **Tailor the saved role** or **Practise interview** from its card; the Coach tile on Home
+    shows the next steps across all roles.
 
 Each role keeps every resume and practice run made for it ([WORKSPACE_MODEL.md](WORKSPACE_MODEL.md)).
 Rehearse in fixture mode, then run once in live mode the day before a demo.
@@ -123,21 +126,21 @@ How to read the columns:
 
 ### Finding roles
 
-| Feature                                      | Quest page | Auto                       | Fixture | Live |
-| -------------------------------------------- | ---------- | -------------------------- | ------- | ---- |
-| Find roles uses profile search defaults      | Quests     | Q agent-native             | [ ]     | [ ]  |
-| Save a role for later; tailor it later       | Quests     | D; I applications          | [ ]     | [ ]  |
-| Role status and history across runs          | Quests     | D; I applications          | [ ]     | [ ]  |
-| Coach next steps and refreshed advice        | Home       | D; I coach                 | [ ]     | [ ]  |
-| Ranked jobs, compare, choose one             | Jobs       | Q journey; D               | [ ]     | [ ]  |
-| Paste a job link into a reviewable candidate | Jobs       | Q agent-native; I job-link | [ ]     | [ ]  |
-| Job availability check                       | Jobs       | I recruitment              | [ ]     | [ ]  |
-| Fit and gap analysis                         | quest page | I job-fit                  | [ ]     | [ ]  |
-| World page: country rules                    | World      | Q page render              | [ ]     | [ ]  |
-| Market insight by country and role family    | World      | I role-library             | [ ]     | [ ]  |
-| Add a role from a link or pasted ad          | Quests     | I applications             | [ ]     | [ ]  |
-| Practise interview with an approved resume   | Quests     | I applications             | [ ]     | [ ]  |
-| One role across Find roles, Scout and board  | Quests     | I role-library             | [ ]     | [ ]  |
+| Feature                                      | Quest page  | Auto                       | Fixture | Live |
+| -------------------------------------------- | ----------- | -------------------------- | ------- | ---- |
+| Find roles uses profile search defaults      | Quests      | Q agent-native             | [ ]     | [ ]  |
+| Save a role for later; tailor it later       | Quests      | D; I applications          | [ ]     | [ ]  |
+| Role status and history across runs          | Quests      | D; I applications          | [ ]     | [ ]  |
+| Coach next steps and refreshed advice        | Home, Coach | D; Q agent-native; I coach | [ ]     | [ ]  |
+| Ranked jobs, compare, choose one             | Jobs        | Q journey; D               | [ ]     | [ ]  |
+| Paste a job link into a reviewable candidate | Jobs        | Q agent-native; I job-link | [ ]     | [ ]  |
+| Job availability check                       | Jobs        | I recruitment              | [ ]     | [ ]  |
+| Fit and gap analysis                         | quest page  | I job-fit                  | [ ]     | [ ]  |
+| World page: country rules                    | World       | Q page render              | [ ]     | [ ]  |
+| Market insight by country and role family    | World       | I role-library             | [ ]     | [ ]  |
+| Add a role from a link or pasted ad          | Quests      | I applications             | [ ]     | [ ]  |
+| Practise interview with an approved resume   | Quests      | I applications             | [ ]     | [ ]  |
+| One role across Find roles, Scout and board  | Quests      | I role-library             | [ ]     | [ ]  |
 
 ### Scout
 

@@ -5,6 +5,7 @@ import { nextMissionStep } from '../mission-step.js';
 import { AgentAvatar, LeaderBadge, type AgentId } from './characters.js';
 import { XP_PER_LEVEL, XP_RULES, progressFrom, skillBoard } from './progress.js';
 import { prettyTerm } from './character-sheet.js';
+import { runRoute, stepState } from './run-route.js';
 
 // Maps the agent names written into mission events onto party members.
 const eventAgent: Record<string, AgentId> = {
@@ -19,7 +20,6 @@ const eventAgent: Record<string, AgentId> = {
   'Interview Coach': 'interviewer',
 };
 
-const route = ['Profile', 'Analysis', 'Shortlist', 'Review', 'Practice', 'Apply'];
 
 const heroCopy: Record<string, { title: string; text: string; cta: string }> = {
   AWAITING_JOB: {
@@ -105,8 +105,14 @@ export function QuestHome({
   const hasProfile = Boolean(workspace?.profile);
   const progress = progressFrom(workspace);
   const step = active ? nextMissionStep(active) : hasProfile ? 1 : 0;
-  // Route: 0 Profile, 1 Analysis, 2 Shortlist, 3 Review, 4 Practice, 5 Apply.
-  const routeIndex = !hasProfile ? 0 : !active ? 1 : active.status === 'COMPLETE' ? 5 : step;
+  // Before a run (or between runs) the hero shows the workspace path; during a run, its own steps.
+  const runSteps = active && !idle ? runRoute(active) : null;
+  const route = runSteps ? runSteps.map((s) => s.label) : ['Profile', 'Find roles', 'Tailor', 'Practice', 'Apply'];
+  const routeIndex = runSteps
+    ? Math.max(0, runSteps.findIndex((s) => stepState(active, s).state === 'now'))
+    : !hasProfile
+      ? 0
+      : 1;
   const status = active ? (['QUEUED', 'RUNNING'].includes(active.status) ? 'RUNNING' : active.status) : '';
   const copy = !hasProfile
     ? {

@@ -36,7 +36,7 @@ for (const calls of [12, 59, 60]) {
       })
       .click();
     await expect(page.getByRole('list', { name: 'Quest route' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Analysis', exact: true })).toHaveAttribute(
+    await expect(page.getByRole('button', { name: 'Shortlist', exact: true })).toHaveAttribute(
       'aria-current',
       'step',
     );
@@ -59,9 +59,9 @@ for (const calls of [12, 59, 60]) {
       await page.screenshot({ path: 'output/ui-tightening/recovery-mobile.png', fullPage: true });
     } else {
       await expect(page.getByRole('button', { name: 'Retry failed step' })).toBeEnabled();
-      await expect(
-        page.getByRole('button', { name: 'Find roles again', exact: true }),
-      ).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Find roles again', exact: true })).toHaveCount(
+        0,
+      );
     }
   });
 }

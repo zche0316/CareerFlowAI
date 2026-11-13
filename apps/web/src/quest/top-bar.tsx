@@ -16,7 +16,7 @@ export type QuestNavId =
   | 'approvals'
   | 'applications'
   | 'activity'
-;
+  | 'coach';
 
 const primary: { id: QuestNavId; label: string }[] = [
   { id: 'home', label: 'Home' },
@@ -28,6 +28,7 @@ const primary: { id: QuestNavId; label: string }[] = [
   { id: 'character', label: 'Character' },
 ];
 const more: { id: QuestNavId; label: string }[] = [
+  { id: 'coach', label: 'Coach' },
   { id: 'season', label: 'Season event' },
   { id: 'library', label: 'My documents' },
   { id: 'approved-profile', label: 'My profile' },

@@ -162,6 +162,15 @@ async function app(page: Page) {
           missions: [],
         },
       });
+    if (path === '/api/coach')
+      return route.fulfill({
+        json: {
+          profileVersion: 1,
+          analysedAt: '2026-11-01T00:00:00.000Z',
+          analysis: mission.data.analysis,
+          actions: [],
+        },
+      });
     return route.fulfill({ json: [] });
   });
   return { errors, bodies, mission };
@@ -281,15 +290,20 @@ test('output workspaces stay compact and usable across stages and mobile', async
   await page.getByRole('button', { name: 'Reporting Analyst', exact: false }).click();
   await expect(page.getByRole('heading', { name: 'Reporting Analyst', exact: true })).toBeVisible();
   await page.screenshot({ path: 'output/agent-native/documents-desktop.png' });
+  // Old links to the analysis step open the run's first step; advice lives on the Coach page.
   await page.goto('/?view=missions&mission=mission-qa&step=1');
-  await expect(page.getByRole('heading', { name: 'Career Coach', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Run revised analysis' })).toBeDisabled();
-  await page.screenshot({ path: 'output/agent-native/analysis-desktop.png' });
-  await step(page, 3);
+  await expect(
+    page.getByRole('list', { name: 'Quest route' }).getByRole('button', { name: 'Analysis' }),
+  ).toHaveCount(0);
+  await page.goto('/?view=coach');
+  await expect(page.getByRole('heading', { name: 'Your Coach', exact: true })).toBeVisible();
+  await page.screenshot({ path: 'output/agent-native/coach-desktop.png' });
+  await page.goto('/?view=missions&mission=mission-qa&step=2');
+  await step(page, 'Shortlist');
   await expect(page.getByRole('article').filter({ hasText: 'SQL evidence supports' })).toHaveCount(
     1,
   );
-  await step(page, 4);
+  await step(page, 'Review');
   await expect(page.getByRole('article', { name: 'Resume preview' })).toHaveCount(1);
   await page.screenshot({ path: 'output/agent-native/resume-desktop.png' });
   for (const width of [1024, 390]) {

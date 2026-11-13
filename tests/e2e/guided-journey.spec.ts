@@ -1,6 +1,6 @@
 import { fillProfileFixture } from './profile-fixture.js';
 import { test, expect } from '@playwright/test';
-import { go, step } from './nav.js';
+import { go } from './nav.js';
 
 test('five-step journey automatically hands off and preserves decisions across reloads', async ({
   page,
@@ -25,17 +25,14 @@ test('five-step journey automatically hands off and preserves decisions across r
   });
   await expect(page).toHaveURL(/step=2/);
   const missionId = new URL(page.url()).searchParams.get('mission');
-  await step(page, 1);
-  await expect(page.getByRole('region', { name: 'Journey profile snapshot' })).toBeVisible();
-  expect(new URL(page.url()).searchParams.get('mission')).toBe(missionId);
-  await expect(page.getByLabel('Your next profile message')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Continue this journey', exact: true }).click();
-  await expect(page).toHaveURL(/step=2/);
-  await page.goBack();
-  await expect(page).toHaveURL(/step=0/);
-  await expect(page.getByRole('region', { name: 'Journey profile snapshot' })).toBeVisible();
-  await page.goForward();
-  await expect(page).toHaveURL(/step=2/);
+  // A search run's route starts at the shortlist; profile and advice are workspace pages.
+  const route = page.getByRole('list', { name: 'Quest route' });
+  await expect(route.getByRole('button')).toHaveText([
+    '1Shortlist',
+    '2Review',
+    '3Practice',
+    '4Apply',
+  ]);
 
   // Steps the quest has not reached cannot be opened.
   await expect(page.getByRole('button', { name: 'Practice', exact: true })).toBeDisabled();
