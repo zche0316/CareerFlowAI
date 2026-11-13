@@ -9,6 +9,7 @@ import { generate, type Mode } from '../../../packages/agents/src/provider.js';
 import { checkResumeWording } from '../../../packages/contracts/src/resume-grounding.js';
 import type { Fact } from '../../../packages/contracts/src/index.js';
 import { searchProfileHistory } from './profile-context.js';
+import { spanHook } from './trace.js';
 import { memoryText } from '../../../packages/contracts/src/career-evidence.js';
 import {
   resumeChanges,
@@ -84,6 +85,8 @@ export function registerResumeAgent(app: Express) {
         },
         onTool: async () => {},
         onUsage: async () => {},
+        // AI edits appear in the run's Battle log cost table with the team's own calls.
+        onSpan: spanHook({ userId, missionId: id, agent: 'Resume Agent' }),
         onSearchHistory: async (query, offset) => {
           const threads = await db.profileThread.findMany({
             where: { userId },

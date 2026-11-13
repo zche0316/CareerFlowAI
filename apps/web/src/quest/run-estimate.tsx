@@ -40,10 +40,24 @@ export function estimateText(data: Estimates | null, kind: EstimateKind, prefix 
 }
 
 let cache: Promise<Estimates | null> | null = null;
+let version = 0;
+const listeners = new Set<(v: number) => void>();
 
-/** Loads the estimates once per page load; a missing or odd reply shows nothing. */
+/** Fetch the figures again after a run or Coach refresh adds history. */
+export function reloadEstimates() {
+  cache = null;
+  version++;
+  listeners.forEach((l) => l(version));
+}
+
+/** Loads the estimates once per page load (or reload); a missing or odd reply shows nothing. */
 export function useEstimates() {
   const [data, setData] = useState<Estimates | null>(null);
+  const [v, setV] = useState(version);
+  useEffect(() => {
+    listeners.add(setV);
+    return () => void listeners.delete(setV);
+  }, []);
   useEffect(() => {
     let current = true;
     cache ||= fetch('/api/estimates')
@@ -54,7 +68,7 @@ export function useEstimates() {
     return () => {
       current = false;
     };
-  }, []);
+  }, [v]);
   return data;
 }
 

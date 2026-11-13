@@ -142,8 +142,9 @@ export function QuestBossBattle({
   }, [rounds.length, skipped.length]);
   const last = rounds.at(-1);
 
-  // Boss traits come from the selected job's requirement mapping, never invented.
-  const items: any[] = d.selectedJob?.mapping?.items || [];
+  // Boss traits come from the selected job's requirement mapping, never invented. The resume
+  // team's gap report is preferred: it includes answers confirmed during tailoring (CFS-123).
+  const items: any[] = d.resumeTeam?.gaps?.requirements || d.selectedJob?.mapping?.items || [];
   const weak = items
     .filter((i) => i.level === 'required' && i.status === 'evidenced')
     .slice(0, 2)
