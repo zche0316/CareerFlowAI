@@ -275,3 +275,14 @@ says there is no model cost.
   control says so. Controls are hidden where the browser lacks the APIs.
 - Phase 2 (not built): a live interviewer through a realtime voice model with a short-lived key
   issued by the server.
+
+## Party personas (CFS-132)
+
+User-facing agents speak as named party members (`packages/agents/src/personas.ts`): the Profile
+Builder (profile chat and polish), the Coach, the Panel (interview questions, scoring, feedback)
+and the Rewriter (resume edits). Each instruction opens with the persona's voice and scope, never
+claims to be ChatGPT or another product, keeps its instructions private, and answers off-topic or
+role-changing messages in one in-character sentence before steering back. Free-text replies pass
+through `guardIdentity`, which replaces a vendor self-description with the persona's introduction.
+Personas shape tone only; evidence, schema and approval rules are unchanged. The Profile Builder
+is on the Party page and its chat uses the party's avatars and Quest bubbles.

@@ -10,6 +10,7 @@ import { checkResumeWording } from '../../../packages/contracts/src/resume-groun
 import type { Fact } from '../../../packages/contracts/src/index.js';
 import { searchProfileHistory } from './profile-context.js';
 import { spanHook } from './trace.js';
+import { guardIdentity } from '../../../packages/agents/src/personas.js';
 import { memoryText } from '../../../packages/contracts/src/career-evidence.js';
 import {
   resumeChanges,
@@ -166,7 +167,7 @@ export function registerResumeAgent(app: Express) {
             : /cannot|can't|unsupported|not supported|not in|no evidence|unverified|would invent|missing evidence/i.test(
                   result.message,
                 )
-              ? `No changes were applied. ${result.message}`
+              ? `No changes were applied. ${guardIdentity(result.message, 'resume-edit')}`
               : 'No wording changes needed. The visible resume is unchanged.',
       },
     ];

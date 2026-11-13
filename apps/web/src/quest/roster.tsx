@@ -36,6 +36,11 @@ export function PartyRoster({ workspace, userName }: { workspace: any; userName:
   const s = teamStats(workspace);
   const cards: Card[] = [
     {
+      id: 'builder',
+      status: 'active',
+      stats: [{ label: 'Style', value: 'Interviews you, then proposes edits you approve' }],
+    },
+    {
       id: 'scout',
       status: 'active',
       stats: [{ label: 'Quests started from sweeps', value: String(s.scouted) }],

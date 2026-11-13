@@ -1,4 +1,5 @@
 import { proposeOutcomeAnswer } from './profile-outcomes.js';
+import { guardIdentity } from '../../../packages/agents/src/personas.js';
 import type { Express } from 'express';
 import { labelledExperience } from './labelled-experience.js';
 import { profileModelNotes, searchProfileHistory } from './profile-context.js';
@@ -977,7 +978,7 @@ export function registerProfileConversations(app: Express) {
         at: new Date().toISOString(),
         text:
           ((input.mode === 'edit' || discussionOnly) && !changes.length && result.reply?.trim()
-            ? `${result.reply.trim()}\n\nYour profile is unchanged.`
+            ? `${guardIdentity(result.reply.trim(), 'conversation')}\n\nYour profile is unchanged.`
             : null) ||
           (input.recoverSavedAnswers
             ? changes.length

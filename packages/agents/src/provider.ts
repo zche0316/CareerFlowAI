@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { rolePreamble } from './personas.js';
 import { modelRoute } from './router.js';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { z } from 'zod';
@@ -502,7 +503,7 @@ async function generateOnce<T>(
       ? ' Return strengths, gaps, directions and actions arrays with at most three items each. Every item must contain text, evidenceIds and reason. Use one to three exact IDs copied from facts per item; never invent IDs or use an empty evidenceIds array. Keep text and reason to one short sentence each. Be concise so the complete JSON finishes within the output limit.'
       : '';
   const instruction =
-    'You are one specialist in CareerFlow AI. ' +
+    rolePreamble(role) +
     coachFormat +
     task +
     (role === 'conversation'

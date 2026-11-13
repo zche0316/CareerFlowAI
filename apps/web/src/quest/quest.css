@@ -4230,3 +4230,61 @@ body:has(.quest) {
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------- Profile Builder chat (CFS-132) ---------- */
+.pb-head {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.pb-head h3 {
+  margin: 0 0 2px;
+  font: 800 20px/1.15 var(--q-display);
+}
+.quest .content main .profile-assistant .conversation-log {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 2px 8px;
+  max-height: 46dvh;
+}
+.quest .content main .profile-assistant .conversation-message {
+  max-width: 88%;
+  padding: 10px 14px 12px;
+  border: 2px solid var(--q-ink);
+  border-radius: 18px 18px 18px 6px;
+  background: #f1edff;
+  box-shadow: 0 3px 0 var(--q-ink);
+  font-size: 14px;
+  align-self: flex-start;
+}
+.quest .content main .profile-assistant .conversation-message.user {
+  align-self: flex-end;
+  border-radius: 18px 18px 6px 18px;
+  background: var(--q-lime);
+}
+.quest .content main .profile-assistant .conversation-message p {
+  margin: 4px 0 0;
+  line-height: 1.55;
+  white-space: pre-line;
+}
+.pb-speaker {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.pb-speaker .quest-leader {
+  font-size: 10px;
+}
+.quest .content main .profile-assistant .conversation-message details {
+  margin-top: 6px;
+  font-size: 12px;
+}
+.quest .content main .profile-assistant textarea {
+  border: 2px solid var(--q-ink);
+  border-radius: 16px;
+}
