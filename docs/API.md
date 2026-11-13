@@ -87,6 +87,7 @@ off it.
 | GET    | `/api/insights`                  | Market insight for `country` and role `family` from found roles |
 | GET    | `/api/coach`                     | Coach advice for the profile version and next steps             |
 | POST   | `/api/coach/refresh`             | Ask the Coach again, optionally with what to revisit (one call) |
+| GET    | `/api/estimates`                 | Expected model calls and tokens per run kind (live mode only)   |
 
 ## Runs
 

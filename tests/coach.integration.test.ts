@@ -153,3 +153,86 @@ it('keeps Coach advice per profile version and limits refreshes', async () => {
   expect(stale).toMatchObject({ profileVersion: 2, analysis: null });
   expect(stale.actions[0].text).toContain('updated profile');
 });
+
+it('estimates model calls from earlier live runs of the same kind (CFS-124)', async () => {
+  const r = await fetch(base + '/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email: `qa-estimate-${crypto.randomUUID()}@careerflow.test`,
+      password: 'Disposable-QA-password',
+      name: 'Estimate QA',
+    }),
+  });
+  const data = await r.json();
+  const userId = data.user.id;
+  users.push(userId);
+  const cookie = r.headers.get('set-cookie')!.split(';')[0];
+  const call = async (path: string, method = 'GET', body?: unknown) => {
+    const res = await fetch(base + '/api' + path, {
+      method,
+      headers: { cookie, 'Content-Type': 'application/json', 'X-CSRF-Token': data.csrf },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+    return { status: res.status, body: await res.json() };
+  };
+  // Rehearsal mode costs nothing, so there is nothing to estimate.
+  expect((await call('/estimates')).body).toEqual({
+    live: false,
+    mode: 'fixture',
+    estimates: null,
+  });
+
+  const draft = await call('/profiles/drafts', 'POST', sampleProfile);
+  await call(`/profiles/drafts/${draft.body.id}/approve`, 'POST', { reviewed: true });
+  const profile = await db.profile.findFirstOrThrow({ where: { userId } });
+  const run = (status: string, d: Record<string, number | boolean>) =>
+    db.mission.create({
+      data: {
+        userId,
+        profileId: profile.id,
+        goal: 'QA',
+        status,
+        mode: 'openai',
+        data: d,
+        events: [],
+      },
+    });
+  await run('COMPLETE', { apiCalls: 12, inputTokens: 9000, outputTokens: 1000 });
+  await run('COMPLETE', { apiCalls: 14, inputTokens: 11000, outputTokens: 1000 });
+  await run('COMPLETE', { practiceOnly: true, apiCalls: 3, inputTokens: 2000, outputTokens: 400 });
+  // Unfinished runs would understate the cost, so they are left out.
+  await run('FAILED', { preselected: true, apiCalls: 2 });
+  await db.coachReview.create({
+    data: {
+      userId,
+      profileId: profile.id,
+      mode: 'openai',
+      analysis: {},
+      calls: 1,
+      inputTokens: 3000,
+      outputTokens: 500,
+    },
+  });
+  process.env.PROVIDER_MODE = 'openai';
+  try {
+    const { estimatesFor } = await import('../apps/api/src/estimates.js');
+    const result = await estimatesFor(userId);
+    expect(result.live).toBe(true);
+    expect(result.estimates!.search).toEqual({
+      calls: 13,
+      maxCalls: 14,
+      inputTokens: 10000,
+      outputTokens: 1000,
+      runs: 2,
+    });
+    expect(result.estimates!.practice).toMatchObject({ calls: 3, maxCalls: 3, runs: 1 });
+    expect(result.estimates!.coach).toMatchObject({ calls: 1, inputTokens: 3000, runs: 1 });
+    // No finished run of this kind: the typical figure, with no token claim.
+    expect(result.estimates!.tailor).toMatchObject({ runs: 0, inputTokens: null });
+  } finally {
+    process.env.PROVIDER_MODE = 'fixture';
+    await db.coachReview.deleteMany({ where: { userId } });
+    await db.mission.deleteMany({ where: { userId } });
+  }
+});

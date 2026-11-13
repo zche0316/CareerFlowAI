@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
+import { RunEstimate } from './run-estimate.js';
 import { ArrowRight, Radar, Trash2 } from 'lucide-react';
 import { countries } from '../../../../packages/recruitment/src/geography.js';
 import { workRightsLabels, type JobRecord } from '../../../../packages/contracts/src/job-record.js';
@@ -289,6 +290,7 @@ export function QuestScout({
                 ? ` · the model scores at most ${data.limits.reviewPerSweep} roles per sweep`
                 : ''}
             </span>
+            <RunEstimate kind="scout" className="quest-sub" />
           </div>
         </div>
         <div className="sc-hero-side">

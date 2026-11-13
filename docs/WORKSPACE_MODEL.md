@@ -221,3 +221,12 @@ The product is positioned as narrowing the information gap for technical roles a
   with the reason and cited evidence for each point. `POST /api/coach/refresh` takes an optional
   `feedback` text (what to revisit), which is passed to the Coach with the roles on the board.
   A run still reuses this advice when it needs it; it never asks the user to review it mid-run.
+
+## Cost preview (CFS-124)
+
+`GET /api/estimates` gives the expected model calls per kind of run (Find roles, tailoring,
+practice, Coach refresh, Scout sweep), shown next to each start button. In live mode it is the
+average and largest of the user's last five finished runs of that kind (calls and tokens from the
+run, Coach review or sweep and its trace spans); with no finished run it shows a typical figure and
+says so. Failed and unfinished runs are left out because they understate the cost. Rehearsal mode
+says there is no model cost.

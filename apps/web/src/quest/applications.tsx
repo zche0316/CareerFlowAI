@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { estimateText, useEstimates } from './run-estimate.js';
 import { ArrowRight, RotateCw } from 'lucide-react';
 
 // The board of roles the user is pursuing. Each card is one quest: a long-lived application that
@@ -244,6 +245,7 @@ export function QuestApplications({
     );
   return (
     <>
+      <TailorEstimate />
       {groups.map((g) => {
         const items = applications.filter((a) => g.stages.includes(a.stage));
         if (!items.length) return null;
@@ -370,5 +372,18 @@ export function AddRole({
         </button>
       </form>
     </details>
+  );
+}
+
+// What tailoring and practice cost in live mode, shown once above the role cards (CFS-124).
+function TailorEstimate() {
+  const data = useEstimates();
+  if (!data) return null;
+  return (
+    <p className="qa-estimate muted" data-testid="estimate-tailor">
+      {data.live
+        ? `Tailor resume: ${estimateText(data, 'tailor', '')} Practise interview: ${estimateText(data, 'practice', '')}`
+        : estimateText(data, 'tailor')}
+    </p>
   );
 }

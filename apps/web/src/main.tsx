@@ -25,6 +25,7 @@ import { QuestTopBar, type QuestNavId } from './quest/top-bar.js';
 import { QuestHome } from './quest/home.js';
 import { adviceItem, CoachPage, QuestCoach } from './quest/coach.js';
 import { runPhase, runRoute } from './quest/run-route.js';
+import { RunEstimate } from './quest/run-estimate.js';
 import { SignIn } from './quest/sign-in.js';
 import { boardStage, stageCopy } from './quest/applications.js';
 import { PartyRoster } from './quest/roster.js';
@@ -568,7 +569,6 @@ function App() {
                 workspace?.profile && (
                   <QuestCoach
                     request={api}
-                    live={session?.mode !== 'fixture'}
                     boardKey={(workspace?.applications || [])
                       .map((a: any) => a.id + a.stage)
                       .join()}
@@ -617,7 +617,6 @@ function App() {
           ) : tab === 'coach' ? (
             <CoachPage
               request={api}
-              live={session?.mode !== 'fixture'}
               onProfile={() => goQuest('approved-profile')}
             />
           ) : tab === 'season' ? (
@@ -1048,7 +1047,8 @@ function App() {
                 You choose the role and approve the exact resume before it is saved.{' '}
                 {session?.mode === 'fixture'
                   ? 'Rehearsal mode: demo answers, no model cost.'
-                  : `Live mode: a run makes real model calls, usually 10 to 20 of its ${MISSION_MODEL_CALL_LIMIT}-call budget.`}
+                  : `Each run has a ${MISSION_MODEL_CALL_LIMIT}-call budget.`}{' '}
+                {session?.mode !== 'fixture' && <RunEstimate kind="search" className="" />}
               </span>
             </div>
             {!workspace?.profile ? (
