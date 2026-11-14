@@ -324,3 +324,11 @@ is on the Party page and its chat uses the party's avatars and Quest bubbles.
   candidate. The Coach page links each cited source to O*NET OnLine and shows the attribution.
 - Without the corpus file the Coach works as before. O*NET describes US occupations; regional
   requirements still come from the role library and World insight.
+
+## Coach sources: ESCO (CFS-140)
+
+- Two corpora: O*NET 31.0 (US; what the work involves, core tasks, software) and ESCO (EU, via
+  its public API; descriptions, alternative names, essential skills; 102 ICT, data, analyst and
+  ICT-technician occupations). Regional requirements still come from the role library and World
+  insight, which use real postings. The Coach page names the source of each cited passage and
+  shows the attribution of the sources it cited.

@@ -1,26 +1,50 @@
 import { readFileSync, existsSync } from 'node:fs';
 
-// Coach retrieval over curated, openly licensed career sources (CFS-125). The corpus is built by
-// scripts/coach-sources.mjs from the O*NET 31.0 database (CC BY 4.0) and kept in the repository
-// with its attribution. Retrieval is lexical (BM25), so it needs no embedding calls. Sources tell
-// the Coach what a kind of work involves; they are never facts about the candidate.
+// Coach retrieval over curated, openly licensed career sources (CFS-125, 140, 141). Two corpora are
+// kept in the repository with their attribution: O*NET 31.0 (US Department of Labor, CC BY 4.0)
+// says what a kind of work involves day to day; ESCO (European Commission) adds the European
+// view, alternative names and essential skills. Passages are ranked by BM25. Sources describe
+// jobs, never the candidate.
 
 export type SourceDoc = {
-  id: string; // e.g. onet:15-2051.00
+  id: string; // onet:15-2051.00 or esco:<uuid>
   title: string;
   text: string;
   url: string;
   source: string;
 };
-export type Corpus = { attribution: string; licence: string; docs: SourceDoc[] };
+export type Corpus = {
+  /** Every source's attribution, one per line. */
+  attribution: string;
+  sources: { name: string; attribution: string; licence: string; prefix: string }[];
+  docs: SourceDoc[];
+};
 
-const corpusFile = new URL('../../../data/coach-sources/onet-31.json', import.meta.url);
+const dir = new URL('../../../data/coach-sources/', import.meta.url);
+const files = [
+  { file: 'onet-31.json', name: 'O*NET', prefix: 'onet:' },
+  { file: 'esco.json', name: 'ESCO', prefix: 'esco:' },
+];
 let cached: Corpus | null | undefined;
 
-/** The committed corpus, or null when it has not been built yet (the Coach then works as before). */
+/** The committed corpora, or null when none has been built (the Coach then works as before). */
 export function loadCorpus(): Corpus | null {
   if (cached !== undefined) return cached;
-  cached = existsSync(corpusFile) ? (JSON.parse(readFileSync(corpusFile, 'utf8')) as Corpus) : null;
+  const parts = files
+    .filter((f) => existsSync(new URL(f.file, dir)))
+    .map((f) => ({ ...f, data: JSON.parse(readFileSync(new URL(f.file, dir), 'utf8')) }));
+  cached = parts.length
+    ? {
+        attribution: parts.map((p) => p.data.attribution).join('\n'),
+        sources: parts.map((p) => ({
+          name: p.name,
+          prefix: p.prefix,
+          attribution: p.data.attribution,
+          licence: p.data.licence,
+        })),
+        docs: parts.flatMap((p) => p.data.docs as SourceDoc[]),
+      }
+    : null;
   return cached;
 }
 
@@ -44,8 +68,9 @@ export const tokens = (text: string) =>
 // Software lists name the same tools across many occupations, so they count for little; the
 // title, description and tasks say what the work is.
 const TOOL_WEIGHT = 0.2;
+// O*NET software lists and ESCO skill lists are the long, repetitive tail of a document.
 const split = (d: SourceDoc) => {
-  const at = d.text.indexOf('\nCommon software:');
+  const at = d.text.search(/\n(Common software|Essential skills):/);
   return at < 0 ? [d.text, ''] : [d.text.slice(0, at), d.text.slice(at)];
 };
 
@@ -95,10 +120,10 @@ const synonyms: [RegExp, string][] = [
 export const expandQuery = (query: string) =>
   [query, ...synonyms.filter(([re]) => re.test(query)).map(([, words]) => words)].join(' ');
 
-/** BM25 over title, description and tasks, with the software list lightly weighted. Pure. */
-export function retrieve(docs: SourceDoc[], query: string, k = 4): SourceDoc[] {
+/** BM25 scores over title, description and tasks, with the long lists lightly weighted. Pure. */
+export function bm25Scores(docs: SourceDoc[], query: string): number[] {
   const q = [...new Set(tokens(expandQuery(query)))];
-  if (!q.length || !docs.length) return [];
+  if (!q.length || !docs.length) return docs.map(() => 0);
   const main = bm25(
     docs.map((d) => `${d.title} ${d.title} ${d.title} ${split(d)[0]}`),
     q,
@@ -107,8 +132,14 @@ export function retrieve(docs: SourceDoc[], query: string, k = 4): SourceDoc[] {
     docs.map((d) => split(d)[1]),
     q,
   );
+  return docs.map((_, i) => main[i] + TOOL_WEIGHT * tools[i]);
+}
+
+/** The best BM25 matches. Pure. */
+export function retrieve(docs: SourceDoc[], query: string, k = 4): SourceDoc[] {
+  const scores = bm25Scores(docs, query);
   return docs
-    .map((d, i) => ({ d, score: main[i] + TOOL_WEIGHT * tools[i] }))
+    .map((d, i) => ({ d, score: scores[i] }))
     .filter((s) => s.score > 0)
     .sort((x, y) => y.score - x.score)
     .slice(0, k)

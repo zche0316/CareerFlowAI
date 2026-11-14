@@ -4,9 +4,11 @@ import {
   expandQuery,
   loadCorpus,
   retrieve,
+  type Corpus,
   type SourceDoc,
 } from '../apps/api/src/coach-sources.js';
 import { buildDocs, parseCsv } from '../scripts/coach-sources.mjs';
+import { escoDoc } from '../scripts/coach-sources-esco.mjs';
 
 // CFS-125: the Coach reads short, cited passages about occupations from an openly licensed corpus.
 
@@ -43,12 +45,32 @@ it('ranks occupations by how well they match the user’s goal and skills', () =
     'Management Analysts',
   ]);
   expect(retrieve(docs, 'the and of')).toEqual([]);
-  // Without a built corpus the Coach simply gets no sources.
+});
+
+const corpusOf = (d: SourceDoc[]): Corpus => ({ attribution: 'a', sources: [], docs: d });
+
+it('returns passages from the corpus, and nothing without one', () => {
   expect(coachSources('data analyst', null)).toEqual([]);
-  expect(coachSources('data analyst', { attribution: 'a', licence: 'b', docs })[0]).toMatchObject({
+  expect(coachSources('data analyst', corpusOf(docs))[0]).toMatchObject({
     id: 'onet:15-2051.00',
     title: 'Data Scientists',
   });
+});
+
+it('turns an ESCO occupation into a cited document (CFS-140)', () => {
+  const d = escoDoc({
+    uri: 'http://data.europa.eu/esco/occupation/d3ed',
+    title: 'data analyst',
+    preferredLabel: { en: 'data analyst' },
+    alternativeLabel: { en: ['data analysts', 'Data analyst', 'data warehouse analyst'] },
+    description: { en: { literal: 'Data analysts import, inspect and clean data.' } },
+    _links: { hasEssentialSkill: [{ title: 'statistics' }, { title: 'query languages' }] },
+  });
+  expect(d).toMatchObject({ id: 'esco:d3ed', title: 'Data analyst', source: 'ESCO' });
+  expect(d.text).toBe(
+    'Data analysts import, inspect and clean data.\nAlso called: data analysts, data warehouse analyst.\nEssential skills: statistics, query languages.',
+  );
+  expect(d.url).toContain(encodeURIComponent('http://data.europa.eu/esco/occupation/d3ed'));
 });
 
 it('builds cited documents from the O*NET CSV files', () => {
@@ -79,16 +101,16 @@ it('matches plurals and common job titles to O*NET occupation names', () => {
   expect(retrieve(docs, 'junior software engineer', 1)[0].title).toBe('Software Developers');
 });
 
-it('ships a corpus with O*NET attribution and only technical and analyst occupations', () => {
+it('ships O*NET and ESCO corpora with attribution', () => {
   const corpus = loadCorpus()!;
+  expect(corpus.sources.map((x) => x.name)).toEqual(['O*NET', 'ESCO']);
   expect(corpus.attribution).toContain('O*NET 31.0 Database');
-  expect(corpus.attribution).toContain('CC BY 4.0');
-  expect(corpus.docs.length).toBeGreaterThan(30);
+  expect(corpus.attribution).toContain('ESCO classification of the European Commission');
+  const onet = corpus.docs.filter((d) => d.id.startsWith('onet:'));
   expect(
-    corpus.docs.every((d) =>
-      /^onet:(15-|11-3021|13-1111|13-1161|13-2051|17-2061|17-2072)/.test(d.id),
-    ),
+    onet.every((d) => /^onet:(15-|11-3021|13-1111|13-1161|13-2051|17-2061|17-2072)/.test(d.id)),
   ).toBe(true);
+  expect(corpus.docs.filter((d) => d.id.startsWith('esco:')).length).toBeGreaterThan(50);
   expect(coachSources('graduate data analyst SQL dashboards').map((d) => d.title)).toContain(
     'Business Intelligence Analysts',
   );

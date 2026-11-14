@@ -321,7 +321,7 @@ export function registerCoach(app: Express) {
   });
 }
 
-/** Titles, links and attribution for the public sources an analysis cites (CFS-125). */
+/** Titles, links and attribution for the public sources an analysis cites (CFS-125, 140). */
 function citedSources(analysis: any) {
   const corpus = loadCorpus();
   if (!corpus || !analysis) return null;
@@ -329,14 +329,14 @@ function citedSources(analysis: any) {
     Object.values(analysis as Record<string, any[]>)
       .flat()
       .flatMap((item: any) => item?.evidenceIds || [])
-      .filter((id: string) => String(id).startsWith('onet:')),
+      .filter((id: string) => corpus.sources.some((s) => String(id).startsWith(s.prefix))),
   );
   if (!ids.size) return null;
+  const used = corpus.sources.filter((s) => [...ids].some((id) => id.startsWith(s.prefix)));
   return {
-    attribution: corpus.attribution,
-    licence: corpus.licence,
+    attribution: used.map((s) => s.attribution).join('\n'),
     docs: corpus.docs
       .filter((d) => ids.has(d.id))
-      .map(({ id, title, url }) => ({ id, title, url })),
+      .map(({ id, title, url, source }) => ({ id, title, url, source })),
   };
 }
