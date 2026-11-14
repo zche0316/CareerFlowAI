@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { ArrowRight, Check, Flag } from 'lucide-react';
 import { MISSION_MODEL_CALL_LIMIT } from '../../../../packages/contracts/src/mission-limits.js';
 import { nextMissionStep } from '../mission-step.js';
-import { AgentAvatar, LeaderBadge, type AgentId } from './characters.js';
+import { AgentAvatar, type AgentId } from './characters.js';
 import { XP_PER_LEVEL, XP_RULES, progressFrom, skillBoard } from './progress.js';
 import { prettyTerm } from './terms.js';
 import { runRoute, stepState } from './run-route.js';
@@ -23,38 +23,38 @@ const eventAgent: Record<string, AgentId> = {
 
 const heroCopy: Record<string, { title: string; text: string; cta: string }> = {
   AWAITING_JOB: {
-    title: 'Pick the job your party should chase.',
-    text: 'Job Matcher ranked the roles against your approved evidence. Nothing moves until you choose.',
+    title: 'Pick a role.',
+    text: 'Your matches are ranked. Choose one to tailor a resume for.',
     cta: 'Choose a job',
   },
   AWAITING_EVIDENCE: {
     title: 'One question before the draft.',
-    text: 'The role requires skills your approved profile has no evidence for. Tell the team where you used them, or skip.',
+    text: 'The role asks for skills your profile doesn’t show yet. Say where you used them, or skip.',
     cta: 'Answer the question',
   },
   AWAITING_APPROVAL: {
-    title: 'Your party built a draft. Your call.',
-    text: 'The resume team finished and the Critic has had its say. It only moves on when you approve it.',
+    title: 'Your resume draft is ready.',
+    text: 'Check the changes, edit anything, then approve it.',
     cta: 'Review the draft',
   },
   AWAITING_INTERVIEW: {
-    title: 'Time to face the interview panel.',
-    text: 'Your approved resume is saved. Practise the questions your target role is likely to ask.',
+    title: 'Practise the interview.',
+    text: 'Questions for this role are ready. Type, record or speak your answers.',
     cta: 'Start practice',
   },
   RUNNING: {
-    title: 'Your party is working on it.',
-    text: 'You can leave this page; work continues on the server and waits for you at the next decision.',
+    title: 'Working on it…',
+    text: 'You can leave this page. It will wait for you at the next step.',
     cta: 'Watch the quest',
   },
   FAILED: {
     title: 'Your last quest stopped.',
-    text: 'A step failed. Your saved work is intact; open the quest to retry or keep its results.',
+    text: 'Nothing you saved was lost. Open it to retry.',
     cta: 'Review and retry',
   },
   COMPLETE: {
-    title: 'Quest complete. Ready for the next one?',
-    text: 'Your feedback and approved documents are saved. Start a new quest with what you learned.',
+    title: 'Quest complete.',
+    text: 'Download your resume, apply, then mark it applied.',
     cta: 'Start a new quest',
   },
 };
@@ -81,7 +81,6 @@ function activeDays(workspace: any) {
 
 export function QuestHome({
   workspace,
-  userName,
   onOpenMission,
   onNewQuest,
   onBuildProfile,
@@ -121,19 +120,19 @@ export function QuestHome({
   const status = active ? (['QUEUED', 'RUNNING'].includes(active.status) ? 'RUNNING' : active.status) : '';
   const copy = !hasProfile
     ? {
-        title: 'Create your character first.',
-        text: 'Tell Coach about your study, work and projects. You approve every fact before your party can use it.',
+        title: 'Start with your profile.',
+        text: 'Upload your resume or chat with Coach. Nothing is used until you approve it.',
         cta: 'Build my profile',
       }
     : idle && board.length
       ? {
           title: 'Pick up a quest.',
-          text: `${board.length} role${board.length === 1 ? '' : 's'} on your board, ${applied} applied. Tailor a saved role, record a reply, or find more roles.`,
+          text: `${board.length} role${board.length === 1 ? '' : 's'} on your board · ${applied} applied`,
           cta: 'Open my quests',
         }
       : heroCopy[status] || {
         title: 'Start your first quest.',
-        text: 'Set a goal and your party will analyse your profile, find matching roles and wait for your decisions.',
+        text: 'Find roles, pick one, tailor a resume and practise the interview.',
         cta: 'Start a quest',
       };
   // A quest stopped by its model-call budget cannot be retried; its saved results stay readable.
@@ -244,7 +243,7 @@ export function QuestHome({
                 <span>/ {XP_PER_LEVEL.toLocaleString()}</span>
               </div>
             </div>
-            <p>{XP_PER_LEVEL - progress.intoLevel} XP to level {progress.level + 1}. XP only comes from things you approve or practise.</p>
+            <p>{XP_PER_LEVEL - progress.intoLevel} XP to level {progress.level + 1}</p>
           </div>
           <ul className="qh-sources">
             {progress.sources
@@ -330,7 +329,7 @@ export function QuestHome({
               </span>
             ))}
           </div>
-          <p>Weekly, not daily. Rest days never reset your progress.</p>
+          <p>Rest days don’t break it.</p>
         </section>
       </div>
 
@@ -382,9 +381,6 @@ export function QuestHome({
           )}
         </section>
       </div>
-      <p className="qh-sign">
-        <LeaderBadge name={userName} size={22} /> You lead the party. Agents suggest, you decide.
-      </p>
     </div>
   );
 }

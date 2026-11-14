@@ -64,7 +64,7 @@ test('background completion preserves deliberate earlier-stage review and blocks
   // The header chip follows the background change; the user stays on the step they opened.
   await expect(page.locator('.qm-chips')).toContainText('Your call', { timeout: 10000 });
   await expect(page).toHaveURL(/step=2/);
-  await expect(page.getByRole('heading', { name: 'Target locked in.', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Role chosen.', exact: true })).toBeVisible();
   await page.goto('/?view=missions&mission=isolation&step=4');
   await expect(page).toHaveURL(/step=3/);
   await expect(

@@ -64,8 +64,8 @@ test('new imports clear previous pages and consent; organization uses explicitly
   await openProfile(page);
   await page.getByText('Edit profile details manually', { exact: true }).click();
   await page
-    .getByText('Already have career material? Optional resume import', { exact: true })
-    .click();
+    .locator('details.optional-import')
+    .evaluate((d) => ((d as HTMLDetailsElement).open = true));
   await page.getByLabel('Resume file', { exact: true }).setInputFiles({
     name: 'bilingual.pdf',
     mimeType: 'application/pdf',

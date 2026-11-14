@@ -3,6 +3,7 @@ import { ProfileSources } from './profile-sources.js';
 import { Lock } from 'lucide-react';
 import { AgentAvatar, LeaderBadge } from './characters.js';
 import { XP_PER_LEVEL, XP_RULES, factUsage, progressFrom, skillBoard } from './progress.js';
+import { RANKS, experienceRank, formatTenure } from './experience-rank.js';
 
 export { prettyTerm } from './terms.js';
 
@@ -63,6 +64,8 @@ export function CharacterSheet({
     .sort((a, b) => (usage.get(b.id) || 0) - (usage.get(a.id) || 0))
     .slice(0, 4);
   const jobs = board[0]?.jobs || 0;
+  const ranked = (workspace.missions || []).find((m: any) => m.data?.matches?.length);
+  const exp = experienceRank(profile.data, (ranked?.data?.matches || []).slice(0, 10));
 
   return (
     <div className="quest-page" aria-labelledby="character-title">
@@ -74,36 +77,53 @@ export function CharacterSheet({
               <h1 id="character-title" className="quest-display">
                 {profile.data?.name || userName}
               </h1>
-              <span className="quest-sub">
-                {path} · Level {progress.level}
-              </span>
+              <span className="quest-sub">{path}</span>
               <span className="quest-chip dark">Profile v{profile.version} · approved by you</span>
             </div>
           </div>
-          <div className="quest-xp" role="img" aria-label={`${progress.intoLevel} of ${XP_PER_LEVEL} XP into level ${progress.level}`}>
-            <span style={{ width: `${(100 * progress.intoLevel) / XP_PER_LEVEL}%` }} />
+          <div className="cs-rank" aria-labelledby="rank-title">
+            <span className="cs-rank-label">Experience rank</span>
+            <h2 id="rank-title">{exp.rank.name}</h2>
+            <p>
+              {formatTenure(exp.months)} of work · {exp.rank.market.toLowerCase()}
+            </p>
+            <ol className="cs-rank-track" aria-label="Ranks">
+              {RANKS.map((r, i) => (
+                <li
+                  key={r.id}
+                  className={i < exp.index ? 'past' : i === exp.index ? 'now' : ''}
+                  aria-current={i === exp.index ? 'step' : undefined}
+                >
+                  <i aria-hidden="true" />
+                  <span>{r.name}</span>
+                  <small>{r.minYears ? `${r.minYears}+ yrs` : 'Start'}</small>
+                </li>
+              ))}
+            </ol>
+            <small className="cs-rank-note">
+              {exp.next
+                ? `${exp.toNext} more year${exp.toNext === 1 ? '' : 's'} to ${exp.next.name}. `
+                : ''}
+              {exp.roles.stated
+                ? `${exp.roles.above} of ${exp.roles.stated} ranked roles that state years ask for more than you have.`
+                : exp.source === 'none'
+                  ? 'Add dates to your work experience to set your rank.'
+                  : ''}
+            </small>
           </div>
-          <span className="quest-sub">
-            {progress.xp.toLocaleString()} XP · {XP_PER_LEVEL - progress.intoLevel} to level{' '}
-            {progress.level + 1}
-          </span>
-          <div className="quest-stats3">
-            <div>
-              <b>{facts.length}</b>
-              <span>approved facts</span>
+          <div className="cs-level">
+            <span>
+              Level {progress.level} · {progress.xp.toLocaleString()} XP
+            </span>
+            <div
+              className="quest-xp"
+              role="img"
+              aria-label={`${progress.intoLevel} of ${XP_PER_LEVEL} XP into level ${progress.level}`}
+            >
+              <span style={{ width: `${(100 * progress.intoLevel) / XP_PER_LEVEL}%` }} />
             </div>
-            <div>
-              <b>{workspace.resumes?.length || 0}</b>
-              <span>resumes approved</span>
-            </div>
-            <div>
-              <b>{workspace.missions?.length || 0}</b>
-              <span>runs</span>
-            </div>
+            <small>XP comes from approving facts and resumes and practising answers.</small>
           </div>
-          <p className="quest-fine dark">
-            Stats only grow from facts you approve. Agents can suggest; they can’t level you up.
-          </p>
         </section>
 
         {request && (
@@ -119,8 +139,8 @@ export function CharacterSheet({
             <h2 id="board-title">What roles ask for</h2>
             <span>
               {jobs
-                ? `What your top ${jobs} ranked jobs ask for, against what you’ve proved.`
-                : 'Run a job search to see what employers ask for.'}
+                ? `Across your top ${jobs} ranked jobs`
+                : 'Search for roles to fill this in.'}
             </span>
           </div>
         </div>
@@ -155,7 +175,7 @@ export function CharacterSheet({
       <div className="quest-row">
         <section className="quest-tile coral" style={{ flex: '1 1 340px' }} aria-labelledby="side-title">
           <div className="quest-tile-head">
-            <h2 id="side-title">Side quests from Coach</h2>
+            <h2 id="side-title">Side quests</h2>
             <AgentAvatar agent="coach" size={40} />
           </div>
           {quests.length ? (
@@ -169,7 +189,7 @@ export function CharacterSheet({
               </article>
             ))
           ) : (
-            <p>Coach will suggest side quests after your next career analysis.</p>
+            <p>None yet.</p>
           )}
           {latest && (
             <button type="button" className="quest-press" onClick={() => onOpenMission(latest.id)}>
@@ -180,7 +200,7 @@ export function CharacterSheet({
 
         <section className="quest-tile" style={{ flex: '2 1 520px' }} aria-labelledby="inv-title">
           <div className="quest-tile-head">
-            <h2 id="inv-title">Most used approved facts</h2>
+            <h2 id="inv-title">Your top facts</h2>
             <span>{facts.length} total</span>
           </div>
           <div className="quest-inventory">
