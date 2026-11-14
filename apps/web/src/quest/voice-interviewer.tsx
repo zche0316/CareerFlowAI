@@ -121,7 +121,15 @@ export function VoiceInterviewer({
         body: offer.sdp,
         headers: { Authorization: `Bearer ${s.clientSecret}`, 'Content-Type': 'application/sdp' },
       });
-      if (!answer.ok) throw Error(`The voice service did not accept the call (${answer.status}).`);
+      if (!answer.ok) {
+        const detail = await answer
+          .json()
+          .then((j) => j?.error?.message as string | undefined)
+          .catch(() => undefined);
+        throw Error(
+          `The voice service did not accept the call (${answer.status})${detail ? `: ${detail}` : ''}. Type your answers instead.`,
+        );
+      }
       await conn.setRemoteDescription({ type: 'answer', sdp: await answer.text() });
       setSeconds(0);
       setPhase('live');

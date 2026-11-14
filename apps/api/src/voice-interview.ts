@@ -62,6 +62,16 @@ export async function createVoiceSession(
       `This practice run has used its ${VOICE_SESSIONS_PER_RUN} voice sessions. Type your answers, or start another practice run.`,
     );
   const model = process.env.OPENAI_REALTIME_MODEL?.trim() || 'gpt-realtime-2.1';
+  const transcriber = process.env.OPENAI_TRANSCRIBE_MODEL?.trim() || 'gpt-4o-mini-transcribe';
+  // The secret is issued even for a model the project cannot use; the call then fails with 403.
+  // Check access first so the user gets a clear reason and the attempt is not counted (CFS-138).
+  const missing = await missingModels([model, transcriber], key, fetcher);
+  if (missing.length)
+    throw new AppError(
+      409,
+      'VOICE_MODEL_UNAVAILABLE',
+      `This OpenAI project has no access to ${missing.join(' and ')}. Enable ${missing.length > 1 ? 'them' : 'it'} for the project, or set OPENAI_REALTIME_MODEL / OPENAI_TRANSCRIBE_MODEL to models it can use. Type your answers meanwhile.`,
+    );
   let response: Response;
   try {
     response = await fetcher(`${OPENAI}/realtime/client_secrets`, {
@@ -76,7 +86,7 @@ export async function createVoiceSession(
           instructions: voiceInstructions(d.selectedJob?.job || {}, questions),
           audio: {
             input: {
-              transcription: { model: 'gpt-4o-mini-transcribe' },
+              transcription: { model: transcriber },
               turn_detection: { type: 'semantic_vad' },
             },
             output: { voice: 'marin' },
@@ -114,6 +124,23 @@ export async function createVoiceSession(
     questions: questions.map((q) => ({ id: q.id, question: q.question })),
     remaining: VOICE_SESSIONS_PER_RUN - used.length - 1,
   };
+}
+
+/** Models the key cannot use, from GET /v1/models/{id}; an unreachable check blocks nothing. */
+async function missingModels(ids: string[], key: string, fetcher: typeof fetch) {
+  const out: string[] = [];
+  for (const id of ids) {
+    try {
+      const r = await fetcher(`${OPENAI}/models/${encodeURIComponent(id)}`, {
+        headers: { Authorization: `Bearer ${key}` },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (r.status === 404 || r.status === 403) out.push(id);
+    } catch {
+      // The session request below reports the provider being down.
+    }
+  }
+  return out;
 }
 
 export function registerVoiceInterview(app: Express) {

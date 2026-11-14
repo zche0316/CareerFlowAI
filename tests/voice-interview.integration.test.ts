@@ -73,9 +73,23 @@ it('issues a short-lived key in live mode only, up to three per run', async () =
   process.env.OPENAI_NATIVE_API_KEY = 'test-only-not-a-real-key';
   const sent: any[] = [];
   const fetcher = (async (url: string, init: any) => {
+    if (url.includes('/models/')) return new Response('{}', { status: 200 });
     sent.push({ url, auth: init.headers.Authorization, body: JSON.parse(init.body) });
     return new Response(JSON.stringify({ value: 'ek_test', expires_at: 1 }), { status: 200 });
   }) as unknown as typeof fetch;
+  // A model the project cannot use is reported before any key is issued, and not counted.
+  const noRealtime = (async (url: string) =>
+    new Response('{}', {
+      status: url.includes('gpt-realtime') ? 404 : 200,
+    })) as unknown as typeof fetch;
+  await expect(createVoiceSession(userId, missionId, noRealtime)).rejects.toMatchObject({
+    code: 'VOICE_MODEL_UNAVAILABLE',
+    message: expect.stringContaining('gpt-realtime-2.1'),
+  });
+  expect(
+    ((await db.mission.findUniqueOrThrow({ where: { id: missionId } })).data as any).voiceSessions,
+  ).toBeUndefined();
+
   const s = await createVoiceSession(userId, missionId, fetcher);
   expect(s).toMatchObject({
     clientSecret: 'ek_test',
@@ -105,7 +119,10 @@ it('issues a short-lived key in live mode only, up to three per run', async () =
     code: 'VOICE_LIMIT',
   });
   // A refused session is reported, not counted.
-  const failing = (async () => new Response('{}', { status: 401 })) as unknown as typeof fetch;
+  const failing = (async (url: string) =>
+    new Response('{}', {
+      status: url.includes('/models/') ? 200 : 401,
+    })) as unknown as typeof fetch;
   await db.mission.update({
     where: { id: missionId },
     data: { data: json({ questions, selectedJob: { job: { title: 'Data Analyst' } } }) },

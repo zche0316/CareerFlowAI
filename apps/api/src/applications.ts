@@ -354,14 +354,10 @@ export async function startApplicationRun(
     );
   const mode = configuredMode();
   // Reuse a career analysis for this profile version and mode instead of paying for it again.
-  const analysed = (
-    await db.mission.findMany({
-      where: { userId, profileId: profile.id, mode },
-      orderBy: { createdAt: 'desc' },
-      select: { data: true },
-      take: 20,
-    })
-  ).find((m) => (m.data as MissionData).analysis);
+  // The workspace Coach's latest advice, else an earlier run's (CFS-138): role runs never pay
+  // for a second Coach call on the same profile version. Imported lazily: coach.ts imports this file.
+  const { reusableAnalysis } = await import('./coach.js');
+  const reused = await reusableAnalysis(userId, profile.id, mode);
   const previous = runs.find((r) => r.profileId === profile.id && r.mode === mode);
   const at = new Date().toISOString();
   const stored = a.job as any;
@@ -407,7 +403,7 @@ export async function startApplicationRun(
         minScore: 0,
         jobSearch: (runs[0]?.data as MissionData | undefined)?.jobSearch || { provider: 'manual' },
         agentAccess: 'all-approved-profile',
-        ...(analysed ? { analysis: (analysed.data as MissionData).analysis } : {}),
+        ...(reused ? { analysis: reused } : {}),
         matches: [match],
         selectedJob: match,
         preselected: true,
