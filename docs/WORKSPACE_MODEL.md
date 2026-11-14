@@ -440,3 +440,42 @@ Fixes found by the evaluation:
 
 Known limit: a year-only date ("2024-2025") cannot be stored as a month, so a record's start
 question can come back once.
+
+## Interview panel on the turn graph (CFS-145)
+
+Before this change, every message typed in the battle went to the Evaluator as a STAR answer.
+That included "what do you mean?", "can you repeat that?" and "skip", which became low-scoring
+rounds and replaced the saved answer. Rounds now run through the same turn graph with the panel's
+ports (`apps/api/src/interview-turn.ts`):
+
+- **answer** (any attempt, however short or hesitant) → the Evaluator scores it as before, and
+  the round stores how the message was read (`turn`).
+- **question** (clarify, context, repeat) → a short reply in character, then the same question.
+  The reply never gives a model answer or a score, and never adds a question of its own. A
+  repeat request gets fixed wording.
+- **control or frustrated** → the question is skipped (`skippedQuestions`, saved on the run) with
+  a fixed acknowledgement, and the battle moves on. A model asked to "move on" tended to invent
+  the next question; the panel's questions come only from the run.
+- **small talk, off-topic, injection** → a short steer back.
+
+Non-answer exchanges are stored on the run as `panelChat` (at most 40 per run) and shown above
+the question as "The panel: …". They never change rounds, answers, damage or feedback. Reflect
+rejects replies that score, give a model answer, add a question or use the wrong language.
+
+### Evaluation
+
+`npx tsx --env-file=.env scripts/interview-eval.ts` routes the labelled messages in
+`data/conversation-eval/interview-panel.json` through the panel's turn graph with the live light
+model. Scoring is stubbed, so it makes no Evaluator calls. On `main` every message is scored, so
+that baseline is exact without a run. `--mode fixture` measures the rules alone.
+
+Live runs, 2026-11-15: 28 messages (12 adversarial, 8 chatty, 8 goal-directed; English and
+Chinese), three runs.
+
+| Measure | `main` | Rules only (demo mode) | Turn graph, live |
+| --- | --- | --- | --- |
+| Routed correctly (score, reply, skip) | 11 of 28 | 16 of 28 | 28 of 28 in each run |
+| Non-answers scored as answers | 17 of 17 | 12 of 17 | 0 of 17 |
+| Real answers not scored | 0 of 11 | 0 of 11 | 0 of 11 |
+| Replies that add a question, score, give an answer or use the wrong language | n/a | 0 | 0 (7 of 17 before the reflect check) |
+| Median routing and reply time | n/a | < 5 ms | 0.8–1.5 s |

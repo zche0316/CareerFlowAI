@@ -107,6 +107,39 @@ async function wait(c: Client, id: string, status: string) {
   throw Error('Timed out waiting for ' + status);
 }
 
+it('answers clarify and repeat requests without scoring, and skips on request (CFS-145)', async () => {
+  const c = await client();
+  const { id, interview } = await prepareInterview(c);
+  const [q1, q2] = interview.data.questions;
+  const ask = (questionId: string, answer: string) =>
+    c.request(`/missions/${id}/interview/rounds`, 'POST', { questionId, answer });
+  const clarify = await ask(q1.id, 'What do you mean by that?');
+  expect(clarify.status).toBe(200);
+  expect(clarify.body.data.rounds || []).toHaveLength(0);
+  expect(clarify.body.data.answers || []).toHaveLength(0);
+  expect(clarify.body.data.panelChat).toHaveLength(1);
+  expect(clarify.body.data.panelChat[0]).toMatchObject({
+    questionId: q1.id,
+    intent: 'question',
+    skipped: false,
+  });
+  expect(clarify.body.data.panelChat[0].reply).toMatch(/real example/);
+  expect(clarify.body.events.at(-1)).toMatchObject({ agent: 'Interview Coach', action: 'replied' });
+  const again = await ask(q1.id, 'Can you repeat the question?');
+  expect(again.body.data.panelChat.at(-1).turn).toMatchObject({
+    intent: 'question',
+    route: 'converse',
+  });
+  const skip = await ask(q2.id, 'skip');
+  expect(skip.body.data.skippedQuestions).toEqual([q2.id]);
+  expect(skip.body.data.panelChat.at(-1)).toMatchObject({ intent: 'control', skipped: true });
+  expect(skip.body.data.rounds || []).toHaveLength(0);
+  // A real answer is still scored, and records how it was read.
+  const answered = await ask(q1.id, 'I built a SQL report for my team that cut manual work.');
+  expect(answered.body.data.rounds).toHaveLength(1);
+  expect(answered.body.data.rounds[0].turn).toMatchObject({ intent: 'answer', route: 'extract' });
+});
+
 it('scores interview rounds with STAR, asks one follow-up and still completes with feedback', async () => {
   const c = await client();
   const { id, interview } = await prepareInterview(c);

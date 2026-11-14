@@ -16,6 +16,7 @@ type Round = {
     followUp: string;
   };
   reviewer: 'rules' | 'model';
+  at?: string;
 };
 
 export const damageFor: Record<Mark, number> = { critical: 15, hit: 10, partial: 5, miss: 0 };
@@ -142,7 +143,13 @@ export function QuestBossBattle({
     questions.findIndex((q) => !mainFor(q.id)),
   );
   const [index, setIndex] = useState(firstOpen);
-  const [skipped, setSkipped] = useState<string[]>([]);
+  const [localSkips, setSkipped] = useState<string[]>([]);
+  // Skips the panel agreed to on the server (CFS-145) count as well as the Next button's.
+  const serverSkips: string[] = d.skippedQuestions || [];
+  const skipped = [...localSkips, ...serverSkips];
+  // The panel's latest reply to a non-answer about this question, if no answer came after it.
+  const chat: { questionId: string; user: string; reply: string; at: string; skipped: boolean }[] =
+    d.panelChat || [];
   const [text, setText] = useState('');
   const q = questions[Math.min(index, questions.length - 1)];
   const main = q ? mainFor(q.id) : undefined;
@@ -150,7 +157,7 @@ export function QuestBossBattle({
     live && main?.evaluation.followUp && !followFor(q.id) && !skipped.includes(q.id)
       ? main.evaluation.followUp
       : '';
-  useEffect(() => setText(''), [q?.id, pendingFollow, rounds.length]);
+  useEffect(() => setText(''), [q?.id, pendingFollow, rounds.length, chat.length]);
   // Once a question is settled (answered, follow-up done or skipped), move to the next open one.
   useEffect(() => {
     if (!live || !main || pendingFollow) return;
@@ -158,6 +165,23 @@ export function QuestBossBattle({
     if (next >= 0) setIndex(next);
   }, [rounds.length, skipped.length]);
   const last = rounds.at(-1);
+  const lastChat = chat.at(-1);
+  const panelReply =
+    lastChat &&
+    q &&
+    lastChat.questionId === q.id &&
+    !lastChat.skipped &&
+    (!last?.at || last.at < lastChat.at)
+      ? lastChat
+      : null;
+  // A skip agreed by the panel moves on like the Next button.
+  useEffect(() => {
+    if (!live || !lastChat?.skipped) return;
+    const next = questions.findIndex(
+      (x) => !mainFor(x.id) && !serverSkips.includes(x.id) && !localSkips.includes(x.id),
+    );
+    if (next >= 0) setIndex(next);
+  }, [chat.length]);
 
   // Boss traits come from the selected job's requirement mapping, never invented. The resume
   // team's gap report is preferred: it includes answers confirmed during tailoring (CFS-123).
@@ -247,6 +271,11 @@ export function QuestBossBattle({
               <span className="quest-chip coral">
                 {pendingFollow ? 'The panel counters' : `Question ${index + 1} · ${q.focus}`}
               </span>
+              {panelReply && (
+                <p className="boss-panel-reply" role="status">
+                  <b>The panel:</b> {panelReply.reply}
+                </p>
+              )}
               <p className="boss-bubble">“{prompt}”</p>
               <ReadAloud text={prompt || ''} label="Read the question aloud" />
               <small className="boss-fine">

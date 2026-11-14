@@ -194,6 +194,39 @@ export async function runTurn<Ctx>(ports: TurnPorts<Ctx>, ctx: Ctx): Promise<Tur
   return out as unknown as TurnResult;
 }
 
+export type TurnSummary = {
+  intent: Perception['intent'];
+  language: string;
+  source: Perception['source'];
+  route: Plan['route'];
+  parked: string[];
+  problems: Reflection['problems'];
+  revisions: number;
+  steps: { node: string; ms: number; detail?: string }[];
+  light: { calls: number; ms: number; inputTokens: number; outputTokens: number; failed: number };
+};
+
+/** What each assistant message stores about its turn: enough to audit and to measure. */
+export function summariseTurn(r: TurnResult & { calls: LightCall[] }): TurnSummary {
+  return {
+    intent: r.perception.intent,
+    language: r.perception.language,
+    source: r.perception.source,
+    route: r.plan.route,
+    parked: r.plan.parked,
+    problems: r.reflection.problems,
+    revisions: r.revisions,
+    steps: r.trace.map(({ node, ms, detail }) => ({ node, ms, ...(detail ? { detail } : {}) })),
+    light: {
+      calls: r.calls.length,
+      ms: r.calls.reduce((n, c) => n + c.ms, 0),
+      inputTokens: r.calls.reduce((n, c) => n + c.inputTokens, 0),
+      outputTokens: r.calls.reduce((n, c) => n + c.outputTokens, 0),
+      failed: r.calls.filter((c) => !c.ok).length,
+    },
+  };
+}
+
 // ---- Rules used when no light model is configured or reachable, and in fixture mode ----------
 
 const greeting =

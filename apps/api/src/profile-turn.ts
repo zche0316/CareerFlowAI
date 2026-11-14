@@ -9,8 +9,6 @@ import {
   runTurn,
   type Draft,
   type Perception,
-  type Plan,
-  type Reflection,
   type TurnPorts,
 } from '../../../packages/agents/src/conversation/turn-graph.js';
 import { guardIdentity, rolePreamble } from '../../../packages/agents/src/personas.js';
@@ -262,34 +260,7 @@ export async function runProfileTurn(ctx: ProfileTurnCtx) {
   return { ...result, calls };
 }
 
-export type ProfileTurnSummary = {
-  intent: Perception['intent'];
-  language: string;
-  source: Perception['source'];
-  route: Plan['route'];
-  parked: string[];
-  problems: Reflection['problems'];
-  revisions: number;
-  steps: { node: string; ms: number; detail?: string }[];
-  light: { calls: number; ms: number; inputTokens: number; outputTokens: number; failed: number };
-};
-
-export function summariseTurn(r: Awaited<ReturnType<typeof runProfileTurn>>): ProfileTurnSummary {
-  return {
-    intent: r.perception.intent,
-    language: r.perception.language,
-    source: r.perception.source,
-    route: r.plan.route,
-    parked: r.plan.parked,
-    problems: r.reflection.problems,
-    revisions: r.revisions,
-    steps: r.trace.map(({ node, ms, detail }) => ({ node, ms, ...(detail ? { detail } : {}) })),
-    light: {
-      calls: r.calls.length,
-      ms: r.calls.reduce((n, c) => n + c.ms, 0),
-      inputTokens: r.calls.reduce((n, c) => n + c.inputTokens, 0),
-      outputTokens: r.calls.reduce((n, c) => n + c.outputTokens, 0),
-      failed: r.calls.filter((c) => !c.ok).length,
-    },
-  };
-}
+export {
+  summariseTurn,
+  type TurnSummary as ProfileTurnSummary,
+} from '../../../packages/agents/src/conversation/turn-graph.js';
