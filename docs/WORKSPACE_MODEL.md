@@ -302,11 +302,14 @@ is on the Party page and its chat uses the party's avatars and Quest bubbles.
 
 - Corpus: the O*NET 31.0 database (U.S. Department of Labor, CC BY 4.0): descriptions, up to six
   core tasks and up to ten software examples for computer and mathematical occupations and a few
-  analyst and engineering roles. `npm run coach:sources` downloads three CSV files from
+  analyst, management and engineering roles. `npm run coach:sources` downloads three CSV files from
   onetcenter.org and writes `data/coach-sources/onet-31.json` with O*NET's attribution and a note
   that CareerFlow shortened the lists. No fine-tuning and no embeddings.
 - Retrieval: BM25 over that file with the user's goal, skills, revisit request and the roles on
-  the board; up to four passages go to the Coach as `publicSources`.
+  the board; up to four passages go to the Coach as `publicSources`. Title, description and tasks
+  count fully and the software list at one fifth; plurals are stemmed and a short synonym table
+  maps posting titles (software engineer, DevOps, data or business analyst) to O*NET names
+  (CFS-137). The built corpus has 46 occupations (see `data/coach-sources/README.md`).
 - The Coach may add a source id (`onet:<code>`) to an item's evidence only after at least one
   approved fact ID; the server rejects any other unknown ID. Sources describe jobs, never the
   candidate. The Coach page links each cited source to O*NET OnLine and shows the attribution.

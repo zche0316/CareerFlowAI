@@ -1,5 +1,11 @@
 import { expect, it } from 'vitest';
-import { coachSources, retrieve, type SourceDoc } from '../apps/api/src/coach-sources.js';
+import {
+  coachSources,
+  expandQuery,
+  loadCorpus,
+  retrieve,
+  type SourceDoc,
+} from '../apps/api/src/coach-sources.js';
 import { buildDocs, parseCsv } from '../scripts/coach-sources.mjs';
 
 // CFS-125: the Coach reads short, cited passages about occupations from an openly licensed corpus.
@@ -64,5 +70,26 @@ it('builds cited documents from the O*NET CSV files', () => {
   });
   expect(built[0].text).toBe(
     'Develop methods, "carefully".\nCore tasks: Clean data.\nCommon software: Python, R.',
+  );
+});
+
+it('matches plurals and common job titles to O*NET occupation names', () => {
+  expect(retrieve(docs, 'management analyst', 1)[0].title).toBe('Management Analysts');
+  expect(expandQuery('junior software engineer')).toContain('software developers');
+  expect(retrieve(docs, 'junior software engineer', 1)[0].title).toBe('Software Developers');
+});
+
+it('ships a corpus with O*NET attribution and only technical and analyst occupations', () => {
+  const corpus = loadCorpus()!;
+  expect(corpus.attribution).toContain('O*NET 31.0 Database');
+  expect(corpus.attribution).toContain('CC BY 4.0');
+  expect(corpus.docs.length).toBeGreaterThan(30);
+  expect(
+    corpus.docs.every((d) =>
+      /^onet:(15-|11-3021|13-1111|13-1161|13-2051|17-2061|17-2072)/.test(d.id),
+    ),
+  ).toBe(true);
+  expect(coachSources('graduate data analyst SQL dashboards').map((d) => d.title)).toContain(
+    'Business Intelligence Analysts',
   );
 });
