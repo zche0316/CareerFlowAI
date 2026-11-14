@@ -480,7 +480,7 @@ export function registerProfileConversations(app: Express) {
                 ? 'Prepare complete structured profile/project records from the saved user answers. Include finished experiences that are missing from the current draft. Do not ask questions. Do not approve or apply changes.'
                 : input.mode === 'edit'
                   ? 'Respond naturally to the latest user message, including short fragments, corrections, clarifications and questions. If the user asks a question or says not to change anything, answer it in reply using the working profile and return empty changes and records. Do not treat a question as a request to rewrite. Otherwise: Edit the existing career profile in response to the user request. Review clarity and completeness. Suggest only evidence-supported changes, preserve facts, and explain when no supported edit is needed. Do not restart a career interview. Never apply or approve changes.'
-                  : 'Build an editable career profile through a sustained interview. Answer clarification questions naturally in reply. If the user is just asking or says not to change anything, return empty changes and records; do not treat that message as an answer to the pending interview question.',
+                  : 'Build an editable career profile through a sustained interview. Answer clarification questions naturally in reply. If the user is just asking or says not to change anything, return empty changes and records; do not treat that message as an answer to the pending interview question. If the latest message is a greeting, small talk, a question about you or CareerFlow, or anything that is not career information, reply briefly and warmly in the user\'s language (one to three sentences): answer it, and when it helps say that you build their profile one question at a time and nothing is used until they approve it. Return empty changes and records for such messages; the server repeats the pending question after your reply.',
               prepareSavedAnswers: Boolean(input.recoverSavedAnswers),
               requireSourceLookup:
                 input.mode === 'edit' &&
@@ -943,9 +943,23 @@ export function registerProfileConversations(app: Express) {
           planProfile[outcome.field] = outcome.after;
         }
       }
+      // Small talk or a question about the builder: the model answers it, nothing changes, and
+      // the pending question stays open instead of being marked as answered (CFS-143).
+      const smallTalk =
+        input.mode === 'build' &&
+        !discussionOnly &&
+        !input.recoverSavedAnswers &&
+        !input.retryMessageId &&
+        !labelled &&
+        !changes.length &&
+        !grounded.records.length &&
+        !prepared.discardedFields.length &&
+        !grounded.rejected.length &&
+        Boolean(result.reply?.trim());
       // A new experience is not an answer to the old experience's pending question.
       if (
         !discussionOnly &&
+        !smallTalk &&
         !input.retryMessageId &&
         !input.recoverSavedAnswers &&
         previousState.question &&
@@ -980,6 +994,7 @@ export function registerProfileConversations(app: Express) {
           ((input.mode === 'edit' || discussionOnly) && !changes.length && result.reply?.trim()
             ? `${guardIdentity(result.reply.trim(), 'conversation')}\n\nYour profile is unchanged.`
             : null) ||
+          (smallTalk ? guardIdentity(result.reply!.trim(), 'conversation') : null) ||
           (input.recoverSavedAnswers
             ? changes.length
               ? `Prepared ${changes.length} draft update(s). Review the suggested details and choose Use these details in my draft. Your draft has not changed yet.`

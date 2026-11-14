@@ -257,6 +257,42 @@ describe('Persistent profile conversations', () => {
     );
     expect(result.map((r) => r.status).sort()).toEqual([200, 409]);
   });
+  it('answers small talk and keeps the pending question open (CFS-143)', async () => {
+    const c = await client(true);
+    const form = structuredClone(blankProfile);
+    const t = await c.request('/profile-threads', 'POST', { currentProfile: form });
+    const say = async (text: string, reply: string) => {
+      const spy = vi.spyOn(provider, 'generate').mockResolvedValueOnce({
+        reply,
+        builder: { draft: {}, proposedChanges: [], followUpQuestions: [] },
+        records: [],
+      } as any);
+      try {
+        const latest = await c.request(`/profile-threads/${t.body.id}`);
+        return await c.request(`/profile-threads/${t.body.id}/messages`, 'POST', {
+          currentProfile: form,
+          text,
+          revision: latest.body.revision,
+          consent: true,
+        });
+      } finally {
+        spy.mockRestore();
+      }
+    };
+    const hello = await say('hello!', 'Hi! Nice to meet you.');
+    const first = hello.body.messages.at(-1);
+    expect(first.text).toContain('Hi! Nice to meet you.');
+    expect(first.text).not.toContain('Your message is retained');
+    const who = await say(
+      'Who are you and what can you do',
+      'I am the Profile Builder. I ask one question at a time and nothing is used until you approve it.',
+    );
+    const second = who.body.messages.at(-1);
+    expect(second.text).toContain('I am the Profile Builder');
+    // Neither message answered the opening question, so it is asked again rather than skipped.
+    expect(second.questions).toEqual(first.questions);
+    expect(second.questions[0]).toMatch(/career direction/);
+  });
   it('keeps a Chinese education record when the model invents an optional start month', async () => {
     const c = await client();
     const form = structuredClone(blankProfile);

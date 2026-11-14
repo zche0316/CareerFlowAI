@@ -3,6 +3,7 @@ import { AgentAvatar, LeaderBadge, agentProfiles } from './quest/characters.js';
 import { sameProfileField } from '../../../packages/contracts/src/profile-comparison.js';
 import type { CareerProfile } from '../../../packages/contracts/src/index.js';
 import { createPortal } from 'react-dom';
+import { RecordAnswer, SpeakAnswer } from './quest/voice.js';
 import { ProfileCanvas, profileFieldLabels, type ProfileProposal } from './profile-canvas.js';
 export type Request = (path: string, method?: string, body?: unknown) => Promise<any>;
 // The model's reply may repeat/paraphrase its structured question. Show that
@@ -27,7 +28,10 @@ export function ProfileConversation({
   previewTarget,
   previewData,
   approved,
+  transcribe,
 }: {
+  /** Live mode: send one recording to the server and get its text back (CFS-143). */
+  transcribe?: (audio: Blob) => Promise<string>;
   mode?: 'build' | 'edit';
   initialPrompt?: { id: string; text: string; label: string } | null;
   previewTarget?: HTMLElement | null;
@@ -40,6 +44,15 @@ export function ProfileConversation({
   api: Request;
   onChange: (key: keyof CareerProfile, value: any) => void;
 }) {
+  // Recording needs the server's transcription model; otherwise fall back to the browser's own
+  // dictation where it exists.
+  const [canRecord, setCanRecord] = useState(false);
+  useEffect(() => {
+    if (!transcribe) return;
+    api('/voice/status')
+      .then((s) => setCanRecord(Boolean(s?.transcribe)))
+      .catch(() => setCanRecord(false));
+  }, [Boolean(transcribe)]);
   const [threads, setThreads] = useState<any[]>([]),
     [thread, setThread] = useState<any>(null),
     [message, setMessage] = useState(''),
@@ -328,7 +341,11 @@ export function ProfileConversation({
         <div className="pb-head">
           <AgentAvatar agent="builder" size={48} label={false} />
           <div>
-            <h3>{mode === 'build' ? 'Build with the Profile Builder' : 'Edit with the Profile Builder'}</h3>
+            <h3>
+              {mode === 'build'
+                ? 'Build with the Profile Builder'
+                : 'Edit with the Profile Builder'}
+            </h3>
             <small className="muted">{agentProfiles.builder.quote}</small>
           </div>
         </div>
@@ -651,6 +668,19 @@ export function ProfileConversation({
             />
           </label>
         )}
+        {!reviewStage &&
+          (transcribe && canRecord ? (
+            <RecordAnswer
+              disabled={busy}
+              transcribe={transcribe}
+              onText={(words) => setMessage((t) => (t ? `${t} ` : '') + words)}
+            />
+          ) : (
+            <SpeakAnswer
+              disabled={busy}
+              onText={(words) => setMessage((t) => (t ? `${t} ` : '') + words)}
+            />
+          ))}
         {(thread || !reviewStage) && (
           <label className="checkbox">
             <input

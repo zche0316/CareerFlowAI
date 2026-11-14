@@ -360,3 +360,14 @@ Found by walking the app from a new account (see [USER_JOURNEY.md](USER_JOURNEY.
   latest ranked listings. XP and levels stay as the measure of activity in CareerFlow.
 - **Wording.** Headings and hints say what the page is for in a few words; descriptions of how
   agents work moved out of the main path.
+
+## Profile Builder: small talk and spoken messages (CFS-143)
+
+- A build-mode message that yields no profile change, no record and nothing rejected, but does get
+  a model reply, is small talk or a question about the builder. The reply is shown (through the
+  identity guard) and the pending interview question stays open; before this, a fixed "Your
+  message is retained" line replaced the reply and the question was marked answered.
+- The message box has **Record your answer** in live mode: `POST /api/profile/transcribe` sends
+  one recording to the transcription model with no fixed language, returns the text for editing,
+  and keeps no audio. The cap is 60 recordings per user per day, counted in memory. Without the
+  transcription model the browser's own dictation is offered where it exists.

@@ -28,8 +28,9 @@ Press **Build my profile**. Two ways in, and you can mix them:
   a PDF, text file or photo of your resume. CareerFlow drafts work, project and education
   records from it; nothing is saved yet.
 - **Chat with Coach** on the left. Answer its questions about study, work and projects; the
-  panel on the right fills in as you go. You can type, or use the microphone where the browser
-  supports it.
+  panel on the right fills in as you go. Type, or press **Record your answer** (live mode): the
+  recording becomes text in the message box for you to edit before sending. Small talk and
+  questions about the builder get a reply, and the pending question stays open.
 
 Then open **Edit profile details manually** to fix anything, especially the start and end months
 of each job: they set your experience rank.
