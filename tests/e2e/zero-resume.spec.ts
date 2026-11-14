@@ -159,7 +159,7 @@ test('a candidate with no resume or formal work builds a story, selects job cont
   await page.screenshot({ path: 'output/agent-native/evidence-question.png', fullPage: true });
   await continueButton.click();
   await expect(
-    page.getByRole('heading', { name: 'Your party built a draft. Now it’s your call.' }),
+    page.getByRole('heading', { name: 'Review your resume.', exact: true }),
   ).toBeVisible({ timeout: 45000 });
   await page.getByText('Edit it yourself', { exact: true }).click();
   await page.getByRole('button', { name: 'Refine wording', exact: true }).click();

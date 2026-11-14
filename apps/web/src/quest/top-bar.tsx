@@ -24,17 +24,20 @@ const primary: { id: QuestNavId; label: string }[] = [
   { id: 'jobs', label: 'Jobs' },
   { id: 'scout', label: 'Scout' },
   { id: 'world', label: 'World' },
-  { id: 'party', label: 'Party' },
-  { id: 'character', label: 'Character' },
 ];
 const more: { id: QuestNavId; label: string }[] = [
   { id: 'coach', label: 'Coach' },
+  { id: 'party', label: 'Party' },
   { id: 'season', label: 'Season event' },
-  { id: 'library', label: 'My documents' },
-  { id: 'approved-profile', label: 'My profile' },
   { id: 'approvals', label: 'Decision inbox' },
   { id: 'applications', label: 'Applications' },
   { id: 'activity', label: 'Activity' },
+];
+// Things about you sit under your avatar, as in most products.
+const account: { id: QuestNavId; label: string }[] = [
+  { id: 'character', label: 'Character' },
+  { id: 'approved-profile', label: 'My profile' },
+  { id: 'library', label: 'My documents' },
 ];
 
 /** Floating pill navigation for the Quest app. Navigation logic stays in the caller. */
@@ -57,17 +60,19 @@ export function QuestTopBar({
   onNavigate: (id: QuestNavId) => void;
   onSignOut: () => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState<'more' | 'account' | null>(null);
   const menu = useRef<HTMLDivElement>(null);
+  const accountMenu = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
     const close = (event: MouseEvent | KeyboardEvent) => {
+      const box = open === 'more' ? menu.current : accountMenu.current;
       if (
         event instanceof KeyboardEvent
           ? event.key === 'Escape'
-          : !menu.current?.contains(event.target as Node)
+          : !box?.contains(event.target as Node)
       )
-        setOpen(false);
+        setOpen(null);
     };
     document.addEventListener('mousedown', close);
     document.addEventListener('keydown', close);
@@ -77,7 +82,7 @@ export function QuestTopBar({
     };
   }, [open]);
   const go = (id: QuestNavId) => {
-    setOpen(false);
+    setOpen(null);
     onNavigate(id);
   };
   return (
@@ -128,14 +133,14 @@ export function QuestTopBar({
           <button
             type="button"
             className="qt-link"
-            aria-expanded={open}
+            aria-expanded={open === 'more'}
             aria-haspopup="menu"
             aria-current={more.some((m) => m.id === active) ? 'page' : undefined}
-            onClick={() => setOpen(!open)}
+            onClick={() => setOpen(open === 'more' ? null : 'more')}
           >
             More <ChevronDown size={14} aria-hidden="true" />
           </button>
-          {open && (
+          {open === 'more' && (
             <div className="qt-menu" role="menu">
               {more.map((item) => (
                 <button key={item.id} type="button" role="menuitem" onClick={() => go(item.id)}>
@@ -161,10 +166,40 @@ export function QuestTopBar({
           <i aria-hidden="true" />
           Lv {level} · {xp.toLocaleString()} XP
         </button>
-        <LeaderBadge name={userName} />
-        <button type="button" className="qt-icon" aria-label="Sign out" onClick={onSignOut}>
-          <LogOut size={18} />
-        </button>
+        <div className="qt-more qt-account" ref={accountMenu}>
+          <button
+            type="button"
+            className="qt-avatar"
+            aria-label="Account menu"
+            aria-expanded={open === 'account'}
+            aria-haspopup="menu"
+            aria-current={account.some((m) => m.id === active) ? 'page' : undefined}
+            onClick={() => setOpen(open === 'account' ? null : 'account')}
+          >
+            <LeaderBadge name={userName} />
+          </button>
+          {open === 'account' && (
+            <div className="qt-menu" role="menu">
+              <strong className="qt-menu-name">{userName}</strong>
+              {account.map((item) => (
+                <button key={item.id} type="button" role="menuitem" onClick={() => go(item.id)}>
+                  {item.label}
+                </button>
+              ))}
+              <button
+                type="button"
+                role="menuitem"
+                className="qt-menu-out"
+                onClick={() => {
+                  setOpen(null);
+                  onSignOut();
+                }}
+              >
+                <LogOut size={15} aria-hidden="true" /> Sign out
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

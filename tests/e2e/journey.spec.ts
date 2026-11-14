@@ -44,7 +44,7 @@ async function openInterview(page: Page) {
   await expect(approve).toBeDisabled();
   await page.getByLabel('I read this exact draft.').check();
   await approve.click();
-  await expect(page.getByRole('heading', { name: 'Face the interview panel.' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Interview practice', exact: true })).toBeVisible({
     timeout: 30000,
   });
   await expect(page.getByRole('heading', { name: 'Your turn', exact: true })).toBeVisible();
@@ -94,7 +94,9 @@ test('a user compares ranked jobs and selects one for downstream context', async
   await roles.nth(1).click();
   await expect(roles.nth(1)).toHaveAttribute('aria-pressed', 'true');
   const detail = page.locator('article.rc').first();
-  await expect(detail.locator('.rc-title h3')).toHaveText(await roles.nth(1).locator('strong').innerText());
+  await expect(detail.locator('.rc-title h3')).toHaveText(
+    await roles.nth(1).locator('strong').innerText(),
+  );
   await roles.first().click();
   await detail.getByText('How the fit score works', { exact: true }).click();
   await expect(detail).toContainText('Preferred skills (optional)');
@@ -108,12 +110,12 @@ test('a user compares ranked jobs and selects one for downstream context', async
   const selectedTitle = await detail.locator('.rc-title h3').innerText();
   await page.getByRole('button', { name: 'Select this opportunity' }).first().click();
   await expect(
-    page.getByRole('heading', { name: 'Your party built a draft. Now it’s your call.' }),
+    page.getByRole('heading', { name: 'Review your resume.', exact: true }),
   ).toBeVisible({ timeout: 45000 });
   await expect(page.locator('.qm-crumb')).toContainText(selectedTitle);
   // The chosen role stays on the Shortlist step.
   await step(page, 'Shortlist');
-  await expect(page.getByRole('heading', { name: 'Target locked in.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Role chosen.' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Your chosen role' })).toBeVisible();
   await expect(page.locator('article.rc')).toHaveCount(1);
   await expect(page.locator('article.rc .rc-title h3')).toHaveText(selectedTitle);
@@ -121,7 +123,7 @@ test('a user compares ranked jobs and selects one for downstream context', async
   await page.reload();
   await step(page, 'Review');
   await expect(
-    page.getByRole('heading', { name: 'Your party built a draft. Now it’s your call.' }),
+    page.getByRole('heading', { name: 'Review your resume.', exact: true }),
   ).toBeVisible({ timeout: 45000 });
   await expect(page.locator('.qm-crumb')).toContainText(selectedTitle);
   await page.screenshot({
@@ -202,21 +204,17 @@ test('a user answers every interview question and receives complete feedback', a
   });
 
   const completedId = new URL(page.url()).searchParams.get('mission');
-  await page.getByRole('button', { name: 'Back to journey results', exact: true }).click();
+  await page.getByRole('button', { name: 'What to do next', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Completed journey results' })).toBeVisible();
   await page.reload();
-  await expect(
-    page.getByRole('heading', { name: 'Your journey results', exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole('region', { name: 'What to do next' })).toBeVisible();
   await page.screenshot({
     path: 'output/acceptance/completed-journey-results.png',
     fullPage: true,
   });
   for (const label of ['Shortlist', 'Review', 'Practice'] as const) {
     await step(page, label);
-    await expect(
-      page.getByText('Saved journey · Read-only history', { exact: true }),
-    ).toBeVisible();
+    await expect(page.getByText('Finished run · saved as it was', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Run revised analysis' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Select this opportunity' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Approve & save resume' })).toHaveCount(0);
@@ -226,7 +224,7 @@ test('a user answers every interview question and receives complete feedback', a
   await expect(page.getByRole('region', { name: 'Saved interview answers' })).toContainText(
     'In example 1',
   );
-  await page.getByRole('button', { name: 'Back to results', exact: true }).click();
+  await page.getByRole('button', { name: 'What to do next', exact: true }).click();
   await go(page, 'My profile');
   await go(page, 'Jobs');
   await page.getByRole('button', { name: 'Send the party out', exact: true }).click();

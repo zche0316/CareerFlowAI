@@ -60,7 +60,7 @@ test('a quest runs from the log through review, a return to the Rewriter and the
 
   await page.goto(`/?view=missions&mission=${id}&step=2`);
   await expect(
-    page.getByRole('heading', { name: 'Pick the job your party should chase.' }),
+    page.getByRole('heading', { name: 'Pick a role.', exact: true }),
   ).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Shortlist', exact: true })).toBeVisible();
   await expect(page.getByRole('group', { name: 'Filters' })).toBeVisible();
@@ -72,7 +72,7 @@ test('a quest runs from the log through review, a return to the Rewriter and the
   await waitFor(api, id, 'AWAITING_APPROVAL');
   await page.goto(`/?view=missions&mission=${id}&step=3`);
   await expect(
-    page.getByRole('heading', { name: 'Your party built a draft. Now it’s your call.' }),
+    page.getByRole('heading', { name: 'Review your resume.', exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole('heading', { name: 'How your party worked it out', exact: true }),
@@ -94,7 +94,7 @@ test('a quest runs from the log through review, a return to the Rewriter and the
 
   await page.getByLabel('I read this exact draft.').check();
   await approve.click();
-  await expect(page.getByRole('heading', { name: 'Face the interview panel.' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Interview practice', exact: true })).toBeVisible({
     timeout: 30000,
   });
   await expect(page.getByRole('heading', { name: 'Your turn', exact: true })).toBeVisible();
@@ -207,7 +207,7 @@ test('a Scout sweep fills the batch review and each package opens at its draft r
   await ready.first().click();
   await expect(page).toHaveURL(/step=3/);
   await expect(
-    page.getByRole('heading', { name: 'Your party built a draft. Now it’s your call.' }),
+    page.getByRole('heading', { name: 'Review your resume.', exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Approve this draft', exact: true }),

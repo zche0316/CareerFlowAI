@@ -38,7 +38,7 @@ test('the demo workflow runs end to end in the Quest interface', async ({ page }
 
   // 4. Choose one role from the shortlist.
   await expect(
-    page.getByRole('heading', { name: 'Pick the job your party should chase.' }),
+    page.getByRole('heading', { name: 'Pick a role.', exact: true }),
   ).toBeVisible({ timeout: 45000 });
   const roles = page.locator('button.qj-role');
   expect(await roles.count()).toBeGreaterThan(1);
@@ -53,7 +53,7 @@ test('the demo workflow runs end to end in the Quest interface', async ({ page }
 
   // 5. Resume team stops at the draft review.
   await expect(
-    page.getByRole('heading', { name: 'Your party built a draft. Now it’s your call.' }),
+    page.getByRole('heading', { name: 'Review your resume.', exact: true }),
   ).toBeVisible({ timeout: 45000 });
   await expect(page.locator('.qm-crumb')).toContainText(title);
   const approve = page.getByRole('button', { name: 'Approve this draft', exact: true });
@@ -70,7 +70,7 @@ test('the demo workflow runs end to end in the Quest interface', async ({ page }
   await approve.click();
 
   // 7. Interview practice: one answer, finish early, read the feedback.
-  await expect(page.getByRole('heading', { name: 'Face the interview panel.' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Interview practice', exact: true })).toBeVisible({
     timeout: 45000,
   });
   await page
@@ -130,7 +130,7 @@ test('the demo workflow runs end to end in the Quest interface', async ({ page }
   // A saved role starts its own run at the resume team with the role already chosen.
   await later.getByRole('button', { name: 'Tailor resume' }).click();
   await expect(
-    page.getByRole('heading', { name: 'Your party built a draft. Now it’s your call.' }),
+    page.getByRole('heading', { name: 'Review your resume.', exact: true }),
   ).toBeVisible({ timeout: 45000 });
   await expect(page.locator('.qm-crumb')).toContainText(saved);
 

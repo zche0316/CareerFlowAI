@@ -9,6 +9,7 @@ Progress, acceptance evidence and defects are tracked in [Jira](https://careerfl
 ## Documentation
 
 - [Local run and demo guide](docs/LOCAL_DEMO.md): setup, demo account, demo workflow, live runs and the feature checklist.
+- [Walkthrough from a new account](docs/USER_JOURNEY.md): every step from sign-up to applying, with what to check.
 - [Workspace model](docs/WORKSPACE_MODEL.md): design notes for roles, the role library, capability levels, recruiter view, profile sources and market insight.
 - [Architecture](docs/architecture.md): components, agents and guarantees.
 - [API](docs/API.md): every HTTP route, conventions and the data model.

@@ -1,8 +1,9 @@
 import { expect, type Page } from '@playwright/test';
 
-// Quest top-bar navigation. Primary pages are buttons in the Main navigation; the rest sit
-// in its More menu.
-const primary = ['Home', 'Quests', 'Jobs', 'Scout', 'World', 'Party', 'Character'];
+// Quest top-bar navigation. Primary pages are buttons in the Main navigation, pages about you
+// sit under the avatar's Account menu, and the rest in the More menu.
+const primary = ['Home', 'Quests', 'Jobs', 'Scout', 'World'];
+const account = ['Character', 'My profile', 'My documents', 'Sign out'];
 
 export async function go(page: Page, label: string) {
   const nav = page.getByRole('navigation', { name: 'Main', exact: true });
@@ -11,6 +12,10 @@ export async function go(page: Page, label: string) {
     return nav
       .getByRole('button', { name: new RegExp(`^${label}( \\d+ waiting for you)?$`) })
       .click();
+  if (account.includes(label)) {
+    await page.getByRole('button', { name: 'Account menu', exact: true }).click();
+    return page.getByRole('menuitem', { name: label, exact: true }).click();
+  }
   await nav.getByRole('button', { name: /^More/ }).click();
   await page.getByRole('menuitem', { name: label, exact: true }).click();
 }

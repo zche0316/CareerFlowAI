@@ -42,8 +42,8 @@ test('structured records and locally imported text remain separate from approval
   await page.getByRole('button', { name: 'Add Projects', exact: true }).click();
   await page.getByLabel('Projects 1 title', { exact: true }).fill('Fictional Dashboard Project');
   await page
-    .getByText('Already have career material? Optional resume import', { exact: true })
-    .click();
+    .locator('details.optional-import')
+    .evaluate((d) => ((d as HTMLDetailsElement).open = true));
   await page.getByLabel('Resume file', { exact: true }).setInputFiles({
     name: 'fictional-import.txt',
     mimeType: 'text/plain',
@@ -78,8 +78,8 @@ test('structured records and locally imported text remain separate from approval
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 2),
   ).toBe(true);
   await page
-    .getByText('Already have career material? Optional resume import', { exact: true })
-    .click();
+    .locator('details.optional-import')
+    .evaluate((d) => ((d as HTMLDetailsElement).open = true));
   await expect(page.getByLabel('Saved imports')).toBeVisible();
   await page.screenshot({
     path: 'output/profile-workflow-20261029/structured-profile.png',

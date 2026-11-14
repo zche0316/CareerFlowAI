@@ -301,6 +301,21 @@ function App() {
     document.getElementById('interview-practice')?.scrollIntoView({ block: 'start' });
   }, [mission?.id, mission?.status]);
 
+  // A finished run replaces the step notice, so "questions are ready" never sits above a
+  // completed practice.
+  const noticeRun = useRef<{ id: string; status: string } | null>(null);
+  useEffect(() => {
+    const previous = noticeRun.current;
+    noticeRun.current = mission ? { id: mission.id, status: mission.status } : null;
+    if (!mission || !previous || previous.id !== mission.id) return;
+    if (previous.status !== mission.status && mission.status === 'COMPLETE')
+      setNotice(
+        mission.data?.feedback
+          ? 'Practice finished. Your feedback and next steps are below.'
+          : 'This run is finished. Your next steps are below.',
+      );
+  }, [mission?.id, mission?.status]);
+
   const observedMission = useRef<{ id: string; status: string } | null>(null);
   const automaticHandoff = useRef<{ id: string; phase: number | null } | null>(null);
   useEffect(() => {
@@ -1440,37 +1455,37 @@ function Profile({
                   {error}
                 </p>
               )}
+              <details className="optional-import" open={!profile}>
+                <summary>Start from your resume</summary>
+                <ProfileImport
+                  api={api}
+                  disabled={busy || committing || preparing}
+                  onApply={(records) => {
+                    setForm((current) => ({
+                      ...current!,
+                      ...Object.fromEntries(
+                        recordKeys.map((key) => [
+                          key,
+                          [
+                            ...(current?.[key] || []),
+                            ...records
+                              .filter(
+                                (r) =>
+                                  r.section === key &&
+                                  !current?.[key]?.some((x) => x.id === r.id),
+                              )
+                              .map(({ section, ...r }) => r),
+                          ],
+                        ]),
+                      ),
+                    }));
+                    invalidateDraft();
+                  }}
+                />
+              </details>
               <div ref={setPreviewTarget} />
               <details className="manual-profile-editor">
                 <summary>Edit profile details manually</summary>
-                <details className="optional-import">
-                  <summary>Already have career material? Optional resume import</summary>
-                  <ProfileImport
-                    api={api}
-                    disabled={busy || committing || preparing}
-                    onApply={(records) => {
-                      setForm((current) => ({
-                        ...current!,
-                        ...Object.fromEntries(
-                          recordKeys.map((key) => [
-                            key,
-                            [
-                              ...(current?.[key] || []),
-                              ...records
-                                .filter(
-                                  (r) =>
-                                    r.section === key &&
-                                    !current?.[key]?.some((x) => x.id === r.id),
-                                )
-                                .map(({ section, ...r }) => r),
-                            ],
-                          ]),
-                        ),
-                      }));
-                      invalidateDraft();
-                    }}
-                  />
-                </details>
                 <div className="form-grid">
                   {input('name', 'Full name')}
                   {input('location', 'Preferred location', { placeholder: 'Optional' })}
@@ -1695,28 +1710,57 @@ function MissionDetail({
         <QuestMissionHeader mission={m} phase={phase} onBack={onBack} onSelect={onNavigate} />
         <div className="page-heading">
           <div>
-            <span className="eyebrow">RUN COMPLETE</span>
-            <h2>Your journey results</h2>
-            <p>{m.goal}</p>
+            <span className="eyebrow">QUEST COMPLETE</span>
+            <h2>{d.approvedResumeId ? 'Ready to apply' : 'Practice finished'}</h2>
           </div>
-          <button className="primary" onClick={onNewSearch}>
-            Start a new journey <ArrowRight size={16} />
+          <button className="secondary" onClick={onBack}>
+            Open quest log <ArrowRight size={16} />
           </button>
         </div>
-        <p>
-          This journey is saved. Review its five steps in the route above. New work uses your latest
-          approved profile and keeps these results unchanged.
-        </p>
-        <section className="panel" aria-label="Saved application results">
-          <h2>{d.selectedJob?.job.title || 'Your application'}</h2>
-          <p>{d.selectedJob?.job.company}</p>
-          {d.approvedResumeId && <ResumeDownloads id={d.approvedResumeId} />}
-          <button className="text-button" onClick={() => onNavigate(3)}>
-            View approved resume
-          </button>
-          <button className="text-button" onClick={() => onNavigate(4)}>
-            Review interview answers
-          </button>
+        <section className="panel" aria-label="What to do next">
+          <h2>What to do next</h2>
+          <ol className="next-steps">
+            {d.approvedResumeId && (
+              <li>
+                <strong>Download your tailored resume.</strong>
+                <ResumeDownloads id={d.approvedResumeId} />
+                <button className="text-button" onClick={() => onNavigate(3)}>
+                  View approved resume
+                </button>
+              </li>
+            )}
+            {d.selectedJob?.job.url && (
+              <li>
+                <strong>Apply on the employer’s site.</strong> CareerFlow never applies for you.{' '}
+                <a href={d.selectedJob.job.url} target="_blank" rel="noreferrer">
+                  Open the listing
+                </a>
+              </li>
+            )}
+            <li>
+              <strong>Mark it applied in your quest log</strong> once you have sent it.
+            </li>
+            {m.applicationId && onPractise && (
+              <li>
+                <strong>Practise again</strong> with new questions for this role.{' '}
+                <button
+                  className="text-button"
+                  disabled={busy}
+                  onClick={() => onPractise(m.applicationId)}
+                >
+                  Start a practice run
+                </button>
+              </li>
+            )}
+            {responseCount > 0 && (
+              <li>
+                <button className="text-button" onClick={() => onNavigate(4)}>
+                  Review your interview answers
+                </button>
+              </li>
+            )}
+          </ol>
+          <small className="muted">This run is saved as it was.</small>
         </section>
         {d.feedback && (
           <section className="panel" aria-label="Saved interview feedback">
@@ -1746,12 +1790,12 @@ function MissionDetail({
       {<QuestMissionHeader mission={m} phase={phase} onBack={onBack} onSelect={onNavigate} />}
       {completed && (
         <div className="info" role="note">
-          <span>Saved journey · Read-only history</span>
+          <span>Finished run · saved as it was</span>
           <button className="text-button" onClick={() => onNavigate(null)}>
-            Back to results
+            What to do next
           </button>
-          <button className="secondary" onClick={onNewSearch}>
-            Start a new journey
+          <button className="secondary" onClick={onBack}>
+            Open quest log
           </button>
         </div>
       )}
@@ -2571,11 +2615,6 @@ function MissionDetail({
                     </article>
                   ))}
                 </section>
-              )}
-              {d.feedback && phase === 4 && (
-                <button className="secondary" onClick={() => onNavigate(null)}>
-                  Back to journey results
-                </button>
               )}
               {d.feedback && (
                 <>

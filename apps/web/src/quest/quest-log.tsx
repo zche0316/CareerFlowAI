@@ -267,26 +267,26 @@ const statusChip: Record<string, { label: string; tone: string }> = {
 };
 
 const headline = (m: any, phase: number | null) => {
-  if (phase === 0) return 'The profile this quest runs on.';
+  if (phase === 0) return 'Profile used for this quest';
   if (phase === 1)
-    return m.data?.analysis ? 'Coach read your profile.' : 'Coach is reading your profile.';
+    return m.data?.analysis ? 'Career analysis' : 'Reading your profile…';
   if (phase === 2)
     return m.status === 'AWAITING_JOB'
-      ? 'Pick the job your party should chase.'
+      ? 'Pick a role.'
       : m.data?.selectedJob
-        ? 'Target locked in.'
-        : 'Job Matcher is ranking roles.';
+        ? 'Role chosen.'
+        : 'Ranking roles…';
   if (phase === 3)
     return m.status === 'AWAITING_EVIDENCE'
       ? 'One question before the draft.'
       : m.status === 'AWAITING_APPROVAL'
-      ? 'Your party built a draft. Now it’s your call.'
+      ? 'Review your resume.'
       : m.data?.approvedResumeId
         ? 'Resume approved and saved.'
-        : 'Your resume team is at work.';
+        : 'Tailoring your resume…';
   if (phase === 4)
-    return m.status === 'COMPLETE' ? 'Interview practice, reviewed.' : 'Face the interview panel.';
-  if (phase === 7) return 'Prepare the application. You send it.';
+    return m.status === 'COMPLETE' ? 'Interview feedback' : 'Interview practice';
+  if (phase === 7) return 'Apply';
   if (phase === 8) return 'Battle log';
   if (phase === 9) return 'Save points';
   return questTitle(m);

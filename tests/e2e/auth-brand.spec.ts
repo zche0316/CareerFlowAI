@@ -29,7 +29,8 @@ test('authentication matches the workspace and offers no demo or sample bypass',
   expect(await sampleResponse.json()).not.toHaveProperty('sampleProfile');
   const demo = await page.request.post('/api/auth/demo', { data: {} });
   expect(demo.ok()).toBe(false);
-  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await page.getByRole('button', { name: 'Account menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Sign out', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Welcome back.', exact: true })).toBeVisible();
   await page.getByLabel('Email address', { exact: true }).fill(email);
   await page.getByLabel('Password', { exact: true }).fill('Auth-candidate-password');

@@ -341,3 +341,22 @@ is on the Party page and its chat uses the party's avatars and Quest bubbles.
   BM25 found nothing for Chinese questions. Known gaps: no DevOps or machine-learning occupation in
   either source.
 - Size: O*NET 61 KB, ESCO 112 KB, vectors 410 KB (148 documents); held in memory, no vector database.
+
+## Walkthrough fixes: navigation, experience rank and plain wording (CFS-142)
+
+Found by walking the app from a new account (see [USER_JOURNEY.md](USER_JOURNEY.md)).
+
+- **Navigation.** The top bar keeps Home, Quests, Jobs, Scout and World; Coach, Party, Season
+  event, Decision inbox, Applications and Activity sit under More. Pages about the user
+  (Character, My profile, My documents) and Sign out moved under the avatar's Account menu.
+- **Start from your resume.** Resume import is a top-level panel on the profile builder, open
+  by default until a profile is approved, instead of nested inside the manual editor.
+- **Finished runs** show what to do next: download the resume, apply on the employer's site,
+  mark the role applied, practise again. A step notice is replaced when its run completes.
+- **Experience rank** on the Character page: Rookie (under 1 year), Apprentice (1+), Adventurer
+  (3+), Veteran (5+) and Legend (8+). It uses `experienceYears` from the approved profile, or
+  else the months on work and volunteer records with overlaps counted once
+  (`apps/web/src/quest/experience-rank.ts`). It is compared with the years stated by the
+  latest ranked listings. XP and levels stay as the measure of activity in CareerFlow.
+- **Wording.** Headings and hints say what the page is for in a few words; descriptions of how
+  agents work moved out of the main path.

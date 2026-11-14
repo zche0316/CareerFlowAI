@@ -150,6 +150,33 @@ body:has(.quest) {
   font-size: 12px;
   font-weight: 700;
 }
+.qt-avatar {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+}
+.qt-avatar[aria-expanded='true'] .quest-leader,
+.qt-avatar[aria-current='page'] .quest-leader {
+  outline: 3px solid var(--q-violet);
+  outline-offset: 2px;
+}
+.qt-menu-name {
+  padding: 8px 12px 6px;
+  font: 700 14px var(--q-body);
+  border-bottom: 1px solid var(--q-rail);
+  margin-bottom: 4px;
+}
+.qt-menu .qt-menu-out {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  border-top: 1px solid var(--q-rail);
+  border-radius: 0 0 12px 12px;
+}
 .qt-icon {
   display: inline-flex;
   align-items: center;
@@ -709,6 +736,94 @@ body:has(.quest) {
   height: 100%;
   border-radius: 999px;
   background: var(--q-lime);
+}
+.cs-rank {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px;
+  border-radius: 22px;
+  background: #1d1f2b;
+}
+.cs-rank-label {
+  color: var(--q-lime);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.cs-rank h2 {
+  margin: 0;
+  font: 800 52px/1 var(--q-display);
+  color: #fff;
+}
+.cs-rank p {
+  margin: 0;
+  color: #d9dbe5;
+}
+.cs-rank-track {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin: 10px 0 2px;
+  padding: 0;
+  list-style: none;
+}
+.cs-rank-track li {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #8d90a0;
+  font-size: 12px;
+}
+.cs-rank-track i {
+  height: 8px;
+  border-radius: 999px;
+  background: #2c2f3e;
+}
+.cs-rank-track li.past i {
+  background: var(--q-lime-deep);
+}
+.cs-rank-track li.now i {
+  background: var(--q-lime);
+}
+.cs-rank-track li.now span {
+  color: #fff;
+  font-weight: 700;
+}
+.cs-rank-track small {
+  font-size: 11px;
+}
+.cs-rank-note,
+.cs-level small {
+  color: #b9bbc8;
+  font-size: 12px;
+}
+.cs-level {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cs-level span {
+  color: #d9dbe5;
+  font-size: 13px;
+  font-weight: 600;
+}
+.cs-level .quest-xp {
+  height: 8px;
+}
+@media (max-width: 520px) {
+  .cs-rank h2 {
+    font-size: 40px;
+  }
+  .cs-rank-track small,
+  .cs-rank-track li:not(.now) span {
+    visibility: hidden;
+  }
+  .cs-rank-track li.now span {
+    white-space: nowrap;
+  }
 }
 .quest-stats3 {
   display: grid;

@@ -133,7 +133,7 @@ export function QuestCoach({
           <RunEstimate kind="coach" className="qh-coach-cost" />
           {onOpen && (
             <button type="button" className="auth-switch" onClick={onOpen}>
-              Open the Coach: full advice and what to revisit
+              Open Coach
             </button>
           )}
           {error && (
