@@ -44,7 +44,7 @@ Career Coach (skipped when advice for this profile already exists)
   -> choose a role (human; skipped for a run started on a saved role)
   -> resume team: Gap Analyzer -> Evidence Selector -> Rewriter -> Critic (at most two returns)
      -> human review: approve, or return to a named specialist (at most two per run)
-     (skipped for a practice-only run, which reuses the role's approved resume)
+     (skipped for a practice-only run, which uses the role's latest approved resume or the profile)
   -> Interview Coach questions -> answers with per-answer evaluation -> feedback
 ```
 
@@ -57,6 +57,10 @@ structured result; fixture mode returns deterministic outputs. No web, shell or 
 exposed to models, except the opt-in model web search in Scout.
 
 ## Guarantees
+
+- **Model calls**: each specialist call is one request: the approved, user-authorised context is
+  sent with the task inside a marked block that the instructions treat as data, never as
+  instructions; schema-invalid answers get one correction request (CFS-135).
 
 - **Evidence**: every resume line cites an approved fact; requirement mappings must quote the
   listing, and an unquotable item is dropped, never accepted.

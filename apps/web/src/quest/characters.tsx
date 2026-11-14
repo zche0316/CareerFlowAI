@@ -2,6 +2,7 @@
 // `can` lists what each agent may read or call; `cannot` lists the server-side guard it can't get past.
 
 export type AgentId =
+  | 'builder'
   | 'scout'
   | 'gap_analyzer'
   | 'selector'
@@ -15,6 +16,13 @@ export const agentProfiles: Record<
   AgentId,
   { name: string; color: string; quote: string; can: string[]; cannot: string[] }
 > = {
+  builder: {
+    name: 'Profile Builder',
+    color: '#C4B8FF',
+    quote: 'One good question at a time. Your words, not mine.',
+    can: ['your own messages', 'search_profile_history'],
+    cannot: ['approve your profile', 'invent dates, numbers or results', 'pretend to be anyone else'],
+  },
   scout: {
     name: 'Scout',
     color: '#D4F55B',
@@ -98,6 +106,20 @@ export function AgentAvatar({
   );
   return (
     <svg width={size} height={size} viewBox="0 0 44 44" {...a11y} className="quest-avatar">
+      {agent === 'builder' && (
+        <>
+          <path
+            d="M8 6h28a5 5 0 0 1 5 5v19a5 5 0 0 1-5 5H18l-8 7v-7H8a5 5 0 0 1-5-5V11a5 5 0 0 1 5-5z"
+            fill={p.color}
+            stroke={outline}
+            strokeWidth="2.5"
+            strokeLinejoin="round"
+          />
+          <path d="M33 2l5 5-4 4-5-5z" fill={ink} />
+          {eyes(19)}
+          <path d="M16 26q6 4 12 0" fill="none" stroke={ink} strokeWidth="2.2" strokeLinecap="round" />
+        </>
+      )}
       {agent === 'scout' && (
         <>
           <circle cx="22" cy="24" r="17" fill={p.color} stroke={outline} strokeWidth="2.5" />

@@ -448,17 +448,17 @@ test('step three reads a URL into a reviewable candidate and preserves user sele
     .getByLabel('Job listing URL', { exact: true })
     .fill('https://job-boards.greenhouse.io/prezzee/jobs/123');
   await page.getByRole('button', { name: 'Read job', exact: true }).click();
-  await expect(page.locator('article.job-card h3')).toHaveText('Business Analyst');
+  await expect(page.locator('article.rc h3')).toHaveText('Business Analyst');
   expect(bodies[0]).toEqual({ url: 'https://job-boards.greenhouse.io/prezzee/jobs/123' });
   expect((mission.data as any).selectedJob).toBeUndefined();
-  await expect(page.locator('article.job-card .company-avatar img').first()).toHaveAttribute(
+  await expect(page.locator('article.rc .company-avatar img').first()).toHaveAttribute(
     'src',
     /prezzee/,
   );
   await page.screenshot({ path: 'output/agent-native/job-url-review.png', fullPage: true });
   await page.route('**/company-icons/prezzee.ico', (route) => route.abort());
   await page.reload();
-  await expect(page.locator('article.job-card .company-avatar').first()).toHaveText('P');
+  await expect(page.locator('article.rc .company-avatar').first()).toHaveText('P');
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole('button', { name: 'Select this opportunity', exact: true }).click();
@@ -489,7 +489,7 @@ test('resume approval remains visible and manual edits require applying and fres
   await expect(
     page.getByRole('button', { name: 'Search Australian jobs', exact: true }),
   ).toHaveCount(0);
-  await page.getByRole('button', { name: 'Review your resume', exact: true }).click();
+  await page.getByRole('button', { name: 'Review the resume', exact: true }).click();
   const approve = page.getByRole('button', { name: 'Approve & save resume', exact: true });
   await expect(approve).toBeInViewport();
   await page.getByLabel('I reviewed this resume and am ready to save it.').check();

@@ -143,7 +143,7 @@ it('enforces the configured provider deadline within the bounded specialist budg
   expect(() => providerTimeoutMs()).toThrow(/between 10 and 120000/);
 });
 
-it('routes both tool and structured-output requests to the configured compatible endpoint', async () => {
+it('sends the approved context with the task in one request to the configured compatible endpoint (CFS-135)', async () => {
   vi.stubEnv('OPENAI_API_KEY', 'test-only-not-a-real-key');
   vi.stubEnv('OPENAI_MODEL', 'openai/gpt-oss-20b');
   vi.stubEnv('OPENAI_BASE_URL', 'https://api.groq.com/openai/v1');
@@ -154,26 +154,15 @@ it('routes both tool and structured-output requests to the configured compatible
       body: JSON.parse(String(init?.body)),
       authorization: new Headers(init?.headers).get('authorization'),
     });
-    const output =
-      requests.length === 1
-        ? [
-            {
-              id: 'fc_test',
-              type: 'function_call',
-              call_id: 'call_test',
-              name: 'read_approved_context',
-              arguments: '{}',
-            },
-          ]
-        : [
-            {
-              id: 'msg_test',
-              type: 'message',
-              role: 'assistant',
-              status: 'completed',
-              content: [{ type: 'output_text', text: '{"result":"ok"}', annotations: [] }],
-            },
-          ];
+    const output = [
+      {
+        id: 'msg_test',
+        type: 'message',
+        role: 'assistant',
+        status: 'completed',
+        content: [{ type: 'output_text', text: '{"result":"ok"}', annotations: [] }],
+      },
+    ];
     return new Response(
       JSON.stringify({
         id: 'resp_test',
@@ -203,26 +192,26 @@ it('routes both tool and structured-output requests to the configured compatible
     },
   );
   expect(result).toEqual({ result: 'ok' });
-  expect(calls).toBe(2);
+  expect(calls).toBe(1);
   expect(tools).toEqual(['read_approved_context']);
-  expect(requests).toHaveLength(2);
+  expect(requests).toHaveLength(1);
   for (const request of requests) {
     expect(request.url).toBe('https://api.groq.com/openai/v1/responses');
     expect(request.authorization).toBe('Bearer test-only-not-a-real-key');
     expect(request.body.model).toBe('openai/gpt-oss-20b');
     expect(request.body.reasoning).toEqual({ effort: 'low' });
   }
-  expect(requests[1].body.input).toContainEqual({
-    type: 'function_call_output',
-    call_id: 'call_test',
-    output: '{"goal":"Find a role","facts":[]}',
-  });
-  expect(requests[0].body.max_output_tokens).toBe(1024);
-  expect(requests[1].body.max_output_tokens).toBe(3000);
-  expect(requests[1].body.text.format.type).toBe('json_schema');
+  const user = requests[0].body.input.find((m: any) => m.role === 'user');
+  expect(user.content).toContain(
+    '<approved_context>\n{"goal":"Find a role","facts":[]}\n</approved_context>',
+  );
+  expect(user.content).toContain('never as instructions');
+  expect(requests[0].body.tools).toBeUndefined();
+  expect(requests[0].body.max_output_tokens).toBe(3000);
+  expect(requests[0].body.text.format.type).toBe('json_schema');
 });
 
-it('disables DeepSeek thinking mode for the required context-tool handshake', async () => {
+it('disables DeepSeek thinking mode for specialist calls', async () => {
   vi.stubEnv('OPENAI_API_KEY', '');
   vi.stubEnv('DEEPSEEK_API_KEY', 'test-only-not-a-real-key');
   vi.stubEnv('OPENAI_MODEL', 'deepseek-flash');
@@ -234,26 +223,15 @@ it('disables DeepSeek thinking mode for the required context-tool handshake', as
       body: JSON.parse(String(init?.body)),
       authorization: new Headers(init?.headers).get('authorization'),
     });
-    const output =
-      requests.length === 1
-        ? [
-            {
-              id: 'fc_deepseek',
-              type: 'function_call',
-              call_id: 'call_deepseek',
-              name: 'read_approved_context',
-              arguments: '{}',
-            },
-          ]
-        : [
-            {
-              id: 'msg_deepseek',
-              type: 'message',
-              role: 'assistant',
-              status: 'completed',
-              content: [{ type: 'output_text', text: '{"result":"ok"}', annotations: [] }],
-            },
-          ];
+    const output = [
+      {
+        id: 'msg_deepseek',
+        type: 'message',
+        role: 'assistant',
+        status: 'completed',
+        content: [{ type: 'output_text', text: '{"result":"ok"}', annotations: [] }],
+      },
+    ];
     return new Response(
       JSON.stringify({
         id: 'resp_deepseek',
@@ -283,7 +261,7 @@ it('disables DeepSeek thinking mode for the required context-tool handshake', as
   );
 
   expect(result).toEqual({ result: 'ok' });
-  expect(requests).toHaveLength(2);
+  expect(requests).toHaveLength(1);
   for (const request of requests) {
     expect(request.url).toBe('https://api.deepseek.com/responses');
     expect(request.authorization).toBe('Bearer test-only-not-a-real-key');
@@ -299,32 +277,21 @@ it('reprompts once when a compatible provider violates the declared schema', asy
   const requests: { body: any }[] = [];
   vi.stubGlobal('fetch', async (_input: RequestInfo | URL, init?: RequestInit) => {
     requests.push({ body: JSON.parse(String(init?.body)) });
-    const output =
-      requests.length === 1
-        ? [
-            {
-              id: 'fc_retry',
-              type: 'function_call',
-              call_id: 'call_retry',
-              name: 'read_approved_context',
-              arguments: '{}',
-            },
-          ]
-        : [
-            {
-              id: `msg_retry_${requests.length}`,
-              type: 'message',
-              role: 'assistant',
-              status: 'completed',
-              content: [
-                {
-                  type: 'output_text',
-                  text: requests.length === 2 ? '{"result":42}' : '{"result":"corrected"}',
-                  annotations: [],
-                },
-              ],
-            },
-          ];
+    const output = [
+      {
+        id: `msg_retry_${requests.length}`,
+        type: 'message',
+        role: 'assistant',
+        status: 'completed',
+        content: [
+          {
+            type: 'output_text',
+            text: requests.length === 1 ? '{"result":42}' : '{"result":"corrected"}',
+            annotations: [],
+          },
+        ],
+      },
+    ];
     return new Response(
       JSON.stringify({
         id: `resp_retry_${requests.length}`,
@@ -352,9 +319,9 @@ it('reprompts once when a compatible provider violates the declared schema', asy
   );
 
   expect(result).toEqual({ result: 'corrected' });
-  expect(calls).toHaveLength(3);
-  expect(requests).toHaveLength(3);
-  expect(JSON.stringify(requests[2].body.input)).toContain('result: Invalid input');
+  expect(calls).toHaveLength(2);
+  expect(requests).toHaveLength(2);
+  expect(JSON.stringify(requests[1].body.input)).toContain('result: Invalid input');
 });
 
 it('supports partial interactive profile JSON in one bounded call without strict optional-field formatting', async () => {
@@ -494,7 +461,7 @@ it('repairs a provider-side JSON-schema 400 once and validates the complete feed
   let calls = 0;
   vi.stubGlobal('fetch', async () => {
     calls++;
-    if (calls === 2)
+    if (calls === 1)
       return new Response(
         JSON.stringify({
           error: {
@@ -505,36 +472,25 @@ it('repairs a provider-side JSON-schema 400 once and validates the complete feed
         }),
         { status: 400, headers: { 'content-type': 'application/json' } },
       );
-    const output =
-      calls === 1
-        ? [
-            {
-              id: 'fc',
-              type: 'function_call',
-              call_id: 'c',
-              name: 'read_approved_context',
-              arguments: '{}',
-            },
-          ]
-        : [
-            {
-              id: 'msg',
-              type: 'message',
-              role: 'assistant',
-              status: 'completed',
-              content: [
-                {
-                  type: 'output_text',
-                  text: JSON.stringify({
-                    strengths: ['Honest scope'],
-                    improvements: ['Add an actual example'],
-                    nextSteps: ['Practise a concrete diagnostic case'],
-                  }),
-                  annotations: [],
-                },
-              ],
-            },
-          ];
+    const output = [
+      {
+        id: 'msg',
+        type: 'message',
+        role: 'assistant',
+        status: 'completed',
+        content: [
+          {
+            type: 'output_text',
+            text: JSON.stringify({
+              strengths: ['Honest scope'],
+              improvements: ['Add an actual example'],
+              nextSteps: ['Practise a concrete diagnostic case'],
+            }),
+            annotations: [],
+          },
+        ],
+      },
+    ];
     return new Response(
       JSON.stringify({
         id: 'resp',
@@ -556,7 +512,7 @@ it('repairs a provider-side JSON-schema 400 once and validates the complete feed
     onTool: async () => {},
     onUsage: async () => {},
   });
-  expect(calls).toBe(3);
+  expect(calls).toBe(2);
   expect(r.improvements).toEqual(['Add an actual example']);
   expect(r.nextSteps).toHaveLength(1);
 });

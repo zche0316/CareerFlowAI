@@ -135,8 +135,11 @@ for the Coach (later issue), calendar sync.
 
 - `POST /api/applications` adds a role straight to the board from a public job link (at most one
   model call to read the page) or a pasted advertisement, scored against the current profile.
-- `POST /api/applications/:id/practice` starts an interview-only run that reuses the latest
-  approved resume made for this role with the current profile; the resume team is skipped.
+- `POST /api/applications/:id/practice` starts an interview-only run. It reuses the latest
+  approved resume made for this role with the current profile when there is one, and otherwise
+  works from the approved profile alone; the resume team is skipped. Practice and tailoring are
+  independent: each can run beside the other, and only a second open run of the same kind is
+  refused (CFS-134). The run page offers "Practise the interview now" next to the resume.
 - `DELETE /api/applications/:id` removes a role with no runs. A role with runs and documents is
   archived by setting its status to Closed.
 - Older runs stay tied to the profile version they used; their error messages point to the Quest
@@ -273,5 +276,39 @@ says there is no model cost.
 - No model cost and no server change: CareerFlow receives only the text the user submits and
   stores no audio. The browser's speech service may send audio to its vendor (Chrome does); the
   control says so. Controls are hidden where the browser lacks the APIs.
-- Phase 2 (not built): a live interviewer through a realtime voice model with a short-lived key
-  issued by the server.
+- Phase 2 (CFS-136): in live mode the interview offers "Start the voice interview".
+  `POST /api/missions/:id/voice-session` asks OpenAI for a one-minute client secret
+  (`/v1/realtime/client_secrets`, model `OPENAI_REALTIME_MODEL`, default `gpt-realtime-2.1`,
+  input transcription and the `marin` voice) for a session that already carries the Panel's
+  instructions and this run's questions; the server key never reaches the browser. The browser
+  connects over WebRTC (`/v1/realtime/calls`; the page's CSP allows only that origin), the panel
+  says "Question N" before each question so answers are filed under the right one, and on "End
+  and score my answers" (or after 10 minutes, enforced in the browser) each answer's transcript is
+  submitted as an interview round and scored by the Evaluator. At most three sessions per practice
+  run; no audio is stored.
+
+## Party personas (CFS-132)
+
+User-facing agents speak as named party members (`packages/agents/src/personas.ts`): the Profile
+Builder (profile chat and polish), the Coach, the Panel (interview questions, scoring, feedback)
+and the Rewriter (resume edits). Each instruction opens with the persona's voice and scope, never
+claims to be ChatGPT or another product, keeps its instructions private, and answers off-topic or
+role-changing messages in one in-character sentence before steering back. Free-text replies pass
+through `guardIdentity`, which replaces a vendor self-description with the persona's introduction.
+Personas shape tone only; evidence, schema and approval rules are unchanged. The Profile Builder
+is on the Party page and its chat uses the party's avatars and Quest bubbles.
+
+## Coach sources (CFS-125)
+
+- Corpus: the O*NET 31.0 database (U.S. Department of Labor, CC BY 4.0): descriptions, up to six
+  core tasks and up to ten software examples for computer and mathematical occupations and a few
+  analyst and engineering roles. `npm run coach:sources` downloads three CSV files from
+  onetcenter.org and writes `data/coach-sources/onet-31.json` with O*NET's attribution and a note
+  that CareerFlow shortened the lists. No fine-tuning and no embeddings.
+- Retrieval: BM25 over that file with the user's goal, skills, revisit request and the roles on
+  the board; up to four passages go to the Coach as `publicSources`.
+- The Coach may add a source id (`onet:<code>`) to an item's evidence only after at least one
+  approved fact ID; the server rejects any other unknown ID. Sources describe jobs, never the
+  candidate. The Coach page links each cited source to O*NET OnLine and shows the attribution.
+- Without the corpus file the Coach works as before. O*NET describes US occupations; regional
+  requirements still come from the role library and World insight.

@@ -18,6 +18,7 @@ import {
 import { registerCoach, reusableAnalysis } from './coach.js';
 import { registerCapabilities } from './capability.js';
 import { registerEstimates } from './estimates.js';
+import { registerVoiceInterview } from './voice-interview.js';
 import { registerRoleRecheck } from './role-recheck.js';
 import { registerRecruiterCheck } from './recruiter-check.js';
 import { registerProfileSources } from './profile-sources.js';
@@ -98,7 +99,7 @@ export function createApp() {
     res.setHeader('Referrer-Policy', 'same-origin');
     res.setHeader(
       'Content-Security-Policy',
-      "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'",
+      "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:; connect-src 'self' https://api.openai.com; frame-ancestors 'none'",
     );
     next();
   });
@@ -217,6 +218,7 @@ export function createApp() {
   registerCoach(app);
   registerCapabilities(app);
   registerEstimates(app);
+  registerVoiceInterview(app);
   registerRecruiterCheck(app);
   registerProfileSources(app);
   registerInsights(app);

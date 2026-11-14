@@ -44,11 +44,11 @@ test('the demo workflow runs end to end in the Quest interface', async ({ page }
   expect(await roles.count()).toBeGreaterThan(1);
   // Save a second role to the quest log for later; the run keeps waiting for a choice.
   await roles.nth(1).click();
-  const saved = await page.locator('article.job-card h3').first().innerText();
+  const saved = await page.locator('article.rc h3').first().innerText();
   await page.getByRole('button', { name: 'Save to my quests for later' }).click();
   await expect(page.getByText('Saved to your quests.', { exact: false })).toBeVisible();
   await roles.first().click();
-  const title = await page.locator('article.job-card h3').first().innerText();
+  const title = await page.locator('article.rc h3').first().innerText();
   await page.getByRole('button', { name: 'Select this opportunity' }).first().click();
 
   // 5. Resume team stops at the draft review.
@@ -125,6 +125,8 @@ test('the demo workflow runs end to end in the Quest interface', async ({ page }
     page.getByText(/Checked 2 listings: 0 closed, 0 applied roles flagged\./),
   ).toBeVisible();
 
+  // Practice is available before any resume for the saved role (CFS-134).
+  await expect(later.getByRole('button', { name: 'Practise interview', exact: true })).toBeEnabled();
   // A saved role starts its own run at the resume team with the role already chosen.
   await later.getByRole('button', { name: 'Tailor resume' }).click();
   await expect(

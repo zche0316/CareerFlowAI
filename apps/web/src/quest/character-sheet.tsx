@@ -2,12 +2,22 @@ import { CapabilityLevels } from './capabilities.js';
 import { ProfileSources } from './profile-sources.js';
 import { Lock } from 'lucide-react';
 import { AgentAvatar, LeaderBadge } from './characters.js';
-import { prettyTerm } from './terms.js';
-import { XP_PER_LEVEL, XP_RULES, attributes, factUsage, progressFrom, skillBoard } from './progress.js';
+import { XP_PER_LEVEL, XP_RULES, factUsage, progressFrom, skillBoard } from './progress.js';
 
 export { prettyTerm } from './terms.js';
 
-const statusLabel = { unlocked: 'Unlocked', partial: 'Partial', locked: 'Locked' } as const;
+const kindLabel: Record<string, string> = {
+  experience: 'Experience',
+  education: 'Education',
+  skill: 'Skill',
+  interest: 'Interest',
+};
+
+const statusLabel = {
+  unlocked: 'You have evidence',
+  partial: 'Partly shown',
+  locked: 'No evidence yet',
+} as const;
 
 /** RPG-style view of the approved profile: stats only grow from facts the user approved. */
 export function CharacterSheet({
@@ -39,7 +49,6 @@ export function CharacterSheet({
     );
   const facts: any[] = profile.facts || [];
   const progress = progressFrom(workspace);
-  const attrs = attributes(workspace);
   const board = skillBoard(workspace);
   const usage = factUsage(workspace);
   const latest = (workspace.missions || []).find((m: any) => m.data?.analysis);
@@ -52,7 +61,7 @@ export function CharacterSheet({
   const inventory = [...facts]
     .filter((f) => f.kind !== 'skill' && !/^none yet$/i.test(f.text))
     .sort((a, b) => (usage.get(b.id) || 0) - (usage.get(a.id) || 0))
-    .slice(0, 6);
+    .slice(0, 4);
   const jobs = board[0]?.jobs || 0;
 
   return (
@@ -97,65 +106,49 @@ export function CharacterSheet({
           </p>
         </section>
 
-        <section className="quest-tile" style={{ flex: '2 1 480px' }} aria-labelledby="attrs-title">
-          <div className="quest-tile-head">
-            <h2 id="attrs-title">Attributes</h2>
-            <span>Strength = approved facts that back it</span>
+        {request && (
+          <div style={{ flex: '2 1 480px', minWidth: 0 }}>
+            <CapabilityLevels request={request} profileVersion={profile.version} compact />
           </div>
-          {attrs.length ? (
-            <div className="quest-attrs">
-              {attrs.map((a) => (
-                <div className="quest-attr" key={a.skill}>
-                  <strong>{a.skill}</strong>
-                  <div className="quest-seg" role="img" aria-label={`${a.points} of 5`}>
-                    {[0, 1, 2, 3, 4].map((i) => (
-                      <span key={i} className={i < a.points ? 'on' : ''} />
-                    ))}
-                  </div>
-                  <span className="quest-sub dark">
-                    {a.facts} fact{a.facts === 1 ? '' : 's'}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p>Add skills to your profile to see your attributes.</p>
-          )}
-        </section>
+        )}
       </div>
 
       <section className="quest-tile violet" aria-labelledby="board-title">
         <div className="quest-tile-head">
           <div>
-            <h2 id="board-title">Skill board</h2>
+            <h2 id="board-title">What roles ask for</h2>
             <span>
               {jobs
                 ? `What your top ${jobs} ranked jobs ask for, against what you’ve proved.`
                 : 'Run a job search to see what employers ask for.'}
             </span>
           </div>
-          <div className="quest-legend">
-            <span className="quest-chip lime">Unlocked</span>
-            <span className="quest-chip outline">Partial</span>
-            <span className="quest-chip lilac">Locked</span>
-          </div>
         </div>
-        <div className="quest-skills">
-          {board.map((tile) => (
-            <div key={tile.term} className={`quest-skill ${tile.status}`}>
-              <span className="quest-kicker">
-                Asked by {tile.askedBy} of {tile.jobs}
-              </span>
-              <span className="quest-skill-name">
-                {tile.status === 'locked' && <Lock size={16} aria-hidden="true" />}
-                {prettyTerm(tile.term)}
-              </span>
-              <span className="quest-sub dark">
-                {statusLabel[tile.status]}
-                {tile.factIds.length ? ` · ${tile.factIds.length} fact${tile.factIds.length === 1 ? '' : 's'}` : ''}
-              </span>
-            </div>
-          ))}
+        <div className="cs-board">
+          {(['unlocked', 'partial', 'locked'] as const).map((status) => {
+            const tiles = board.filter((t) => t.status === status);
+            return (
+              <div key={status} className={`cs-col ${status}`}>
+                <h3>
+                  {statusLabel[status]} <span>{tiles.length}</span>
+                </h3>
+                {tiles.length ? (
+                  <ul>
+                    {tiles.slice(0, 8).map((tile) => (
+                      <li key={tile.term} title={`Asked by ${tile.askedBy} of ${tile.jobs} roles`}>
+                        {status === 'locked' && <Lock size={13} aria-hidden="true" />}
+                        <span>{tile.term}</span>
+                        {tile.askedBy > 1 && <b>×{tile.askedBy}</b>}
+                      </li>
+                    ))}
+                    {tiles.length > 8 && <li className="muted">+{tiles.length - 8} more</li>}
+                  </ul>
+                ) : (
+                  <p className="muted">None yet</p>
+                )}
+              </div>
+            );
+          })}
         </div>
       </section>
 
@@ -187,26 +180,26 @@ export function CharacterSheet({
 
         <section className="quest-tile" style={{ flex: '2 1 520px' }} aria-labelledby="inv-title">
           <div className="quest-tile-head">
-            <h2 id="inv-title">Inventory · approved facts</h2>
+            <h2 id="inv-title">Most used approved facts</h2>
             <span>{facts.length} total</span>
           </div>
           <div className="quest-inventory">
             {inventory.map((f) => (
               <article key={f.id} className="quest-item">
                 <div className="quest-card-top">
-                  <span className="quest-chip ink">{f.id}</span>
-                  <span className="quest-sub dark">
-                    in {usage.get(f.id) || 0} resume{usage.get(f.id) === 1 ? '' : 's'}
-                  </span>
+                  <span className="quest-chip outline">{kindLabel[f.kind] || f.kind}</span>
+                  {(usage.get(f.id) || 0) > 0 && (
+                    <span className="quest-sub dark">
+                      in {usage.get(f.id)} resume{usage.get(f.id) === 1 ? '' : 's'}
+                    </span>
+                  )}
                 </div>
-                <span>{f.text}</span>
-                <span className="quest-sub dark">{f.source}</span>
+                <span className="cs-fact">{f.text.split('\n')[0]}</span>
               </article>
             ))}
           </div>
         </section>
       </div>
-      {request && <CapabilityLevels request={request} profileVersion={profile.version} />}
       {request && (
         <ProfileSources request={request} onApproved={() => onProfileChanged?.()} />
       )}

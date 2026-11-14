@@ -163,12 +163,12 @@ function ApplicationCard({
             className="quest-press lime ql-go"
             onClick={() => onOpenRun(a.activeRunId)}
           >
-            Open run
+            Open the resume run
             <ArrowRight size={16} strokeWidth={2.6} />
           </button>
         ) : (
           <>
-            {latest && (
+            {latest && !latest.practice && (
               <button
                 type="button"
                 className="quest-press ql-go"
@@ -193,16 +193,32 @@ function ApplicationCard({
                 </>
               )}
             </button>
-            {resumes > 0 && onPractice && (
-              <button
-                type="button"
-                className="quest-press ql-go"
-                disabled={busy}
-                onClick={() => onPractice(a.id)}
-              >
-                Practise interview
-              </button>
-            )}
+          </>
+        )}
+        {/* Practice does not wait for the resume (CFS-134). */}
+        {a.activePracticeId ? (
+          <button
+            type="button"
+            className="quest-press ql-go"
+            onClick={() => onOpenRun(a.activePracticeId)}
+          >
+            Continue practice
+          </button>
+        ) : (
+          onPractice && (
+            <button
+              type="button"
+              className="quest-press ql-go"
+              disabled={busy}
+              onClick={() => onPractice(a.id)}
+              title={resumes ? 'Uses your latest approved resume' : 'Uses your approved profile'}
+            >
+              Practise interview
+            </button>
+          )
+        )}
+        {!a.activeRunId && (
+          <>
             {a.runs.length === 0 && onRemove && (
               <button
                 type="button"

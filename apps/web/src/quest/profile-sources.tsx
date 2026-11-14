@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import { BadgeCheck, Code, Globe, Layers, Trophy } from 'lucide-react';
 
 // Profile sources (CFS-112 to 114): preview what a public source adds, review it, then approve it
 // as a new profile version. Nothing is added before the user approves the exact proposal.
@@ -222,6 +223,17 @@ function SourceCard({
   );
 }
 
+// Compact marks for each source; brand names stay in text, no third-party logos are bundled.
+const marks: Record<string, { mark: ReactNode; color: string; short: string }> = {
+  github: { mark: <Code size={20} />, color: '#111218', short: 'Repositories' },
+  certificate: { mark: <BadgeCheck size={20} />, color: '#3a9b2e', short: 'Badges & certificates' },
+  linkedin: { mark: <b className="ps-in">in</b>, color: '#0a66c2', short: 'Data export' },
+  codeforces: { mark: <Trophy size={20} />, color: '#1f8acb', short: 'Contest rating' },
+  stackoverflow: { mark: <Layers size={20} />, color: '#f48024', short: 'Answer tags' },
+  leetcode: { mark: <Code size={20} />, color: '#ffa116', short: 'Solved problems' },
+  website: { mark: <Globe size={20} />, color: '#7c5cff', short: 'Project pages' },
+};
+
 export function ProfileSources({
   request,
   onApproved,
@@ -229,17 +241,37 @@ export function ProfileSources({
   request: (path: string, method?: string, body?: unknown) => Promise<any>;
   onApproved: () => void;
 }) {
+  const [open, setOpen] = useState<string | null>(null);
+  const config = sourceConfigs.find((c) => c.kind === open);
   return (
     <section className="quest-tile profile-sources" aria-labelledby="ps-title">
       <div className="quest-tile-head">
         <h2 id="ps-title">Add evidence from your public profiles</h2>
-        <span>Each source is previewed first; nothing is added until you approve it.</span>
+        <span>Preview first; nothing is added until you approve it.</span>
       </div>
-      <div className="ps-grid">
-        {sourceConfigs.map((c) => (
-          <SourceCard key={c.kind} config={c} request={request} onApproved={onApproved} />
-        ))}
+      <div className="ps-tiles" role="group" aria-label="Evidence sources">
+        {sourceConfigs.map((c) => {
+          const m = marks[c.kind];
+          return (
+            <button
+              key={c.kind}
+              type="button"
+              className="ps-tile"
+              aria-pressed={open === c.kind}
+              onClick={() => setOpen(open === c.kind ? null : c.kind)}
+            >
+              <span className="ps-mark" style={{ background: m?.color }}>
+                {m?.mark}
+              </span>
+              <strong>{c.title.replace(' (optional)', '')}</strong>
+              <small>{m?.short}</small>
+            </button>
+          );
+        })}
       </div>
+      {config && (
+        <SourceCard key={config.kind} config={config} request={request} onApproved={onApproved} />
+      )}
     </section>
   );
 }

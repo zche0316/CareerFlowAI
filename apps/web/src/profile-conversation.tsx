@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { AgentAvatar, LeaderBadge, agentProfiles } from './quest/characters.js';
 import { sameProfileField } from '../../../packages/contracts/src/profile-comparison.js';
 import type { CareerProfile } from '../../../packages/contracts/src/index.js';
 import { createPortal } from 'react-dom';
@@ -64,6 +65,7 @@ export function ProfileConversation({
     mounted = useRef(true),
     log = useRef<HTMLDivElement>(null);
   latest.current = form;
+  const leader = String((form as any)?.name || 'You');
   useEffect(() => {
     mounted.current = true;
     const initial = JSON.stringify(latest.current);
@@ -323,7 +325,13 @@ export function ProfileConversation({
           previewTarget,
         )}
       <section className="profile-assistant chat-first" aria-label="Persistent Profile Builder">
-        <h3>{mode === 'build' ? 'Build with your agent' : 'Edit with your agent'}</h3>
+        <div className="pb-head">
+          <AgentAvatar agent="builder" size={48} label={false} />
+          <div>
+            <h3>{mode === 'build' ? 'Build with the Profile Builder' : 'Edit with the Profile Builder'}</h3>
+            <small className="muted">{agentProfiles.builder.quote}</small>
+          </div>
+        </div>
         <p className="conversation-intro">
           {profileVersion
             ? `Context · Profile v${profileVersion}`
@@ -359,7 +367,7 @@ export function ProfileConversation({
         <div ref={log} className="conversation-log" role="log" aria-label="Saved profile messages">
           {!thread && (
             <article className="conversation-message assistant">
-              <strong>Profile Builder</strong>
+              <Speaker role="assistant" name={leader} />
               <p>
                 {mode === 'build'
                   ? 'What would you like to do next in your career? Tell me a little about yourself.'
@@ -369,7 +377,7 @@ export function ProfileConversation({
           )}
           {thread?.messages.map((m: any) => (
             <article className={`conversation-message ${m.role}`} key={m.id}>
-              <strong>{m.role === 'user' ? 'You' : 'Profile Builder'}</strong>
+              <Speaker role={m.role} name={leader} />
               <p>{narrative(m)}</p>
               {m.questions?.slice(0, 1).map((q: string) => (
                 <p key={q}>{q}</p>
@@ -437,13 +445,13 @@ export function ProfileConversation({
             thread?.interview?.question &&
             !(thread.messages.at(-1)?.questions || []).includes(thread.interview.question.text) && (
               <article className="conversation-message assistant">
-                <strong>Profile Builder</strong>
+                <Speaker role="assistant" name={leader} />
                 <p>{thread.interview.question.text}</p>
               </article>
             )}
           {outgoing && (
             <article className="conversation-message user" aria-label="Submitted profile message">
-              <strong>You</strong>
+              <Speaker role="user" name={leader} />
               <p>{outgoing.text}</p>
               <small role="status">
                 {outgoing.failed
@@ -742,5 +750,18 @@ export function ProfileConversation({
         )}
       </section>
     </>
+  );
+}
+
+// Who is speaking, in the party's look (CFS-132): the builder's avatar or the user's initials.
+function Speaker({ role, name }: { role: string; name: string }) {
+  return role === 'user' ? (
+    <strong className="pb-speaker user">
+      <LeaderBadge name={name} size={24} /> You
+    </strong>
+  ) : (
+    <strong className="pb-speaker">
+      <AgentAvatar agent="builder" size={24} label={false} /> Profile Builder
+    </strong>
   );
 }
