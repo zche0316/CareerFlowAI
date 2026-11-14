@@ -371,3 +371,72 @@ Found by walking the app from a new account (see [USER_JOURNEY.md](USER_JOURNEY.
   one recording to the transcription model with no fixed language, returns the text for editing,
   and keeps no audio. The cap is 60 recordings per user per day, counted in memory. Without the
   transcription model the browser's own dictation is offered where it exists.
+
+## Conversation turn graph (CFS-144)
+
+Long workflows (missions, the resume team, Scout) are LangGraph graphs whose nodes are
+specialist agents, paused at human gates with `interrupt()` and checkpointed in Postgres. A
+conversation needs something different: each message gets a short loop of its own. The turn
+graph (`packages/agents/src/conversation/turn-graph.ts`) is that loop:
+
+```
+perceive → update_plan → extract | converse → reflect → (revise, at most once → reflect) → end
+```
+
+- **perceive** labels the message: answer, correction, question, small talk, control, off-topic,
+  frustrated or injection, plus its language and whether it answers the pending question. A
+  light model does this (Groq `openai/gpt-oss-20b`, then the native OpenAI light model); rules
+  take over when neither answers, in demo mode, and always for prompt-injection patterns.
+- **update_plan** keeps the agent's agenda. Only answers, corrections and control messages go to
+  extraction. A question goes unanswered without harm, but after three asks, or when the user is
+  frustrated, it is set aside (`parked`, also `skipped`) and the conversation moves on.
+- **extract** is the existing Profile Builder pipeline (structured extraction, grounding,
+  proposals). It is told that the message was classified as an answer, and messages answered as
+  small talk are left out of its context, so a detour does not make it treat the next answer as
+  off-topic.
+- **converse** replies to everything else with the light model, without the extraction model.
+- **reflect** checks the draft: a reply that claims a change that did not happen, a question
+  asked twice in a row (rephrased, with a note that skipping is fine), a question in a different
+  language from the user's (translated). One revision at most, so reflection cannot loop.
+
+The server keeps authority. The graph never approves anything; questions still come from
+`planInterview`; a rewritten question is kept only if it still reads as one question; every
+reply passes the identity guard. Each assistant message stores a `turn` summary (intent, route,
+parked goals, problems, revisions, timings, light-model tokens) and a `questionKey`, so repeats
+are counted by goal rather than by wording.
+
+### Evaluation
+
+`npm run eval:conversation -- <server URL> --label <name>` plays the scripted conversations in
+`data/conversation-eval/profile-builder.json` (fictional people; adversarial, chatty and
+goal-directed tiers) against a running server, one new account each, and writes
+`output/conversation-eval/<label>-<time>.json`. `--rescore <file>` recomputes a saved run with
+the current metrics. It costs model calls in live mode, so run it on a separate database.
+
+Live run, 2026-11-15: 10 conversations, 68 turns, separate databases. `main` at edf6d53 was the
+baseline, and the turn graph used the Groq `openai/gpt-oss-20b` light route. The extraction
+model was the same for both.
+
+| Measure | `main` | Turn graph |
+| --- | --- | --- |
+| Non-answers that moved the interview on | 15 of 21 (71%) | 0 of 21 |
+| Answers followed by the same question again | 1 of 47 (2%) | 1 of 47 (2%) |
+| Intent classified correctly (answer or not) | n/a | 68 of 68 |
+| Expected profile values in the draft | 20 of 35 (57%) | 30 of 35 (86%); 86–91% over the last three runs |
+| Chatty tier only | 3 of 11 (27%) | 8–10 of 11 (73–91%) |
+| Extraction-model calls | 68 | 47 |
+| Median time per turn | 1.9 s | 2.8 s |
+
+The median turn is about a second slower because every message now gets a light-model call
+first. Messages that need no extraction are faster than before, and a third fewer turns call the
+extraction model.
+
+Fixes found by the evaluation:
+- A detour made the next answer look off-topic, so the extraction model now gets a perceive
+  hint and no small-talk context.
+- An answer about another field closed the pending top-level question.
+- Translated questions were rejected by an over-strict check.
+- A question about the question counted towards setting it aside.
+
+Known limit: a year-only date ("2024-2025") cannot be stored as a month, so a record's start
+question can come back once.

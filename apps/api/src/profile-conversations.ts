@@ -22,6 +22,7 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { db } from './db.js';
 import { digest, json } from './domain.js';
+import { CHANGE_CLAIM, runProfileTurn, summariseTurn } from './profile-turn.js';
 import { AppError, requireValue } from './errors.js';
 import { prepareProfileBuilderDraft, citeExactUserValues } from './profile-builder.js';
 import { retrieveEvidence } from './career-memory.js';
@@ -269,6 +270,7 @@ export function registerProfileConversations(app: Express) {
                     : firstPlan.state.question
                       ? [firstPlan.state.question.text]
                       : [],
+                questionKey: input.mode === 'edit' ? null : firstPlan.state.question?.key || null,
                 interviewState: firstPlan.state,
               },
             ]),
@@ -402,102 +404,177 @@ export function registerProfileConversations(app: Express) {
     const historySearches: { query: string; offset: number; hits: number }[] = [];
     let processingStage = 'model-response';
     try {
-      const sourceMessages: any[] = [];
-      let sourceSize = 0;
-      for (const item of updatedMessages
-        .filter(
-          (m) => m.role === 'user' && m.kind !== 'interview-control' && !interviewIntent(m.text),
-        )
-        .slice(-30)
-        .reverse()) {
-        // Keep a contiguous recent window, including the current/retried answer.
-        // The full conversation remains saved in updatedMessages.
-        if (sourceSize + item.text.length > 120000) break;
-        sourceMessages.unshift(item);
-        sourceSize += item.text.length;
-      }
-      const pages = sourceMessages.map((m, i) => ({
-        page: i + 1,
-        text: m.text,
-        route: 'text' as const,
-        method: 'plain-text' as const,
-      }));
-      // Existing record headers identify the subject of short follow-ups such as
-      // "that project". New dates/details still need a literal source elsewhere.
-      for (const section of recordKeys) {
-        for (const record of input.currentProfile[section] || []) {
-          pages.push({
-            page: pages.length + 1,
-            text: [record.title, record.organisation, record.location].filter(Boolean).join(' · '),
-            route: 'text' as const,
-            method: 'plain-text' as const,
-          });
-        }
-      }
-      // Complete sources stay server-side for retrieval and grounding only.
-      const notes = sourceMessages.map((m, i) => `Message ${i + 1}: ${m.text}`).join('\n');
-      const previousExchange = updatedMessages
-        .filter(
-          (message: any) => message.id !== answerId && ['user', 'assistant'].includes(message.role),
-        )
-        .slice(-2)
-        .map((message: any) => `${message.role}: ${String(message.text).slice(0, 900)}`)
-        .join('\n');
-      const compactNotes = [
-        previousExchange
-          ? `Recent conversational reference only (search for source facts):\n${previousExchange}`
-          : '',
-        profileModelNotes(sourceMessages, Boolean(input.recoverSavedAnswers)),
-      ]
-        .filter(Boolean)
-        .join('\n\n');
-      processingStage = 'evidence-retrieval';
-      const evidence = await retrieveEvidence(
-        userId,
-        input.recoverSavedAnswers ? input.currentProfile.goals : input.text,
+      // The existing extraction pipeline: the turn graph's "extract" step for real answers, and
+      // the whole turn for edit mode, retries and recovery of saved answers.
+      // Messages the turn graph answered as small talk, questions or off-topic carry no career
+      // information; leaving them out keeps the extraction model on the actual answers (CFS-144).
+      const conversational = new Set(
+        updatedMessages
+          .map((m: any, i: number) =>
+            m.role === 'user' && updatedMessages[i + 1]?.turn?.route === 'converse' ? m.id : null,
+          )
+          .filter(Boolean),
       );
-      const answerPage = sourceMessages.findIndex((m) => m.id === answerId) + 1;
-      const labelled =
-        !input.recoverSavedAnswers && answerPage > 0
-          ? labelledExperience(input.text, answerPage)
-          : null;
-      processingStage = 'model-response';
-      let result = labelled
-        ? {
-            builder: profileBuilderDraftSchema.parse({
-              draft: {},
-              proposedChanges: [],
-              followUpQuestions: [],
-            }),
-            records: [conversationRecordSchema.parse(labelled)],
-            reply:
-              'Your labelled answers are ready for review. Finish this experience to organise the story and save a draft memory.',
+      const extractPipeline = async (perceived?: { intent: string; addressesPending: boolean }) => {
+        const sourceMessages: any[] = [];
+        let sourceSize = 0;
+        for (const item of updatedMessages
+          .filter(
+            (m) =>
+              m.role === 'user' &&
+              m.kind !== 'interview-control' &&
+              !interviewIntent(m.text) &&
+              !conversational.has(m.id),
+          )
+          .slice(-30)
+          .reverse()) {
+          // Keep a contiguous recent window, including the current/retried answer.
+          // The full conversation remains saved in updatedMessages.
+          if (sourceSize + item.text.length > 120000) break;
+          sourceMessages.unshift(item);
+          sourceSize += item.text.length;
+        }
+        const pages = sourceMessages.map((m, i) => ({
+          page: i + 1,
+          text: m.text,
+          route: 'text' as const,
+          method: 'plain-text' as const,
+        }));
+        // Existing record headers identify the subject of short follow-ups such as
+        // "that project". New dates/details still need a literal source elsewhere.
+        for (const section of recordKeys) {
+          for (const record of input.currentProfile[section] || []) {
+            pages.push({
+              page: pages.length + 1,
+              text: [record.title, record.organisation, record.location]
+                .filter(Boolean)
+                .join(' · '),
+              route: 'text' as const,
+              method: 'plain-text' as const,
+            });
           }
-        : await generate(
+        }
+        // Complete sources stay server-side for retrieval and grounding only.
+        const notes = sourceMessages.map((m, i) => `Message ${i + 1}: ${m.text}`).join('\n');
+        const previousExchange = updatedMessages
+          .filter(
+            (message: any) =>
+              message.id !== answerId &&
+              ['user', 'assistant'].includes(message.role) &&
+              !conversational.has(message.id) &&
+              message.turn?.route !== 'converse',
+          )
+          .slice(-2)
+          .map((message: any) => `${message.role}: ${String(message.text).slice(0, 900)}`)
+          .join('\n');
+        const compactNotes = [
+          previousExchange
+            ? `Recent conversational reference only (search for source facts):\n${previousExchange}`
+            : '',
+          profileModelNotes(sourceMessages, Boolean(input.recoverSavedAnswers)),
+        ]
+          .filter(Boolean)
+          .join('\n\n');
+        processingStage = 'evidence-retrieval';
+        const evidence = await retrieveEvidence(
+          userId,
+          input.recoverSavedAnswers ? input.currentProfile.goals : input.text,
+        );
+        const answerPage = sourceMessages.findIndex((m) => m.id === answerId) + 1;
+        const labelled =
+          !input.recoverSavedAnswers && answerPage > 0
+            ? labelledExperience(input.text, answerPage)
+            : null;
+        processingStage = 'model-response';
+        let result = labelled
+          ? {
+              builder: profileBuilderDraftSchema.parse({
+                draft: {},
+                proposedChanges: [],
+                followUpQuestions: [],
+              }),
+              records: [conversationRecordSchema.parse(labelled)],
+              reply:
+                'Your labelled answers are ready for review. Finish this experience to organise the story and save a draft memory.',
+            }
+          : await generate(
+              'conversation',
+              {
+                goal: input.recoverSavedAnswers
+                  ? 'Prepare complete structured profile/project records from the saved user answers. Include finished experiences that are missing from the current draft. Do not ask questions. Do not approve or apply changes.'
+                  : input.mode === 'edit'
+                    ? 'Respond naturally to the latest user message, including short fragments, corrections, clarifications and questions. If the user asks a question or says not to change anything, answer it in reply using the working profile and return empty changes and records. Do not treat a question as a request to rewrite. Otherwise: Edit the existing career profile in response to the user request. Review clarity and completeness. Suggest only evidence-supported changes, preserve facts, and explain when no supported edit is needed. Do not restart a career interview. Never apply or approve changes.'
+                    : "Build an editable career profile through a sustained interview. Answer clarification questions naturally in reply. If the user is just asking or says not to change anything, return empty changes and records; do not treat that message as an answer to the pending interview question. If the latest message is a greeting, small talk, a question about you or CareerFlow, or anything that is not career information, reply briefly and warmly in the user's language (one to three sentences): answer it, and when it helps say that you build their profile one question at a time and nothing is used until they approve it. Return empty changes and records for such messages; the server repeats the pending question after your reply." +
+                      (perceived
+                        ? ' The latest message has already been classified as containing career information: extract everything it states, whatever the pending question is, and do not treat it as off-topic or small talk.' +
+                          (perceived.intent === 'correction'
+                            ? ' It corrects something said earlier: propose the corrected value for that field, quoting the new wording.'
+                            : '')
+                        : ''),
+                prepareSavedAnswers: Boolean(input.recoverSavedAnswers),
+                requireSourceLookup:
+                  input.mode === 'edit' &&
+                  recordKeys.some((key) => input.currentProfile[key]?.length),
+                facts: [],
+                profileNotes: compactNotes,
+                educationRules:
+                  'For education records extract major and relevantCoursework as separate optional fields, verbatim from user evidence. Never infer proficiency from attending a course. Do not ask for coursework when it was not supplied. Goals, salary, location and working preferences are coaching/matching context, not candidate accomplishments or resume copy.',
+                experienceRules:
+                  'The latest user answer takes priority over the previous interview focus for EXTRACTION. If it introduces a different named work experience or project, create that separate record even when another experience is active. Never silently ignore a new experience. Separate the everyday role overview from ONE specific personal STAR example. General responsibilities, tools and workload belong to the overview, not automatically to a STAR story. For a concrete incident, return optional starStory {situation,task,action,result} using short exact contiguous source excerpts, empty for unknown parts. Include several supplied STAR parts together; never ask again about parts already stated. For work/projects omit details when original answers are already available to the server; do not repeat the full narrative. Use a short title anchor as evidence. The server preserves the original statements and overview. For outcome follow-ups preserve any supplied before/after values, units, approximate/estimated/measured qualifiers and personal-versus-team scope. Approval or adoption alone does not establish a quantified improvement. An unknown or unmeasured outcome is valid; never invent a number. Never invent results or force a story when the user wants to move on.',
+                extractionRules:
+                  'The profile index omits responsibilities and STAR content. Before saying those details are unavailable, use search_profile_history with record title, organisation or topic; it includes current profile records. Return only new or changed fields and records supported by the recent answers. Do not re-emit unchanged profileBase records. Copy all profile values from original user wording; do not translate or paraphrase. Goals may use the original goal sentence. Omit unknown dates. For current study keep current=true, startMonth=stated enrolment month, endMonth=null, expectedEndMonth=explicit expected graduation month. Populate draft and records, not only a reply claiming they are organised.',
+                profileBase: conversationModelProfile(input.currentProfile),
+                interviewControl: previousState,
+                retrievedEvidence: evidence.hits
+                  .map((h) => ({ id: h.id, text: h.text.slice(0, 800) }))
+                  .slice(0, 2),
+              },
+              assistantSchema,
+              configuredMode(),
+              {
+                onCall: async () => {},
+                onTool: async () => {},
+                onUsage: async () => {},
+                onSearchHistory: async (query, offset) => {
+                  const profileSources = recordKeys.flatMap((section) =>
+                    (input.currentProfile[section] || []).map((record: any) => ({
+                      id: `profile:${section}:${record.id}`,
+                      text: JSON.stringify({
+                        section,
+                        ...record,
+                        conversationEvidence: undefined,
+                        organisedStory: undefined,
+                      }),
+                    })),
+                  );
+                  const found = searchProfileHistory(
+                    [...sourceMessages, ...profileSources],
+                    query,
+                    offset,
+                  );
+                  historySearches.push({ query, offset, hits: found.hits.length });
+                  return found;
+                },
+              },
+            );
+        // Retry once when the model ignores an explicit newly introduced named project.
+        // Never silently treat extraction failure as completion of the previous role.
+        if (
+          input.mode === 'build' &&
+          !discussionOnly &&
+          /\bproject (?:called|named)\s+\S/i.test(input.text) &&
+          !result.records.some((r) => r.section === 'projects')
+        ) {
+          result = await generate(
             'conversation',
             {
-              goal: input.recoverSavedAnswers
-                ? 'Prepare complete structured profile/project records from the saved user answers. Include finished experiences that are missing from the current draft. Do not ask questions. Do not approve or apply changes.'
-                : input.mode === 'edit'
-                  ? 'Respond naturally to the latest user message, including short fragments, corrections, clarifications and questions. If the user asks a question or says not to change anything, answer it in reply using the working profile and return empty changes and records. Do not treat a question as a request to rewrite. Otherwise: Edit the existing career profile in response to the user request. Review clarity and completeness. Suggest only evidence-supported changes, preserve facts, and explain when no supported edit is needed. Do not restart a career interview. Never apply or approve changes.'
-                  : 'Build an editable career profile through a sustained interview. Answer clarification questions naturally in reply. If the user is just asking or says not to change anything, return empty changes and records; do not treat that message as an answer to the pending interview question. If the latest message is a greeting, small talk, a question about you or CareerFlow, or anything that is not career information, reply briefly and warmly in the user\'s language (one to three sentences): answer it, and when it helps say that you build their profile one question at a time and nothing is used until they approve it. Return empty changes and records for such messages; the server repeats the pending question after your reply.',
-              prepareSavedAnswers: Boolean(input.recoverSavedAnswers),
-              requireSourceLookup:
-                input.mode === 'edit' &&
-                recordKeys.some((key) => input.currentProfile[key]?.length),
+              goal: 'Extract the NEW project explicitly named in the latest answer. The old interview focus does not limit extraction. Return its literal title and source-backed fields as a projects record. Keep missing STAR parts empty; do not invent outcomes.',
               facts: [],
-              profileNotes: compactNotes,
-              educationRules:
-                'For education records extract major and relevantCoursework as separate optional fields, verbatim from user evidence. Never infer proficiency from attending a course. Do not ask for coursework when it was not supplied. Goals, salary, location and working preferences are coaching/matching context, not candidate accomplishments or resume copy.',
-              experienceRules:
-                'The latest user answer takes priority over the previous interview focus for EXTRACTION. If it introduces a different named work experience or project, create that separate record even when another experience is active. Never silently ignore a new experience. Separate the everyday role overview from ONE specific personal STAR example. General responsibilities, tools and workload belong to the overview, not automatically to a STAR story. For a concrete incident, return optional starStory {situation,task,action,result} using short exact contiguous source excerpts, empty for unknown parts. Include several supplied STAR parts together; never ask again about parts already stated. For work/projects omit details when original answers are already available to the server; do not repeat the full narrative. Use a short title anchor as evidence. The server preserves the original statements and overview. For outcome follow-ups preserve any supplied before/after values, units, approximate/estimated/measured qualifiers and personal-versus-team scope. Approval or adoption alone does not establish a quantified improvement. An unknown or unmeasured outcome is valid; never invent a number. Never invent results or force a story when the user wants to move on.',
-              extractionRules:
-                'The profile index omits responsibilities and STAR content. Before saying those details are unavailable, use search_profile_history with record title, organisation or topic; it includes current profile records. Return only new or changed fields and records supported by the recent answers. Do not re-emit unchanged profileBase records. Copy all profile values from original user wording; do not translate or paraphrase. Goals may use the original goal sentence. Omit unknown dates. For current study keep current=true, startMonth=stated enrolment month, endMonth=null, expectedEndMonth=explicit expected graduation month. Populate draft and records, not only a reply claiming they are organised.',
+              profileNotes: profileModelNotes(sourceMessages),
               profileBase: conversationModelProfile(input.currentProfile),
-              interviewControl: previousState,
-              retrievedEvidence: evidence.hits
-                .map((h) => ({ id: h.id, text: h.text.slice(0, 800) }))
-                .slice(0, 2),
+              interviewControl: { ...previousState, active: null, question: null },
+              experienceRules:
+                'Daily responsibilities are not automatically a specific STAR incident. Preserve full original statements. Unknown parts stay empty.',
             },
             assistantSchema,
             configuredMode(),
@@ -505,533 +582,580 @@ export function registerProfileConversations(app: Express) {
               onCall: async () => {},
               onTool: async () => {},
               onUsage: async () => {},
-              onSearchHistory: async (query, offset) => {
-                const profileSources = recordKeys.flatMap((section) =>
-                  (input.currentProfile[section] || []).map((record: any) => ({
-                    id: `profile:${section}:${record.id}`,
-                    text: JSON.stringify({
-                      section,
-                      ...record,
-                      conversationEvidence: undefined,
-                      organisedStory: undefined,
-                    }),
-                  })),
-                );
-                const found = searchProfileHistory(
-                  [...sourceMessages, ...profileSources],
-                  query,
-                  offset,
-                );
-                historySearches.push({ query, offset, hits: found.hits.length });
-                return found;
-              },
+              onSearchHistory: async (query, offset) =>
+                searchProfileHistory(sourceMessages, query, offset),
             },
           );
-      // Retry once when the model ignores an explicit newly introduced named project.
-      // Never silently treat extraction failure as completion of the previous role.
-      if (
-        input.mode === 'build' &&
-        !discussionOnly &&
-        /\bproject (?:called|named)\s+\S/i.test(input.text) &&
-        !result.records.some((r) => r.section === 'projects')
-      ) {
-        result = await generate(
-          'conversation',
-          {
-            goal: 'Extract the NEW project explicitly named in the latest answer. The old interview focus does not limit extraction. Return its literal title and source-backed fields as a projects record. Keep missing STAR parts empty; do not invent outcomes.',
-            facts: [],
-            profileNotes: profileModelNotes(sourceMessages),
-            profileBase: conversationModelProfile(input.currentProfile),
-            interviewControl: { ...previousState, active: null, question: null },
-            experienceRules:
-              'Daily responsibilities are not automatically a specific STAR incident. Preserve full original statements. Unknown parts stay empty.',
-          },
-          assistantSchema,
-          configuredMode(),
-          {
-            onCall: async () => {},
-            onTool: async () => {},
-            onUsage: async () => {},
-            onSearchHistory: async (query, offset) =>
-              searchProfileHistory(sourceMessages, query, offset),
-          },
-        );
-        if (!result.records.some((r) => r.section === 'projects'))
-          throw new AppError(
-            422,
-            'PROFILE_EXTRACTION_INCOMPLETE',
-            'Your answer is saved, but the new project could not be organised. Retry the saved answer; your previous profile is unchanged.',
-          );
-      }
-      processingStage = 'field-grounding';
-      const groundingNotes = [
-        notes,
-        ...evidence.hits
-          .filter((h) => h.kind !== 'advisory-feedback')
-          .map((h) => h.text.slice(0, 2000)),
-      ].join('\n');
-      const prepared = await prepareProfileBuilderDraft({
-        notes: groundingNotes,
-        currentProfile: input.currentProfile,
-        mode: configuredMode(),
-        preparedResult: citeExactUserValues(
-          result.builder,
-          sourceMessages.map((m) => m.text),
-        ),
-      });
-      processingStage = 'record-grounding';
-      const explicitTitles: string[] = [];
-      let namingQuestion = false;
-      for (const entry of updatedMessages) {
-        if (entry.role === 'assistant') {
-          namingQuestion = [...(entry.questions || []), entry.text || ''].some((q) =>
-            /(?:what|which).*(?:title|name).*(?:project|experience)|项目.*(?:名称|名字)/i.test(q),
-          );
-        } else if (entry.role === 'user') {
-          if (namingQuestion && entry.text.length <= 200 && !interviewIntent(entry.text))
-            explicitTitles.push(entry.text.trim());
-          namingQuestion = false;
+          if (!result.records.some((r) => r.section === 'projects'))
+            throw new AppError(
+              422,
+              'PROFILE_EXTRACTION_INCOMPLETE',
+              'Your answer is saved, but the new project could not be organised. Retry the saved answer; your previous profile is unchanged.',
+            );
         }
-      }
-      const titleBase = (title: string) => careerTitle(title).replace(/ based on .+$/, '');
-      const citedRecords = result.records.map((candidate) => {
-        // A selected title is a source fact. Keep the user's literal spelling;
-        // model spelling corrections belong in later wording suggestions.
-        const named = [...explicitTitles]
-          .reverse()
-          .find((title) => titleBase(title) === titleBase(candidate.title));
-        const r = named ? { ...candidate, title: named } : candidate;
+        processingStage = 'field-grounding';
+        const groundingNotes = [
+          notes,
+          ...evidence.hits
+            .filter((h) => h.kind !== 'advisory-feedback')
+            .map((h) => h.text.slice(0, 2000)),
+        ].join('\n');
+        const prepared = await prepareProfileBuilderDraft({
+          notes: groundingNotes,
+          currentProfile: input.currentProfile,
+          mode: configuredMode(),
+          preparedResult: citeExactUserValues(
+            result.builder,
+            sourceMessages.map((m) => m.text),
+          ),
+        });
+        processingStage = 'record-grounding';
+        const explicitTitles: string[] = [];
+        let namingQuestion = false;
+        for (const entry of updatedMessages) {
+          if (entry.role === 'assistant') {
+            namingQuestion = [...(entry.questions || []), entry.text || ''].some((q) =>
+              /(?:what|which).*(?:title|name).*(?:project|experience)|项目.*(?:名称|名字)/i.test(q),
+            );
+          } else if (entry.role === 'user') {
+            if (namingQuestion && entry.text.length <= 200 && !interviewIntent(entry.text))
+              explicitTitles.push(entry.text.trim());
+            namingQuestion = false;
+          }
+        }
+        const titleBase = (title: string) => careerTitle(title).replace(/ based on .+$/, '');
+        const citedRecords = result.records.map((candidate) => {
+          // A selected title is a source fact. Keep the user's literal spelling;
+          // model spelling corrections belong in later wording suggestions.
+          const named = [...explicitTitles]
+            .reverse()
+            .find((title) => titleBase(title) === titleBase(candidate.title));
+          const r = named ? { ...candidate, title: named } : candidate;
 
-        // Resolve provenance from the user's real messages, rather than asking
-        // the model to count chat turns or reproduce every excerpt perfectly.
-        const lower = (value: string) => value.replace(/\s+/g, ' ').trim().toLowerCase();
-        const anchors = pages.filter((p) => lower(p.text).includes(lower(r.title)));
-        if (!r.title || !anchors.length) return r;
-        const chosen = [...anchors];
-        const add = (page: (typeof pages)[number] | undefined) => {
-          if (page && !chosen.some((p) => p.page === page.page)) chosen.push(page);
-        };
-        for (const value of [r.organisation, r.location, r.url].filter(Boolean))
-          add(pages.find((p) => lower(p.text).includes(lower(value))));
-        if (r.startMonth) add(pages.find((p) => dateSupported(r.startMonth, p.text.toLowerCase())));
-        if (r.endMonth) add(pages.find((p) => dateSupported(r.endMonth, p.text.toLowerCase())));
-        if (r.current)
-          add(pages.find((p) => /\bpresent\b|\bcurrent\b|至今/.test(p.text.toLowerCase())));
-        for (const e of r.evidence) add(pages.find((p) => p.text.includes(e.quote)));
-        for (const value of [
-          ...r.technologies,
-          ...r.details,
-          ...Object.values(r.starStory || {}),
-        ].filter(Boolean))
-          add(pages.find((p) => lower(p.text).includes(lower(value))));
-        const source = chosen
-          .map((p) => p.text)
-          .join('\n')
-          .toLowerCase();
-        const studying =
-          r.section === 'educations' && ongoingSupported(anchors.map((p) => p.text).join('\n'));
-        // Keep expected graduation separate even if a model uses endMonth.
-        const expected =
-          r.expectedEndMonth ||
-          (studying && /\bexpect(?:ed)?\b|预计|预期/.test(source) ? r.endMonth : null);
-        return {
-          ...r,
-          // Conversation dates are optional. An inferred enrolment month must
-          // not discard a verbatim, source-backed qualification altogether.
-          startMonth: dateSupported(
-            r.startMonth,
-            chosen
-              .map((p) => p.text)
-              .join('\n')
-              .toLowerCase(),
-          )
-            ? r.startMonth
-            : null,
-          endMonth: studying
-            ? null
-            : dateSupported(
-                  r.endMonth,
-                  chosen
-                    .map((p) => p.text)
-                    .join('\n')
-                    .toLowerCase(),
-                )
-              ? r.endMonth
+          // Resolve provenance from the user's real messages, rather than asking
+          // the model to count chat turns or reproduce every excerpt perfectly.
+          const lower = (value: string) => value.replace(/\s+/g, ' ').trim().toLowerCase();
+          const anchors = pages.filter((p) => lower(p.text).includes(lower(r.title)));
+          if (!r.title || !anchors.length) return r;
+          const chosen = [...anchors];
+          const add = (page: (typeof pages)[number] | undefined) => {
+            if (page && !chosen.some((p) => p.page === page.page)) chosen.push(page);
+          };
+          for (const value of [r.organisation, r.location, r.url].filter(Boolean))
+            add(pages.find((p) => lower(p.text).includes(lower(value))));
+          if (r.startMonth)
+            add(pages.find((p) => dateSupported(r.startMonth, p.text.toLowerCase())));
+          if (r.endMonth) add(pages.find((p) => dateSupported(r.endMonth, p.text.toLowerCase())));
+          if (r.current)
+            add(pages.find((p) => /\bpresent\b|\bcurrent\b|至今/.test(p.text.toLowerCase())));
+          for (const e of r.evidence) add(pages.find((p) => p.text.includes(e.quote)));
+          for (const value of [
+            ...r.technologies,
+            ...r.details,
+            ...Object.values(r.starStory || {}),
+          ].filter(Boolean))
+            add(pages.find((p) => lower(p.text).includes(lower(value))));
+          const source = chosen
+            .map((p) => p.text)
+            .join('\n')
+            .toLowerCase();
+          const studying =
+            r.section === 'educations' && ongoingSupported(anchors.map((p) => p.text).join('\n'));
+          // Keep expected graduation separate even if a model uses endMonth.
+          const expected =
+            r.expectedEndMonth ||
+            (studying && /\bexpect(?:ed)?\b|预计|预期/.test(source) ? r.endMonth : null);
+          return {
+            ...r,
+            // Conversation dates are optional. An inferred enrolment month must
+            // not discard a verbatim, source-backed qualification altogether.
+            startMonth: dateSupported(
+              r.startMonth,
+              chosen
+                .map((p) => p.text)
+                .join('\n')
+                .toLowerCase(),
+            )
+              ? r.startMonth
               : null,
-          expectedEndMonth: dateSupported(expected ?? null, source) ? expected : null,
-          current: studying || (r.current && !r.endMonth && ongoingSupported(source)),
-          evidence: chosen.slice(0, 10).map((p) => ({ page: p.page, quote: p.text })),
-        };
-      });
-      const grounded = groundImportedRecords({ records: citedRecords, questions: [] }, pages, {
-        salvageOptional: true,
-      });
-      const changes = [...new Set(prepared.proposedChanges.map((c) => c.field))]
-        .filter(
-          (field) =>
-            !(
-              field === 'education' &&
-              (input.currentProfile.educations?.length ||
-                grounded.records.some((r) => r.section === 'educations'))
-            ) &&
-            !(
-              field === 'experience' &&
-              (input.currentProfile.workExperiences?.length ||
-                input.currentProfile.projects?.length ||
-                grounded.records.some((r) => r.section !== 'educations'))
-            ),
-        )
-        .map((field) => ({
-          id: randomUUID(),
-          field,
-          before: (input.currentProfile as any)[field],
-          after: (prepared.data as any)[field],
-          evidence: prepared.proposedChanges
-            .filter((c) => c.field === field)
-            .map((c) => ({
-              quote: c.evidence,
-              messageId: sourceMessages.find((m) => hasQuote(m.text, c.evidence))?.id || null,
-              memoryRef:
-                evidence.hits.find(
-                  (h) =>
-                    h.kind === 'confirmed-memory' && hasQuote(h.text.slice(0, 2000), c.evidence),
-                )?.id || null,
-              profileRef:
-                evidence.hits.find(
-                  (h) => h.kind === 'approved-profile' && hasQuote(h.text, c.evidence),
-                )?.id || null,
-            })),
-          status: 'PENDING',
-        }));
-      for (const section of recordKeys) {
-        const records = grounded.records
+            endMonth: studying
+              ? null
+              : dateSupported(
+                    r.endMonth,
+                    chosen
+                      .map((p) => p.text)
+                      .join('\n')
+                      .toLowerCase(),
+                  )
+                ? r.endMonth
+                : null,
+            expectedEndMonth: dateSupported(expected ?? null, source) ? expected : null,
+            current: studying || (r.current && !r.endMonth && ongoingSupported(source)),
+            evidence: chosen.slice(0, 10).map((p) => ({ page: p.page, quote: p.text })),
+          };
+        });
+        const grounded = groundImportedRecords({ records: citedRecords, questions: [] }, pages, {
+          salvageOptional: true,
+        });
+        const changes = [...new Set(prepared.proposedChanges.map((c) => c.field))]
           .filter(
-            (r) =>
-              r.section === section &&
-              r.evidence.every((e) => pages[e.page - 1]?.text.includes(e.quote)),
+            (field) =>
+              !(
+                field === 'education' &&
+                (input.currentProfile.educations?.length ||
+                  grounded.records.some((r) => r.section === 'educations'))
+              ) &&
+              !(
+                field === 'experience' &&
+                (input.currentProfile.workExperiences?.length ||
+                  input.currentProfile.projects?.length ||
+                  grounded.records.some((r) => r.section !== 'educations'))
+              ),
           )
-          .map(({ section: _, evidence, ...r }) => {
-            const existingExperiences = [
-              ...(input.currentProfile.workExperiences || []),
-              ...(input.currentProfile.projects || []),
-            ];
-            const previous = [...messages].reverse().find((m) => m.role === 'assistant');
-            const question = (previous?.questions || []).join(' ');
-            const focused =
-              question.toLowerCase().includes(careerTitle(r.title)) ||
-              (existingExperiences.length === 1 &&
-                careerTitle(existingExperiences[0].title) === careerTitle(r.title) &&
-                /your (?:own|specific|personal)|responsibilit|outcome|result|situation|action|contribution|what did you/i.test(
-                  question,
-                ));
-            const originals =
-              section === 'educations'
-                ? []
-                : sourceStatements(
-                    r.title,
-                    [
-                      ...grounded.records.map((r) => r.title),
-                      ...recordKeys.flatMap((k) =>
-                        (input.currentProfile[k] || []).map((r) => r.title),
+          .map((field) => ({
+            id: randomUUID(),
+            field,
+            before: (input.currentProfile as any)[field],
+            after: (prepared.data as any)[field],
+            evidence: prepared.proposedChanges
+              .filter((c) => c.field === field)
+              .map((c) => ({
+                quote: c.evidence,
+                messageId: sourceMessages.find((m) => hasQuote(m.text, c.evidence))?.id || null,
+                memoryRef:
+                  evidence.hits.find(
+                    (h) =>
+                      h.kind === 'confirmed-memory' && hasQuote(h.text.slice(0, 2000), c.evidence),
+                  )?.id || null,
+                profileRef:
+                  evidence.hits.find(
+                    (h) => h.kind === 'approved-profile' && hasQuote(h.text, c.evidence),
+                  )?.id || null,
+              })),
+            status: 'PENDING',
+          }));
+        for (const section of recordKeys) {
+          const records = grounded.records
+            .filter(
+              (r) =>
+                r.section === section &&
+                r.evidence.every((e) => pages[e.page - 1]?.text.includes(e.quote)),
+            )
+            .map(({ section: _, evidence, ...r }) => {
+              const existingExperiences = [
+                ...(input.currentProfile.workExperiences || []),
+                ...(input.currentProfile.projects || []),
+              ];
+              const previous = [...messages].reverse().find((m) => m.role === 'assistant');
+              const question = (previous?.questions || []).join(' ');
+              const focused =
+                question.toLowerCase().includes(careerTitle(r.title)) ||
+                (existingExperiences.length === 1 &&
+                  careerTitle(existingExperiences[0].title) === careerTitle(r.title) &&
+                  /your (?:own|specific|personal)|responsibilit|outcome|result|situation|action|contribution|what did you/i.test(
+                    question,
+                  ));
+              const originals =
+                section === 'educations'
+                  ? []
+                  : sourceStatements(
+                      r.title,
+                      [
+                        ...grounded.records.map((r) => r.title),
+                        ...recordKeys.flatMap((k) =>
+                          (input.currentProfile[k] || []).map((r) => r.title),
+                        ),
+                      ],
+                      sourceMessages,
+                      focused ? answerId : undefined,
+                      Boolean(
+                        input.recoverSavedAnswers &&
+                        previousState.closed.filter(
+                          (key) =>
+                            !experiences(input.currentProfile).some((record) =>
+                              closedExperience([key], record.key),
+                            ),
+                        ).length === 1 &&
+                        closedExperience(
+                          previousState.closed,
+                          `${section}:${careerTitle(r.title)}:${r.organisation.toLowerCase()}`,
+                        ) &&
+                        grounded.records.filter(
+                          (record) =>
+                            record.section !== 'educations' &&
+                            closedExperience(
+                              previousState.closed,
+                              `${record.section}:${careerTitle(record.title)}:${record.organisation.toLowerCase()}`,
+                            ),
+                        ).length === 1,
                       ),
-                    ],
-                    sourceMessages,
-                    focused ? answerId : undefined,
-                    Boolean(
-                      input.recoverSavedAnswers &&
-                      previousState.closed.filter(
-                        (key) =>
-                          !experiences(input.currentProfile).some((record) =>
-                            closedExperience([key], record.key),
-                          ),
-                      ).length === 1 &&
-                      closedExperience(
-                        previousState.closed,
-                        `${section}:${careerTitle(r.title)}:${r.organisation.toLowerCase()}`,
-                      ) &&
-                      grounded.records.filter(
-                        (record) =>
-                          record.section !== 'educations' &&
-                          closedExperience(
-                            previousState.closed,
-                            `${record.section}:${careerTitle(record.title)}:${record.organisation.toLowerCase()}`,
-                          ),
-                      ).length === 1,
-                    ),
-                  );
-            return recordSchema.parse({
-              ...r,
-              ...(section !== 'educations' && originals.length
-                ? {
-                    overview: originals
-                      .filter(
-                        (line) =>
-                          line.messageId === originals[0].messageId &&
-                          !Object.values(r.starStory || {}).some((part) =>
-                            part.includes(line.text),
-                          ) &&
-                          !/^From .*\bI worked as\b/i.test(line.text),
-                      )
-                      .map((line) => line.text)
-                      .join(' ')
-                      .slice(0, 4000),
-                  }
-                : {}),
-              // Only the deterministic labelled-answer path supplies a type.
-              // Keep it after grounding; the model cannot invent a category.
-              ...(labelled ? { experienceType: labelled.experienceType } : {}),
-              organisedStory: undefined,
-              id: randomUUID(),
-              details: originals.length ? originals.map((line) => line.text) : r.details,
-              evidence: [],
-              conversationEvidence: [
-                ...evidence
-                  .filter((e) => sourceMessages[e.page - 1])
-                  .map((e) => ({
-                    threadId: t.id,
-                    messageId: sourceMessages[e.page - 1].id,
-                    quote: e.quote,
-                  })),
-                ...originals.map((line) => ({
-                  threadId: t.id,
-                  messageId: line.messageId,
-                  quote: line.text,
-                })),
-              ]
-                .filter(
-                  (e, i, all) =>
-                    all.findIndex((x) => x.messageId === e.messageId && x.quote === e.quote) === i,
-                )
-                .slice(0, 10),
-            });
-          });
-        if (records.length) {
-          const merged = structuredClone(input.currentProfile[section] || []);
-          const norm = (v: string) => v.trim().replace(/\s+/g, ' ').toLowerCase();
-          for (const record of records) {
-            const comparableTitle = careerTitle;
-            const candidates = merged
-              .map((old, index) => ({ old, index }))
-              .filter(
-                ({ old }) =>
-                  comparableTitle(old.title) === comparableTitle(record.title) &&
-                  (!old.organisation ||
-                    !record.organisation ||
-                    norm(old.organisation) === norm(record.organisation)) &&
-                  (!old.startMonth || !record.startMonth || old.startMonth === record.startMonth) &&
-                  (!old.endMonth || !record.endMonth || old.endMonth === record.endMonth),
-              );
-            if (candidates.length > 1)
-              throw new AppError(
-                409,
-                'AMBIGUOUS_RECORD',
-                'More than one experience matches. Clarify its organisation and dates.',
-              );
-            const index = candidates[0]?.index ?? -1;
-            if (index < 0) {
-              if (merged.length < (section === 'educations' ? 10 : 20)) merged.push(record);
-            } else {
-              const old = merged[index];
-              merged[index] = {
-                ...old,
-                overview: old.overview || record.overview,
-                starStory:
-                  old.starStory || record.starStory
-                    ? {
-                        situation: record.starStory?.situation || old.starStory?.situation || '',
-                        task: record.starStory?.task || old.starStory?.task || '',
-                        action: record.starStory?.action || old.starStory?.action || '',
-                        result: record.starStory?.result || old.starStory?.result || '',
-                      }
-                    : undefined,
-                experienceType: record.experienceType || old.experienceType,
-                organisation: record.organisation || old.organisation,
-                location: record.location || old.location,
-                startMonth: record.startMonth || old.startMonth,
-                major: record.major || old.major,
-                relevantCoursework: [
-                  ...new Set([
-                    ...(old.relevantCoursework || []),
-                    ...(record.relevantCoursework || []),
-                  ]),
-                ].slice(0, 20),
-                expectedEndMonth: record.expectedEndMonth || old.expectedEndMonth,
-                endMonth: record.current ? null : record.endMonth || old.endMonth,
-                current: record.endMonth ? false : record.current || old.current,
-                details: [...new Set([...old.details, ...record.details])],
-                technologies: [...new Set([...old.technologies, ...record.technologies])],
+                    );
+              return recordSchema.parse({
+                ...r,
+                ...(section !== 'educations' && originals.length
+                  ? {
+                      overview: originals
+                        .filter(
+                          (line) =>
+                            line.messageId === originals[0].messageId &&
+                            !Object.values(r.starStory || {}).some((part) =>
+                              part.includes(line.text),
+                            ) &&
+                            !/^From .*\bI worked as\b/i.test(line.text),
+                        )
+                        .map((line) => line.text)
+                        .join(' ')
+                        .slice(0, 4000),
+                    }
+                  : {}),
+                // Only the deterministic labelled-answer path supplies a type.
+                // Keep it after grounding; the model cannot invent a category.
+                ...(labelled ? { experienceType: labelled.experienceType } : {}),
+                organisedStory: undefined,
+                id: randomUUID(),
+                details: originals.length ? originals.map((line) => line.text) : r.details,
+                evidence: [],
                 conversationEvidence: [
-                  ...(old.conversationEvidence || []),
-                  ...(record.conversationEvidence || []),
+                  ...evidence
+                    .filter((e) => sourceMessages[e.page - 1])
+                    .map((e) => ({
+                      threadId: t.id,
+                      messageId: sourceMessages[e.page - 1].id,
+                      quote: e.quote,
+                    })),
+                  ...originals.map((line) => ({
+                    threadId: t.id,
+                    messageId: line.messageId,
+                    quote: line.text,
+                  })),
                 ]
                   .filter(
                     (e, i, all) =>
                       all.findIndex((x) => x.messageId === e.messageId && x.quote === e.quote) ===
                       i,
                   )
-                  .slice(-10),
-              };
-            }
-          }
-          merged.forEach((r) => recordSchema.parse(r));
-          if (fieldDigest(merged) !== fieldDigest(input.currentProfile[section] || []))
-            changes.push({
-              id: randomUUID(),
-              field: section as any,
-              before: (input.currentProfile[section] || []) as any,
-              after: merged as any,
-              evidence: records.flatMap((r) =>
-                (r.conversationEvidence || []).map((e) => ({
-                  quote: e.quote,
-                  messageId: e.messageId,
-                  memoryRef: null,
-                  profileRef: null,
-                })),
-              ),
-              status: 'PENDING',
+                  .slice(0, 10),
+              });
             });
-        }
-      }
-      // A failed extraction is not an answered field. Keep it open instead of
-      // silently advancing to the next interview topic.
-      const unsupported = new Set(prepared.discardedFields);
-      if (
-        result.records.some(
-          (r) => r.section === 'educations' && grounded.rejected.includes(r.title),
-        )
-      )
-        unsupported.add('education');
-      const planState = {
-        ...previousState,
-        addressed: previousState.addressed.filter(
-          (key) => !unsupported.has(key.replace('profile:', '') as any),
-        ),
-      };
-      const planProfile = Object.assign(
-        {},
-        prepared.data,
-        ...(t.proposals as any[])
-          .filter(
-            (p) =>
-              p.status === 'PENDING' &&
-              fieldDigest(input.currentProfile[p.field as keyof typeof input.currentProfile]) ===
-                fieldDigest(p.before),
-          )
-          .map((p) => ({ [p.field]: p.after })),
-        ...changes.map((p) => ({ [p.field]: p.after })),
-      );
-      const focusedPlan = planInterview(planProfile, planState, input.text);
-      if (
-        !discussionOnly &&
-        input.mode === 'build' &&
-        focusedPlan.state.active === previousState.active
-      ) {
-        const outcome = proposeOutcomeAnswer(
-          planProfile,
-          previousState,
-          input.text,
-          t.id,
-          answerId,
-        );
-        if (outcome) {
-          const original =
-            input.currentProfile[outcome.field as 'workExperiences' | 'projects'] || [];
-          const at = changes.findIndex((change) => change.field === outcome.field);
-          const proposal = { ...outcome, before: original };
-          if (at >= 0) changes[at] = proposal as any;
-          else changes.push(proposal as any);
-          planProfile[outcome.field] = outcome.after;
-        }
-      }
-      // Small talk or a question about the builder: the model answers it, nothing changes, and
-      // the pending question stays open instead of being marked as answered (CFS-143).
-      const smallTalk =
-        input.mode === 'build' &&
-        !discussionOnly &&
-        !input.recoverSavedAnswers &&
-        !input.retryMessageId &&
-        !labelled &&
-        !changes.length &&
-        !grounded.records.length &&
-        !prepared.discardedFields.length &&
-        !grounded.rejected.length &&
-        Boolean(result.reply?.trim());
-      // A new experience is not an answer to the old experience's pending question.
-      if (
-        !discussionOnly &&
-        !smallTalk &&
-        !input.retryMessageId &&
-        !input.recoverSavedAnswers &&
-        previousState.question &&
-        !previousState.question.key.includes(':story:') &&
-        !unsupported.has(previousState.question.key.replace('profile:', '') as any) &&
-        (!previousState.active || focusedPlan.state.active === previousState.active)
-      )
-        planState.addressed = [...new Set([...planState.addressed, previousState.question.key])];
-      if (
-        previousState.question?.key.endsWith(':story:measurement') &&
-        focusedPlan.state.active === previousState.active &&
-        hasOutcomeDetail(input.text) &&
-        !/[?？]/.test(input.text)
-      )
-        planState.outcomeReviewed = [
-          ...new Set([...(planState.outcomeReviewed || []), previousState.active!]),
-        ];
-      const plan = planInterview(planProfile, planState, input.text);
-      if (discussionOnly) changes.splice(0);
-      const questions =
-        input.mode === 'edit' || discussionOnly
-          ? []
-          : plan.state.question
-            ? [plan.state.question.text]
-            : [];
-      const chinese = /\p{Script=Han}/u.test(input.text);
-      response = {
-        id: randomUUID(),
-        role: 'assistant',
-        at: new Date().toISOString(),
-        text:
-          ((input.mode === 'edit' || discussionOnly) && !changes.length && result.reply?.trim()
-            ? `${guardIdentity(result.reply.trim(), 'conversation')}\n\nYour profile is unchanged.`
-            : null) ||
-          (smallTalk ? guardIdentity(result.reply!.trim(), 'conversation') : null) ||
-          (input.recoverSavedAnswers
-            ? changes.length
-              ? `Prepared ${changes.length} draft update(s). Review the suggested details and choose Use these details in my draft. Your draft has not changed yet.`
-              : 'No source-supported draft updates were prepared. Your draft is unchanged. See the preparation details below; do not approve the old draft expecting this experience to be included.'
-            : null) ||
-          (input.mode === 'build' && !questions.length ? plan.hint : null) ||
-          (!changes.length && (prepared.discardedFields.length || grounded.rejected.length)
-            ? chinese
-              ? '这条消息已保留，但我还没有生成通过来源核对的 Profile 修改。右侧草稿尚未变化。'
-              : 'Your message is retained, but no source-supported profile changes are ready. Your working draft is unchanged.'
-            : changes.length
-              ? chinese
-                ? `已准备 ${changes.length} 处修改，请在 Profile 中逐项查看并接受，随后会加入草稿。`
-                : `Prepared ${changes.length} suggested change(s). Review and accept them in your profile to add them to the draft.`
-              : null) ||
-          (chinese
-            ? '消息已保留。本轮没有新的 Profile 修改，当前草稿未变化。'
-            : 'Your message is retained. There are no new profile changes in this turn; your working draft is unchanged.'),
-        questions,
-        interviewState: discussionOnly ? previousState : plan.state,
-        retrieved: evidence.hits.map((h) => ({ id: h.id, text: h.text, score: h.score })),
-        insufficientRecall: evidence.insufficientRecall,
-        historySearches,
-        discarded: [...prepared.discardedFields, ...grounded.rejected],
-        mode: configuredMode(),
-        preparation: input.recoverSavedAnswers
-          ? {
-              status: changes.length ? 'ready' : 'no_changes',
-              changes: changes.length,
-              modelRecords: result.records.length,
-              acceptedRecords: grounded.records.length,
-              rejectedRecords: grounded.rejectedDetails,
-              repairedRecords: grounded.repairs,
-              discardedFields: prepared.discardedFields,
+          if (records.length) {
+            const merged = structuredClone(input.currentProfile[section] || []);
+            const norm = (v: string) => v.trim().replace(/\s+/g, ' ').toLowerCase();
+            for (const record of records) {
+              const comparableTitle = careerTitle;
+              const candidates = merged
+                .map((old, index) => ({ old, index }))
+                .filter(
+                  ({ old }) =>
+                    comparableTitle(old.title) === comparableTitle(record.title) &&
+                    (!old.organisation ||
+                      !record.organisation ||
+                      norm(old.organisation) === norm(record.organisation)) &&
+                    (!old.startMonth ||
+                      !record.startMonth ||
+                      old.startMonth === record.startMonth) &&
+                    (!old.endMonth || !record.endMonth || old.endMonth === record.endMonth),
+                );
+              if (candidates.length > 1)
+                throw new AppError(
+                  409,
+                  'AMBIGUOUS_RECORD',
+                  'More than one experience matches. Clarify its organisation and dates.',
+                );
+              const index = candidates[0]?.index ?? -1;
+              if (index < 0) {
+                if (merged.length < (section === 'educations' ? 10 : 20)) merged.push(record);
+              } else {
+                const old = merged[index];
+                merged[index] = {
+                  ...old,
+                  overview: old.overview || record.overview,
+                  starStory:
+                    old.starStory || record.starStory
+                      ? {
+                          situation: record.starStory?.situation || old.starStory?.situation || '',
+                          task: record.starStory?.task || old.starStory?.task || '',
+                          action: record.starStory?.action || old.starStory?.action || '',
+                          result: record.starStory?.result || old.starStory?.result || '',
+                        }
+                      : undefined,
+                  experienceType: record.experienceType || old.experienceType,
+                  organisation: record.organisation || old.organisation,
+                  location: record.location || old.location,
+                  startMonth: record.startMonth || old.startMonth,
+                  major: record.major || old.major,
+                  relevantCoursework: [
+                    ...new Set([
+                      ...(old.relevantCoursework || []),
+                      ...(record.relevantCoursework || []),
+                    ]),
+                  ].slice(0, 20),
+                  expectedEndMonth: record.expectedEndMonth || old.expectedEndMonth,
+                  endMonth: record.current ? null : record.endMonth || old.endMonth,
+                  current: record.endMonth ? false : record.current || old.current,
+                  details: [...new Set([...old.details, ...record.details])],
+                  technologies: [...new Set([...old.technologies, ...record.technologies])],
+                  conversationEvidence: [
+                    ...(old.conversationEvidence || []),
+                    ...(record.conversationEvidence || []),
+                  ]
+                    .filter(
+                      (e, i, all) =>
+                        all.findIndex((x) => x.messageId === e.messageId && x.quote === e.quote) ===
+                        i,
+                    )
+                    .slice(-10),
+                };
+              }
             }
-          : undefined,
+            merged.forEach((r) => recordSchema.parse(r));
+            if (fieldDigest(merged) !== fieldDigest(input.currentProfile[section] || []))
+              changes.push({
+                id: randomUUID(),
+                field: section as any,
+                before: (input.currentProfile[section] || []) as any,
+                after: merged as any,
+                evidence: records.flatMap((r) =>
+                  (r.conversationEvidence || []).map((e) => ({
+                    quote: e.quote,
+                    messageId: e.messageId,
+                    memoryRef: null,
+                    profileRef: null,
+                  })),
+                ),
+                status: 'PENDING',
+              });
+          }
+        }
+        // A failed extraction is not an answered field. Keep it open instead of
+        // silently advancing to the next interview topic.
+        const unsupported = new Set(prepared.discardedFields);
+        if (
+          result.records.some(
+            (r) => r.section === 'educations' && grounded.rejected.includes(r.title),
+          )
+        )
+          unsupported.add('education');
+        const planState = {
+          ...previousState,
+          addressed: previousState.addressed.filter(
+            (key) => !unsupported.has(key.replace('profile:', '') as any),
+          ),
+        };
+        const planProfile = Object.assign(
+          {},
+          prepared.data,
+          ...(t.proposals as any[])
+            .filter(
+              (p) =>
+                p.status === 'PENDING' &&
+                fieldDigest(input.currentProfile[p.field as keyof typeof input.currentProfile]) ===
+                  fieldDigest(p.before),
+            )
+            .map((p) => ({ [p.field]: p.after })),
+          ...changes.map((p) => ({ [p.field]: p.after })),
+        );
+        const focusedPlan = planInterview(planProfile, planState, input.text);
+        if (
+          !discussionOnly &&
+          input.mode === 'build' &&
+          focusedPlan.state.active === previousState.active
+        ) {
+          const outcome = proposeOutcomeAnswer(
+            planProfile,
+            previousState,
+            input.text,
+            t.id,
+            answerId,
+          );
+          if (outcome) {
+            const original =
+              input.currentProfile[outcome.field as 'workExperiences' | 'projects'] || [];
+            const at = changes.findIndex((change) => change.field === outcome.field);
+            const proposal = { ...outcome, before: original };
+            if (at >= 0) changes[at] = proposal as any;
+            else changes.push(proposal as any);
+            planProfile[outcome.field] = outcome.after;
+          }
+        }
+        // Small talk or a question about the builder: the model answers it, nothing changes, and
+        // the pending question stays open instead of being marked as answered (CFS-143).
+        const smallTalk =
+          input.mode === 'build' &&
+          !discussionOnly &&
+          !input.recoverSavedAnswers &&
+          !input.retryMessageId &&
+          !labelled &&
+          !perceived &&
+          !changes.length &&
+          !grounded.records.length &&
+          !prepared.discardedFields.length &&
+          !grounded.rejected.length &&
+          Boolean(result.reply?.trim());
+        // A new experience is not an answer to the old experience's pending question.
+        if (
+          !discussionOnly &&
+          !smallTalk &&
+          !input.retryMessageId &&
+          !input.recoverSavedAnswers &&
+          previousState.question &&
+          !previousState.question.key.includes(':story:') &&
+          !unsupported.has(previousState.question.key.replace('profile:', '') as any) &&
+          (!previousState.active || focusedPlan.state.active === previousState.active) &&
+          // An answer about something else (a name while education is pending) leaves a
+          // top-level question open; the turn graph's perceive step tells which it is (CFS-144).
+          // Detail questions such as a record's dates close as before when the user moves on,
+          // so a date that cannot be stored is not asked again and again.
+          (!perceived ||
+            perceived.addressesPending ||
+            !previousState.question.key.startsWith('profile:'))
+        )
+          planState.addressed = [...new Set([...planState.addressed, previousState.question.key])];
+        if (
+          previousState.question?.key.endsWith(':story:measurement') &&
+          focusedPlan.state.active === previousState.active &&
+          hasOutcomeDetail(input.text) &&
+          !/[?？]/.test(input.text)
+        )
+          planState.outcomeReviewed = [
+            ...new Set([...(planState.outcomeReviewed || []), previousState.active!]),
+          ];
+        const plan = planInterview(planProfile, planState, input.text);
+        if (discussionOnly) changes.splice(0);
+        const questions =
+          input.mode === 'edit' || discussionOnly
+            ? []
+            : plan.state.question
+              ? [plan.state.question.text]
+              : [];
+        const chinese = /\p{Script=Han}/u.test(input.text);
+        response = {
+          id: randomUUID(),
+          role: 'assistant',
+          at: new Date().toISOString(),
+          text:
+            ((input.mode === 'edit' || discussionOnly) && !changes.length && result.reply?.trim()
+              ? `${guardIdentity(result.reply.trim(), 'conversation')}\n\nYour profile is unchanged.`
+              : null) ||
+            (smallTalk ? guardIdentity(result.reply!.trim(), 'conversation') : null) ||
+            (input.recoverSavedAnswers
+              ? changes.length
+                ? `Prepared ${changes.length} draft update(s). Review the suggested details and choose Use these details in my draft. Your draft has not changed yet.`
+                : 'No source-supported draft updates were prepared. Your draft is unchanged. See the preparation details below; do not approve the old draft expecting this experience to be included.'
+              : null) ||
+            (input.mode === 'build' && !questions.length ? plan.hint : null) ||
+            (!changes.length && (prepared.discardedFields.length || grounded.rejected.length)
+              ? chinese
+                ? '这条消息已保留，但我还没有生成通过来源核对的 Profile 修改。右侧草稿尚未变化。'
+                : 'Your message is retained, but no source-supported profile changes are ready. Your working draft is unchanged.'
+              : changes.length
+                ? // A real answer gets the model's own short acknowledgement, unless it claims to
+                  // have saved something; the note says where the suggestions are (CFS-144).
+                  (perceived && result.reply?.trim() && !CHANGE_CLAIM.test(result.reply)
+                    ? `${guardIdentity(result.reply.trim(), 'conversation')} ` +
+                      (chinese
+                        ? `（右侧有 ${changes.length} 处建议，确认后才会加入草稿。）`
+                        : `(${changes.length} suggestion${changes.length === 1 ? '' : 's'} to review on the right.)`)
+                    : null) ||
+                  (chinese
+                    ? `已准备 ${changes.length} 处修改，请在 Profile 中逐项查看并接受，随后会加入草稿。`
+                    : `Prepared ${changes.length} suggested change(s). Review and accept them in your profile to add them to the draft.`)
+                : null) ||
+            (chinese
+              ? '消息已保留。本轮没有新的 Profile 修改，当前草稿未变化。'
+              : 'Your message is retained. There are no new profile changes in this turn; your working draft is unchanged.'),
+          questions,
+          questionKey: questions.length ? plan.state.question?.key || null : null,
+          interviewState: discussionOnly ? previousState : plan.state,
+          retrieved: evidence.hits.map((h) => ({ id: h.id, text: h.text, score: h.score })),
+          insufficientRecall: evidence.insufficientRecall,
+          historySearches,
+          discarded: [...prepared.discardedFields, ...grounded.rejected],
+          mode: configuredMode(),
+          preparation: input.recoverSavedAnswers
+            ? {
+                status: changes.length ? 'ready' : 'no_changes',
+                changes: changes.length,
+                modelRecords: result.records.length,
+                acceptedRecords: grounded.records.length,
+                rejectedRecords: grounded.rejectedDetails,
+                repairedRecords: grounded.repairs,
+                discardedFields: prepared.discardedFields,
+              }
+            : undefined,
+        };
+        return changes;
       };
+      let changes: any[] = [];
+      const useTurnGraph =
+        input.mode === 'build' &&
+        !input.retryMessageId &&
+        !input.recoverSavedAnswers &&
+        !discussionOnly;
+      if (!useTurnGraph) changes = await extractPipeline();
+      else {
+        processingStage = 'turn-graph';
+        const turnProfile = interviewProfile(t, input.currentProfile);
+        const turn = await runProfileTurn({
+          text: input.text,
+          mode: configuredMode(),
+          history: messages
+            .filter((m: any) => ['user', 'assistant'].includes(m.role))
+            .slice(-8)
+            .map((m: any) => ({
+              role: m.role,
+              text: String(m.text || ''),
+              questions: m.questions,
+              questionKey: m.questionKey ?? null,
+            })),
+          pending: previousState.question,
+          known: Object.fromEntries(
+            (['name', 'goals', 'location', 'education'] as const)
+              .filter((k) => typeof (turnProfile as any)[k] === 'string' && (turnProfile as any)[k])
+              .map((k) => [k, String((turnProfile as any)[k]).slice(0, 200)]),
+          ),
+          extract: async (perception) => {
+            changes = await extractPipeline({
+              intent: perception.intent,
+              addressesPending: perception.addressesPending,
+            });
+            return {
+              reply: response.text,
+              question: response.questions?.[0] || null,
+              questionKey: response.questionKey ?? null,
+              changed: changes.length > 0,
+            };
+          },
+          nextQuestion: (parked) =>
+            planInterview(turnProfile, {
+              ...previousState,
+              skipped: [...new Set([...(previousState.skipped || []), ...parked])],
+            }).state.question,
+        });
+        if (turn.plan.route === 'converse') {
+          const parked = turn.plan.parked;
+          const state = parked.length
+            ? planInterview(turnProfile, {
+                ...previousState,
+                skipped: [...new Set([...(previousState.skipped || []), ...parked])],
+                parked: [...new Set([...(previousState.parked || []), ...parked])],
+              }).state
+            : previousState;
+          response = {
+            id: randomUUID(),
+            role: 'assistant',
+            at: new Date().toISOString(),
+            text: turn.draft.reply,
+            questions: turn.draft.question ? [turn.draft.question] : [],
+            questionKey: turn.draft.questionKey,
+            interviewState: state,
+            mode: configuredMode(),
+          };
+        } else {
+          response.text = turn.draft.reply;
+          response.questions = turn.draft.question ? [turn.draft.question] : [];
+        }
+        response.turn = summariseTurn(turn);
+      }
       await db.profileThread.updateMany({
         where: { id: t.id, userId, busyToken: token },
         data: {

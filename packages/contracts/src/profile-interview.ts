@@ -13,6 +13,8 @@ export type InterviewState = {
   closed: string[];
   addressed: string[];
   skipped?: string[];
+  /** Questions set aside after repeated non-answers or frustration (CFS-144); also in skipped. */
+  parked?: string[];
   outcomeReviewed?: string[];
   inventoryBaseline?: string[];
   question: { key: string; text: string } | null;

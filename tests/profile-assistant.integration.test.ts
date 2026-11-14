@@ -257,7 +257,7 @@ describe('Persistent profile conversations', () => {
     );
     expect(result.map((r) => r.status).sort()).toEqual([200, 409]);
   });
-  it('answers small talk and keeps the pending question open (CFS-143)', async () => {
+  it('answers small talk and keeps the pending question open (CFS-143, CFS-144)', async () => {
     const c = await client(true);
     const form = structuredClone(blankProfile);
     const t = await c.request('/profile-threads', 'POST', { currentProfile: form });
@@ -279,19 +279,25 @@ describe('Persistent profile conversations', () => {
         spy.mockRestore();
       }
     };
-    const hello = await say('hello!', 'Hi! Nice to meet you.');
+    // Demo mode: the turn graph's rules see small talk and reply without the extraction model.
+    const hello = await say('hello!', 'unused');
     const first = hello.body.messages.at(-1);
-    expect(first.text).toContain('Hi! Nice to meet you.');
+    expect(first.text).toMatch(/one question at a time/);
     expect(first.text).not.toContain('Your message is retained');
+    expect(first.turn).toMatchObject({ intent: 'small_talk', route: 'converse', source: 'rules' });
     const who = await say(
       'Who are you and what can you do',
       'I am the Profile Builder. I ask one question at a time and nothing is used until you approve it.',
     );
     const second = who.body.messages.at(-1);
-    expect(second.text).toContain('I am the Profile Builder');
+    expect(second.text).toContain('Profile Builder');
+    expect(second.turn).toMatchObject({ intent: 'question', route: 'converse' });
     // Neither message answered the opening question, so it is asked again rather than skipped.
-    expect(second.questions).toEqual(first.questions);
+    expect(second.questionKey).toBe('profile:goals');
+    expect(second.questionKey).toBe(first.questionKey);
     expect(second.questions[0]).toMatch(/career direction/);
+    // The opening message counts as the first ask, so the third ask offers a skip.
+    expect(second.questions[0]).toMatch(/skip/i);
   });
   it('keeps a Chinese education record when the model invents an optional start month', async () => {
     const c = await client();
