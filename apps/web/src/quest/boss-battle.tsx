@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, Flag, Swords } from 'lucide-react';
 import { XP_RULES } from './progress.js';
-import { ReadAloud, SpeakAnswer } from './voice.js';
+import { ReadAloud, RecordAnswer, SpeakAnswer } from './voice.js';
 import { VoiceInterviewer } from './voice-interviewer.js';
 
 type Mark = 'critical' | 'hit' | 'partial' | 'miss';
@@ -109,7 +109,13 @@ export function QuestBossBattle({
   onRound,
   onFinish,
   startVoice,
+  transcribe,
+  voiceStatus,
 }: {
+  /** Which voice features the project can use; hides the ones it cannot (CFS-139). */
+  voiceStatus?: () => Promise<{ realtime: boolean; transcribe: boolean }>;
+  /** Live mode only: server transcription of a recorded answer (CFS-139). */
+  transcribe?: (audio: Blob) => Promise<string>;
   /** Live mode only: a key for the realtime voice interviewer (CFS-136). */
   startVoice?: () => Promise<any>;
   mission: any;
@@ -118,6 +124,12 @@ export function QuestBossBattle({
   onFinish: (endedEarly: boolean) => Promise<void>;
 }) {
   const d = m.data || {};
+  const [voice, setVoice] = useState<{ realtime: boolean; transcribe: boolean } | null>(null);
+  useEffect(() => {
+    voiceStatus?.()
+      .then(setVoice)
+      .catch(() => setVoice({ realtime: false, transcribe: false }));
+  }, []);
   const questions: { id: string; question: string; focus: string }[] = d.questions || [];
   const rounds: Round[] = d.rounds || [];
   const live = m.status === 'AWAITING_INTERVIEW';
@@ -258,7 +270,7 @@ export function QuestBossBattle({
                 You answered this one. Answer again to replace it, or pick another question.
               </p>
             ) : null}
-            {startVoice && !pendingFollow && (
+            {startVoice && voice?.realtime && !pendingFollow && (
               <VoiceInterviewer
                 start={startVoice}
                 disabled={busy}
@@ -276,10 +288,18 @@ export function QuestBossBattle({
                 placeholder="Situation, what you were asked to do, what you personally did, and what changed. Real experience only."
               />
             </label>
-            <SpeakAnswer
-              disabled={busy}
-              onText={(words) => setText((t) => (t ? `${t} ` : '') + words)}
-            />
+            {transcribe && voice?.transcribe ? (
+              <RecordAnswer
+                disabled={busy}
+                transcribe={transcribe}
+                onText={(words) => setText((t) => (t ? `${t} ` : '') + words)}
+              />
+            ) : (
+              <SpeakAnswer
+                disabled={busy}
+                onText={(words) => setText((t) => (t ? `${t} ` : '') + words)}
+              />
+            )}
             {showChoices && (
               <div className="boss-items">
                 <span>Use an item</span>

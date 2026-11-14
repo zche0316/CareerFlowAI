@@ -1,4 +1,4 @@
-import type { Express } from 'express';
+import express, { type Express } from 'express';
 import { db } from './db.js';
 import { json, ownedMission, type MissionData } from './domain.js';
 import { AppError } from './errors.js';
@@ -62,7 +62,8 @@ export async function createVoiceSession(
       `This practice run has used its ${VOICE_SESSIONS_PER_RUN} voice sessions. Type your answers, or start another practice run.`,
     );
   const model = process.env.OPENAI_REALTIME_MODEL?.trim() || 'gpt-realtime-2.1';
-  const transcriber = process.env.OPENAI_TRANSCRIBE_MODEL?.trim() || 'gpt-4o-mini-transcribe';
+  const transcriber =
+    process.env.OPENAI_REALTIME_TRANSCRIBE_MODEL?.trim() || 'gpt-4o-mini-transcribe';
   // The secret is issued even for a model the project cannot use; the call then fails with 403.
   // Check access first so the user gets a clear reason and the attempt is not counted (CFS-138).
   const missing = await missingModels([model, transcriber], key, fetcher);
@@ -70,7 +71,7 @@ export async function createVoiceSession(
     throw new AppError(
       409,
       'VOICE_MODEL_UNAVAILABLE',
-      `This OpenAI project has no access to ${missing.join(' and ')}. Enable ${missing.length > 1 ? 'them' : 'it'} for the project, or set OPENAI_REALTIME_MODEL / OPENAI_TRANSCRIBE_MODEL to models it can use. Type your answers meanwhile.`,
+      `This OpenAI project has no access to ${missing.join(' and ')}. Enable ${missing.length > 1 ? 'them' : 'it'} for the project, or set OPENAI_REALTIME_MODEL / OPENAI_REALTIME_TRANSCRIBE_MODEL to models it can use. Type your answers meanwhile.`,
     );
   let response: Response;
   try {
@@ -143,8 +144,146 @@ async function missingModels(ids: string[], key: string, fetcher: typeof fetch) 
   return out;
 }
 
+let statusCache: { at: number; value: { realtime: boolean; transcribe: boolean } } | null = null;
+
+/** Which voice features this deployment's OpenAI project can use; cached for an hour. */
+export async function voiceStatus(fetcher: typeof fetch = fetch) {
+  const key = process.env.OPENAI_NATIVE_API_KEY?.trim();
+  if (configuredMode() === 'fixture' || !key) return { realtime: false, transcribe: false };
+  if (statusCache && Date.now() - statusCache.at < 3600_000) return statusCache.value;
+  const realtime = process.env.OPENAI_REALTIME_MODEL?.trim() || 'gpt-realtime-2.1';
+  const realtimeTranscriber =
+    process.env.OPENAI_REALTIME_TRANSCRIBE_MODEL?.trim() || 'gpt-4o-mini-transcribe';
+  const transcriber = process.env.OPENAI_TRANSCRIBE_MODEL?.trim() || 'gpt-transcribe';
+  const missing = await missingModels([realtime, realtimeTranscriber, transcriber], key, fetcher);
+  const value = {
+    realtime: !missing.includes(realtime) && !missing.includes(realtimeTranscriber),
+    transcribe: !missing.includes(transcriber),
+  };
+  statusCache = { at: Date.now(), value };
+  return value;
+}
+
 export function registerVoiceInterview(app: Express) {
+  app.get('/api/voice/status', async (_req, res) => res.json(await voiceStatus()));
   app.post('/api/missions/:id/voice-session', async (req, res) =>
     res.json(await createVoiceSession(req.actor!.id, String(req.params.id))),
+  );
+}
+
+// ---- Recorded answers (CFS-139) ----------------------------------------------------------------
+// One spoken answer, recorded in the browser, is sent here and forwarded to the transcription API.
+// The audio stays in memory for that request only; the text goes back to the editable answer box.
+
+export const TRANSCRIPTIONS_PER_RUN = 40;
+export const MAX_AUDIO_BYTES = 8 * 1024 * 1024;
+const audioTypes = /^audio\/(webm|ogg|mp4|mpeg|mp3|m4a|wav|x-wav|x-m4a)(;.*)?$/i;
+
+export async function transcribeAnswer(
+  userId: string,
+  missionId: string,
+  audio: Buffer,
+  contentType: string,
+  fetcher: typeof fetch = fetch,
+) {
+  if (configuredMode() === 'fixture')
+    throw new AppError(409, 'LIVE_ONLY', 'Recorded answers are transcribed in live mode only.');
+  const key = process.env.OPENAI_NATIVE_API_KEY?.trim();
+  if (!key)
+    throw new AppError(503, 'TRANSCRIBE_UNAVAILABLE', 'Transcription is not configured here.');
+  if (!audioTypes.test(contentType || ''))
+    throw new AppError(
+      415,
+      'AUDIO_TYPE',
+      'Send the recording as audio (webm, ogg, mp4, mp3 or wav).',
+    );
+  if (!audio.length) throw new AppError(422, 'AUDIO_EMPTY', 'The recording was empty.');
+  if (audio.length > MAX_AUDIO_BYTES)
+    throw new AppError(413, 'AUDIO_TOO_LARGE', 'Keep one answer under about five minutes.');
+  const m = await ownedMission(userId, missionId);
+  const d = m.data as MissionData;
+  if (m.status !== 'AWAITING_INTERVIEW')
+    throw new AppError(409, 'INTERVIEW_NOT_READY', 'Record answers while the interview is open.');
+  const used = d.transcriptions || { count: 0, seconds: 0 };
+  if (used.count >= TRANSCRIPTIONS_PER_RUN)
+    throw new AppError(
+      429,
+      'TRANSCRIBE_LIMIT',
+      'This practice run has reached its recording limit. Type your answers.',
+    );
+  const model = process.env.OPENAI_TRANSCRIBE_MODEL?.trim() || 'gpt-transcribe';
+  const ext = /wav/i.test(contentType)
+    ? 'wav'
+    : /mp4|m4a/i.test(contentType)
+      ? 'm4a'
+      : /mpeg|mp3/i.test(contentType)
+        ? 'mp3'
+        : /ogg/i.test(contentType)
+          ? 'ogg'
+          : 'webm';
+  const form = new FormData();
+  form.append('model', model);
+  form.append('language', 'en');
+  form.append(
+    'file',
+    new Blob([new Uint8Array(audio)], { type: contentType.split(';')[0] }),
+    `answer.${ext}`,
+  );
+  let response: Response;
+  try {
+    response = await fetcher(`${OPENAI}/audio/transcriptions`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}` },
+      body: form,
+      signal: AbortSignal.timeout(60000),
+    });
+  } catch {
+    throw new AppError(
+      503,
+      'TRANSCRIBE_UNAVAILABLE',
+      'The transcription service could not be reached. Type your answer instead.',
+    );
+  }
+  if (!response.ok)
+    throw new AppError(
+      502,
+      'TRANSCRIBE_UNAVAILABLE',
+      `The transcription service refused the recording (${response.status}). Type your answer instead.`,
+    );
+  const result = (await response.json()) as { text?: string; usage?: { seconds?: number } };
+  const text = String(result.text || '').trim();
+  await db.mission.update({
+    where: { id: m.id },
+    data: {
+      data: json({
+        ...d,
+        transcriptions: {
+          count: used.count + 1,
+          seconds: used.seconds + Math.round(result.usage?.seconds || 0),
+          model,
+        },
+      }),
+    },
+  });
+  return {
+    text,
+    seconds: result.usage?.seconds ?? null,
+    remaining: TRANSCRIPTIONS_PER_RUN - used.count - 1,
+  };
+}
+
+export function registerTranscription(app: Express) {
+  app.post(
+    '/api/missions/:id/transcribe',
+    express.raw({ type: 'audio/*', limit: MAX_AUDIO_BYTES }),
+    async (req, res) =>
+      res.json(
+        await transcribeAnswer(
+          req.actor!.id,
+          String(req.params.id),
+          Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0),
+          String(req.headers['content-type'] || ''),
+        ),
+      ),
   );
 }

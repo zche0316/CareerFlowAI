@@ -98,6 +98,8 @@ off it.
 | GET    | `/api/missions/:id`                          | Run state, results and events                                                                               |
 | POST   | `/api/missions/:id/decisions`                | Human decision: choose a role, answer the evidence question, approve or return a draft, finish an interview |
 | POST   | `/api/missions/:id/voice-session`            | Short-lived key for a live voice interview (live mode only)                                                 |
+| GET    | `/api/voice/status`                          | Whether live voice interview and recorded-answer transcription are available                                |
+| POST   | `/api/missions/:id/transcribe`               | Transcribe one recorded answer (audio body; live mode only; not stored)                                     |
 | POST   | `/api/missions/:id/cancel`                   | Cancel a run                                                                                                |
 | POST   | `/api/missions/:id/retry`                    | Retry a failed step                                                                                         |
 | GET    | `/api/missions/:id/save-points`              | Checkpoints of the run                                                                                      |

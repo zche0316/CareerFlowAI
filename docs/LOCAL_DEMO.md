@@ -75,7 +75,9 @@ Rehearse in fixture mode, then run once in live mode the day before a demo.
 - Scout leads from sites it may not read (SEEK, LinkedIn) need the advertisement pasted; leads are
   not filtered by seniority.
 - The live voice interviewer needs an OpenAI project with access to a realtime model and a
-  transcription model; set `OPENAI_REALTIME_MODEL` and `OPENAI_TRANSCRIBE_MODEL` to ones it can use.
+  transcription model; set `OPENAI_REALTIME_MODEL` and `OPENAI_REALTIME_TRANSCRIBE_MODEL` to ones it can use.
+  Recorded answers (CFS-139) need only a transcription model (`OPENAI_TRANSCRIBE_MODEL`, default
+  `gpt-transcribe`).
   Not yet run end to end with a microphone.
 - The daily Scout schedule and the LangSmith passthrough have not been observed live.
 - External profile sources were tested against recorded responses, not the live services.

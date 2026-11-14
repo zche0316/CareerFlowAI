@@ -132,3 +132,104 @@ export function SpeakAnswer({
     </div>
   );
 }
+
+/**
+ * Record one spoken answer and have the server transcribe it (CFS-139, live mode). Works in any
+ * browser with a microphone; the words land in the editable answer box and nothing is submitted.
+ */
+export function RecordAnswer({
+  disabled,
+  transcribe,
+  onText,
+}: {
+  disabled?: boolean;
+  transcribe: (audio: Blob) => Promise<string>;
+  onText: (text: string) => void;
+}) {
+  const [state, setState] = useState<'idle' | 'recording' | 'transcribing'>('idle');
+  const [seconds, setSeconds] = useState(0);
+  const [error, setError] = useState('');
+  const rec = useRef<MediaRecorder | null>(null);
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current) clearInterval(timer.current);
+      rec.current?.stream.getTracks().forEach((t) => t.stop());
+    },
+    [],
+  );
+  if (typeof window === 'undefined' || !('MediaRecorder' in window) || !navigator.mediaDevices)
+    return null;
+  const start = async () => {
+    setError('');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const type = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/ogg'].find((t) =>
+        MediaRecorder.isTypeSupported(t),
+      );
+      const r = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
+      const chunks: Blob[] = [];
+      r.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+      r.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        if (timer.current) clearInterval(timer.current);
+        setState('transcribing');
+        try {
+          const text = await transcribe(new Blob(chunks, { type: r.mimeType || 'audio/webm' }));
+          if (text) onText(text);
+          else setError('No speech was recognised. Try again closer to the microphone.');
+        } catch (e) {
+          setError((e as Error).message);
+        } finally {
+          setState('idle');
+        }
+      };
+      rec.current = r;
+      r.start();
+      setSeconds(0);
+      setState('recording');
+      timer.current = setInterval(
+        () =>
+          setSeconds((t) => {
+            // About five minutes keeps one answer under the upload limit.
+            if (t + 1 >= 290) r.stop();
+            return t + 1;
+          }),
+        1000,
+      );
+    } catch (e) {
+      setError(
+        (e as Error).name === 'NotAllowedError'
+          ? 'Microphone access was blocked. Allow it in the browser, or type your answer.'
+          : (e as Error).message,
+      );
+    }
+  };
+  return (
+    <div className="voice-input">
+      <button
+        type="button"
+        className={`quest-press${state === 'recording' ? ' lime' : ''}`}
+        disabled={(disabled && state !== 'recording') || state === 'transcribing'}
+        aria-pressed={state === 'recording'}
+        onClick={state === 'recording' ? () => rec.current?.stop() : start}
+      >
+        {state === 'recording' ? <Square size={15} /> : <Mic size={15} />}
+        {state === 'recording'
+          ? `Stop · ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+          : state === 'transcribing'
+            ? 'Transcribing…'
+            : 'Record your answer'}
+      </button>
+      <small className="muted">
+        Your recording is transcribed and then discarded; the text appears below for you to edit
+        before you submit.
+      </small>
+      {error && (
+        <small role="alert" className="voice-error">
+          {error}
+        </small>
+      )}
+    </div>
+  );
+}

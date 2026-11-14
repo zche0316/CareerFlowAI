@@ -285,7 +285,16 @@ says there is no model cost.
   says "Question N" before each question so answers are filed under the right one, and on "End
   and score my answers" (or after 10 minutes, enforced in the browser) each answer's transcript is
   submitted as an interview round and scored by the Evaluator. At most three sessions per practice
-  run; no audio is stored.
+  run; no audio is stored. The session first checks that the project can use the realtime and
+  transcription models (`OPENAI_REALTIME_MODEL`, `OPENAI_REALTIME_TRANSCRIBE_MODEL`) and says which
+  are missing (CFS-138).
+- Recorded answers (CFS-139): in live mode "Record your answer" records one answer with
+  MediaRecorder; `POST /api/missions/:id/transcribe` forwards the audio (up to 8 MB, 40 per run) to
+  `/v1/audio/transcriptions` with `OPENAI_TRANSCRIBE_MODEL` (default `gpt-transcribe`) and returns
+  the text into the editable answer box. The audio lives only in that request; the run keeps a
+  count and the transcribed seconds. `GET /api/voice/status` (cached for an hour) tells the page
+  which of the two voice features the project can use, so unavailable ones are hidden. Browser
+  dictation stays for rehearsal mode.
 
 ## Party personas (CFS-132)
 
