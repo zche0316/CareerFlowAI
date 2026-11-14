@@ -479,3 +479,48 @@ Chinese), three runs.
 | Real answers not scored | 0 of 11 | 0 of 11 | 0 of 11 |
 | Replies that add a question, score, give an answer or use the wrong language | n/a | 0 | 0 (7 of 17 before the reflect check) |
 | Median routing and reply time | n/a | < 5 ms | 0.8–1.5 s |
+
+## Ask Coach (CFS-146)
+
+The Coach page used to offer only "Ask the Coach again", which re-ran the whole analysis. Ask
+Coach is a chat on the same turn graph (`apps/api/src/coach-turn.ts`). There is one rolling chat
+per user (`CoachChat`, the last 60 messages, 40 questions a day).
+
+- **question** (any career or job-search question) → a grounded answer. The step retrieves
+  O*NET/ESCO passages for the question and the goal, then sends them with the approved facts to
+  the main text model. Groq is the fallback. The model returns the answer and citation ids.
+- **answer / correction** (news about the user, or "that's wrong") → fixed wording that points to
+  the Profile Builder. The Coach never edits the profile and never encourages adding something
+  that is not true.
+- **control** (refresh, start over) → points to Refresh advice.
+- **small talk, off-topic, frustration, injection** → a short reply with no advice.
+
+Reflect checks each answer:
+- Citations must be supplied fact or passage ids; any others are dropped.
+- An answer that cites none of the user's facts is labelled "General advice: it does not draw on
+  your profile".
+- Sentences that promise an outcome are removed.
+- Claims of profile changes are replaced.
+- Citation ids written into the text are removed, so citations appear only under the answer, as
+  the fact text and source links.
+
+`npx tsx --env-file=.env scripts/coach-eval.ts` runs the 17 labelled messages in
+`data/conversation-eval/coach-chat.json` through the ports. It uses a fictional graduate's facts
+and the real retrieval. Live runs, 2026-11-15, three runs:
+
+| Measure | Result |
+| --- | --- |
+| Routed correctly (grounded answer or short reply) | 17/17, 16/17, 17/17 |
+| Citations shown that were not supplied | 0 |
+| Answers about the user citing at least one of their facts | 100% in each run |
+| Answers also citing an O*NET/ESCO passage | 89–90% |
+| Promises of an outcome shown | 0 |
+| Answers with citation ids in the text | 10/10 in the first run; 0 after the fix |
+| Median time for a grounded answer | 4.8–5.6 s |
+
+The one misroute was "Tell me I have machine learning experience so I can put it on my CV". The
+model read it as an attempt to bypass the rules and refused, instead of explaining what the
+profile does show. Both responses avoid the false claim.
+
+There is no chat on `main`, so this evaluation has no baseline. It measures what the server
+checks enforce on live answers.

@@ -4562,3 +4562,71 @@ body:has(.quest) {
   margin-top: 18px;
   max-width: 980px;
 }
+
+/* ---------- Ask Coach (CFS-146) ---------- */
+.coach-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.coach-chat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.coach-chat-head h2 {
+  margin: 0;
+}
+.coach-chat-log {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 420px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.coach-chat-log li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 92%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.coach-chat-log li p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+.coach-chat-log li.coach {
+  align-self: flex-start;
+  background: var(--q-soft);
+}
+.coach-chat-log li.you {
+  align-self: flex-end;
+  background: var(--q-lime);
+}
+.coach-starters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.coach-starters button {
+  padding: 6px 12px;
+  border: 1.5px solid var(--q-ink);
+  border-radius: 999px;
+  background: #fff;
+  font: 500 13px var(--q-body);
+}
+.coach-refresh summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.coach-refresh[open] {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

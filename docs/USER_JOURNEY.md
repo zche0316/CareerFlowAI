@@ -55,7 +55,10 @@ Avatar → **Character**.
 ## 4. See what the market asks for (optional)
 
 - **Coach** (Home card or More → Coach) gives strengths, gaps and next steps for your approved
-  profile, citing your facts and O\*NET or ESCO occupation descriptions.
+  profile, citing your facts and O\*NET or ESCO occupation descriptions. **Ask Coach** on that
+  page answers your own questions ("Which roles fit me?", "What should I learn next?"); each
+  answer lists the facts and sources it used. Telling it news about yourself points you to the
+  Profile Builder; the Coach never edits your profile.
 - **World** shows what each region asks for and lets you change where the next search runs.
 
 ## 5. Find roles
@@ -81,7 +84,9 @@ role at any time.
 
 ## 7. Practise the interview
 
-On **Interview practice** you get questions for the role. For each one you can:
+On **Interview practice** you get questions for the role. Asking "what do you mean?" or "can you
+repeat that?" gets a reply from the panel without a score; "skip" moves on. For each question
+you can:
 
 - type the answer;
 - **Record your answer** (live mode): the recording is transcribed, the text appears for you to

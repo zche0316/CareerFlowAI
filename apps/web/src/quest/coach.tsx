@@ -254,27 +254,30 @@ export function CoachPage({
           )}
         </section>
         <aside className="quest-tile coach-ask" aria-labelledby="coach-ask">
-          <h2 id="coach-ask">Ask the Coach again</h2>
-          <label>
-            What should the Coach revisit?
-            <textarea
-              value={feedback}
-              maxLength={2000}
-              placeholder="For example: focus on data engineering roles, or explain why a direction fits."
-              onChange={(e) => setFeedback(e.target.value)}
-            />
-          </label>
-          <button
-            type="button"
-            className="quest-press lime ql-go"
-            disabled={busy}
-            onClick={refresh}
-          >
-            <RefreshCw size={15} strokeWidth={2.6} />
-            {busy ? 'Coach is reading…' : 'Refresh advice'}
-          </button>
-          <RunEstimate kind="coach" />
-          <small className="muted">The previous advice stays saved.</small>
+          <AskCoach request={request} />
+          <details className="coach-refresh">
+            <summary>Refresh the whole analysis</summary>
+            <label>
+              What should the Coach revisit?
+              <textarea
+                value={feedback}
+                maxLength={2000}
+                placeholder="For example: focus on data engineering roles."
+                onChange={(e) => setFeedback(e.target.value)}
+              />
+            </label>
+            <button
+              type="button"
+              className="quest-press lime ql-go"
+              disabled={busy}
+              onClick={refresh}
+            >
+              <RefreshCw size={15} strokeWidth={2.6} />
+              {busy ? 'Coach is reading…' : 'Refresh advice'}
+            </button>
+            <RunEstimate kind="coach" />
+            <small className="muted">The previous advice stays saved.</small>
+          </details>
           {error && <p role="alert">{error}</p>}
           <button type="button" className="auth-switch" onClick={onProfile}>
             Add evidence to my profile
@@ -301,6 +304,112 @@ export function CoachPage({
   );
 }
 
+const starters = [
+  'Which roles fit my profile best?',
+  'What should I learn next for my goal?',
+  'How do I explain a career change in interviews?',
+];
+
+/**
+ * Ask Coach (CFS-146): a chat on the conversation turn graph. Career questions get answers that
+ * cite your approved facts and public occupation sources; other messages get a short reply.
+ */
+function AskCoach({
+  request,
+}: {
+  request: (path: string, method?: string, body?: unknown) => Promise<any>;
+}) {
+  const [chat, setChat] = useState<{ messages: any[]; sources: any } | null>(null);
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    request('/coach/chat')
+      .then(setChat)
+      .catch(() => setChat({ messages: [], sources: null }));
+  }, []);
+  const send = async (message: string) => {
+    if (!message.trim() || busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      setChat(await request('/coach/chat', 'POST', { text: message.trim() }));
+      setText('');
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const messages = chat?.messages || [];
+  return (
+    <section className="coach-chat" aria-labelledby="coach-ask">
+      <div className="coach-chat-head">
+        <h2 id="coach-ask">Ask Coach</h2>
+        {messages.length > 0 && (
+          <button
+            type="button"
+            className="text-button"
+            disabled={busy}
+            onClick={async () => setChat(await request('/coach/chat/clear', 'POST'))}
+          >
+            Clear
+          </button>
+        )}
+      </div>
+      <ol className="coach-chat-log" aria-label="Ask Coach conversation">
+        {messages.map((m) => (
+          <li key={m.id} className={m.role === 'coach' ? 'coach' : 'you'}>
+            <p>{m.text}</p>
+            {m.role === 'coach' && m.general && (
+              <small className="muted">General advice: it does not draw on your profile.</small>
+            )}
+            {m.role === 'coach' && m.citations?.length > 0 && (
+              <CoachCitations ids={m.citations} sources={chat?.sources} />
+            )}
+          </li>
+        ))}
+        {busy && (
+          <li className="coach" role="status">
+            <p>Thinking…</p>
+          </li>
+        )}
+      </ol>
+      {messages.length === 0 && (
+        <div className="coach-starters">
+          {starters.map((s) => (
+            <button key={s} type="button" disabled={busy} onClick={() => send(s)}>
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+      <label>
+        Your question
+        <textarea
+          value={text}
+          maxLength={2000}
+          disabled={busy}
+          placeholder="Ask about roles, skills, applications or interviews."
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') void send(text);
+          }}
+        />
+      </label>
+      <button
+        type="button"
+        className="quest-press ql-go"
+        disabled={busy || !text.trim()}
+        onClick={() => send(text)}
+      >
+        <ArrowRight size={15} strokeWidth={2.6} /> Ask
+      </button>
+      {error && <p role="alert">{error}</p>}
+    </section>
+  );
+}
+
 // Your evidence and the public sources a point cites, kept apart (CFS-125).
 function CoachCitations({ ids, sources }: { ids: string[]; sources: any }) {
   const isSource = (id: string) => /^(onet|esco):/.test(id);
@@ -311,7 +420,12 @@ function CoachCitations({ ids, sources }: { ids: string[]; sources: any }) {
     .filter(Boolean);
   return (
     <>
-      {facts.length > 0 && <small className="muted">Your evidence: {facts.join(', ')}</small>}
+      {facts.length > 0 && (
+        <small className="muted">
+          Your evidence:{' '}
+          {facts.map((id) => sources?.facts?.find((f: any) => f.id === id)?.text || id).join(' · ')}
+        </small>
+      )}
       {refs.length > 0 && (
         <small className="coach-refs">
           Source:{' '}

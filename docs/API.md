@@ -75,20 +75,23 @@ Drafts are proposals; a profile version exists only after explicit approval.
 An application is one role the user is pursuing. Runs, resumes and practice for that role hang
 off it.
 
-| Method | Path                             | Purpose                                                         |
-| ------ | -------------------------------- | --------------------------------------------------------------- |
-| GET    | `/api/applications`              | The role board: stage, runs, resumes, level gaps                |
-| POST   | `/api/applications`              | Add a role from a public link or a pasted advertisement         |
-| POST   | `/api/applications/recheck`      | Re-check tracked listings not checked in the last 20 hours      |
-| PATCH  | `/api/applications/:id`          | Record a status (saved to closed) or notes, with history        |
-| DELETE | `/api/applications/:id`          | Remove a role that has no runs                                  |
-| POST   | `/api/applications/:id/runs`     | Tailor a resume for the role with the current profile           |
-| POST   | `/api/applications/:id/practice` | Interview-only run with the role's approved resume              |
-| POST   | `/api/missions/:id/saved-roles`  | Save a role from a run's shortlist to the board                 |
-| GET    | `/api/insights`                  | Market insight for `country` and role `family` from found roles |
-| GET    | `/api/coach`                     | Coach advice for the profile version and next steps             |
-| POST   | `/api/coach/refresh`             | Ask the Coach again, optionally with what to revisit (one call) |
-| GET    | `/api/estimates`                 | Expected model calls and tokens per run kind (live mode only)   |
+| Method | Path                             | Purpose                                                                                     |
+| ------ | -------------------------------- | ------------------------------------------------------------------------------------------- |
+| GET    | `/api/applications`              | The role board: stage, runs, resumes, level gaps                                            |
+| POST   | `/api/applications`              | Add a role from a public link or a pasted advertisement                                     |
+| POST   | `/api/applications/recheck`      | Re-check tracked listings not checked in the last 20 hours                                  |
+| PATCH  | `/api/applications/:id`          | Record a status (saved to closed) or notes, with history                                    |
+| DELETE | `/api/applications/:id`          | Remove a role that has no runs                                                              |
+| POST   | `/api/applications/:id/runs`     | Tailor a resume for the role with the current profile                                       |
+| POST   | `/api/applications/:id/practice` | Interview-only run with the role's approved resume                                          |
+| POST   | `/api/missions/:id/saved-roles`  | Save a role from a run's shortlist to the board                                             |
+| GET    | `/api/insights`                  | Market insight for `country` and role `family` from found roles                             |
+| GET    | `/api/coach`                     | Coach advice for the profile version and next steps                                         |
+| POST   | `/api/coach/refresh`             | Ask the Coach again, optionally with what to revisit (one call)                             |
+| GET    | `/api/coach/chat`                | The Ask Coach chat and the public sources it cites                                          |
+| POST   | `/api/coach/chat`                | Ask the Coach one message; grounded answer or short reply through the turn graph (40 a day) |
+| POST   | `/api/coach/chat/clear`          | Clear the Ask Coach chat                                                                    |
+| GET    | `/api/estimates`                 | Expected model calls and tokens per run kind (live mode only)                               |
 
 ## Runs
 

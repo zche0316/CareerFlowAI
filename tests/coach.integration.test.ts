@@ -236,3 +236,52 @@ it('estimates model calls from earlier live runs of the same kind (CFS-124)', as
     await db.mission.deleteMany({ where: { userId } });
   }
 });
+
+it('answers career questions with checked citations and other messages briefly (CFS-146)', async () => {
+  const r = await fetch(base + '/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email: `qa-ask-coach-${crypto.randomUUID()}@careerflow.test`,
+      password: 'Disposable-QA-password',
+      name: 'Ask Coach QA',
+    }),
+  });
+  const data = await r.json();
+  users.push(data.user.id);
+  const cookie = r.headers.get('set-cookie')!.split(';')[0];
+  const call = async (path: string, method = 'GET', body?: unknown) => {
+    const res = await fetch(base + '/api' + path, {
+      method,
+      headers: { cookie, 'Content-Type': 'application/json', 'X-CSRF-Token': data.csrf },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+    return { status: res.status, body: await res.json() };
+  };
+  expect((await call('/coach/chat', 'POST', { text: 'Which roles fit me?' })).status).toBe(409);
+  const draft = await call('/profiles/drafts', 'POST', sampleProfile);
+  await call(`/profiles/drafts/${draft.body.id}/approve`, 'POST', { reviewed: true });
+  expect((await call('/coach/chat')).body.messages).toEqual([]);
+
+  const asked = await call('/coach/chat', 'POST', { text: 'Which data roles fit my profile?' });
+  expect(asked.status).toBe(200);
+  const answer = asked.body.messages.at(-1);
+  expect(answer).toMatchObject({ role: 'coach' });
+  expect(answer.turn).toMatchObject({ intent: 'question', route: 'extract' });
+  // Every citation is an approved fact or a retrieved public source; at least one is the user's.
+  const profile = (await call('/workspace')).body.profile;
+  const factIds = new Set((profile?.facts || []).map((f: any) => f.id));
+  expect(answer.citations.some((id: string) => factIds.has(id))).toBe(true);
+  expect(answer.citations.every((id: string) => factIds.has(id) || /^(onet|esco):/.test(id))).toBe(
+    true,
+  );
+
+  const news = await call('/coach/chat', 'POST', { text: 'I just finished a Python course.' });
+  const ack = news.body.messages.at(-1);
+  expect(ack.turn).toMatchObject({ intent: 'answer', route: 'converse' });
+  expect(ack.text).toMatch(/Profile Builder/);
+  const hello = await call('/coach/chat', 'POST', { text: 'hello' });
+  expect(hello.body.messages.at(-1).turn.intent).toBe('small_talk');
+  expect((await call('/coach/chat')).body.messages).toHaveLength(6);
+  expect((await call('/coach/chat/clear', 'POST')).body.messages).toEqual([]);
+});
