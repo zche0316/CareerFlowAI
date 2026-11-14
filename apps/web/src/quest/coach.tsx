@@ -303,9 +303,10 @@ export function CoachPage({
 
 // Your evidence and the public sources a point cites, kept apart (CFS-125).
 function CoachCitations({ ids, sources }: { ids: string[]; sources: any }) {
-  const facts = ids.filter((id) => !id.startsWith('onet:'));
+  const isSource = (id: string) => /^(onet|esco):/.test(id);
+  const facts = ids.filter((id) => !isSource(id));
   const refs = ids
-    .filter((id) => id.startsWith('onet:'))
+    .filter(isSource)
     .map((id) => sources?.docs?.find((d: any) => d.id === id))
     .filter(Boolean);
   return (
@@ -318,7 +319,7 @@ function CoachCitations({ ids, sources }: { ids: string[]; sources: any }) {
             <span key={d.id}>
               {i > 0 && ', '}
               <a href={d.url} target="_blank" rel="noopener noreferrer">
-                {d.title} (O*NET)
+                {d.title} ({d.source || 'O*NET'})
               </a>
             </span>
           ))}

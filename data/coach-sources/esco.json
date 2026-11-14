@@ -1,0 +1,720 @@
+{
+ "attribution": "This service uses the ESCO classification of the European Commission (retrieved 2026-11-14). CareerFlow has modified it: selected occupations, shortened alternative names and essential-skill lists.",
+ "licence": "Free reuse under Commission Decision 2011/833/EU · https://esco.ec.europa.eu/en/about-esco/data-science-and-esco",
+ "docs": [
+  {
+   "id": "esco:f0ca39a8-1e30-487c-95f9-ef2d5e734adc",
+   "title": "ICT operations manager",
+   "text": "ICT operations managers coordinate ICT services and infrastructure ensuring that the organisation has the required infrastructural resources. They also plan and monitor stages of either a business process or a computer process, negotiate contracts and take mitigation action in case of non-fulfilment of agreements. They oversee the day-to-day tasks involving infrastructure components, ICT systems and software.\nAlso called: ICT data processing manager, data processing manager, ICT operations managers, IT data processing manager, IT process manager.\nEssential skills: manage staff, track key performance indicators, innovation processes, define technology strategy, oversee quality control, use ICT ticketing system, develop ICT workflow, use different communication channels, manage budgets, design process, improve business processes, train employees.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Ff0ca39a8-1e30-487c-95f9-ef2d5e734adc",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:f31f487b-4ce2-40f3-90e8-7d0011b4ef1d",
+   "title": "Software manager",
+   "text": "Software managers oversee the acquisition and development of software systems in order to provide support to all organisational units. They also monitor the results and quality of the different software solutions and projects implemented in the organisation.\nAlso called: applications manager, software managers, ICT applications manager, software applications manager, soft manager.\nEssential skills: manage ICT project, evaluate cost of software products, systems development life-cycle, execute analytical mathematical calculations, manage data, ICT project management methodologies, manage business knowledge, analyse software specifications, create software design, ICT project management, apply ICT system usage policies, organisational policies.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Ff31f487b-4ce2-40f3-90e8-7d0011b4ef1d",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:82f90e87-de92-4678-adae-61d3e5f7e1e4",
+   "title": "Chief information officer",
+   "text": "Chief information officers define and implement the ICT strategy and governance. They determine necessary resources for the ICT strategy implementation, anticipate ICT market evolutions and company business needs. They contribute to the development of the organisation's strategic plan and ensure that the ICT infrastructure supports the organisation's overall operations and priorities.\nAlso called: CIO, IT director, chief information officers.\nEssential skills: software design methodologies, ensure adherence to organisational ICT standards, manage software releases, define technology strategy, implement corporate governance, software architecture models, maintain plan for continuity of operations, monitor technology trends, utilise decision support system, decision support systems, information structure, coordinate technological activities.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F82f90e87-de92-4678-adae-61d3e5f7e1e4",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:8b6388a4-4904-471b-9331-d3b1211f5525",
+   "title": "ICT project manager",
+   "text": "ICT project managers schedule, control and direct the resources, people, funding and facilities to achieve the objectives of ICT projects. They establish budgets and timelines, perform risk analysis and quality management, and complete project closure reports.\nAlso called: IT projects manager, IT project manager, web projects manager, web project manager, ICT project managers.\nEssential skills: create project specifications, apply conflict management, internal risk management policy, estimate duration of work, recruit employees, perform project management, manage staff, quality standards, ICT project management methodologies, provide cost benefit analysis reports, perform risk analysis, manage budgets.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F8b6388a4-4904-471b-9331-d3b1211f5525",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:e8bbc7fd-cfa2-406f-a664-57e5024cfbc5",
+   "title": "ICT vendor relationship manager",
+   "text": "ICT vendor relationship managers establish and maintain positive business relationships between stakeholders (external or internal), by deploying activities which are compliant with organisational processes. They also manage the outsourcing process for the organisation's ICT department and the supply chain communications.\nAlso called: ICT vendor relationships manager, ICT vendor relationship managers, IT vendor relationship manager, IT vendor relations manager, ICT vendor relations manager.\nEssential skills: analyse supply chain strategies, maintain relationship with customers, manage budgets, manage contracts, coordinate purchasing activities, crowdsourcing strategy, contract law, ICT market, maintain relationship with suppliers, prepare purchasing reportings, outsourcing strategy, analyse supply chain trends.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Fe8bbc7fd-cfa2-406f-a664-57e5024cfbc5",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:a79170ad-0b7b-4697-864f-1748359aa10a",
+   "title": "ICT product manager",
+   "text": "ICT product managers analyse and define current and target status for ICT products, services or solutions. They estimate the cost effectiveness, points of risk, opportunities, strengths and weaknesses of products or services provided. ICT product managers create structured plans and establish time scales and milestones, ensuring optimisation of activities and resources.\nAlso called: IT product manager, IT products manager, ICT product managers, ICT products manager, ICT products managers.\nEssential skills: assess ICT knowledge, ICT software specifications, perform market research, product comprehension, ICT market, define technical requirements, ICT hardware specifications, manage budgets, manage schedule of tasks, perform product planning, monitor technology trends, ICT infrastructure.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Fa79170ad-0b7b-4697-864f-1748359aa10a",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:e297ec12-4712-40a4-ad98-ba004cacb205",
+   "title": "Chief data officer",
+   "text": "Chief data officers manage companies' enterprise-wide data administration and data mining functions. They ensure data are used as a strategic business asset at the executive level and implement and support a more collaborative and aligned information management infrastructure for the benefit of the organisation at large.\nAlso called: chief data officers, chief analytics officer, CDO.\nEssential skills: information structure, visual presentation techniques, manage ICT data classification, data mining, decision support systems, manage ICT data architecture, apply information security policies, utilise decision support system, business processes, data storage, define data quality criteria, manage data.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Fe297ec12-4712-40a4-ad98-ba004cacb205",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:810e5e67-acd5-499a-b307-cf5bea330859",
+   "title": "ICT information and knowledge manager",
+   "text": "ICT information and knowledge managers contribute to the definition of organisational information strategy and apply information and knowledge creation, editing, storage, and distribution policies. They manage the maintenance and evolution of structured and unstructured information. They create digital structures to enable exploitation and optimisation of information and knowledge, manage data analysis and enable business intelligence.\nAlso called: ICT information manager, ICT knowledge manager, ICT information and knowledge managers, IT information and knowledge manager, IT information manager.\nEssential skills: create data models, manage business knowledge, analyse the context of an organisation, assess informational needs, information security strategy, information extraction, data models, business processes, manage information sources, information architecture, unstructured data, decision support systems.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F810e5e67-acd5-499a-b307-cf5bea330859",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:5fd2980e-22c4-4ace-a394-190c76f4f539",
+   "title": "ICT documentation manager",
+   "text": "ICT documentation managers are in charge of managing the documentation development process in accordance with legal requirements, standards, organisational policies and goals. They schedule, control and direct the resources, people, funding and facilities of the documentation department (including establishing budgets and timelines, risk analysis and quality management). They also develop documentation standards, structuring methods and media concepts to effectively communicate product concepts and usage.\nAlso called: IT documentation manager, ICT documentation managers, documentation manager, technical communication manager.\nEssential skills: ICT project management, manage budgets, manage content development projects, content development processes, industrial software, develop information standards, manage information sources, identify legal requirements, develop technological improvement strategies, perform resource planning, disseminate internal communications, ensure compliance with legal requirements.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F5fd2980e-22c4-4ace-a394-190c76f4f539",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:3ce4691e-ecea-4278-939e-b89ab01087b8",
+   "title": "Telecommunications manager",
+   "text": "Telecommunications managers coordinate telecommunications staff activities for installing, troubleshooting, repairing and maintaining telecommunications equipment and infrastructure. They oversee the research, evaluation and implementation of new technologies and ensure a safe working environment for the employees. They supervise the inventory of supplies as well as user and customer assistance actions.\nAlso called: telecom manager, telecommunications equipment manager, telecommunications managers, telecommunications installation manager, telecommunications development manager.\nEssential skills: manage budgets, comply with legal regulations, recruit employees, coordinate technological activities, ICT communications protocols, manage staff, use ICT ticketing system, execute ICT audits, implement ICT risk management, service-oriented modelling.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F3ce4691e-ecea-4278-939e-b89ab01087b8",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:7b1b5da8-573a-49bb-a38e-68725a949f4f",
+   "title": "Chief technology officer",
+   "text": "Chief technology officers contribute to a company's technical vision and lead all aspects of technology development, according to its strategic direction and growth objectives. They match technology with business needs.\nAlso called: chief technology officers, IT director, information technology director, CTO.\nEssential skills: review development process of an organisation, utilise decision support system, manage budgets, optimise choice of ICT solution, maintain plan for continuity of operations, implement ICT coding conventions, ICT project management methodologies, administer ICT system, monitor ICT research, lead technology development of an organisation, ICT project management, define technology strategy.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F7b1b5da8-573a-49bb-a38e-68725a949f4f",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:18552245-3c36-4a52-b4c6-295cabb5c93b",
+   "title": "Gambling, betting, and lottery game developer",
+   "text": "Gambling, betting, and lottery game developers create, develop and produce content for new lottery and similar games for large audiences.\nAlso called: gaming, betting, and lottery games developer, betting game designer and producer, game designer and producer, gambling, betting and lottery games designer and producer, betting, lottery and gambling games designer and producer.\nEssential skills: Unity (digital game creation systems), digital game creation systems, id Tech, games rules, follow ethical code of conduct of gambling, use specialised design software, develop virtual game engine, player logic, adapt to changing situations, apply gaming psychology, CryEngine, Unreal Engine.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F18552245-3c36-4a52-b4c6-295cabb5c93b",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:491cf76d-eb0d-4f15-90f0-3f5c9b11472a",
+   "title": "Gambling, betting, and lottery quality assurance engineer",
+   "text": "Gambling, betting and lottery quality assurance engineers design and plan methods to test the gambling, the lottery or betting games. They execute the tests. These games can be both for public or for private audience, and the tests are for both online and land-based gaming.\nAlso called: betting, gambling, and lottery quality controller, gambling, betting, and lottery quality controller, lottery, betting, and gaming quality assurance engineer, lottery, gaming, and betting quality assurance engineer, gaming, betting, and lottery quality assurance engineer.\nEssential skills: follow ethical code of conduct of gambling, perform services in a flexible manner, probability theory, mathematics, attend gaming tests, solve problems in gambling through digital means, report gaming incidents, develop work plans to solve problems, legal standards in gambling.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F491cf76d-eb0d-4f15-90f0-3f5c9b11472a",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:068c2787-58ff-468e-bbb6-c4e5dd6ee482",
+   "title": "Actuarial consultant",
+   "text": "Actuarial consultants analyse, manage and provide guidance on financial impact of risks. They can work in fields related to insurance, pension, investment, banking, healthcare etc. Actuarial consultants apply technical and statistical models and theories to give strategic, commercial, and financial advice.\nAlso called: actuary, consulting actuaries, actuarial advisor, insurance actuaries, actuarial mathematician.\nEssential skills: financial products, obtain financial information, apply statistical analysis techniques, analyse market financial trends, create a financial plan, produce statistical financial records, actuarial science, perform risk analysis, synthesise financial information, statistics, advise on financial matters, provide support in financial calculation.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F068c2787-58ff-468e-bbb6-c4e5dd6ee482",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:72628f3a-fd49-499a-9741-870b0a1fcef2",
+   "title": "Mathematician",
+   "text": "Mathematicians study and deepen existing mathematical theories in order to expand the knowledge and find new paradigms within the field. They can apply this knowledge to challenges presented in engineering and scientific projects in order to assure that measurements, quantities, and mathematic laws prove their viability.\nAlso called: mathematics science researcher, mathematics research scientist, logic researcher, logic scholar, logic science researcher.\nEssential skills: scientific modelling, think analytically, use logical reasoning, study the relationships between quantities, statistics, execute analytical mathematical calculations, apply scientific methods, scientific research methodology, conduct quantitative research, mathematics, create solutions to problems, algebra.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F72628f3a-fd49-499a-9741-870b0a1fcef2",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:ac8b3cd1-a127-4e6a-8208-5cfcf7111955",
+   "title": "Statistician",
+   "text": "Statisticians collect, tabulate, and, most importantly, analyse quantitative information coming from a varied array of fields. They interpret and analyse statistical studies on fields such as health, demographics, finance, business, etc. and advise based on patterns and drawn analysis.\nAlso called: statistics researcher, statistics research analyst, statistic research associate, statistical data analyst, statistical scholar.\nEssential skills: statistics, statistical analysis system software, apply scientific methods, identify statistical patterns, perform data analysis, execute analytical mathematical calculations, think analytically, conduct quantitative research, mathematics, data quality assessment, process data, scientific research methodology.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Fac8b3cd1-a127-4e6a-8208-5cfcf7111955",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:b0f3f595-4965-4f13-ba5c-f6049b62469f",
+   "title": "Biometrician",
+   "text": "Biometricians perform research in the field of biometrics. They carry statistical or biological research projects by measuring fingerprints, retinas, and human shapes for medical or industrial applications.\nAlso called: biometrics science researcher, biometrics analyst, biometric studies researcher, biometricians, biometric studies scholar.\nEssential skills: plan research process, scientific research methodology, execute analytical mathematical calculations, interpret current data, scientific modelling, statistics, perform scientific research, biometrics, apply statistical analysis techniques, develop scientific research protocols, mathematics.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Fb0f3f595-4965-4f13-ba5c-f6049b62469f",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:ff656b3a-65a8-4b4f-b04e-9db12936519b",
+   "title": "Demographer",
+   "text": "Demographers study a variety of parameters related with population. They develop, based on their observations, statistical analyses on the evolutions and changes of births, elderly, marriage and divorce, employment, mortality, immigration and related matters.\nAlso called: demography science researcher, demography scientist, demography research scientist, field demographer, demography studies scholar.\nEssential skills: apply statistical analysis techniques, use a computer, use data processing techniques, statistics, forecast human population trends, study human population, execute analytical mathematical calculations, scientific research methodology, demography, perform scientific research, mathematics, apply scientific methods.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Fff656b3a-65a8-4b4f-b04e-9db12936519b",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:8d586ee9-0ab1-4155-a3b0-2ca786c8e48c",
+   "title": "Financial analyst",
+   "text": "Financial analysts conduct economic research and elicit valuable analyses on financial matters such as profitability, liquidity, solvency, and asset management. They provide recommendations on financial matters for decision-making processes. Financial analysts work in both the public and the private sector.\nAlso called: financial markets report writer, structured finance analyst, financial markets analyst, company analyst, financial markets forecaster.\nEssential skills: business processes, perform business analysis, accounting, statistics, interpret financial statements, advise on financial matters, microeconomics, prepare financial projections, perform business research, financial management, create a financial report, consider economic criteria in decision making.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F8d586ee9-0ab1-4155-a3b0-2ca786c8e48c",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:7a6ca615-a2bc-499d-8288-d186ce2594ea",
+   "title": "Financial risk analyst",
+   "text": "Financial risk analysts correctly identify and review potential risk areas threatening the assets or capital of organisations. They specialise in either credit, market, operational or regulatory risk analysis. They use statistical analysis to evaluate risk, make recommendations to reduce and control risk and review documentation for legal compliance.\nAlso called: credit risk analysts, corporate risk department manager, consortia advisor, operational risk analyst, chief risk officer.\nEssential skills: assessment of risks and threats, financial analysis, advise on risk management, risk transfer, economics, analyse financial risk, financial forecasting, financial management, manage financial risk, create risk maps, create risk reports, financial jurisdiction.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F7a6ca615-a2bc-499d-8288-d186ce2594ea",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:b7f47c25-bdf3-42fa-a68e-ad32754b2dba",
+   "title": "Investment analyst",
+   "text": "Investment analysts undertake research to make informed recommendations to fund managers. They research investments globally but depending on the nature and field of their employer they can specialise in fields like retail, infrastructure, energy, banking and financial services.  They focus on financial and economical information such as the political and economic developments that can impact financial markets, the financial performance of the target companies and use the interpretation of data from different sources to understand how it affects investment decision making.\nAlso called: investment compliance analyst, portfolio analyst, investment accounting analyst, investment banking analyst, investment specialist.\nEssential skills: financial markets, analyse market financial trends, monitor stock market, financial products, provide support in financial calculation, actuarial science, obtain financial information, analyse economic trends, analyse financial performance of a company, stock market, international trade, funding methods.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Fb7f47c25-bdf3-42fa-a68e-ad32754b2dba",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:18d2b37a-9c31-4393-833e-bc2f7b1ce52a",
+   "title": "Mergers and acquisitions analyst",
+   "text": "Mergers and acquisitions analysts oversee the execution of transactions for the purchase, sale, merger or takeover of companies. They negotiate and complete the deal on the client's behalf, by working closely with lawyers and accountants. Mergers and acquisitions analysts conduct operational and legal risk assessments of a company, assess comparable companies in the market and help with the post-merger integration.\nAlso called: mergers and acquisitions professional, acquisitions analyst, mergers analyst, M&A specialist, mergers and acquisitions banker.\nEssential skills: make strategic business decisions, develop investment portfolio, modern portfolio theory, analyse market financial trends, analyse financial risk, analyse financial performance of a company, assess financial viability, manage contracts, provide support in financial calculation, analyse business plans, actuarial science, review investment portfolios.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F18d2b37a-9c31-4393-833e-bc2f7b1ce52a",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:076d23f3-a689-4f1a-8b55-ae870c9aaa85",
+   "title": "Securities analyst",
+   "text": "Securities analysts perform research activities to gather and analyse financial, legal and economic information. They interpret data on the price, stability and future investment trends in a certain economic area and make recommendations and forecasts to business clients.\nAlso called: bonds analyst, securities research analyst, rating analyst, corporate securities research analyst, shares analyst.\nEssential skills: review investment portfolios, collect financial data, obtain financial information, advise on investment, consult information sources, analyse financial risk, modern portfolio theory, financial products, actuarial science, financial markets, develop investment portfolio, analyse economic trends.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F076d23f3-a689-4f1a-8b55-ae870c9aaa85",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:1e331638-3f66-4641-9c49-56a94235f94c",
+   "title": "Insurance rating analyst",
+   "text": "Insurance rating analysts analyse information related to insurance markets and their credit rating, prepare rating reports and invoices, compile financial data and present and explain credit rating opinions to stakeholders, clients and external parties. They work for insurance companies and calculate the insurance premium and rates for the company’s clients using both manual and automated methods.\nAlso called: insurance analyst, insurance assessors, insurance assessor, insurance raters, insurance rater.\nEssential skills: insurance market, types of insurance, analyse loans, credit control processes, actuarial science, advise on financial matters, principles of insurance, synthesise financial information, insurance law, prepare credit reports, obtain financial information, examine credit ratings.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F1e331638-3f66-4641-9c49-56a94235f94c",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:276a4ff1-a67c-4677-9f20-dc85f1060e1b",
+   "title": "Middle office analyst",
+   "text": "Middle office analysts work in the treasury of a financial company, ensuring compliance with company policy and legal legislation, providing research and analysis on financial matters, measuring risk and supporting operations in the front office.\nAlso called: middle office junior manager, senior analyst - control, middle office regulatory reform analyst, middle office specialist, middle office associate.\nEssential skills: comply with legal regulations, conduct qualitative research, analyse financial risk, financial management, handle financial transactions, handle paperwork, office software, provide support in financial calculation, maintain records of financial transactions, banking activities, business processes, execute administration.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F276a4ff1-a67c-4677-9f20-dc85f1060e1b",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:207d7b18-6540-432e-8aa6-785ed434572f",
+   "title": "Business intelligence manager",
+   "text": "Business intelligence managers gain knowledge of the industry, the innovative processes therein, and contrast them with the operations of the company in order to improve them. They focus their analysis in the supply chain processes, warehouses, storage, and sales as to facilitate communication and revenue improvement.\nAlso called: business intelligence managers, business intelligence analyst, business intelligence consultant, business research analyst, competitive intelligence manager.\nEssential skills: ensure compliance with policies, perform data analysis, perform business analysis, advise on efficiency improvements, manage business knowledge, statistics, analyse the context of an organisation, liaise with managers, statistical analysis system software, develop revenue generation strategies, business analysis, organisational policies.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F207d7b18-6540-432e-8aa6-785ed434572f",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:6a29d804-f775-446c-bec7-35fc4e28ac97",
+   "title": "Business consultant",
+   "text": "Business consultants analyse the position, structure and processes of businesses and companies and offer services or advice to improve them. They research and identify business processes such as financial inefficiencies or employee management and devise strategical plans to overcome these difficulties. They work in external consulting firms where they provide an objective view on a business and or company's structure and methodological processes.\nAlso called: business process consultant.\nEssential skills: advise on financial matters, liaise with managers, analyse business plans, align efforts towards business development, identify undetected organisational needs, analyse business objectives, build business relationships, analyse the context of an organisation, business analysis, conduct qualitative research, conduct quantitative research, analyse external factors of companies.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F6a29d804-f775-446c-bec7-35fc4e28ac97",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:60082a99-d8ef-4e84-9290-78902681b6ed",
+   "title": "Business analyst",
+   "text": "Business analysts research and understand the strategic position of businesses and companies in relation to their markets and their stakeholders. They analyse and present their views on how the company, from many perspectives, can improve its strategic position and internal corporate structure. They assess needs for change, communication methods, technology, IT tools, new standards and certifications.\nAlso called: standardisation expert, business strategy analyst, standardization expert, business development analyst, business strategy consultant.\nEssential skills: conduct qualitative research, make strategic business decisions, analyse external factors of companies, market research, build business relationships, risk management, identify undetected organisational needs, analyse financial performance of a company, interpret financial statements, scientific research methodology, perform business analysis, analyse internal factors of companies.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F60082a99-d8ef-4e84-9290-78902681b6ed",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:219d1c30-3849-4de3-b0d6-07da187b6521",
+   "title": "Manufacturing cost estimator",
+   "text": "Manufacturing cost estimators collect and analyse data to evaluate the money, materials, labour and time required for manufacturing processes. They conduct analyses to identify (alternative) cost effective technical designs and production processes. They develop and use methods and tools for cost planning, controlling and analysis. They also perform quantitative and qualitative risk analyses and report on the development of costs.\nAlso called: manufacturing estimate clerk, estimator, production cost estimator, manufacturing cost analyst, manufacturing cost recovery technician.\nEssential skills: execute analytical mathematical calculations, provide cost benefit analysis reports, mathematics, cost management, manufacturing processes, assess financial viability.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F219d1c30-3849-4de3-b0d6-07da187b6521",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:35553663-deab-4d9a-bf22-15c1625d28e8",
+   "title": "ICT intelligent systems designer",
+   "text": "ICT intelligent systems designers apply methods of artificial intelligence in engineering, robotics and computer science to design programs which simulate intelligence including thinking models, cognitive and knowledge-based systems, problem solving, and decision making. They also integrate structured knowledge into computer systems (ontologies, knowledge bases) in order to solve complex problems normally requiring a high level of human expertise or artificial intelligence methods.\nAlso called: AI system designer, linked data engineer, intelligent systems developer, semantic technologies engineer, designer of intelligent systems, machine learning systems designer.\nEssential skills: systems theory, web programming, design application interfaces, manage database, design process, ICT security legislation, information structure, develop creative ideas, systems development life-cycle, database development tools, manage ICT semantic integration, business process modelling.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F35553663-deab-4d9a-bf22-15c1625d28e8",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:2bef94db-0088-4507-982a-2ca717529adb",
+   "title": "Enterprise architect",
+   "text": "Enterprise architects balance technological opportunities with business requirements. They also maintain a holistic view of the organisation's strategy, processes, information and ICT assets and link the business mission, strategy and processes to the ICT strategy.\nAlso called: enterprise developer, enterprise architects, enterprise architecture manager, enterprise designer.\nEssential skills: design enterprise architecture, manage ICT data architecture, align software with system architectures, perform risk analysis, define software architecture, provide ICT consulting advice, execute feasibility study, information architecture, legal requirements of ICT products, object-oriented modelling, collect customer feedback on applications, keep up with the latest information systems solutions.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F2bef94db-0088-4507-982a-2ca717529adb",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:a7c1d23d-aeca-4bee-9a08-5993ed98b135",
+   "title": "ICT system developer",
+   "text": "ICT system developers maintain, audit and improve organisational support systems. They use existing or new technologies to meet particular needs. They test both hardware and software system components, diagnose and resolve system faults.\nAlso called: ICT system developers, ICT systems developer, systems programmer, system developer, component developer.\nEssential skills: use software libraries, migrate existing data, develop software prototype, integrated development environment software, interpret technical texts, ICT debugging tools, use software design patterns, analyse software specifications, tools for software configuration management, ICT system programming, computer programming, ICT system integration.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Fa7c1d23d-aeca-4bee-9a08-5993ed98b135",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:6e92d4b5-3167-4166-802f-da7753951a31",
+   "title": "ICT research consultant",
+   "text": "ICT research consultants perform targeted ICT research and provide a final report to the client. They also use ICT tools to design questionnaires for surveys, analyse the results, write reports, present the results and make recommendations based on the research findings.\nAlso called: IT research consultant, ICT research specialist, ICT research advisor, ICT research consultants, IT research advisor.\nEssential skills: execute ICT user research activities, interact with users to gather requirements, provide technical documentation, apply reverse engineering, conduct literature research, conduct research interview, develop software prototype, provide user documentation, utilise methodologies for user centered design, conduct quantitative research, innovate in ICT, create prototype of user experience solutions.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F6e92d4b5-3167-4166-802f-da7753951a31",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:07e60525-1aad-4099-aaf3-2c7014c92212",
+   "title": "Integration engineer",
+   "text": "Integration engineers develop and implement solutions which coordinate applications across the enterprise or its units and departments. They evaluate existing components or systems to determine integration requirements and ensure that the final solutions meet organisational needs. They reuse components when possible and assist management in taking decisions. They perform ICT system integration troubleshooting.\nAlso called: software integration engineer, ICT integration engineers, IT integration engineer, system integration engineer.\nEssential skills: ICT project management methodologies, integrate system components, provide technical documentation, apply company policies, procurement of ICT network equipment, apply ICT system usage policies, analyse network bandwidth requirements, use scripting programming, manage ICT system deployment, ICT system user requirements, ICT communications protocols, software components suppliers.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F07e60525-1aad-4099-aaf3-2c7014c92212",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:e3229e40-f571-4b26-baca-29edc8fe313e",
+   "title": "Computer scientist",
+   "text": "Computer scientists conduct research in computer and information science, directed toward greater knowledge and understanding of fundamental aspects of ICT phenomena. They write research reports and proposals. Computer scientists also invent and design new approaches to computing technology, find innovative uses for existing technology and studies and solve complex problems in computing.\nAlso called: ICT scientist, IT researcher, ICT science researcher, computers scientist, ICT research scientist.\nEssential skills: scientific research methodology, write research proposals, synthesise research publications, conduct literature research, conduct quantitative research, apply statistical analysis techniques, apply reverse engineering, execute ICT user research activities, conduct scholarly research, conduct research interview, execute analytical mathematical calculations, conduct qualitative research.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Fe3229e40-f571-4b26-baca-29edc8fe313e",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:fe0fa514-b48d-4a53-9757-a283c0baacf0",
+   "title": "ICT business analyst",
+   "text": "ICT business analysts are in charge of analysing and designing an organisation's processes and systems, assessing the business model and its integration with technology. They also identify change needs, assess the impact of the change, capture and document requirements and then ensure that these requirements are delivered whilst supporting the business through the implementation process.\nAlso called: ICT business analysts, business process specialist, IT business analyst.\nEssential skills: identify customer requirements, legal requirements of ICT products, identify legal requirements, create business process models, analyse business processes, business requirements techniques, product usage risks analysis, interact with users to gather requirements, provide cost benefit analysis reports, analyse the context of an organisation, business process modelling, translate requirement concepts into visual design.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Ffe0fa514-b48d-4a53-9757-a283c0baacf0",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:e1c72b5f-4c5c-487c-a6df-e84b64a51dae",
+   "title": "ICT system architect",
+   "text": "ICT system architects design architecture, components, modules, interfaces, and data for a multi-components system to meet specified requirements.\nAlso called: ICT systems architect, solution architect, IT systems architect, IT system architect, systems architect.\nEssential skills: integrate system components, hardware platforms, design information system, analyse business requirements, web programming, apply ICT systems theory, systems theory, define technical requirements, use markup languages, database development tools, create data models, assess ICT knowledge.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Fe1c72b5f-4c5c-487c-a6df-e84b64a51dae",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:10469d70-78a3-4650-9e29-d04de13c62c1",
+   "title": "Embedded system designer",
+   "text": "Embedded system designers translate and design requirements and the high-level plan or architecture of an embedded control system according to technical software specifications.\nAlso called: embedded software developer, embedded systems designers, embedded systems developer, embedded systems programmer, embedded system programmer.\nEssential skills: engineering control theory, create software design, analyse software specifications, ICT communications protocols, interpret electronic design specifications, define technical requirements, provide ICT consulting advice, create flowchart diagram, systems development life-cycle, signal processing, real-time computing, develop creative ideas.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F10469d70-78a3-4650-9e29-d04de13c62c1",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:d3edb8f8-3a06-47a0-8fb9-9b212c006aa2",
+   "title": "Data analyst",
+   "text": "Data analysts import, inspect, clean, transform, validate, model, or interpret collections of data with regard to the business goals of the company. They ensure that the data sources and repositories provide consistent and reliable data. Data analysts use different algorithms and IT tools as demanded by the situation and the current data. They might prepare reports in the form of visualisations such as graphs, charts, and dashboards.\nAlso called: data warehousing analyst, data analysts, data warehouse analyst, data storage analyst.\nEssential skills: handle data samples, information categorisation, collect ICT data, interpret current data, data quality assessment, integrate ICT data, query languages, information structure, resource description framework query language, business intelligence, perform data mining, apply statistical analysis techniques.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Fd3edb8f8-3a06-47a0-8fb9-9b212c006aa2",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:faed411a-f920-4100-86a8-b877928b429c",
+   "title": "User experience analyst",
+   "text": "User experience analysts assess client interaction and experience and analyse users' behaviours, attitudes, and emotions about the usage of a particular product, system or service. They make proposals for the improvement of the interface and usability of products, systems or services. In doing so, they take into consideration the practical, experiential, affective, meaningful and valuable aspects of human–computer interaction and product ownership, as well as the person's perceptions of system aspects such as utility, ease of use and efficiency, and user experience dynamics.\nAlso called: user experience officer, user experience analysts, usability analyst.\nEssential skills: software interaction design, cognitive psychology, report analysis results, measure customer feedback, conduct qualitative research, conduct quantitative research, assess users' interaction with ICT applications, provide technical documentation, analyse business requirements, measure software usability, execute ICT user research activities, create prototype of user experience solutions.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Ffaed411a-f920-4100-86a8-b877928b429c",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:bd9d395a-d587-45c6-8d72-ceef226df9e1",
+   "title": "ICT system integration consultant",
+   "text": "ICT system integration consultants advise on bringing together different systems to interoperate within an organisation for enabling data sharing and reducing redundancy.\nAlso called: systems integration consultant, system integration consultants, application integration consultant, network integration consultant, systems integration consultants.\nEssential skills: integrate system components, systems development life-cycle, keep up with the latest information systems solutions, provide ICT consulting advice, apply information security policies, consult with business clients, monitor technology trends, attend to ICT systems quality, use scripting programming, define integration strategy, manage changes in ICT system, verify formal ICT specifications.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Fbd9d395a-d587-45c6-8d72-ceef226df9e1",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:4b3201cb-ffc5-4f61-9fc3-5c0f0038fa5f",
+   "title": "ICT business analysis manager",
+   "text": "ICT business analysis managers identify areas where information system changes are needed to support business plans and monitor the impact in terms of change management. They contribute to the general ICT functional requirements of the business organisation. ICT business analysis managers analyse business needs and translate them into ICT solutions.\nAlso called: ICT business analysis managers, IT business analysis director, IT business analysis manager, IT commercial analysis manager, ICT commercial analysis manager.\nEssential skills: improve business processes, perform business analysis, ICT security legislation, define technical requirements, manage ICT project, provide cost benefit analysis reports, analyse business requirements, business processes, create business process models, write work-related reports, propose ICT solutions to business problems, design process.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F4b3201cb-ffc5-4f61-9fc3-5c0f0038fa5f",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:cdd3d773-75a4-4f35-bd1d-1ac720afcf9d",
+   "title": "IT auditor",
+   "text": "IT auditors perform audits of information systems, platforms, and operating procedures in accordance with established corporate standards for efficiency, accuracy and security. They evaluate ICT infrastructure in terms of risk to the organisation and establish controls to mitigate loss. They determine and recommend improvements in the current risk management controls and in the implementation of system changes or upgrades.\nAlso called: ICT auditor, IT Quality Appraiser, information technology auditor.\nEssential skills: develop audit plan, audit techniques, quality standards, ICT security standards, improve business processes, prepare financial auditing reports, ICT security legislation, ICT process quality models, analyse ICT system, perform security vulnerability assessments, execute ICT audits, engineering processes.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Fcdd3d773-75a4-4f35-bd1d-1ac720afcf9d",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:258e46f9-0075-4a2e-adae-1ff0477e0f30",
+   "title": "Data scientist",
+   "text": "Data scientists find and interpret rich data sources, manage large amounts of data, merge data sources, ensure consistency of data-sets, and create visualisations to aid in understanding data. They build mathematical models using data, present and communicate data insights and findings to specialists and scientists in their team and if required, to a non-expert audience, and recommend ways to apply the data.\nAlso called: data scientists, data engineer, research data scientist, data expert, data research scientist.\nEssential skills: manage data collection systems, online analytical processing, data models, implement data quality processes, information categorisation, visual presentation techniques, data mining, build recommender systems, report analysis results, statistics, handle data samples, normalise data.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F258e46f9-0075-4a2e-adae-1ff0477e0f30",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:a6a0b60f-08da-4faa-bf54-942987efb471",
+   "title": "ICT system analyst",
+   "text": "ICT system analysts specify the system needs to meet the end user requirements. They analyse system functions in order to define their goals or purposes and to discover operations and procedures for accomplishing them most efficiently. They also design new IT solutions to improve business efficiency and productivity, produce outline designs and estimate costs of new systems, specify the operations the system will perform, and the way data will be viewed by the end user. They present the design to the users and work closely with the users to implement the solution.\nAlso called: IT system analyst, IT systems analyst, network analyst, ICT systems analysts, ICT system analysts.\nEssential skills: apply statistical analysis techniques, monitor system performance, analyse ICT system, design information system, create data models, ICT infrastructure, software architecture models, interact with users to gather requirements, systems development life-cycle, software metrics, identify customer requirements, analyse software specifications.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Fa6a0b60f-08da-4faa-bf54-942987efb471",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:b1c80369-067e-4041-84c8-dbe65640a5d8",
+   "title": "ICT consultant",
+   "text": "ICT consultants provide advice on how to optimise the use of existing tools and systems, make recommendations for the development and implementation of a business project or technological solution and contribute to project definitions. They raise awareness on information technology innovations and their potential value to a business. They also participate in the assessment and choice of ICT solutions.\nAlso called: ICT advisor, IT advisor, ICT ERP consultant, IT consultant, ICT consultants.\nEssential skills: solve ICT system problems, monitor system performance, verify formal ICT specifications, ICT system integration, identify customer requirements, manage standard enterprise resource planning system, manage changes in ICT system, optimise choice of ICT solution, legal requirements of ICT products, analyse ICT system, keep up with the latest information systems solutions, visual presentation techniques.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Fb1c80369-067e-4041-84c8-dbe65640a5d8",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:22987b58-dbfa-4ecd-ae3f-82dd209255f6",
+   "title": "Green ICT consultant",
+   "text": "Green ICT consultants advise organisations on their green ICT strategy and its implementation in the most effective and efficient manner to allow the organisation to reach their short, mid, and long term ICT environmental objectives.\nAlso called: green IT consultant, ICT sustainability systems consultant, IT environmental consultant, ICT environmental consultant, green ICT consultants.\nEssential skills: define technical requirements, report on environmental issues, manage environmental impact of operations, ICT environmental policies, provide ICT consulting advice, create project specifications, promote environmental awareness, ensure compliance with environmental legislation, optimise choice of ICT solution, apply business acumen, consult with business clients.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F22987b58-dbfa-4ecd-ae3f-82dd209255f6",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:d0aa0792-4345-474b-9365-686cf4869d2e",
+   "title": "Software architect",
+   "text": "Software architects create the technical design and the functional model of a software system, based on functional specifications. They also design the architecture of the system or different modules and components related to the business' or customer requirements, technical platform, computer language or development environment.\nAlso called: software architects, software designer, application architect.\nEssential skills: object-oriented modelling, define software architecture, analyse business requirements, unified modelling language, create software design, provide technical documentation, provide cost benefit analysis reports, tools for software configuration management, analyse software specifications, create flowchart diagram, define technical requirements, collect customer feedback on applications.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Fd0aa0792-4345-474b-9365-686cf4869d2e",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:f2b15a0e-e65a-438a-affb-29b9d50b77d1",
+   "title": "Software developer",
+   "text": "Software developers implement or program all kinds of software systems based on specifications and designs by using programming languages, tools, and platforms.\nAlso called: application developer, application programmer, solutions developer, programmer, software specialist.\nEssential skills: engineering principles, define technical requirements, use software design patterns, use software libraries, debug software, identify customer requirements, interpret technical requirements, provide technical documentation, develop software prototype, utilise computer-aided software engineering tools, analyse software specifications, integrated development environment software.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Ff2b15a0e-e65a-438a-affb-29b9d50b77d1",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:866c7813-2c03-47d7-9bdc-192cfbace57c",
+   "title": "User interface developer",
+   "text": "User interface developers implement, code, document and maintain the interface of a software system by using front-end development technologies.\nAlso called: front end developer, UI programmer, user interface developers, UI developers, UI developer.\nEssential skills: graphics editor software, use software design patterns, integrated development environment software, style sheet languages, analyse software specifications, utilise methodologies for user centered design, design user interface, software UI design patterns, design graphics, web programming, interpret technical texts, develop software prototype.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F866c7813-2c03-47d7-9bdc-192cfbace57c",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:04ba4d6c-957d-417f-bf63-5b9e015a9f86",
+   "title": "Software analyst",
+   "text": "Software analysts elicit and prioritise user requirements, produce and document software specifications, test their application, and review them during software development. They act as the interface between the software users and the software development team.\nAlso called: application analyst, programming analyst, programmer analyst, software analysts, software requirement analyst.\nEssential skills: ICT system user requirements, create data models, develop software prototype, define software architecture, software design methodologies, interact with users to gather requirements, business requirements techniques, identify ICT user needs, define technical requirements, data models, manage ICT legacy implication, software architecture models.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F04ba4d6c-957d-417f-bf63-5b9e015a9f86",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:96e20037-0a25-4bf6-a25e-808d1605d890",
+   "title": "User interface designer",
+   "text": "User interface designers are in charge of designing user interfaces for applications and systems. They perform layout, graphics and dialogues design activities as well as adaptation activities.\nAlso called: accessibility designer, user interface designers, UI designer.\nEssential skills: software UI design patterns, design process, develop creative ideas, define technical requirements, build business relationships, task algorithmisation, ICT accessibility standards, design graphics, World Wide Web Consortium standards, software interaction design, application usability, use markup languages.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F96e20037-0a25-4bf6-a25e-808d1605d890",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:a74f6c51-37e5-423e-aa5b-044e98663027",
+   "title": "Web content manager",
+   "text": "Web content managers curate or create content for a web platform according to the long-term strategic goals, policies and procedures for an organisation's online content or their customers. They control and monitor compliance with standards, legal and privacy regulations and ensure web optimisation. They are also responsible for integrating the work of writers and designers to produce a final layout which is compatible with corporate standards.\nAlso called: web content specialist, digital content, web content curatorspecialist, web content administrators, content curator.\nEssential skills: style sheet languages, authoring software, compile content, utilise content types, provide written content, integrate content into output media, provide multimedia content, manage online content, comply with legal regulations, translate requirement concepts into visual design, create content title, identify legal requirements.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Fa74f6c51-37e5-423e-aa5b-044e98663027",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:9ebaf3f0-0be0-47b7-b2b1-b3b04130fa81",
+   "title": "Digital games developer",
+   "text": "Digital games developers program, implement and document digital games. They implement technical standards in gameplay, graphics, sound and functionality.\nAlso called: digital game developer, computer games developer, virtual games developer, video games developer, games programmer.\nEssential skills: analyse software specifications, 3D texturing, tools for software configuration management, utilise computer-aided software engineering tools, 3D lighting, ICT debugging tools, use software design patterns, computer programming, debug software, apply 3D imaging techniques, integrated development environment software, execute analytical mathematical calculations.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F9ebaf3f0-0be0-47b7-b2b1-b3b04130fa81",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:092fdeeb-a76f-4ed2-b248-90fd6eaaffef",
+   "title": "Search engine optimisation expert",
+   "text": "Search engine optimisation experts increase the ranking of a company's web pages with regard to target queries in a search engine. They create and launch SEO campaigns and identify areas of improvement. Search engine optimisation experts may conduct pay per click (PPC) campaigns.\nAlso called: search engine optimisation specialist, SEO specialist, search engine marketing specialist, search engine optimisation consultant, SEO expert.\nEssential skills: use customer relationship management software, sales strategies, conduct search engine optimisation, integrate content into output media, manage content development projects, apply social media marketing, content marketing strategy, social media marketing techniques, provide written content, web analytics, perform online data analysis, keywords in digital content.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F092fdeeb-a76f-4ed2-b248-90fd6eaaffef",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:c40a2919-48a9-40ea-b506-1f34f693496d",
+   "title": "Web developer",
+   "text": "Web developers develop, implement and document web-accessible software based on the designs provided. They align the client's web presence with its business strategy, troubleshoot software problems and issues and look for ways to improve the application.\nAlso called: web programmer, web application developer, web engineer, web developers, web specialist.\nEssential skills: web programming, use software design patterns, analyse software specifications, translate requirement concepts into visual design, implement front-end website design, create flowchart diagram, use markup languages, ICT debugging tools, tools for software configuration management, style sheet languages, debug software, collect customer feedback on applications.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Fc40a2919-48a9-40ea-b506-1f34f693496d",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:bb6198c4-1d3e-40b9-9cc4-ad2dd9d7c74b",
+   "title": "Industrial mobile devices software developer",
+   "text": "Industrial mobile devices software developers implement applications software for specific, professional industrial mobile (handheld) devices, based on the industry needs, using general or specific development tools for device operating systems.\nAlso called: handheld software developer, industrial mobile devices software programmer, industrial mobile devices software coder, handheld programmer.\nEssential skills: ICT debugging tools, utilise computer-aided software engineering tools, debug software, integrated development environment software, computer programming, use software design patterns, create flowchart diagram, design application interfaces, use different communication channels, use software libraries, interpret technical texts, mobile operating systems.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Fbb6198c4-1d3e-40b9-9cc4-ad2dd9d7c74b",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:bd272aee-adc9-4a06-a15c-a73b4b4a46a7",
+   "title": "ICT application developer",
+   "text": "ICT application developers implement the ICT (software) applications based on the designs provided using application domain specific languages, tools, platforms and experience.\nAlso called: application software developers, application developer, application software engineer, application designer, app software developer.\nEssential skills: develop software prototype, service-oriented modelling, ICT debugging tools, computer programming, utilise computer-aided software engineering tools, use software libraries, create flowchart diagram, tools for software configuration management, provide technical documentation, propose ICT solutions to business problems, manage business knowledge, analyse software specifications.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Fbd272aee-adc9-4a06-a15c-a73b4b4a46a7",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:57af9090-55b4-4911-b2d0-86db01c00b02",
+   "title": "Embedded systems software developer",
+   "text": "Embedded systems software developers program, implement, document and maintain software to be run on an embedded system.\nAlso called: embedded systems designer, embedded systems software developers, embedded software developerl embedded systems engineer, embedded system software programmer, embedded system software developer.\nEssential skills: analyse software specifications, create flowchart diagram, integrated development environment software, use software design patterns, develop ICT device driver, Internet of Things, develop software prototype, ICT debugging tools, debug software, interpret technical texts, use software libraries, provide technical documentation.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F57af9090-55b4-4911-b2d0-86db01c00b02",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:2ed56c3f-61d6-4f7e-9ef8-8849eb102e4c",
+   "title": "Mobile application developer",
+   "text": "Mobile app developers implement applications software for mobile devices, based on the designs provided, using general or specific development tools for device operating systems.\nAlso called: app developer, mobile app specialist, mobile app developer, mobile application developers, app programmer.\nEssential skills: use software design patterns, ICT debugging tools, develop software prototype, integrated development environment software, tools for software configuration management, migrate existing data, analyse software specifications, collect customer feedback on applications, utilise computer-aided software engineering tools, debug software, interpret technical texts, use software libraries.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F2ed56c3f-61d6-4f7e-9ef8-8849eb102e4c",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:456ed487-02f2-45c9-9213-d0fd8e9a069d",
+   "title": "ICT application configurator",
+   "text": "ICT application configurators identify, record, and maintain user-specific application configurations based upon user requirements and business rules. They configure generic software systems in order to create a specific version applied to an organisation's context. These configurations range from adjusting basic parameters through the creation of business rules and roles in the ICT system to developing specific modules (including the configuration of Commercial off-the-shelf systems (COTS)). They also document configurations, perform configuration updates, and ensure the configurations are correctly implemented in the application.\nAlso called: software application configurator, app configurator, application configurators, application software configurator.\nEssential skills: debug software, tools for software configuration management, collect customer feedback on applications, provide technical documentation, ICT debugging tools, use software libraries, use software design patterns, integrated development environment software, develop automated migration methods, build business relationships, migrate existing data, create flowchart diagram.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F456ed487-02f2-45c9-9213-d0fd8e9a069d",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:6e5ceba0-df96-465f-adb4-2e06ae715d43",
+   "title": "Numerical tool and process control programmer",
+   "text": "Numerical tool and process control programmers develop computer programs to control automatic machines and equipment involved in manufacturing processes. They analyse blueprints and job orders, conduct computer simulations and trial runs.\nAlso called: numerical process control operator, numerical tool programmer, numerical process control tool setting operator, numerical tool maker, numerical tool setting operator.\nEssential skills: ML (computer programming), read standard blueprints, Prolog (computer programming), Swift (computer programming), Microsoft Visual C++, CoffeeScript, computer programming, statistical process control, Smalltalk (computer programming), Java (computer programming), Erlang, apply control process statistical methods.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F6e5ceba0-df96-465f-adb4-2e06ae715d43",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:106f79e4-6264-45f1-9e7a-297435cd684b",
+   "title": "Software tester",
+   "text": "Software testers perform software tests. They may also plan and design them. They may also debug and repair software although this mainly corresponds to designers and developers. They ensure that applications function properly before delivering them to internal and external clients.\nAlso called: application software tester, unit tester, application tester, software application tester, tester.\nEssential skills: replicate customer software issues, provide software testing documentation, levels of software testing, software metrics, report test findings, address problems critically, software anomalies, software architecture models, perform software unit testing, execute software tests.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F106f79e4-6264-45f1-9e7a-297435cd684b",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:52d5edc9-7902-4cd3-8b06-6bd77c98d440",
+   "title": "ICT system tester",
+   "text": "ICT system testers perform testing activities and some test planning activities. They may also debug and repair ICT systems and components although this mainly corresponds to designers and developers. They ensure that all systems and components function properly before delivering them to internal and external clients.\nAlso called: ICT systems test engineer, ICT systems testers, ICT systems tester, systems tester, IT system tester.\nEssential skills: software anomalies, levels of software testing, manage system testing, systems theory, apply ICT systems theory, address problems critically, provide software testing documentation, execute software tests, identify ICT system weaknesses, replicate customer software issues, perform security vulnerability assessments, report test findings.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F52d5edc9-7902-4cd3-8b06-6bd77c98d440",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:5f50290d-f520-4a69-85c7-1390d2a4a8b6",
+   "title": "ICT usability tester",
+   "text": "ICT usability testers ensure compliance with requirements and strive for optimal usability within the software engineering cycle phases (analysis, design, implementation, and deployment). They also work closely with users (analysts) to research for and document user profiles, analyse tasks, workflows, and user scenarios.\nAlso called: user-friendliness tester, usability developer, usability testers, usability specialist.\nEssential skills: assess users' interaction with ICT applications, use experience map, address problems critically, create website wireframe, execute ICT user research activities, provide software testing documentation, conduct research interview, execute software tests, levels of software testing, report test findings, replicate customer software issues, human-computer interaction.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F5f50290d-f520-4a69-85c7-1390d2a4a8b6",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:33e4f026-a823-4ffc-99e4-60d3fe597a1e",
+   "title": "Digital games tester",
+   "text": "Digital games testers review and test various genres of digital games by playing them in order to find bugs and glitches within the game's functionality or graphics. They may evaluate the capacity of attraction and playability of games. They may also debug the games themselves.\nAlso called: digital game tester, virtual games tester, digital games testers, computer games tester, video games tester.\nEssential skills: application usability, address problems critically, report test findings, provide software testing documentation, execute software tests, digital game genres, levels of software testing, software anomalies, replicate customer software issues.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F33e4f026-a823-4ffc-99e4-60d3fe597a1e",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:731f38f1-b08f-4dd5-a25e-f8627c038273",
+   "title": "ICT integration tester",
+   "text": "ICT integration testers perform tests in groups of system components, units or even applications. They group them in larger aggregates and apply integration test plans on them. They oversee the complexity of relations between different components.\nAlso called: compatibility tester, IT compatibility tester, module integration tester, integration testers, ICT compatibility tester.\nEssential skills: address problems critically, manage system testing, software anomalies, integrate system components, levels of software testing, provide software testing documentation, execute integration testing, execute software tests, report test findings, replicate customer software issues.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F731f38f1-b08f-4dd5-a25e-f8627c038273",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:50af07f0-7a75-424e-a66d-5a9deea10f4c",
+   "title": "ICT accessibility tester",
+   "text": "ICT accessibility testers evaluate websites, software applications, systems or user interface components with regards to friendliness, operability of the navigation and visibility to all types of users, especially including those with special needs or disabilities.\nAlso called: accessibility testers, accessibility test specialist, usability tester.\nEssential skills: conduct research interview, human-computer interaction, test for behavioural patterns, World Wide Web Consortium standards, replicate customer software issues, execute ICT user research activities, measure software usability, use experience map, provide software testing documentation, report test findings, application usability, test system accessibility for users with special needs.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F50af07f0-7a75-424e-a66d-5a9deea10f4c",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:7086d0ca-1e77-4690-89c9-7ed1a0478fa3",
+   "title": "Data quality specialist",
+   "text": "Data quality specialists review organisation's data for accuracy, recommend enhancements to record systems and data acquisition processes and assess referential and historical integrity of data. They also develop documents and maintain data quality goals and standards and oversee an organisation's data privacy policy and monitor compliance of data flows against data quality standards.\nAlso called: data quality expert, data integrity officer, data quality officer, data integrity specialist, data quality specialists.\nEssential skills: manage database, report analysis results, establish data processes, manage standards for data exchange, design database scheme, perform data cleansing, resource description framework query language, information structure, normalise data, manage data, implement data quality processes, handle data samples.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F7086d0ca-1e77-4690-89c9-7ed1a0478fa3",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:102e75c8-3b47-4964-9b47-30a980aed25c",
+   "title": "ICT disaster recovery analyst",
+   "text": "ICT disaster recovery analysts develop, maintain, and implement ICT continuity and disaster recovery strategies and solutions. They support the technical teams, assess the risks, design and develop procedures, documentation and strategies for disaster recovery in order for business functions to continue and recover with a minimal loss of data. They also coordinate the system backups tests and validations.\nAlso called: ICT resilience analysts, business continuity strategist, business continuity analyst, IT resilience analyst, IT disaster recovery analyst.\nEssential skills: conduct impact evaluation of ICT processes on business, ICT problem management techniques, ICT recovery techniques, build business relationships, implement ICT recovery system, product usage risks analysis, maintain plan for continuity of operations, manage system security, define security policies, manage IT security compliances, identify ICT security risks, perform backups.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F102e75c8-3b47-4964-9b47-30a980aed25c",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:0ab5c12c-c1c1-4772-8345-aa287d0e391d",
+   "title": "ICT test analyst",
+   "text": "ICT test analysts work in testing environments, assessing products, checking for quality and accuracy, or creating tests scripts. They design tests which are then implemented by testers.\nAlso called: IT test analyst, test designer.\nEssential skills: report test findings, plan software testing, provide software testing documentation, address problems critically, set quality assurance objectives, levels of software testing, develop ICT test suite, execute software tests, replicate customer software issues.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F0ab5c12c-c1c1-4772-8345-aa287d0e391d",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:76a1a76c-b014-4600-8901-56cb936de7ed",
+   "title": "ICT auditor manager",
+   "text": "ICT auditor managers monitor ICT auditors responsible for auditing information systems, platforms, and operating procedures in accordance with established corporate standards for efficiency, accuracy and security. They evaluate ICT infrastructure in terms of risk to the organisation and establish controls to mitigate loss. They determine and recommend improvements in the current risk management controls and in the implementation of system changes or upgrades.\nAlso called: ICT audit manager, ICT auditor managers, information technology audit manager, IT audit manager.\nEssential skills: execute ICT audits, ICT project management, quality standards, prepare financial auditing reports, cyber security, manage IT security compliances, control objectives for information and related technology, develop ICT workflow, implement ICT risk management, manage standard enterprise resource planning system, build business relationships, develop audit plan.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F76a1a76c-b014-4600-8901-56cb936de7ed",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:a28dff76-74df-46ee-929f-d1fffbb63cd7",
+   "title": "ICT quality assurance manager",
+   "text": "ICT quality assurance managers establish and operate an ICT quality approach through quality management systems, in compliance with internal and external standards and the organisation's culture. They ensure that the management controls are correctly implemented to safeguard asset, data integrity and operations. They focus on the achievement of quality goals, including the maintenance of the external certification according to quality standards and monitor statistics to forecast quality outcomes.\nAlso called: ICT quality manager, ICT test manager, IT quality assurance manager, ICT quality assurance managers, principal test manager.\nEssential skills: quality assurance methodologies, oversee quality control, provide software testing documentation, execute software tests, perform quality audits, ensure continuous preparedness for audits, ICT process quality models, levels of software testing, implement strategic planning, ICT quality policy, attend to ICT systems quality, comply with legal regulations.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Fa28dff76-74df-46ee-929f-d1fffbb63cd7",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:3d190639-90f8-4402-b1b3-a104a17e0d67",
+   "title": "Database integrator",
+   "text": "Database integrators perform integration among different databases. They maintain integration and ensure interoperability.\nAlso called: data base integrators, data base integrator, database integrators, data integrator, database development specialist.\nEssential skills: create database diagrams, manage data, use interface description language, resource description framework query language, data extraction, transformation and loading tools, database management systems, query languages, implement data warehousing techniques, execute integration testing, ICT debugging tools, integrate ICT data, information structure.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F3d190639-90f8-4402-b1b3-a104a17e0d67",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:8d9ec84d-cf2d-4179-87bc-335cda54a427",
+   "title": "Database designer",
+   "text": "Database designers specify the database's logical structure, processes, and information flows. They design data models and databases to serve data acquisition.\nAlso called: data architect, database designers, data base designers, database architect, data base designer.\nEssential skills: migrate existing data, resource description framework query language, create database diagrams, web programming, apply ICT systems theory, business process modelling, query languages, database development tools, design database scheme, write database documentation, systems development life-cycle, create software design.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F8d9ec84d-cf2d-4179-87bc-335cda54a427",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:b11e1742-5e28-4270-b081-b0193d85ee7d",
+   "title": "Database developer",
+   "text": "Database developers program, implement and coordinate changes to computer databases based on their expertise of database management systems.\nAlso called: database developers, data base developer, data base developers, database development engineer, database coder.\nEssential skills: collect customer feedback on applications, query languages, identify customer requirements, resource description framework query language, database development tools, test ICT queries, data extraction, transformation and loading tools, create data models, write database documentation, data quality assessment, apply information security policies, database management systems.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Fb11e1742-5e28-4270-b081-b0193d85ee7d",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:1562c7a3-c7d9-419d-b9b6-db26610bcf84",
+   "title": "Data warehouse designer",
+   "text": "Data warehouse designers are responsible for planning, connecting, designing, scheduling, and deploying data warehouse systems. They develop, monitor and maintain ETL processes, reporting applications and data warehouse design.\nAlso called: data warehouse architect, data warehouse developer.\nEssential skills: web programming, develop automated migration methods, database development tools, create software design, use markup languages, define technical requirements, query languages, manage standards for data exchange, create database diagrams, assess ICT knowledge, migrate existing data, manage database.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F1562c7a3-c7d9-419d-b9b6-db26610bcf84",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:8c57af09-719c-42b3-be40-6ed4946236cc",
+   "title": "Database administrator",
+   "text": "Database administrators test, implement and administer computer databases. They use their expertise in database management systems to plan, coordinate and implement security measures to safeguard computer databases. They also use scripts and configuration files to tailor a database to users' needs.\nAlso called: database manager, DBA, database administrators, data manager, data administrator.\nEssential skills: database development tools, maintain database performance, query languages, data storage, maintain database security, define database physical structure, interpret technical texts, system backup best practice, apply company policies, perform backups, information structure, resource description framework query language.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F8c57af09-719c-42b3-be40-6ed4946236cc",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:9e2e6e1e-363b-4e1b-a673-7bc0f7343300",
+   "title": "ICT system administrator",
+   "text": "ICT system administrators are responsible for the upkeep, configuration, and reliable operation of computer and network systems, servers, workstations and peripheral devices. They may acquire, install, or upgrade computer components and software; automate routine tasks; write computer programs; troubleshoot; train and supervise staff; and provide technical support. They ensure optimum system integrity, security, backup and performance.\nAlso called: enterprise administrator, IT system administrator, ICT systems administrator, ICT sysadmins, IT systems administrator.\nEssential skills: organisational policies, manage system testing, integrate system components, apply ICT system usage policies, administer ICT system, monitor system performance, quality assurance methodologies, migrate existing data, apply system organisational policies, interpret technical texts, manage system security, ICT system user requirements.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F9e2e6e1e-363b-4e1b-a673-7bc0f7343300",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:98c3d8f8-e3a8-49b7-9e58-236f25a6f6a0",
+   "title": "System configurator",
+   "text": "System configurators tailor a computer system to the organisation's and users' needs. They adjust the base system and software to the needs of the customer. They perform configuration activities and scripting and ensure communication with users.\nAlso called: system setup professional, system configuration professional, IT system configurator, ICT system configurator, systems configurator.\nEssential skills: cognitive psychology, service-oriented modelling, ICT performance analysis methods, ICT system user requirements, develop automated migration methods, create flowchart diagram, ICT infrastructure, integrate system components, migrate existing data, interpret technical texts, analyse software specifications, configure ICT system.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F98c3d8f8-e3a8-49b7-9e58-236f25a6f6a0",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:81480b40-a318-47f3-9b2c-56b69ed67d95",
+   "title": "ICT network administrator",
+   "text": "ICT network administrators maintain operation of a reliable, secure, and efficient data communications network, including LAN, WAN, intranet, and internet. They perform network address assignment, management and implementation of routing protocols such as ISIS, OSPF, BGP, routing table configurations and certain implementations of authentication. They perform maintenance and administration of servers (file servers, VPN gateways, intrusion detection systems), desktop computers, printers, routers, switches, firewalls, phones, IP communications, personal digital assistants, smartphones, software deployment, security updates and patches as well as a vast array of additional technologies inclusive of both hardware and software.\nAlso called: network administrators, network support, network manager, network specialist, networks administrator.\nEssential skills: maintain internet protocol configuration, manage email hosting service, procurement of ICT network equipment, ICT network routing, define firewall rules, network management system tools, install electronic communication equipment, design computer network, ICT performance analysis methods, forecast future ICT network needs, computer programming, integrate system components.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F81480b40-a318-47f3-9b2c-56b69ed67d95",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:4543bf7b-8ffb-4ade-88b9-58da34366f04",
+   "title": "ICT capacity planner",
+   "text": "ICT capacity planners ensure that the capacity of ICT services and ICT infrastructure is able to deliver agreed service level targets in a cost effective and timely manner. They also consider all resources required to deliver the appropriate ICT service, and plan for short, medium, and long term business requirements.\nAlso called: ICT performance manager, ICT capacity planners, ICT capability manager, IT capability planner, IT capacity planner.\nEssential skills: provide cost benefit analysis reports, perform resource planning, statistical analysis system software, ICT capacity planning strategies, insourcing strategy, apply company policies, carry out statistical forecasts, ICT infrastructure, ensure adherence to organisational ICT standards, plan ICT capacity, outsourcing strategy, crowdsourcing strategy.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F4543bf7b-8ffb-4ade-88b9-58da34366f04",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:cf2b03cd-feb7-4f47-90f6-ff1ed6016d3d",
+   "title": "ICT network engineer",
+   "text": "ICT network engineers implement, maintain and support computer networks. They also perform network modelling, analysis, and planning. They may also design network and computer security measures. They may research and recommend network and data communications hardware and software.\nAlso called: network configurator, networks engineer, networks developer, network developer, networks designer.\nEssential skills: cloud technologies, collect customer feedback on applications, design computer network, information security strategy, forecast future ICT network needs, provide technical documentation, ICT network routing, ICT performance analysis methods, ICT debugging tools, computer programming, migrate existing data, develop automated migration methods.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Fcf2b03cd-feb7-4f47-90f6-ff1ed6016d3d",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:e0b544dd-b621-4126-a55e-054af25c6ea0",
+   "title": "ICT network architect",
+   "text": "ICT network architects design the topology and connectivity of ICT network such as hardware, infrastructure, communication and hardware components.\nAlso called: network designer, network architects.\nEssential skills: provide technical documentation, ICT network routing, ICT networking hardware, adjust ICT system capacity, define technical requirements, define ICT network design policies, maintain information network hardware, design computer network, analyse business requirements, maintain internet protocol configuration, assess ICT knowledge, implement ICT network diagnostic tools.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Fe0b544dd-b621-4126-a55e-054af25c6ea0",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:0c448a27-10ec-43ba-b880-d9938bade424",
+   "title": "Digital forensics expert",
+   "text": "Digital forensics experts retrieve and analyse information from computers and other types of data storage devices. They examine digital media that may have been hidden, encrypted or damaged, in a forensic manner with the aim to identify, preserve, recover, analyse and present facts and opinions about the digital information.\nAlso called: information forensics expert, cyber forensics expert, digital forensics specialist, digital forensics experts, digital forensic expert.\nEssential skills: query languages, identify ICT security risks, ICT security standards, use software for data preservation, penetration testing tool, develop information security strategy, information confidentiality, secure sensitive customer's information, educate on data confidentiality, perform forensic preservations of digital devices, computer forensics, perform security vulnerability assessments.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F0c448a27-10ec-43ba-b880-d9938bade424",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:a99b38bc-6e71-4bef-b127-0f2b5e357815",
+   "title": "ICT resilience manager",
+   "text": "ICT resilience managers research, plan and develop models, policies, methods, techniques and tools that enhance an organisation's cyber security, resilience and disaster recovery.\nAlso called: manager for disaster recovery, manager for vulnerability, manager for IT resilience, IT resilience manager, ICT resilience managers.\nEssential skills: develop contingency plans for emergencies, ICT recovery techniques, internal risk management policy, manage system security, cyber security, execute ICT audits, analyse business processes, organisational resilience, comply with legal regulations, manage IT security compliances, perform security vulnerability assessments, lead disaster recovery exercises.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Fa99b38bc-6e71-4bef-b127-0f2b5e357815",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:0464b062-cea6-4164-b10d-956c61956ae7",
+   "title": "ICT security administrator",
+   "text": "ICT security administrators plan and carry out security measures to protect information and data from unauthorised access, deliberate attack, theft and corruption.\nAlso called: network security administrator, system security administrator, ICT security administrators, IT security administrator.\nEssential skills: mobile device management, organisational resilience, internet governance, apply company policies, maintain database security, manage IT security compliances, maintain ICT identity management, perform ICT troubleshooting, solve ICT system problems, Internet of Things, ensure proper document management, quality assurance methodologies.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F0464b062-cea6-4164-b10d-956c61956ae7",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:812c217d-32b7-4f6a-9faf-993d3577ac7f",
+   "title": "Knowledge engineer",
+   "text": "Knowledge engineers integrate structured knowledge into computer systems (knowledge bases) in order to solve complex problems normally requiring a high level of human expertise or artificial intelligence methods. They are also responsible for eliciting or extracting knowledge from information sources, maintaining this knowledge, and making it available to the organisation or users. To achieve this, they are aware of knowledge representation and maintenance techniques (rules, frames, semantic nets, ontologies) and use knowledge extraction techniques and tools. They can design and build expert or artificial intelligence systems that use this knowledge.\nAlso called: taxonomist, knowledge engineers, linked data engineer, knowledge officer, information engineer.\nEssential skills: define technical requirements, information extraction, create semantic trees, manage database, manage ICT semantic integration, systems development life-cycle, analyse business requirements, information structure, task algorithmisation, natural language processing, web programming, database development tools.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F812c217d-32b7-4f6a-9faf-993d3577ac7f",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:76ef0a87-6afe-4560-b5d0-9a086abe45c5",
+   "title": "Ethical hacker",
+   "text": "Ethical hackers perform security vulnerability assessments and penetration tests in accordance with industry-accepted methods and protocols. They analyse systems for potential vulnerabilities that may result from improper system configuration, hardware or software flaws, or operational weaknesses.\nAlso called: vulnerability analyst, ethical hackers, ICT security tester, system security tester, network security tester.\nEssential skills: execute ICT audits, develop code exploits, legal requirements of ICT products, perform security vulnerability assessments, address problems critically, tools for ICT test automation, penetration testing tool, identify ICT security risks, web application security threats, execute software tests, provide technical documentation, cyber attack counter-measures.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F76ef0a87-6afe-4560-b5d0-9a086abe45c5",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:0ce5a9f4-e00a-4bbe-b255-3c63407167a4",
+   "title": "ICT security consultant",
+   "text": "ICT security consultants advise and implement solutions to control access to data and programs. They promote a safe exchange of information.\nAlso called: IT security expert, ICT security advisor, information communications technology security consultant, ICT security consultants, IT security advisor.\nEssential skills: define technical requirements, implement ICT risk management, provide ICT consulting advice, analyse ICT system, cyber attack counter-measures, information security strategy, manage disaster recovery plans, verify formal ICT specifications, execute software tests, identify ICT security risks, define security policies, keep task records.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F0ce5a9f4-e00a-4bbe-b255-3c63407167a4",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:7754d570-9519-48c2-b1c9-8e165f8bca0f",
+   "title": "ICT security manager",
+   "text": "ICT security managers propose and implement necessary security updates. They advise, support, inform and provide training and security awareness and take direct action on all or part of a network or system.\nAlso called: security coordinator, ICT security managers, ICT technical security expert, information security manager, IT security manager.\nEssential skills: ICT security standards, lead disaster recovery exercises, computer forensics, develop information security strategy, implement ICT risk management, define security policies, solve ICT system problems, maintain ICT identity management, ICT project management, internal risk management policy, ICT quality policy, internet governance.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F7754d570-9519-48c2-b1c9-8e165f8bca0f",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:276ba420-ef09-4a0e-b215-2c2e2f80ad28",
+   "title": "Chief ICT security officer",
+   "text": "Chief ICT security officers protect company and employee information against unauthorized access. They also define the Information System security policy, manage security deployment across all Information Systems and ensure the provision of information availability.\nAlso called: fead of IT security, chief information security officer, chief ICT security officers, head IT security officer, CISO.\nEssential skills: utilise decision support system, ensure adherence to organisational ICT standards, ICT security standards, organisational resilience, maintain plan for continuity of operations, manage IT security compliances, manage disaster recovery plans, cyber security, information security strategy, ensure compliance with legal requirements, implement ICT risk management, monitor technology trends.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F276ba420-ef09-4a0e-b215-2c2e2f80ad28",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:02eb0ae6-ecdd-4602-9c8e-60ffe6dbe1e2",
+   "title": "Telecommunications engineer",
+   "text": "Telecommunications engineers design, build, test and maintain telecommunication systems and networks, including radio and broadcasting equipment. \\\nThey analyse customer needs and requirements, ensure that the equipment meets regulations, and prepare and present reports and proposals on telecommunication-related problems. Telecommunications engineers design and oversee the service delivery in all it's phases, supervising the installation and use of telecommunications equipment and facilities, preparing documentation and providing training for company staff once new equipment has been installed.\nAlso called: telecommunications designer, transmission engineer, communications designer, telecoms engineer, telecommunications technologist.\nEssential skills: provide ICT system training, analyse network bandwidth requirements, adjust ICT system capacity, estimate costs of installing telecommunication devices, electronics principles, systems development life-cycle, use session border controller, ICT network security risks, define technical requirements, design computer network, signal processing, support ICT system users.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F02eb0ae6-ecdd-4602-9c8e-60ffe6dbe1e2",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:c5d36eef-df20-47a8-a332-5b4358fa83e3",
+   "title": "Telecommunications analyst",
+   "text": "Telecommunications analysts review, analyse and evaluate an organisation's telecommunications needs and systems. They provide training on the telecommunications system features and functionalities.\nAlso called: telecoms analysts, telecommunications consultant, network planner, communication analyst, telecommunications analysts.\nEssential skills: electronics principles, procurement of ICT network equipment, operate call distribution system, use different communication channels, microwave principles, ICT communications protocols, direct inward dialing, provide ICT system training, provide cost benefit analysis reports, define technical requirements, operate private branch exchange, operate electronic measuring instruments.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Fc5d36eef-df20-47a8-a332-5b4358fa83e3",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:9729c0f3-c9bc-482e-ac59-a82ec3b67ba3",
+   "title": "Data centre operator",
+   "text": "Data centre operators maintain computer operations within the data centre. They manage daily activities within the centre to solve problems, maintain the system availability, and evaluate the system's performance.\nAlso called: data center administrator, data centre operators, data centre employee.\nEssential skills: maintain ICT server, keep up with the latest information systems solutions, develop contingency plans for emergencies, maintain database security, database management systems, maintain database performance, manage database, provide technical documentation, migrate existing data, query languages, resource description framework query language, analyse ICT system.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F9729c0f3-c9bc-482e-ac59-a82ec3b67ba3",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:1242d99a-47f1-4a62-b884-33746db8a6ca",
+   "title": "ICT help desk manager",
+   "text": "ICT help desk managers monitor the delivery of technical support services to clients according to the predefined deadlines.  They plan and organise the user support actions and troubleshoot ICT problems and issues. ICT help desk managers supervise the help desk team ensuring that the customers get the appropriate feedback and support. They also participate in developing customer service guidelines and in reinforcing the team.\nAlso called: ICT help desk managers, IT helpdesk manager, ICT service desk manager, software support manager, ICT helpdesk manager.\nEssential skills: communicate with customers, manage staff, product comprehension, characteristics of services, analyse staff capacity, characteristics of products, forecast workload, supervise data entry, educate on data confidentiality, secure sensitive customer's information, provide ICT support, create solutions to problems.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F1242d99a-47f1-4a62-b884-33746db8a6ca",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:3e7bf729-4442-4b9f-ad5e-83111963795c",
+   "title": "ICT technician",
+   "text": "ICT technicians install, maintain, repair and operate information systems and any ICT related equipment (laptops, desktops, servers, tablets, smart phones, communications equipment, printers and any piece of computer related peripheral networks), and any type of software (drivers, operating systems, applications).\nAlso called: ICT technicians, IT engineer, computer operator, IT technician, ICT engineer.\nEssential skills: manage email hosting service, ICT network routing, maintain ICT server, repair ICT devices, administer ICT system, ICT networking hardware, implement ICT recovery system, operate private branch exchange, maintain ICT system, perform backups, keep up to date on product knowledge, define firewall rules.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F3e7bf729-4442-4b9f-ad5e-83111963795c",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:a44a1dc5-be08-4840-8bd5-770c4ac1ca6d",
+   "title": "ICT security technician",
+   "text": "ICT security technicians propose and implement necessary security updates and measures whenever is required. They advise, support, inform and provide training and security awareness.\nAlso called: ICT security technicians, IT security officer, IT security technician, ICT security officer.\nEssential skills: manage alarm system, address problems critically, procurement of ICT network equipment, identify ICT system weaknesses, execute software tests, manage closed-circuit television system, solve ICT system problems, provide technical documentation, ensure proper document management, integrate system components, estimate duration of work, use access control software.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Fa44a1dc5-be08-4840-8bd5-770c4ac1ca6d",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:aaeec9a7-dc57-4485-890c-86b3eef735f9",
+   "title": "ICT help desk agent",
+   "text": "ICT help desk agents provide technical assistance to computer users, answer questions or solve computer problems for clients via telephone or electronically. They provide assistance concerning the use of computer hardware and software.\nAlso called: IT help desk advisor, ICT service desk agent, ICT help desk advisor, IT help desk agent, ICT help desk agents.\nEssential skills: keep up to date on product knowledge, provide ICT support, ICT system user requirements, use customer relationship management software, manage schedule of tasks, provide customer follow-up services, solve ICT system problems, communicate with customers, assist customers, prioritise requests, support ICT system users, characteristics of products.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Faaeec9a7-dc57-4485-890c-86b3eef735f9",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:591c5063-69ce-4551-ba60-e2304111130f",
+   "title": "Aviation data communications manager",
+   "text": "Aviation data communications managers perform the planning, implementation and maintenance of data transmission networks. They support data processing systems linking participant user agencies to central computers.\nAlso called: aviation data communications  specialist, data communications manager in aviation, aviation data communications consultant, aviation data communications contractor, aviation data communications officer.\nEssential skills: have computer literacy, monitor communication channels' performance, manage data, write work-related reports, ensure efficient communication in air traffic services, manage flight data communications programme, work in an aviation team, present reports, perform risk analysis, apply technical communication skills, common aviation safety regulations, use different communication channels.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F591c5063-69ce-4551-ba60-e2304111130f",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:64c7d461-152c-477f-a8e2-c2c537e9d617",
+   "title": "ICT network technician",
+   "text": "ICT network technicians install, maintain and troubleshoot networks, data communications equipment and network installed devices such as printers and storage area networks. They also analyse and fix network-related problems reported by users.\nAlso called: network technician, network engineer, network maintenance professional, networks technician, network technicians.\nEssential skills: implement ICT network diagnostic tools, provide technical documentation, ICT network routing, install electronic communication equipment, install signal repeaters, analyse network bandwidth requirements, identify suppliers, maintain internet protocol configuration, ICT networking hardware, ICT network cable limitations, create solutions to problems, ICT network security risks.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2F64c7d461-152c-477f-a8e2-c2c537e9d617",
+   "source": "ESCO"
+  },
+  {
+   "id": "esco:dc8ef7da-d2c0-4474-96a0-6d0385eeec1e",
+   "title": "Webmaster",
+   "text": "Webmasters deploy, maintain, monitor and support a web server to meet service requirements. They ensure optimum system integrity, security, backup and performance. They coordinate the content, quality and style of websites, execute the website strategy and update and add new features to websites.\nAlso called: web technician, webmasters, e-commerce technician, web administrator, website administrator.\nEssential skills: authoring software, apply tools for content development, style sheet languages, implement front-end website design, troubleshoot website, apply ICT system usage policies, use ICT ticketing system, use scripting programming, graphics editor software, study website behaviour patterns, quality assurance methodologies, maintain responsive design.",
+   "url": "https://esco.ec.europa.eu/en/classification/occupation?uri=http%3A%2F%2Fdata.europa.eu%2Fesco%2Foccupation%2Fdc8ef7da-d2c0-4474-96a0-6d0385eeec1e",
+   "source": "ESCO"
+  }
+ ]
+}

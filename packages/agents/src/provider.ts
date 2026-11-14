@@ -502,7 +502,7 @@ async function generateOnce<T>(
   }[role];
   const coachFormat =
     role === 'coach'
-      ? ' publicSources, when supplied, are reference descriptions of occupations from O*NET: what the work involves and common software. Use them to explain directions, gaps and actions, and add a source id to evidenceIds only after at least one approved fact ID, and only when that item uses the source. They describe jobs, never the candidate; do not present them as the candidate\'s skills or experience.' +
+      ? ' publicSources, when supplied, are reference descriptions of occupations from O*NET (US) and ESCO (EU): what the work involves, common software and essential skills. Use them to explain directions, gaps and actions, and add a source id to evidenceIds only after at least one approved fact ID, and only when that item uses the source. They describe jobs, never the candidate; do not present them as the candidate\'s skills or experience.' +
         ' Return strengths, gaps, directions and actions arrays with at most three items each. Every item must contain text, evidenceIds and reason. Use one to three exact IDs copied from facts per item; never invent IDs or use an empty evidenceIds array. Keep text and reason to one short sentence each. Be concise so the complete JSON finishes within the output limit.'
       : '';
   const instruction =
