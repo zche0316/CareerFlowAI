@@ -26,6 +26,7 @@
     "demo:account": "node scripts/demo-account.mjs",
     "coach:sources": "node scripts/coach-sources.mjs",
     "coach:esco": "node scripts/coach-sources-esco.mjs",
+    "coach:embed": "node --env-file=.env scripts/coach-embeddings.mjs",
     "verify:local": "node scripts/local-run.mjs --verify",
     "verify:quick": "node scripts/local-run.mjs --quick"
   },

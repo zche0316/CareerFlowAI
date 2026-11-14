@@ -23,3 +23,9 @@ alternative names and up to twelve essential skills.
 This service uses the ESCO classification of the European Commission. ESCO is reused free of
 charge under Commission Decision 2011/833/EU. CareerFlow has modified it (selected occupations,
 shortened lists).
+
+## Embeddings (`embeddings.json`)
+
+Built by `npm run coach:embed` (needs `OPENAI_NATIVE_API_KEY`): `text-embedding-3-small` at 512
+dimensions for every O*NET and ESCO document (title and text), stored as one base64 Float32
+block. Rebuild after either corpus changes.

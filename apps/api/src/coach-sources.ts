@@ -1,10 +1,12 @@
 import { readFileSync, existsSync } from 'node:fs';
+import { configuredMode } from '../../../packages/agents/src/provider.js';
 
 // Coach retrieval over curated, openly licensed career sources (CFS-125, 140, 141). Two corpora are
 // kept in the repository with their attribution: O*NET 31.0 (US Department of Labor, CC BY 4.0)
 // says what a kind of work involves day to day; ESCO (European Commission) adds the European
-// view, alternative names and essential skills. Passages are ranked by BM25. Sources describe
-// jobs, never the candidate.
+// view, alternative names and essential skills. Passages are ranked by embeddings when the
+// committed vectors and an API key are available, else by BM25. Sources describe jobs, never the
+// candidate.
 
 export type SourceDoc = {
   id: string; // onet:15-2051.00 or esco:<uuid>
@@ -146,12 +148,140 @@ export function retrieve(docs: SourceDoc[], query: string, k = 4): SourceDoc[] {
     .map((s) => s.d);
 }
 
-/** Passages for one Coach call, trimmed so the context stays small. */
-export function coachSources(query: string, corpus = loadCorpus()) {
-  if (!corpus) return [];
-  return retrieve(corpus.docs, query).map((d) => ({
-    id: d.id,
-    title: d.title,
-    text: d.text.slice(0, 900),
-  }));
+// ---- Embedding retrieval (CFS-141) -------------------------------------------------------------
+
+type Vectors = { model: string; dims: number; byId: Map<string, Float32Array> };
+let vectors: Vectors | null | undefined;
+
+/** The committed document vectors, or null when they are missing. */
+export function loadVectors(): Vectors | null {
+  if (vectors !== undefined) return vectors;
+  const file = new URL('embeddings.json', dir);
+  if (!existsSync(file)) return (vectors = null);
+  const raw = JSON.parse(readFileSync(file, 'utf8'));
+  const flat = new Float32Array(new Uint8Array(Buffer.from(raw.vectors, 'base64')).buffer);
+  const byId = new Map<string, Float32Array>(
+    (raw.ids as string[]).map((id, i) => [id, flat.subarray(i * raw.dims, (i + 1) * raw.dims)]),
+  );
+  return (vectors = { model: raw.model, dims: raw.dims, byId });
+}
+
+const cosine = (a: ArrayLike<number>, b: ArrayLike<number>) => {
+  let dot = 0,
+    na = 0,
+    nb = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    na += a[i] * a[i];
+    nb += b[i] * b[i];
+  }
+  return dot / (Math.sqrt(na * nb) || 1);
+};
+
+// Embeddings blur exact job titles ("backend engineer", "DevOps"); a small bonus from the BM25
+// score restores them. On 22 labelled questions (2026-11-14, O*NET corpus, 512 dimensions) this
+// found the right first occupation 19 times, against 17 for embeddings alone and 13 for BM25
+// alone, and kept working for plain-language and Chinese questions where BM25 finds nothing.
+export const LEXICAL_BONUS = 0.1;
+
+/**
+ * Documents ranked by cosine similarity plus a small bonus for their BM25 rank, at most
+ * `perSource` from one source so the Coach sees both the US and the European description when
+ * both fit. Pure.
+ */
+export function rankByVector(
+  docs: SourceDoc[],
+  byId: Map<string, ArrayLike<number>>,
+  query: ArrayLike<number>,
+  k = 4,
+  perSource = 3,
+  lexical: Map<string, number> = new Map(),
+) {
+  // BM25 scores scaled to 0..1, so every strong keyword match gets the bonus, not just the first.
+  const top = Math.max(0, ...lexical.values()) || 1;
+  const ranked = docs
+    .filter((d) => byId.has(d.id))
+    .map((d) => ({
+      d,
+      s: cosine(query, byId.get(d.id)!) + (LEXICAL_BONUS * (lexical.get(d.id) || 0)) / top,
+    }))
+    .sort((x, y) => y.s - x.s);
+  const out: SourceDoc[] = [];
+  const count = new Map<string, number>();
+  for (const { d } of ranked) {
+    if ((count.get(d.source) || 0) >= perSource) continue;
+    count.set(d.source, (count.get(d.source) || 0) + 1);
+    out.push(d);
+    if (out.length === k) break;
+  }
+  return out;
+}
+
+type Embedder = (
+  text: string,
+  model: string,
+  dims: number,
+) => Promise<{ vector: number[]; tokens: number }>;
+
+const openAiEmbedder: Embedder = async (text, model, dims) => {
+  const r = await fetch('https://api.openai.com/v1/embeddings', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.OPENAI_NATIVE_API_KEY?.trim()}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ model, dimensions: dims, input: text.slice(0, 6000) }),
+    signal: AbortSignal.timeout(8000),
+  });
+  const j: any = await r.json();
+  if (!r.ok) throw Error(j?.error?.message || `HTTP ${r.status}`);
+  return { vector: j.data[0].embedding, tokens: j.usage?.total_tokens || 0 };
+};
+
+/**
+ * Passages for one Coach call, trimmed so the context stays small. Embeddings first (one small
+ * request); BM25 in rehearsal mode, without a key or vectors, or when the request fails.
+ */
+export async function coachSources(
+  query: string,
+  options: { corpus?: Corpus | null; vectors?: Vectors | null; embed?: Embedder } = {},
+) {
+  const corpus = options.corpus === undefined ? loadCorpus() : options.corpus;
+  const empty = {
+    sources: [] as { id: string; title: string; text: string }[],
+    method: 'none' as const,
+    tokens: 0,
+  };
+  if (!corpus || !query.trim()) return empty;
+  const v = options.vectors === undefined ? loadVectors() : options.vectors;
+  const canEmbed =
+    v &&
+    (options.embed ||
+      (configuredMode() !== 'fixture' && process.env.OPENAI_NATIVE_API_KEY?.trim()));
+  let docs: SourceDoc[] | null = null;
+  let method: 'embedding' | 'bm25' = 'bm25';
+  let tokens = 0;
+  if (canEmbed) {
+    try {
+      const e = await (options.embed || openAiEmbedder)(query, v!.model, v!.dims);
+      docs = rankByVector(
+        corpus.docs,
+        v!.byId,
+        e.vector,
+        4,
+        3,
+        new Map(bm25Scores(corpus.docs, query).map((score, i) => [corpus.docs[i].id, score])),
+      );
+      tokens = e.tokens;
+      method = 'embedding';
+    } catch (error) {
+      console.error('Coach source embedding failed; using BM25:', (error as Error).message);
+    }
+  }
+  docs ||= retrieve(corpus.docs, query);
+  return {
+    sources: docs.map((d) => ({ id: d.id, title: d.title, text: d.text.slice(0, 900) })),
+    method,
+    tokens,
+  };
 }

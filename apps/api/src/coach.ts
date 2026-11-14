@@ -3,7 +3,7 @@ import type { Express } from 'express';
 import { db } from './db.js';
 import { json, type MissionData } from './domain.js';
 import { AppError } from './errors.js';
-import { spanHook } from './trace.js';
+import { recordSpan, spanHook } from './trace.js';
 import { listApplications } from './applications.js';
 import { coachSources, loadCorpus } from './coach-sources.js';
 import { configuredMode, generate, type Mode } from '../../../packages/agents/src/provider.js';
@@ -245,11 +245,26 @@ export async function refreshCoach(userId: string, feedback = '') {
     .join('; ');
   // Reference passages for what the user is aiming at (CFS-125); empty until the corpus is built.
   const data = profile.data as any;
-  const publicSources = coachSources(
+  const started = Date.now();
+  const retrieval = await coachSources(
     [data?.goals, feedback, ...(data?.skills || []), ...apps.slice(0, 6).map((a) => a.title)]
       .filter(Boolean)
       .join(' '),
   );
+  const publicSources = retrieval.sources;
+  // The query embedding is one small request; it is traced so the cost table shows it (CFS-141).
+  if (retrieval.method === 'embedding')
+    await recordSpan({ userId, agent: 'Coach sources' }, {
+      role: 'embedding',
+      model: 'text-embedding-3-small',
+      mode: configuredMode(),
+      startedAt: new Date(started).toISOString(),
+      durationMs: Date.now() - started,
+      attempts: 1,
+      inputTokens: retrieval.tokens,
+      outputTokens: 0,
+      status: 'ok',
+    } as any);
   const known = new Set(facts.map((f) => f.id));
   const sourceIds = new Set(publicSources.map((s) => s.id));
   const grounded = coachSchema.superRefine((analysis, ctx) => {

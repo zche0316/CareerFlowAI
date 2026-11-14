@@ -325,10 +325,19 @@ is on the Party page and its chat uses the party's avatars and Quest bubbles.
 - Without the corpus file the Coach works as before. O*NET describes US occupations; regional
   requirements still come from the role library and World insight.
 
-## Coach sources: ESCO (CFS-140)
+## Coach sources: ESCO and embedding retrieval (CFS-140, CFS-141)
 
 - Two corpora: O*NET 31.0 (US; what the work involves, core tasks, software) and ESCO (EU, via
   its public API; descriptions, alternative names, essential skills; 102 ICT, data, analyst and
   ICT-technician occupations). Regional requirements still come from the role library and World
-  insight, which use real postings. The Coach page names the source of each cited passage and
-  shows the attribution of the sources it cited.
+  insight, which use real postings.
+- Retrieval: the Coach query is embedded (`text-embedding-3-small`, 512 dimensions; one small
+  request, traced as "Coach sources") and compared with the committed document vectors; the BM25
+  score adds a small bonus (0.1 of the normalised score) so exact job titles still count; at most
+  three passages come from one source. Rehearsal mode, a missing key or vectors, or a failed
+  request fall back to BM25.
+- Measured on 22 labelled questions (12 with job titles, 10 plain-language or Chinese): right
+  first occupation 19/22 with embeddings plus the bonus, 17/22 embeddings alone, 13/22 BM25 alone;
+  BM25 found nothing for Chinese questions. Known gaps: no DevOps or machine-learning occupation in
+  either source.
+- Size: O*NET 61 KB, ESCO 112 KB, vectors 410 KB (148 documents); held in memory, no vector database.
