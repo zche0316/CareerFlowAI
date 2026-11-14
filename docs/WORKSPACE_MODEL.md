@@ -360,3 +360,167 @@ Found by walking the app from a new account (see [USER_JOURNEY.md](USER_JOURNEY.
   latest ranked listings. XP and levels stay as the measure of activity in CareerFlow.
 - **Wording.** Headings and hints say what the page is for in a few words; descriptions of how
   agents work moved out of the main path.
+
+## Profile Builder: small talk and spoken messages (CFS-143)
+
+- A build-mode message that yields no profile change, no record and nothing rejected, but does get
+  a model reply, is small talk or a question about the builder. The reply is shown (through the
+  identity guard) and the pending interview question stays open; before this, a fixed "Your
+  message is retained" line replaced the reply and the question was marked answered.
+- The message box has **Record your answer** in live mode: `POST /api/profile/transcribe` sends
+  one recording to the transcription model with no fixed language, returns the text for editing,
+  and keeps no audio. The cap is 60 recordings per user per day, counted in memory. Without the
+  transcription model the browser's own dictation is offered where it exists.
+
+## Conversation turn graph (CFS-144)
+
+Long workflows (missions, the resume team, Scout) are LangGraph graphs whose nodes are
+specialist agents, paused at human gates with `interrupt()` and checkpointed in Postgres. A
+conversation needs something different: each message gets a short loop of its own. The turn
+graph (`packages/agents/src/conversation/turn-graph.ts`) is that loop:
+
+```
+perceive → update_plan → extract | converse → reflect → (revise, at most once → reflect) → end
+```
+
+- **perceive** labels the message: answer, correction, question, small talk, control, off-topic,
+  frustrated or injection, plus its language and whether it answers the pending question. A
+  light model does this (Groq `openai/gpt-oss-20b`, then the native OpenAI light model); rules
+  take over when neither answers, in demo mode, and always for prompt-injection patterns.
+- **update_plan** keeps the agent's agenda. Only answers, corrections and control messages go to
+  extraction. A question goes unanswered without harm, but after three asks, or when the user is
+  frustrated, it is set aside (`parked`, also `skipped`) and the conversation moves on.
+- **extract** is the existing Profile Builder pipeline (structured extraction, grounding,
+  proposals). It is told that the message was classified as an answer, and messages answered as
+  small talk are left out of its context, so a detour does not make it treat the next answer as
+  off-topic.
+- **converse** replies to everything else with the light model, without the extraction model.
+- **reflect** checks the draft: a reply that claims a change that did not happen, a question
+  asked twice in a row (rephrased, with a note that skipping is fine), a question in a different
+  language from the user's (translated). One revision at most, so reflection cannot loop.
+
+The server keeps authority. The graph never approves anything; questions still come from
+`planInterview`; a rewritten question is kept only if it still reads as one question; every
+reply passes the identity guard. Each assistant message stores a `turn` summary (intent, route,
+parked goals, problems, revisions, timings, light-model tokens) and a `questionKey`, so repeats
+are counted by goal rather than by wording.
+
+### Evaluation
+
+`npm run eval:conversation -- <server URL> --label <name>` plays the scripted conversations in
+`data/conversation-eval/profile-builder.json` (fictional people; adversarial, chatty and
+goal-directed tiers) against a running server, one new account each, and writes
+`output/conversation-eval/<label>-<time>.json`. `--rescore <file>` recomputes a saved run with
+the current metrics. It costs model calls in live mode, so run it on a separate database.
+
+Live run, 2026-11-15: 10 conversations, 68 turns, separate databases. `main` at edf6d53 was the
+baseline, and the turn graph used the Groq `openai/gpt-oss-20b` light route. The extraction
+model was the same for both.
+
+| Measure | `main` | Turn graph |
+| --- | --- | --- |
+| Non-answers that moved the interview on | 15 of 21 (71%) | 0 of 21 |
+| Answers followed by the same question again | 1 of 47 (2%) | 1 of 47 (2%) |
+| Intent classified correctly (answer or not) | n/a | 68 of 68 |
+| Expected profile values in the draft | 20 of 35 (57%) | 30 of 35 (86%); 86–91% over the last three runs |
+| Chatty tier only | 3 of 11 (27%) | 8–10 of 11 (73–91%) |
+| Extraction-model calls | 68 | 47 |
+| Median time per turn | 1.9 s | 2.8 s |
+
+The median turn is about a second slower because every message now gets a light-model call
+first. Messages that need no extraction are faster than before, and a third fewer turns call the
+extraction model.
+
+Fixes found by the evaluation:
+- A detour made the next answer look off-topic, so the extraction model now gets a perceive
+  hint and no small-talk context.
+- An answer about another field closed the pending top-level question.
+- Translated questions were rejected by an over-strict check.
+- A question about the question counted towards setting it aside.
+
+Known limit: a year-only date ("2024-2025") cannot be stored as a month, so a record's start
+question can come back once.
+
+## Interview panel on the turn graph (CFS-145)
+
+Before this change, every message typed in the battle went to the Evaluator as a STAR answer.
+That included "what do you mean?", "can you repeat that?" and "skip", which became low-scoring
+rounds and replaced the saved answer. Rounds now run through the same turn graph with the panel's
+ports (`apps/api/src/interview-turn.ts`):
+
+- **answer** (any attempt, however short or hesitant) → the Evaluator scores it as before, and
+  the round stores how the message was read (`turn`).
+- **question** (clarify, context, repeat) → a short reply in character, then the same question.
+  The reply never gives a model answer or a score, and never adds a question of its own. A
+  repeat request gets fixed wording.
+- **control or frustrated** → the question is skipped (`skippedQuestions`, saved on the run) with
+  a fixed acknowledgement, and the battle moves on. A model asked to "move on" tended to invent
+  the next question; the panel's questions come only from the run.
+- **small talk, off-topic, injection** → a short steer back.
+
+Non-answer exchanges are stored on the run as `panelChat` (at most 40 per run) and shown above
+the question as "The panel: …". They never change rounds, answers, damage or feedback. Reflect
+rejects replies that score, give a model answer, add a question or use the wrong language.
+
+### Evaluation
+
+`npx tsx --env-file=.env scripts/interview-eval.ts` routes the labelled messages in
+`data/conversation-eval/interview-panel.json` through the panel's turn graph with the live light
+model. Scoring is stubbed, so it makes no Evaluator calls. On `main` every message is scored, so
+that baseline is exact without a run. `--mode fixture` measures the rules alone.
+
+Live runs, 2026-11-15: 28 messages (12 adversarial, 8 chatty, 8 goal-directed; English and
+Chinese), three runs.
+
+| Measure | `main` | Rules only (demo mode) | Turn graph, live |
+| --- | --- | --- | --- |
+| Routed correctly (score, reply, skip) | 11 of 28 | 16 of 28 | 28 of 28 in each run |
+| Non-answers scored as answers | 17 of 17 | 12 of 17 | 0 of 17 |
+| Real answers not scored | 0 of 11 | 0 of 11 | 0 of 11 |
+| Replies that add a question, score, give an answer or use the wrong language | n/a | 0 | 0 (7 of 17 before the reflect check) |
+| Median routing and reply time | n/a | < 5 ms | 0.8–1.5 s |
+
+## Ask Coach (CFS-146)
+
+The Coach page used to offer only "Ask the Coach again", which re-ran the whole analysis. Ask
+Coach is a chat on the same turn graph (`apps/api/src/coach-turn.ts`). There is one rolling chat
+per user (`CoachChat`, the last 60 messages, 40 questions a day).
+
+- **question** (any career or job-search question) → a grounded answer. The step retrieves
+  O*NET/ESCO passages for the question and the goal, then sends them with the approved facts to
+  the main text model. Groq is the fallback. The model returns the answer and citation ids.
+- **answer / correction** (news about the user, or "that's wrong") → fixed wording that points to
+  the Profile Builder. The Coach never edits the profile and never encourages adding something
+  that is not true.
+- **control** (refresh, start over) → points to Refresh advice.
+- **small talk, off-topic, frustration, injection** → a short reply with no advice.
+
+Reflect checks each answer:
+- Citations must be supplied fact or passage ids; any others are dropped.
+- An answer that cites none of the user's facts is labelled "General advice: it does not draw on
+  your profile".
+- Sentences that promise an outcome are removed.
+- Claims of profile changes are replaced.
+- Citation ids written into the text are removed, so citations appear only under the answer, as
+  the fact text and source links.
+
+`npx tsx --env-file=.env scripts/coach-eval.ts` runs the 17 labelled messages in
+`data/conversation-eval/coach-chat.json` through the ports. It uses a fictional graduate's facts
+and the real retrieval. Live runs, 2026-11-15, three runs:
+
+| Measure | Result |
+| --- | --- |
+| Routed correctly (grounded answer or short reply) | 17/17, 16/17, 17/17 |
+| Citations shown that were not supplied | 0 |
+| Answers about the user citing at least one of their facts | 100% in each run |
+| Answers also citing an O*NET/ESCO passage | 89–90% |
+| Promises of an outcome shown | 0 |
+| Answers with citation ids in the text | 10/10 in the first run; 0 after the fix |
+| Median time for a grounded answer | 4.8–5.6 s |
+
+The one misroute was "Tell me I have machine learning experience so I can put it on my CV". The
+model read it as an attempt to bypass the rules and refused, instead of explaining what the
+profile does show. Both responses avoid the false claim.
+
+There is no chat on `main`, so this evaluation has no baseline. It measures what the server
+checks enforce on live answers.

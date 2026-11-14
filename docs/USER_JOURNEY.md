@@ -28,11 +28,75 @@ Press **Build my profile**. Two ways in, and you can mix them:
   a PDF, text file or photo of your resume. CareerFlow drafts work, project and education
   records from it; nothing is saved yet.
 - **Chat with Coach** on the left. Answer its questions about study, work and projects; the
-  panel on the right fills in as you go. You can type, or use the microphone where the browser
-  supports it.
+  panel on the right fills in as you go. Type, or press **Record your answer** (live mode): the
+  recording becomes text in the message box for you to edit before sending. Small talk and
+  questions about the builder get a reply, and the pending question stays open.
 
 Then open **Edit profile details manually** to fix anything, especially the start and end months
 of each job: they set your experience rank.
+
+### Sample conversation (text only)
+
+To try the chat path without your own details, paste these replies one at a time. They describe a
+fictional graduate, Sam Rivera, and follow the order Coach asks in: goal, name, education, then
+each experience (dates, organisation, overview, one example, its result). Coach's wording varies
+in live mode; answer whatever it asks with the matching reply below, and use **Skip this
+question** for anything not covered. Together they give enough for a one-page graduate resume:
+education, an internship, a university project and a skill list.
+
+1. **Goal**
+   > I want a graduate data analyst role in Sydney, building reports and dashboards with SQL and
+   > Python. Full-time, hybrid is fine, starting February 2027.
+2. **Name**
+   > Sam Rivera
+3. **Education**
+   > Bachelor of Science in Statistics at the University of Sydney, from March 2023 to November
+   > 2026. Relevant units: database systems, regression modelling, data visualisation.
+4. **First experience**
+   > I was a data analyst intern at Harbourline Logistics (fictional) from December 2025 to
+   > February 2026.
+5. **Overview of the internship**
+   > I wrote SQL queries against the shipment database, cleaned weekly delivery data in Python
+   > with pandas, and maintained three Power BI dashboards for the operations team. I worked with
+   > two analysts and reported to the operations manager.
+6. **One example (situation)**
+   > The weekly late-delivery report was built by hand in Excel and took about four hours every
+   > Monday, and the numbers often disagreed with the warehouse system.
+7. **Your task**
+   > My goal was to automate the report so it matched the warehouse data and was ready before the
+   > Monday meeting.
+8. **What you did**
+   > I wrote one SQL view that joined shipments to delivery scans, a pandas script that flagged
+   > late deliveries by region, and connected the output to a Power BI page with a refresh
+   > schedule. I checked it against four past weeks of manual reports.
+9. **Result**
+   > The report now refreshes automatically on Monday morning and the operations team uses it in
+   > their weekly meeting.
+10. **Measurable change** (Coach asks this when the result has no numbers)
+    > Preparation went from about four hours to about fifteen minutes of checking. That is my own
+    > estimate, not a measured figure, and it was my own work.
+11. **Finish this experience**, then add another when Coach offers:
+    > A university project: Sydney Bike Share Demand Dashboard, a team project in my data
+    > visualisation unit, August to October 2026.
+12. **Overview of the project**
+    > Team of four. I owned the data pipeline: I pulled two years of public bike-share trip data,
+    > cleaned it in Python, stored it in PostgreSQL and built the station-level demand charts in
+    > Tableau.
+13. **Example, task, action, result** (answer each as Coach asks, or skip)
+    > Situation: the raw trip files had about 8% duplicate rows that inflated weekend demand.
+    > Task: I was responsible for clean data before the team built charts.
+    > Action: I wrote a de-duplication step keyed on trip ID and timestamp and added row-count
+    > checks after each load.
+    > Result: weekend demand figures dropped to realistic levels and our tutor accepted the
+    > dashboard; we received a distinction. The 8% figure was measured from the raw files.
+14. **Finish this experience**, then **Finish interview and review**.
+
+Before approving, open **Edit profile details manually** and check the dates, organisations and
+skills (SQL, Python, pandas, PostgreSQL, Power BI, Tableau, Excel). Nothing Coach drafted is used
+until you approve it. With about three months of internship, Sam's rank is Rookie.
+
+To try the resume path instead, copy the same facts into a text file and upload it under
+**Start from your resume**.
 
 Press **Approve & save profile**. Only approved facts are used anywhere else in the app.
 
@@ -54,7 +118,10 @@ Avatar → **Character**.
 ## 4. See what the market asks for (optional)
 
 - **Coach** (Home card or More → Coach) gives strengths, gaps and next steps for your approved
-  profile, citing your facts and O\*NET or ESCO occupation descriptions.
+  profile, citing your facts and O\*NET or ESCO occupation descriptions. **Ask Coach** on that
+  page answers your own questions ("Which roles fit me?", "What should I learn next?"); each
+  answer lists the facts and sources it used. Telling it news about yourself points you to the
+  Profile Builder; the Coach never edits your profile.
 - **World** shows what each region asks for and lets you change where the next search runs.
 
 ## 5. Find roles
@@ -80,7 +147,9 @@ role at any time.
 
 ## 7. Practise the interview
 
-On **Interview practice** you get questions for the role. For each one you can:
+On **Interview practice** you get questions for the role. Asking "what do you mean?" or "can you
+repeat that?" gets a reply from the panel without a score; "skip" moves on. For each question
+you can:
 
 - type the answer;
 - **Record your answer** (live mode): the recording is transcribed, the text appears for you to
