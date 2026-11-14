@@ -1,0 +1,328 @@
+{
+ "attribution": "This page includes information from the O*NET 31.0 Database by the U.S. Department of Labor, Employment and Training Administration (USDOL/ETA). Used under the CC BY 4.0 license. O*NET® is a trademark of USDOL/ETA. CareerFlow has modified all or some of this information (selected occupations, shortened task and software lists). USDOL/ETA has not approved, endorsed, or tested these modifications.",
+ "licence": "CC BY 4.0 · https://creativecommons.org/licenses/by/4.0/",
+ "docs": [
+  {
+   "id": "onet:11-3021.00",
+   "title": "Computer and Information Systems Managers",
+   "text": "Plan, direct, or coordinate activities in such fields as electronic data processing, information systems, systems analysis, and computer programming.\nCore tasks: Direct daily operations of department, analyzing workflow, establishing priorities, developing standards and setting deadlines. Meet with department heads, managers, supervisors, vendors, and others, to solicit cooperation and resolve problems. Review project plans to plan and coordinate project activity. Assign and review the work of systems analysts, programmers, and other computer-related workers. Provide users with technical support for computer problems. Develop computer information resources, providing for data security and control, strategic computing, and disaster recovery.\nCommon software: Amazon Web Services AWS software, Apache Cassandra, Apache Hadoop, Apache Maven, Apache Tomcat, Apple macOS, Atlassian JIRA, C, C#, C++.",
+   "url": "https://www.onetonline.org/link/summary/11-3021.00",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:13-1111.00",
+   "title": "Management Analysts",
+   "text": "Conduct organizational studies and evaluations, design systems and procedures, conduct work simplification and measurement studies, and prepare operations and procedures manuals to assist management in operating more efficiently and effectively. Includes program analysts and management consultants.\nCore tasks: Gather and organize information on problems or procedures. Confer with personnel concerned to ensure successful functioning of newly implemented systems or procedures. Analyze data gathered and develop solutions or alternative methods of proceeding. Document findings of study and prepare recommendations for implementation of new systems, procedures, or organizational changes. Plan study of work problems and procedures, such as organizational change, communications, information flow, integrated production methods, inventory control, or cost analysis. Interview personnel and conduct on-site observation to ascertain unit functions, work performed, and methods, equipment, and personnel used.\nCommon software: Adobe Acrobat, Adobe InDesign, AJAX, Alteryx software, Amazon Elastic Compute Cloud EC2, Amazon Redshift, Amazon Web Services AWS software, Ansible software, Apache Cassandra, Apache Hadoop.",
+   "url": "https://www.onetonline.org/link/summary/13-1111.00",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:13-1161.00",
+   "title": "Market Research Analysts and Marketing Specialists",
+   "text": "Research conditions in local, regional, national, or online markets. Gather information to determine potential sales of a product or service, or plan a marketing or advertising campaign. May gather information on competitors, prices, sales, and methods of marketing and distribution. May employ search marketing tactics, analyze web metrics, and develop recommendations to increase search engine ranking and visibility to target markets.\nCore tasks: Prepare reports of findings, illustrating data graphically and translating complex findings into written text. Seek and provide information to help companies determine their position in the marketplace. Conduct research on consumer opinions and marketing strategies, collaborating with marketing professionals, statisticians, pollsters, and other professionals. Collect and analyze data on customer demographics, preferences, needs, and buying habits to identify potential markets and factors affecting product demand. Devise and evaluate methods and procedures for collecting data, such as surveys, opinion polls, or questionnaires, or arrange to obtain existing data. Gather data on competitors and analyze their prices, sales, and method of marketing and distribution.\nCommon software: Adobe Acrobat, Adobe After Effects, Adobe Creative Cloud software, Adobe Illustrator, Adobe InDesign, Adobe Photoshop, Amazon Redshift, Apache Hadoop, Apache Hive, Apple macOS.",
+   "url": "https://www.onetonline.org/link/summary/13-1161.00",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:13-1161.01",
+   "title": "Search Marketing Strategists",
+   "text": "Employ search marketing tactics to increase visibility and engagement with content, products, or services in Internet-enabled devices or interfaces. Examine search query behaviors on general or specialty search engines or other Internet-based content. Analyze research, data, or technology to understand user intent and measure outcomes for ongoing optimization.\nCore tasks: Manage tracking and reporting of search-related activities and provide analyses to marketing executives. Optimize digital assets, such as text, graphics, or multimedia assets, for search engine optimization (SEO) or for display and usability on internet-connected devices. Collect and analyze Web metrics, such as visits, time on site, page views per visit, transaction volume and revenue, traffic mix, click-through rates, conversion rates, cost per acquisition, or cost per click. Participate in the development or implementation of online marketing strategy. Optimize Web site exposure by analyzing search engine patterns to direct online placement of keywords or other content. Coordinate with developers to optimize Web site architecture, server configuration, or page construction for search engine consumption and optimal visibility.\nCommon software: Adobe Photoshop, AJAX, Cascading style sheets CSS, Elasticsearch, Facebook, Google Analytics, Google Looker Analytics, HubSpot software, Hypertext markup language HTML, JavaScript.",
+   "url": "https://www.onetonline.org/link/summary/13-1161.01",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:13-2051.00",
+   "title": "Financial and Investment Analysts",
+   "text": "Conduct quantitative analyses of information involving investment programs or financial data of public or private institutions, including valuation of businesses.\nCore tasks: Advise clients on aspects of capitalization, such as amounts, sources, or timing. Analyze financial or operational performance of companies facing financial difficulties to identify or recommend remedies. Assess companies as investments for clients by examining company facilities. Collaborate on projects with other professionals, such as lawyers, accountants, or public relations experts. Collaborate with investment bankers to attract new corporate clients. Conduct financial analyses related to investments in green construction or green retrofitting projects.\nCommon software: Alteryx software, Apache Hive, Google Docs, IBM SPSS Statistics, Intuit QuickBooks, Marketo Marketing Automation, Microsoft Access, Microsoft Excel, Microsoft Office software, Microsoft Outlook.",
+   "url": "https://www.onetonline.org/link/summary/13-2051.00",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-1211.00",
+   "title": "Computer Systems Analysts",
+   "text": "Analyze science, engineering, business, and other data processing problems to develop and implement solutions to complex applications problems, system administration issues, or network concerns. Perform systems management and integration functions, improve existing computer systems, and review computer system capabilities, workflow, and schedule limitations. May analyze or recommend commercially available software.\nCore tasks: Troubleshoot program and system malfunctions to restore normal functioning. Provide staff and users with assistance solving computer-related problems, such as malfunctions and program problems. Test, maintain, and monitor computer programs and systems, including coordinating the installation of computer programs and systems. Use the computer in the analysis and solution of business problems, such as development of integrated production and inventory control and cost analysis systems. Coordinate and link the computer systems within an organization to increase compatibility so that information can be shared. Use object-oriented programming languages, as well as client and server applications development processes and multimedia and Internet technology.\nCommon software: Adobe Acrobat, Adobe Illustrator, Adobe Photoshop, AJAX, Amazon DynamoDB, Amazon Elastic Compute Cloud EC2, Amazon Redshift, Amazon Web Services AWS CloudFormation, Amazon Web Services AWS software, Ansible software.",
+   "url": "https://www.onetonline.org/link/summary/15-1211.00",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-1211.01",
+   "title": "Health Informatics Specialists",
+   "text": "Apply knowledge of nursing and informatics to assist in the design, development, and ongoing modification of computerized health care systems. May educate staff and assist in problem solving to promote the implementation of the health care system.\nCore tasks: Translate nursing practice information between nurses and systems engineers, analysts, or designers, using object-oriented models or other techniques. Use informatics science to design or implement health information technology applications for resolution of clinical or health care administrative problems. Develop or implement policies or practices to ensure the privacy, confidentiality, or security of patient information. Analyze and interpret patient, nursing, or information systems data to improve nursing services. Identify, collect, record, or analyze data relevant to the nursing care of patients. Apply knowledge of computer science, information science, nursing, and informatics theory to nursing practice, education, administration, or research, in collaboration with other health informatics specialists.\nCommon software: Apache Hadoop, eClinicalWorks EHR software, Epic Systems, ESRI ArcGIS software, IBM SPSS Statistics, JavaScript, MEDITECH software, Microsoft Access, Microsoft Excel, Microsoft Office software.",
+   "url": "https://www.onetonline.org/link/summary/15-1211.01",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-1212.00",
+   "title": "Information Security Analysts",
+   "text": "Plan, implement, upgrade, or monitor security measures for the protection of computer networks and information. Assess system vulnerabilities for security risks and propose and implement risk mitigation strategies. May ensure appropriate security controls are in place that will safeguard digital files and vital electronic infrastructure. May respond to computer security breaches and viruses.\nCore tasks: Develop plans to safeguard computer files against accidental or unauthorized modification, destruction, or disclosure and to meet emergency data processing needs. Monitor current reports of computer viruses to determine when to update virus protection systems. Encrypt data transmissions and erect firewalls to conceal confidential information as it is being transmitted and to keep out tainted digital transfers. Perform risk assessments and execute tests of data processing system to ensure functioning of data processing activities and security measures. Modify computer security files to incorporate new software, correct errors, or change individual access status. Review violations of computer security procedures and discuss procedures with violators to ensure violations are not repeated.\nCommon software: AJAX, Amazon DynamoDB, Amazon Elastic Compute Cloud EC2, Amazon Redshift, Amazon Web Services AWS CloudFormation, Amazon Web Services AWS software, Ansible software, Apache Cassandra, Apache Hadoop, Apache Hive.",
+   "url": "https://www.onetonline.org/link/summary/15-1212.00",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-1221.00",
+   "title": "Computer and Information Research Scientists",
+   "text": "Conduct research into fundamental computer and information science as theorists, designers, or inventors. Develop solutions to problems in the field of computer hardware and software.\nCore tasks: Analyze problems to develop solutions involving computer hardware and software. Apply theoretical expertise and innovation to create or apply new technology, such as adapting principles for applying computers to new uses. Assign or schedule tasks to meet work priorities and goals. Meet with managers, vendors, and others to solicit cooperation and resolve problems. Design computers and the software that runs them. Conduct logical analyses of business, scientific, engineering, and other technical problems, formulating mathematical models of problems for solution by computers.\nCommon software: Amazon DynamoDB, Amazon Elastic Compute Cloud EC2, Amazon Redshift, Amazon Web Services AWS CloudFormation, Amazon Web Services AWS software, Ansible software, Apache Airflow, Apache Cassandra, Apache Hadoop, Apache Hive.",
+   "url": "https://www.onetonline.org/link/summary/15-1221.00",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-1231.00",
+   "title": "Computer Network Support Specialists",
+   "text": "Analyze, test, troubleshoot, and evaluate existing network systems, such as local area networks (LAN), wide area networks (WAN), cloud networks, servers, and other data communications networks. Perform network maintenance to ensure networks operate correctly with minimal interruption.\nCore tasks: Back up network data. Configure security settings or access permissions for groups or individuals. Analyze and report computer network security breaches or attempted breaches. Identify the causes of networking problems, using diagnostic testing software and equipment. Document network support activities. Configure wide area network (WAN) or local area network (LAN) routers or related equipment.\nCommon software: Adobe Acrobat, Apache Tomcat, Apple macOS, Bash, Border Gateway Protocol BGP, Linux, Microsoft Access, Microsoft Active Directory, Microsoft Azure software, Microsoft Excel.",
+   "url": "https://www.onetonline.org/link/summary/15-1231.00",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-1232.00",
+   "title": "Computer User Support Specialists",
+   "text": "Provide technical assistance to computer users. Answer questions or resolve computer problems for clients in person, via telephone, or electronically. May provide assistance concerning the use of computer hardware and software, including printing, installation, word processing, electronic mail, and operating systems.\nCore tasks: Oversee the daily performance of computer systems. Set up equipment for employee use, performing or ensuring proper installation of cables, operating systems, or appropriate software. Read technical manuals, confer with users, or conduct computer diagnostics to investigate and resolve problems or to provide technical assistance and support. Answer user inquiries regarding computer software or hardware operation to resolve problems. Install and perform minor repairs to hardware, software, or peripheral equipment, following design or installation specifications. Confer with staff, users, and management to establish requirements for new systems or modifications.\nCommon software: Adobe Acrobat, Adobe Creative Cloud software, Adobe Illustrator, Adobe InDesign, Adobe Photoshop, AJAX, Amazon Redshift, Amazon Web Services AWS software, Ansible software, Apache Cassandra.",
+   "url": "https://www.onetonline.org/link/summary/15-1232.00",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-1241.00",
+   "title": "Computer Network Architects",
+   "text": "Design and implement computer and information networks, such as local area networks (LAN), wide area networks (WAN), intranets, extranets, and other data communications networks. Perform network modeling, analysis, and planning, including analysis of capacity needs for network infrastructures. May also design network and computer security measures. May research and recommend network and data communications hardware and software.\nCore tasks: Develop disaster recovery plans. Develop or recommend network security measures, such as firewalls, network security audits, or automated security probes. Develop and implement solutions for network problems. Maintain networks by performing activities such as file addition, deletion, or backup. Coordinate network operations, maintenance, repairs, or upgrades. Coordinate installation of new equipment.\nCommon software: Adobe After Effects, AJAX, Amazon DynamoDB, Amazon Elastic Compute Cloud EC2, Amazon Redshift, Amazon Web Services AWS CloudFormation, Amazon Web Services AWS software, Ansible software, Apache Cassandra, Apache Hadoop.",
+   "url": "https://www.onetonline.org/link/summary/15-1241.00",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-1241.01",
+   "title": "Telecommunications Engineering Specialists",
+   "text": "Design or configure wired, wireless, and satellite communications systems for voice, video, and data services. Supervise installation, service, and maintenance.\nCore tasks: Document technical specifications and operating standards for telecommunications equipment. Provide user support by diagnosing network and device problems and implementing technical or procedural solutions. Implement system renovation projects in collaboration with technical staff, engineering consultants, installers, and vendors. Keep abreast of changes in industry practices and emerging telecommunications technology by reviewing current literature, talking with colleagues, participating in educational programs, attending meetings or workshops, or participating in professional organizations or conferences. Use computer-aided design (CAD) software to prepare or evaluate network diagrams, floor plans, or site configurations for existing facilities, renovations, or new systems. Develop, maintain, or implement telecommunications disaster recovery plans to ensure business continuity.\nCommon software: Apache Kafka, Autodesk AutoCAD, Autodesk Revit, Linux, Microsoft Excel, Microsoft Office software, Microsoft Outlook, Microsoft PowerPoint, Microsoft PowerShell, Microsoft Project.",
+   "url": "https://www.onetonline.org/link/summary/15-1241.01",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-1242.00",
+   "title": "Database Administrators",
+   "text": "Administer, test, and implement computer databases, applying knowledge of database management systems. Coordinate changes to computer databases. Identify, investigate, and resolve database performance issues, database capacity, and database scalability. May plan, coordinate, and implement security measures to safeguard computer databases.\nCore tasks: Modify existing databases and database management systems or direct programmers and analysts to make changes. Plan, coordinate, and implement security measures to safeguard information in computer files against accidental or unauthorized damage, modification or disclosure. Plan and install upgrades of database management system software to enhance database performance. Specify users and user access levels for each segment of database. Test changes to database applications or systems. Test programs or databases, correct errors, and make necessary modifications.\nCommon software: AJAX, Amazon DynamoDB, Amazon Elastic Compute Cloud EC2, Amazon Redshift, Amazon Web Services AWS CloudFormation, Amazon Web Services AWS software, Ansible software, Apache Airflow, Apache Cassandra, Apache Hadoop.",
+   "url": "https://www.onetonline.org/link/summary/15-1242.00",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-1243.00",
+   "title": "Database Architects",
+   "text": "Design strategies for enterprise databases, data warehouse systems, and multidimensional networks. Set standards for database operations, programming, query processes, and security. Model, design, and construct large relational databases or data warehouses. Create and optimize data models for warehouse infrastructure and workflow. Integrate new systems with existing warehouse structure and refine system performance and functionality.\nCore tasks: Develop and document database architectures. Collaborate with system architects, software architects, design analysts, and others to understand business or industry requirements. Develop database architectural strategies at the modeling, design and implementation stages to address business or industry requirements. Design databases to support business applications, ensuring system scalability, security, performance, and reliability. Develop data models for applications, metadata tables, views or related database structures. Design database applications, such as interfaces, data transfer mechanisms, global temporary tables, data partitions, and function-based indexes to enable efficient access of the generic database structure.\nCommon software: Adobe Acrobat, AJAX, Amazon DynamoDB, Amazon Elastic Compute Cloud EC2, Amazon Redshift, Amazon Web Services AWS CloudFormation, Amazon Web Services AWS software, Ansible software, Apache Airflow, Apache Cassandra.",
+   "url": "https://www.onetonline.org/link/summary/15-1243.00",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-1243.01",
+   "title": "Data Warehousing Specialists",
+   "text": "Design, model, or implement corporate data warehousing activities. Program and configure warehouses of database information and provide support to warehouse users.\nCore tasks: Develop data warehouse process models, including sourcing, loading, transformation, and extraction. Verify the structure, accuracy, or quality of warehouse data. Map data between source systems, data warehouses, and data marts. Develop and implement data extraction procedures from other systems, such as administration, billing, or claims. Design and implement warehouse database structures. Develop or maintain standards, such as organization, structure, or nomenclature, for the design of data warehouse elements, such as data architectures, models, tools, and databases.\nCommon software: Amazon DynamoDB, Amazon Elastic Compute Cloud EC2, Amazon Redshift, Amazon Web Services AWS software, Apache Cassandra, Apache Hadoop, Apache Hive, Apache Kafka, Apache Spark, Apache Subversion SVN.",
+   "url": "https://www.onetonline.org/link/summary/15-1243.01",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-1244.00",
+   "title": "Network and Computer Systems Administrators",
+   "text": "Install, configure, and maintain an organization's local area network (LAN), wide area network (WAN), data communications network, operating systems, and physical and virtual servers. Perform system monitoring and verify the integrity and availability of hardware, network, and server resources and systems. Review system and application logs and verify completion of scheduled jobs, including system backups. Analyze network and server resource consumption and control user access. Install and upgrade software and maintain software licenses. May assist in network modeling, analysis, planning, and coordination between network and data communications hardware and software.\nCore tasks: Plan, coordinate, and implement network security measures to protect data, software, and hardware. Perform data backups and disaster recovery operations. Diagnose, troubleshoot, and resolve hardware, software, or other network and system problems, and replace defective components when necessary. Maintain and administer computer networks and related computing environments, including computer hardware, systems software, applications software, and all configurations. Configure, monitor, and maintain email applications or virus protection software. Confer with network users about solutions to existing system problems.\nCommon software: Adobe Acrobat, AJAX, Amazon DynamoDB, Amazon Elastic Compute Cloud EC2, Amazon Redshift, Amazon Web Services AWS CloudFormation, Amazon Web Services AWS software, Ansible software, Apache Cassandra, Apache Hadoop.",
+   "url": "https://www.onetonline.org/link/summary/15-1244.00",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-1251.00",
+   "title": "Computer Programmers",
+   "text": "Create, modify, and test the code and scripts that allow computer applications to run. Work from specifications drawn up by software and web developers or other individuals. May develop and write computer programs to store, locate, and retrieve specific documents, data, and information.\nCore tasks: Write, analyze, review, and rewrite programs, using workflow chart and diagram, and applying knowledge of computer capabilities, subject matter, and symbolic logic. Correct errors by making appropriate changes and rechecking the program to ensure that the desired results are produced. Perform or direct revision, repair, or expansion of existing programs to increase operating efficiency or adapt to new requirements. Write, update, and maintain computer programs or software packages to handle specific jobs such as tracking inventory, storing or retrieving data, or controlling other equipment. Consult with managerial, engineering, and technical personnel to clarify program intent, identify problems, and suggest changes. Conduct trial runs of programs and software applications to be sure they will produce the desired information and that the instructions are correct.\nCommon software: Adobe Acrobat, Adobe Illustrator, Adobe Photoshop, AJAX, Amazon DynamoDB, Amazon Elastic Compute Cloud EC2, Amazon Redshift, Amazon Web Services AWS CloudFormation, Amazon Web Services AWS software, Ansible software.",
+   "url": "https://www.onetonline.org/link/summary/15-1251.00",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-1252.00",
+   "title": "Software Developers",
+   "text": "Research, design, and develop computer and network software or specialized utility programs. Analyze user needs and develop software solutions, applying principles and techniques of computer science, engineering, and mathematical analysis. Update software or enhance existing software capabilities. May work with computer hardware engineers to integrate hardware and software systems, and develop specifications and performance requirements. May maintain databases within an application area, working individually or coordinating database development as part of a team.\nCore tasks: Analyze user needs and software requirements to determine feasibility of design within time and cost constraints. Develop or direct software system testing or validation procedures, programming, or documentation. Confer with systems analysts, engineers, programmers and others to design systems and to obtain information on project limitations and capabilities, performance requirements and interfaces. Modify existing software to correct errors, adapt it to new hardware, or upgrade interfaces and improve performance. Prepare reports or correspondence concerning project specifications, activities, or status. Analyze information to determine, recommend, and plan installation of a new system or modification of an existing system.\nCommon software: Adobe Acrobat, Adobe After Effects, Adobe Creative Cloud software, Adobe Illustrator, Adobe InDesign, Adobe Photoshop, AJAX, Alteryx software, Amazon DynamoDB, Amazon Elastic Compute Cloud EC2.",
+   "url": "https://www.onetonline.org/link/summary/15-1252.00",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-1253.00",
+   "title": "Software Quality Assurance Analysts and Testers",
+   "text": "Develop and execute software tests to identify software problems and their causes. Test system modifications to prepare for implementation. Document software and application defects using a bug tracking system and report defects to software or web developers. Create and maintain databases of known defects. May participate in software design reviews to provide input on functional requirements, operational characteristics, product designs, and schedules.\nCore tasks: Identify, analyze, and document problems with program function, output, online screen, or content. Document software defects, using a bug tracking system, and report defects to software developers. Develop testing programs that address areas such as database impacts, software scenarios, regression testing, negative testing, error or bug retests, or usability. Design test plans, scenarios, scripts, or procedures. Document test procedures to ensure replicability and compliance with standards. Provide feedback and recommendations to developers on software usability and functionality.\nCommon software: Adobe Acrobat, Adobe After Effects, Adobe Creative Cloud software, Adobe Illustrator, Adobe InDesign, Adobe Photoshop, AJAX, Amazon DynamoDB, Amazon Elastic Compute Cloud EC2, Amazon Redshift.",
+   "url": "https://www.onetonline.org/link/summary/15-1253.00",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-1254.00",
+   "title": "Web Developers",
+   "text": "Develop and implement websites, web applications, application databases, and interactive web interfaces. Evaluate code to ensure that it is properly structured, meets industry standards, and is compatible with browsers and devices. Optimize website performance, scalability, and server-side code and processes. May develop website infrastructure and integrate websites with other computer applications.\nCore tasks: Write supporting code for Web applications or Web sites. Design, build, or maintain Web sites, using authoring or scripting languages, content creation tools, management tools, and digital media. Back up files from Web sites to local directories for instant recovery in case of problems. Select programming languages, design tools, or applications. Evaluate code to ensure that it is valid, is properly structured, meets industry standards, and is compatible with browsers, devices, or operating systems. Develop databases that support Web applications and Web sites.\nCommon software: Adobe Acrobat, Adobe After Effects, Adobe Creative Cloud software, Adobe Illustrator, Adobe InDesign, Adobe Photoshop, AJAX, Amazon DynamoDB, Amazon Elastic Compute Cloud EC2, Amazon Redshift.",
+   "url": "https://www.onetonline.org/link/summary/15-1254.00",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-1255.00",
+   "title": "Web and Digital Interface Designers",
+   "text": "Design digital user interfaces or websites. Develop and test layouts, interfaces, functionality, and navigation menus to ensure compatibility and usability across browsers or devices. May use web framework applications as well as client-side code and processes. May evaluate web design following web and accessibility standards, and may analyze web use metrics and optimize websites for marketability and search engine ranking. May design and test interfaces that facilitate the human-computer interaction and maximize the usability of digital devices, websites, and software with a focus on aesthetics and design. May create graphics used in websites and manage website content and links.\nCore tasks: Identify problems uncovered by testing or customer feedback, and correct problems or refer problems to appropriate personnel for correction. Design, build, or maintain Web sites, using authoring or scripting languages, content creation tools, management tools, and digital media. Write supporting code for Web applications or Web sites. Perform Web site tests according to planned schedules, or after any Web site or product revision. Collaborate with web development professionals, such as front-end or back-end developers, to complete the full scope of Web development projects. Develop new visual design concepts and modify concepts based on stakeholder feedback.\nCommon software: Adobe Acrobat, Adobe After Effects, Adobe Creative Cloud software, Adobe Illustrator, Adobe InDesign, Adobe Photoshop, AJAX, Amazon DynamoDB, Amazon Elastic Compute Cloud EC2, Amazon Redshift.",
+   "url": "https://www.onetonline.org/link/summary/15-1255.00",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-1255.01",
+   "title": "Video Game Designers",
+   "text": "Design core features of video games. Specify innovative game and role-play mechanics, story lines, and character biographies. Create and maintain design documentation. Guide and collaborate with production staff to produce games as designed.\nCore tasks: Balance and adjust gameplay experiences to ensure the critical and commercial success of the product. Devise missions, challenges, or puzzles to be encountered in game play. Create core game features, including storylines, role-play mechanics, and character biographies for a new video game or game franchise. Solicit, obtain, and integrate feedback from design and technical staff into original game design. Conduct regular design reviews throughout the game development process. Develop and maintain design level documentation, including mechanics, guidelines, and mission outlines.\nCommon software: Adobe After Effects, Adobe Creative Cloud software, Adobe Illustrator, Adobe Photoshop, Atlassian JIRA, C, C#, C++, Extensible markup language XML, Git.",
+   "url": "https://www.onetonline.org/link/summary/15-1255.01",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-1299.00",
+   "title": "Computer Occupations, All Other",
+   "text": "All computer occupations not listed separately.",
+   "url": "https://www.onetonline.org/link/summary/15-1299.00",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-1299.01",
+   "title": "Web Administrators",
+   "text": "Manage web environment design, deployment, development and maintenance activities. Perform testing and quality assurance of web sites and web applications.\nCore tasks: Monitor systems for intrusions or denial of service attacks, and report security breaches to appropriate personnel. Identify or document backup or recovery plans. Back up or modify applications and related data to provide for disaster recovery. Correct testing-identified problems, or recommend actions for their resolution. Identify, standardize, and communicate levels of access and security. Determine sources of Web page or server problems, and take action to correct such problems.\nCommon software: Adobe Acrobat, Adobe Creative Cloud software, Adobe Illustrator, Adobe InDesign, Adobe Photoshop, AJAX, Amazon Web Services AWS software, Apache Tomcat, Apple Safari, Cascading style sheets CSS.",
+   "url": "https://www.onetonline.org/link/summary/15-1299.01",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-1299.02",
+   "title": "Geographic Information Systems Technologists and Technicians",
+   "text": "Assist scientists or related professionals in building, maintaining, modifying, or using geographic information systems (GIS) databases. May also perform some custom application development or provide user support.\nCore tasks: Review existing or incoming data for currency, accuracy, usefulness, quality, or completeness of documentation. Produce data layers, maps, tables, or reports, using spatial analysis procedures or Geographic Information Systems (GIS) technology, equipment, or systems. Maintain or modify existing Geographic Information Systems (GIS) databases. Select cartographic elements needed for effective presentation of information. Enter data into Geographic Information Systems (GIS) databases, using techniques such as coordinate geometry, keyboard entry of tabular data, manual digitizing of maps, scanning or automatic conversion to vectors, or conversion of other sources of digital data. Interpret aerial or ortho photographs.\nCommon software: Adobe Acrobat, Adobe After Effects, Adobe Creative Cloud software, Adobe Illustrator, Adobe Photoshop, Amazon Web Services AWS software, Apple iOS, Atlassian JIRA, Autodesk AutoCAD, Bentley MicroStation.",
+   "url": "https://www.onetonline.org/link/summary/15-1299.02",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-1299.03",
+   "title": "Document Management Specialists",
+   "text": "Implement and administer enterprise-wide document management systems and related procedures that allow organizations to capture, store, retrieve, share, and destroy electronic records and documents.\nCore tasks: Assist in determining document management policies to facilitate efficient, legal, and secure access to electronic content. Assist in the development of document or content classification taxonomies to facilitate information capture, search, and retrieval. Implement electronic document processing, retrieval, and distribution systems in collaboration with other information technology specialists. Identify and classify documents or other electronic content according to characteristics such as security level, function, and metadata. Develop, document, or maintain standards, best practices, or system usage procedures. Assist in the assessment, acquisition, or deployment of new electronic document management systems.\nCommon software: Adobe Acrobat, Adobe InDesign, Adobe Photoshop, Apache Tomcat, Autodesk AutoCAD, Dassault Systemes SolidWorks, Extensible markup language XML, Google Analytics, Hypertext markup language HTML, IBM DB2.",
+   "url": "https://www.onetonline.org/link/summary/15-1299.03",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-1299.04",
+   "title": "Penetration Testers",
+   "text": "Evaluate network system security by conducting simulated internal and external cyberattacks using adversary tools and techniques. Attempt to breach and exploit critical systems and gain access to sensitive information to assess system security.\nCore tasks: Document penetration test findings. Identify security system weaknesses, using penetration tests. Write audit reports to communicate technical and procedural findings and recommend solutions. Gather cyber intelligence to identify vulnerabilities. Maintain up-to-date knowledge of hacking trends. Keep up with new penetration testing tools and methods.\nCommon software: Amazon Web Services AWS software, Ansible software, Apple iOS, Apple macOS, Bash, C, C#, C++, Docker, GitHub.",
+   "url": "https://www.onetonline.org/link/summary/15-1299.04",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-1299.05",
+   "title": "Information Security Engineers",
+   "text": "Develop and oversee the implementation of information security procedures and policies. Build, maintain and upgrade security technology, such as firewalls, for the safe use of computer networks and the transmission and retrieval of information. Design and implement appropriate security controls to identify vulnerabilities and protect digital files and electronic infrastructures. Monitor and respond to computer security breaches, viruses, and intrusions, and perform forensic investigation. May oversee the assessment of information security systems.\nCore tasks: Identify security system weaknesses, using penetration tests. Coordinate monitoring of networks or systems for security breaches or intrusions. Assess the quality of security controls, using performance indicators. Train staff on, and oversee the use of, information security standards, policies, and best practices. Scan networks, using vulnerability assessment tools to identify vulnerabilities. Develop response and recovery strategies for security breaches.\nCommon software: Amazon Web Services AWS CloudFormation, Amazon Web Services AWS software, Ansible software, Apple iOS, Apple macOS, Atlassian Confluence, Atlassian JIRA, Bash, Border Gateway Protocol BGP, C.",
+   "url": "https://www.onetonline.org/link/summary/15-1299.05",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-1299.06",
+   "title": "Digital Forensics Analysts",
+   "text": "Conduct investigations on computer-based crimes establishing documentary or physical evidence, such as digital media and logs associated with cyber intrusion incidents. Analyze digital evidence and investigate computer security incidents to derive information in support of system and network vulnerability mitigation. Preserve and present computer-related evidence in support of criminal, fraud, counterintelligence, or law enforcement investigations.\nCore tasks: Duplicate digital evidence to use for data recovery and analysis procedures. Preserve and maintain digital forensic evidence for analysis. Adhere to legal policies and procedures related to handling digital media. Write reports, sign affidavits, or give depositions for legal proceedings. Perform forensic investigations of operating or file systems. Create system images or capture network settings from information technology environments to preserve as evidence.\nCommon software: Amazon Web Services AWS software, Ansible software, Apple iOS, Apple macOS, Bash, Border Gateway Protocol BGP, C, C#, C++, Extensible markup language XML.",
+   "url": "https://www.onetonline.org/link/summary/15-1299.06",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-1299.07",
+   "title": "Blockchain Engineers",
+   "text": "Maintain and support distributed and decentralized blockchain-based networks or block-chain applications such as cryptocurrency exchange, payment processing, document sharing, and digital voting. Design and deploy secure block-chain design patterns and solutions over geographically distributed networks using advanced technologies. May assist with infrastructure setup and testing for application transparency and security.\nCore tasks: Discuss and plan systems with solution architects, system engineers, or cybersecurity experts to meet customer requirements. Implement catastrophic failure handlers to identify security breaches and prevent serious damage. Test the security and performance of blockchain infrastructures. Assess blockchain threats, such as untested code and unprotected keys. Design and deploy blockchain design patterns to make transactions secure, transparent, and immutable. Design and verify cryptographic protocols to protect private information.\nCommon software: Amazon Web Services AWS CloudFormation, Amazon Web Services AWS software, Ansible software, Apache Kafka, Atlassian Confluence, Atlassian JIRA, C, C#, C++, Docker.",
+   "url": "https://www.onetonline.org/link/summary/15-1299.07",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-1299.08",
+   "title": "Computer Systems Engineers/Architects",
+   "text": "Design and develop solutions to complex applications problems, system administration issues, or network concerns. Perform systems management and integration functions.\nCore tasks: Communicate with staff or clients to understand specific system requirements. Investigate system component suitability for specified purposes, and make recommendations regarding component use. Provide customers or installation teams guidelines for implementing secure systems. Direct the analysis, development, and operation of complete computer systems. Direct the installation of operating systems, network or application software, or computer or network hardware. Monitor system operation to detect potential problems.\nCommon software: Adobe Acrobat, Adobe Creative Cloud software, Adobe Photoshop, AJAX, Amazon DynamoDB, Amazon Elastic Compute Cloud EC2, Amazon Redshift, Amazon Web Services AWS CloudFormation, Amazon Web Services AWS software, Ansible software.",
+   "url": "https://www.onetonline.org/link/summary/15-1299.08",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-1299.09",
+   "title": "Information Technology Project Managers",
+   "text": "Plan, initiate, and manage information technology (IT) projects. Lead and guide the work of technical staff. Serve as liaison between business and technical aspects of projects. Plan project stages and assess business implications for each stage. Monitor progress to assure deadlines, standards, and cost targets are met.\nCore tasks: Manage project execution to ensure adherence to budget, schedule, and scope. Confer with project personnel to identify and resolve problems. Monitor or track project milestones and deliverables. Submit project deliverables, ensuring adherence to quality standards. Assess current or future customer needs and priorities by communicating directly with customers, conducting surveys, or other methods. Initiate, review, or approve modifications to project plans.\nCommon software: Adobe Acrobat, Adobe Creative Cloud software, Adobe Illustrator, Adobe InDesign, Adobe Photoshop, AJAX, Amazon DynamoDB, Amazon Elastic Compute Cloud EC2, Amazon Redshift, Amazon Web Services AWS software.",
+   "url": "https://www.onetonline.org/link/summary/15-1299.09",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-2011.00",
+   "title": "Actuaries",
+   "text": "Analyze statistical data, such as mortality, accident, sickness, disability, and retirement rates and construct probability tables to forecast risk and liability for payment of future benefits. May ascertain insurance rates required and cash reserves necessary to ensure payment of future benefits.\nCore tasks: Analyze data to determine premium rates required and cash reserves and liabilities necessary to ensure payment of future benefits. Analyze statistical information to estimate mortality, accident, sickness, disability, and retirement rates. Design, review, and help administer insurance, annuity and pension plans, determining financial soundness and calculating premiums. Collaborate with programmers, underwriters, accounts, claims experts, and senior management to help companies develop plans for new lines of business or improvements to existing business. Provide advice to clients on a contract basis, working as a consultant. Determine, or help determine, company policy, and explain complex technical matters to company executives, government officials, shareholders, policyholders, or the public.\nCommon software: C++, IBM SPSS Statistics, Microsoft Access, Microsoft Excel, Microsoft Office software, Microsoft Power BI, Microsoft PowerPoint, Microsoft Project, Microsoft SQL Server, Microsoft Visio.",
+   "url": "https://www.onetonline.org/link/summary/15-2011.00",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-2021.00",
+   "title": "Mathematicians",
+   "text": "Conduct research in fundamental mathematics or in application of mathematical techniques to science, management, and other fields. Solve problems in various fields using mathematical methods.\nCore tasks: Mentor others on mathematical techniques. Maintain knowledge in the field by reading professional journals, talking with other mathematicians, and attending professional conferences. Develop new principles and new relationships between existing mathematical principles to advance mathematical science. Disseminate research by writing reports, publishing papers, or presenting at professional conferences. Assemble sets of assumptions, and explore the consequences of each set. Perform computations and apply methods of numerical analysis to data.\nCommon software: Adobe Photoshop, Apple macOS, Atlassian JIRA, Bash, C, C#, C++, Cascading style sheets CSS, Extensible markup language XML, Hypertext markup language HTML.",
+   "url": "https://www.onetonline.org/link/summary/15-2021.00",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-2031.00",
+   "title": "Operations Research Analysts",
+   "text": "Formulate and apply mathematical modeling and other optimizing methods to develop and interpret information that assists management with decisionmaking, policy formulation, or other managerial functions. May collect and analyze data and develop decision support software, services, or products. May develop and supply optimal time, cost, or logistics networks for program evaluation, review, or implementation.\nCore tasks: Present the results of mathematical modeling and data analysis to management or other end users. Define data requirements, and gather and validate information, applying judgment and statistical tests. Perform validation and testing of models to ensure adequacy, and reformulate models, as necessary. Prepare management reports defining and evaluating problems and recommending solutions. Collaborate with others in the organization to ensure successful implementation of chosen problem solutions. Formulate mathematical or simulation models of problems, relating constants and variables, restrictions, alternatives, conflicting objectives, and their numerical parameters.\nCommon software: Amazon Redshift, Apache Hadoop, Apache Hive, Apple macOS, Bash, C, C++, ESRI ArcGIS software, Extensible markup language XML, GitHub.",
+   "url": "https://www.onetonline.org/link/summary/15-2031.00",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-2041.00",
+   "title": "Statisticians",
+   "text": "Develop or apply mathematical or statistical theory and methods to collect, organize, interpret, and summarize numerical data to provide usable information. May specialize in fields such as biostatistics, agricultural statistics, business statistics, or economic statistics. Includes mathematical and survey statisticians.\nCore tasks: Analyze and interpret statistical data to identify significant differences in relationships among sources of information. Evaluate the statistical methods and procedures used to obtain data to ensure validity, applicability, efficiency, and accuracy. Report results of statistical analyses, including information in the form of graphs, charts, and tables. Determine whether statistical methods are appropriate, based on user needs or research questions of interest. Prepare data for processing by organizing information, checking for inaccuracies, and adjusting and weighting the raw data. Develop and test experimental designs, sampling techniques, and analytical methods.\nCommon software: Amazon Redshift, Amazon Web Services AWS software, Apache Hadoop, Apache Spark, C++, Extensible markup language XML, IBM DB2, IBM SPSS Statistics, Linux, Microsoft Access.",
+   "url": "https://www.onetonline.org/link/summary/15-2041.00",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-2041.01",
+   "title": "Biostatisticians",
+   "text": "Develop and apply biostatistical theory and methods to the study of life sciences.\nCore tasks: Draw conclusions or make predictions, based on data summaries or statistical analyses. Analyze clinical or survey data, using statistical approaches such as longitudinal analysis, mixed-effect modeling, logistic regression analyses, and model-building techniques. Write detailed analysis plans and descriptions of analyses and findings for research protocols or reports. Calculate sample size requirements for clinical studies. Read current literature, attend meetings or conferences, and talk with colleagues to keep abreast of methodological or conceptual developments in fields such as biostatistics, pharmacology, life sciences, and social sciences. Design research studies in collaboration with physicians, life scientists, or other professionals.\nCommon software: Bash, C#, C++, Extensible markup language XML, Git, IBM SPSS Statistics, JavaScript, Linux, Microsoft Access, Microsoft Excel.",
+   "url": "https://www.onetonline.org/link/summary/15-2041.01",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-2051.00",
+   "title": "Data Scientists",
+   "text": "Develop and implement a set of techniques or analytics applications to transform raw data into meaningful information using data-oriented programming languages and visualization software. Apply data mining, data modeling, natural language processing, and machine learning to extract and analyze information from large structured and unstructured datasets. Visualize, interpret, and report data findings. May create dynamic data reports.\nCore tasks: Analyze, manipulate, or process large sets of data using statistical software. Create graphs, charts, or other visualizations to convey the results of data analysis using specialized software. Test, validate, and reformulate models to ensure accurate prediction of outcomes of interest. Deliver oral or written presentations of the results of mathematical modeling and data analysis to management or other end users. Recommend data-driven solutions to key stakeholders. Identify business problems or management objectives that can be addressed through data analysis.\nCommon software: Alteryx software, Amazon Elastic Compute Cloud EC2, Amazon Redshift, Amazon Web Services AWS software, Apache Airflow, Apache Cassandra, Apache Hadoop, Apache Hive, Apache Kafka, Apache Spark.",
+   "url": "https://www.onetonline.org/link/summary/15-2051.00",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-2051.01",
+   "title": "Business Intelligence Analysts",
+   "text": "Produce financial and market intelligence by querying data repositories and generating periodic reports. Devise methods for identifying data patterns and trends in available information sources.\nCore tasks: Generate standard or custom reports summarizing business, financial, or economic data for review by executives, managers, clients, and other stakeholders. Maintain or update business intelligence tools, databases, dashboards, systems, or methods. Manage timely flow of business intelligence information to users. Provide technical support for existing reports, dashboards, or other tools. Identify and analyze industry or geographic trends with business strategy implications. Document specifications for business intelligence or information technology reports, dashboards, or other outputs.\nCommon software: Adobe Acrobat, AJAX, Alteryx software, Amazon DynamoDB, Amazon Elastic Compute Cloud EC2, Amazon Redshift, Amazon Web Services AWS software, Apache Cassandra, Apache Hadoop, Apache Hive.",
+   "url": "https://www.onetonline.org/link/summary/15-2051.01",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-2051.02",
+   "title": "Clinical Data Managers",
+   "text": "Apply knowledge of health care and database management to analyze clinical data, and to identify and report trends.\nCore tasks: Design and validate clinical databases, including designing or testing logic checks. Process clinical data, including receipt, entry, verification, or filing of information. Generate data queries, based on validation checks or errors and omissions identified during data entry, to resolve identified problems. Develop project-specific data management plans that address areas such as coding, reporting, or transfer of data, database locks, and work flow processes. Monitor work productivity or quality to ensure compliance with standard operating procedures. Prepare appropriate formatting to data sets as requested.\nCommon software: C#, C++, Epic Systems, Extensible markup language XML, Go, IBM SPSS Statistics, MEDITECH software, Microsoft Access, Microsoft Excel, Microsoft Office software.",
+   "url": "https://www.onetonline.org/link/summary/15-2051.02",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-2099.00",
+   "title": "Mathematical Science Occupations, All Other",
+   "text": "All mathematical scientists not listed separately.",
+   "url": "https://www.onetonline.org/link/summary/15-2099.00",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:15-2099.01",
+   "title": "Bioinformatics Technicians",
+   "text": "Apply principles and methods of bioinformatics to assist scientists in areas such as pharmaceuticals, medical technology, biotechnology, computational biology, proteomics, computer information science, biology and medical informatics. Apply bioinformatics tools to visualize, analyze, manipulate or interpret molecular data. May build and maintain databases for processing and analyzing genomic or other biological information.\nCore tasks: Conduct quality analyses of data inputs and resulting analyses or predictions. Confer with researchers, clinicians, or information technology staff to determine data needs and programming requirements and to provide assistance with database-related research activities. Analyze or manipulate bioinformatics data using software packages, statistical applications, or data mining techniques. Document all database changes, modifications, or problems. Monitor database performance and perform any necessary maintenance, upgrades, or repairs. Participate in the preparation of reports or scientific publications.\nCommon software: Apache Subversion SVN, C, C++, Git, Hypertext markup language HTML, IBM SPSS Statistics, Jenkins CI, Linux, Microsoft Access, Microsoft Excel.",
+   "url": "https://www.onetonline.org/link/summary/15-2099.01",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:17-2061.00",
+   "title": "Computer Hardware Engineers",
+   "text": "Research, design, develop, or test computer or computer-related equipment for commercial, industrial, military, or scientific use. May supervise the manufacturing and installation of computer or computer-related equipment and components.\nCore tasks: Update knowledge and skills to keep up with rapid advancements in computer technology. Design and develop computer hardware and support peripherals, including central processing units (CPUs), support logic, microprocessors, custom integrated circuits, and printers and disk drives. Confer with engineering staff and consult specifications to evaluate interface between hardware and software and operational and performance requirements of overall system. Build, test, and modify product prototypes, using working models or theoretical models constructed with computer simulation. Write detailed functional specifications that document the hardware development process and support hardware introduction. Test and verify hardware and support peripherals to ensure that they meet specifications and requirements, by recording and analyzing test data.\nCommon software: Apache Subversion SVN, Autodesk AutoCAD, C, C++, Git, Linux, Microsoft Access, Microsoft Excel, Microsoft Office software, Microsoft PowerPoint.",
+   "url": "https://www.onetonline.org/link/summary/17-2061.00",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:17-2072.00",
+   "title": "Electronics Engineers, Except Computer",
+   "text": "Research, design, develop, or test electronic components and systems for commercial, industrial, military, or scientific use employing knowledge of electronic theory and materials properties. Design electronic circuits and components for use in fields such as telecommunications, aerospace guidance and propulsion control, acoustics, or instruments and controls.\nCore tasks: Design electronic components, software, products, or systems for commercial, industrial, medical, military, or scientific applications. Operate computer-assisted engineering or design software or equipment to perform electronics engineering tasks. Evaluate project work to ensure effectiveness, technical adequacy, or compatibility in the resolution of complex electronics engineering problems. Direct or coordinate activities concerned with manufacture, construction, installation, maintenance, operation, or modification of electronic equipment, products, or systems. Confer with engineers, customers, vendors, or others to discuss existing or potential electronics engineering projects or products. Provide technical support or instruction to staff or customers regarding electronics equipment standards.\nCommon software: Apache Subversion SVN, Autodesk AutoCAD, C, C++, Dassault Systemes SolidWorks, ESRI ArcGIS software, Extensible markup language XML, Linux, Microsoft Excel, Microsoft Office software.",
+   "url": "https://www.onetonline.org/link/summary/17-2072.00",
+   "source": "O*NET 31.0"
+  },
+  {
+   "id": "onet:17-2072.01",
+   "title": "Radio Frequency Identification Device Specialists",
+   "text": "Design and implement radio frequency identification device (RFID) systems used to track shipments or goods.\nCore tasks: Identify operational requirements for new systems to inform selection of technological solutions. Integrate tags, readers, or software in radio frequency identification device (RFID) designs. Perform systems analysis or programming of radio frequency identification device (RFID) technology. Test radio frequency identification device (RFID) software to ensure proper functioning. Select appropriate radio frequency identification device (RFID) tags and determine placement locations. Perform site analyses to determine system configurations, processes to be impacted, or on-site obstacles to technology implementation.\nCommon software: C, C#, C++, Dassault Systemes SolidWorks, ESRI ArcGIS software, Extensible markup language XML, JUnit, Linux, Microsoft Excel, Microsoft Office software.",
+   "url": "https://www.onetonline.org/link/summary/17-2072.01",
+   "source": "O*NET 31.0"
+  }
+ ]
+}

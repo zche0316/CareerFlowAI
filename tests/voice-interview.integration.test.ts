@@ -3,6 +3,8 @@ import { db } from '../apps/api/src/db.js';
 import { json } from '../apps/api/src/domain.js';
 import {
   createVoiceSession,
+  transcribeAnswer,
+  voiceStatus,
   voiceInstructions,
   VOICE_SESSIONS_PER_RUN,
 } from '../apps/api/src/voice-interview.js';
@@ -73,9 +75,23 @@ it('issues a short-lived key in live mode only, up to three per run', async () =
   process.env.OPENAI_NATIVE_API_KEY = 'test-only-not-a-real-key';
   const sent: any[] = [];
   const fetcher = (async (url: string, init: any) => {
+    if (url.includes('/models/')) return new Response('{}', { status: 200 });
     sent.push({ url, auth: init.headers.Authorization, body: JSON.parse(init.body) });
     return new Response(JSON.stringify({ value: 'ek_test', expires_at: 1 }), { status: 200 });
   }) as unknown as typeof fetch;
+  // A model the project cannot use is reported before any key is issued, and not counted.
+  const noRealtime = (async (url: string) =>
+    new Response('{}', {
+      status: url.includes('gpt-realtime') ? 404 : 200,
+    })) as unknown as typeof fetch;
+  await expect(createVoiceSession(userId, missionId, noRealtime)).rejects.toMatchObject({
+    code: 'VOICE_MODEL_UNAVAILABLE',
+    message: expect.stringContaining('gpt-realtime-2.1'),
+  });
+  expect(
+    ((await db.mission.findUniqueOrThrow({ where: { id: missionId } })).data as any).voiceSessions,
+  ).toBeUndefined();
+
   const s = await createVoiceSession(userId, missionId, fetcher);
   expect(s).toMatchObject({
     clientSecret: 'ek_test',
@@ -105,7 +121,10 @@ it('issues a short-lived key in live mode only, up to three per run', async () =
     code: 'VOICE_LIMIT',
   });
   // A refused session is reported, not counted.
-  const failing = (async () => new Response('{}', { status: 401 })) as unknown as typeof fetch;
+  const failing = (async (url: string) =>
+    new Response('{}', {
+      status: url.includes('/models/') ? 200 : 401,
+    })) as unknown as typeof fetch;
   await db.mission.update({
     where: { id: missionId },
     data: { data: json({ questions, selectedJob: { job: { title: 'Data Analyst' } } }) },
@@ -115,4 +134,57 @@ it('issues a short-lived key in live mode only, up to three per run', async () =
   });
   const after = await db.mission.findUniqueOrThrow({ where: { id: missionId } });
   expect((after.data as any).voiceSessions).toBeUndefined();
+});
+
+it('transcribes one recorded answer in live mode without keeping the audio (CFS-139)', async () => {
+  await db.mission.update({
+    where: { id: missionId },
+    data: { status: 'AWAITING_INTERVIEW', data: json({ questions }) },
+  });
+  const audio = Buffer.from('fake-opus-bytes');
+  process.env.PROVIDER_MODE = 'fixture';
+  await expect(transcribeAnswer(userId, missionId, audio, 'audio/webm')).rejects.toMatchObject({
+    code: 'LIVE_ONLY',
+  });
+  process.env.PROVIDER_MODE = 'openai';
+  process.env.OPENAI_NATIVE_API_KEY = 'test-only-not-a-real-key';
+  await expect(transcribeAnswer(userId, missionId, audio, 'text/plain')).rejects.toMatchObject({
+    code: 'AUDIO_TYPE',
+  });
+  await expect(
+    transcribeAnswer(userId, missionId, Buffer.alloc(0), 'audio/webm'),
+  ).rejects.toMatchObject({
+    code: 'AUDIO_EMPTY',
+  });
+  const sent: { url: string; model: unknown; file: any }[] = [];
+  const fetcher = (async (url: string, init: any) => {
+    const form = init.body as FormData;
+    sent.push({ url, model: form.get('model'), file: form.get('file') });
+    return new Response(
+      JSON.stringify({ text: ' I cleaned the data with pandas. ', usage: { seconds: 8 } }),
+      {
+        status: 200,
+      },
+    );
+  }) as unknown as typeof fetch;
+  const r = await transcribeAnswer(userId, missionId, audio, 'audio/webm;codecs=opus', fetcher);
+  expect(r).toMatchObject({ text: 'I cleaned the data with pandas.', seconds: 8 });
+  expect(sent[0].url).toBe('https://api.openai.com/v1/audio/transcriptions');
+  expect(sent[0].model).toBe('gpt-transcribe');
+  expect(sent[0].file.name).toBe('answer.webm');
+  const after = (await db.mission.findUniqueOrThrow({ where: { id: missionId } })).data as any;
+  expect(after.transcriptions).toMatchObject({ count: 1, seconds: 8, model: 'gpt-transcribe' });
+  // Only text and counters are kept; no audio is written to the run.
+  expect(JSON.stringify(after)).not.toContain('fake-opus-bytes');
+});
+
+it('reports which voice features the project can use, so the page hides the rest', async () => {
+  process.env.PROVIDER_MODE = 'openai';
+  process.env.OPENAI_NATIVE_API_KEY = 'test-only-not-a-real-key';
+  // Like the project in the 2026-11-14 live check: gpt-transcribe only, no realtime model.
+  const fetcher = (async (url: string) =>
+    new Response('{}', {
+      status: url.endsWith('/gpt-transcribe') ? 200 : 404,
+    })) as unknown as typeof fetch;
+  expect(await voiceStatus(fetcher)).toEqual({ realtime: false, transcribe: true });
 });

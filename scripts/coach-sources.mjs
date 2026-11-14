@@ -13,7 +13,7 @@ const files = {
 // Computer and mathematical occupations, plus analyst and technical roles CareerFlow targets.
 const keep = (code) =>
   code.startsWith('15-') ||
-  ['11-3021', '13-1111', '13-1161', '13-2051', '17-2061', '17-2072', '17-2199'].some((p) =>
+  ['11-3021', '13-1111', '13-1161', '13-2051', '17-2061', '17-2072'].some((p) =>
     code.startsWith(p),
   );
 
@@ -84,7 +84,7 @@ export function buildDocs(occupations, tasks, software) {
                 Number(/y/i.test(col(b, 'Hot Technology'))) -
                 Number(/y/i.test(col(a, 'Hot Technology'))),
             )
-            .map((s) => col(s, 'Example')),
+            .map((s) => col(s, 'Workplace Example', 'Example')),
         ),
       ].slice(0, 10);
       return {

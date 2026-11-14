@@ -2458,8 +2458,23 @@ function MissionDetail({
           busy={busy}
           onRound={(body) => onAction('interview/rounds', body)}
           onFinish={(endedEarly) => onAction('decisions', { kind: 'interview', endedEarly })}
+          voiceStatus={m.mode === 'fixture' ? undefined : () => api('/voice/status')}
           startVoice={
             m.mode === 'fixture' ? undefined : () => api(`/missions/${m.id}/voice-session`, 'POST')
+          }
+          transcribe={
+            m.mode === 'fixture'
+              ? undefined
+              : async (audio) => {
+                  const r = await fetch(`/api/missions/${m.id}/transcribe`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': audio.type || 'audio/webm', 'X-CSRF-Token': csrf },
+                    body: audio,
+                  });
+                  const body = await r.json();
+                  if (!r.ok) throw Error(body.error || 'Transcription failed.');
+                  return String(body.text || '');
+                }
           }
         />
       )}

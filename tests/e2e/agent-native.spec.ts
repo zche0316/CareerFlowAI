@@ -448,7 +448,7 @@ test('step three reads a URL into a reviewable candidate and preserves user sele
     .getByLabel('Job listing URL', { exact: true })
     .fill('https://job-boards.greenhouse.io/prezzee/jobs/123');
   await page.getByRole('button', { name: 'Read job', exact: true }).click();
-  await expect(page.locator('article.rc h3')).toHaveText('Business Analyst');
+  await expect(page.locator('article.rc .rc-title h3')).toHaveText('Business Analyst');
   expect(bodies[0]).toEqual({ url: 'https://job-boards.greenhouse.io/prezzee/jobs/123' });
   expect((mission.data as any).selectedJob).toBeUndefined();
   await expect(page.locator('article.rc .company-avatar img').first()).toHaveAttribute(

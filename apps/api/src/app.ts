@@ -18,7 +18,7 @@ import {
 import { registerCoach, reusableAnalysis } from './coach.js';
 import { registerCapabilities } from './capability.js';
 import { registerEstimates } from './estimates.js';
-import { registerVoiceInterview } from './voice-interview.js';
+import { registerTranscription, registerVoiceInterview } from './voice-interview.js';
 import { registerRoleRecheck } from './role-recheck.js';
 import { registerRecruiterCheck } from './recruiter-check.js';
 import { registerProfileSources } from './profile-sources.js';
@@ -219,6 +219,7 @@ export function createApp() {
   registerCapabilities(app);
   registerEstimates(app);
   registerVoiceInterview(app);
+  registerTranscription(app);
   registerRecruiterCheck(app);
   registerProfileSources(app);
   registerInsights(app);

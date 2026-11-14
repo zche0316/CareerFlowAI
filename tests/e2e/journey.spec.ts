@@ -94,7 +94,7 @@ test('a user compares ranked jobs and selects one for downstream context', async
   await roles.nth(1).click();
   await expect(roles.nth(1)).toHaveAttribute('aria-pressed', 'true');
   const detail = page.locator('article.rc').first();
-  await expect(detail.locator('h3')).toHaveText(await roles.nth(1).locator('strong').innerText());
+  await expect(detail.locator('.rc-title h3')).toHaveText(await roles.nth(1).locator('strong').innerText());
   await roles.first().click();
   await detail.getByText('How the fit score works', { exact: true }).click();
   await expect(detail).toContainText('Preferred skills (optional)');
@@ -105,7 +105,7 @@ test('a user compares ranked jobs and selects one for downstream context', async
   await expect(detail).toContainText('Required skills:');
   await page.screenshot({ path: 'output/acceptance/cfs-21-ranked-jobs.png', fullPage: true });
 
-  const selectedTitle = await detail.locator('h3').innerText();
+  const selectedTitle = await detail.locator('.rc-title h3').innerText();
   await page.getByRole('button', { name: 'Select this opportunity' }).first().click();
   await expect(
     page.getByRole('heading', { name: 'Your party built a draft. Now it’s your call.' }),
@@ -116,7 +116,7 @@ test('a user compares ranked jobs and selects one for downstream context', async
   await expect(page.getByRole('heading', { name: 'Target locked in.' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Your chosen role' })).toBeVisible();
   await expect(page.locator('article.rc')).toHaveCount(1);
-  await expect(page.locator('article.rc h3')).toHaveText(selectedTitle);
+  await expect(page.locator('article.rc .rc-title h3')).toHaveText(selectedTitle);
   // Verify persisted context rather than a transient selection notice.
   await page.reload();
   await step(page, 'Review');

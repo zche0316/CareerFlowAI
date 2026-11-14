@@ -285,7 +285,16 @@ says there is no model cost.
   says "Question N" before each question so answers are filed under the right one, and on "End
   and score my answers" (or after 10 minutes, enforced in the browser) each answer's transcript is
   submitted as an interview round and scored by the Evaluator. At most three sessions per practice
-  run; no audio is stored.
+  run; no audio is stored. The session first checks that the project can use the realtime and
+  transcription models (`OPENAI_REALTIME_MODEL`, `OPENAI_REALTIME_TRANSCRIBE_MODEL`) and says which
+  are missing (CFS-138).
+- Recorded answers (CFS-139): in live mode "Record your answer" records one answer with
+  MediaRecorder; `POST /api/missions/:id/transcribe` forwards the audio (up to 8 MB, 40 per run) to
+  `/v1/audio/transcriptions` with `OPENAI_TRANSCRIBE_MODEL` (default `gpt-transcribe`) and returns
+  the text into the editable answer box. The audio lives only in that request; the run keeps a
+  count and the transcribed seconds. `GET /api/voice/status` (cached for an hour) tells the page
+  which of the two voice features the project can use, so unavailable ones are hidden. Browser
+  dictation stays for rehearsal mode.
 
 ## Party personas (CFS-132)
 
@@ -302,11 +311,14 @@ is on the Party page and its chat uses the party's avatars and Quest bubbles.
 
 - Corpus: the O*NET 31.0 database (U.S. Department of Labor, CC BY 4.0): descriptions, up to six
   core tasks and up to ten software examples for computer and mathematical occupations and a few
-  analyst and engineering roles. `npm run coach:sources` downloads three CSV files from
+  analyst, management and engineering roles. `npm run coach:sources` downloads three CSV files from
   onetcenter.org and writes `data/coach-sources/onet-31.json` with O*NET's attribution and a note
   that CareerFlow shortened the lists. No fine-tuning and no embeddings.
 - Retrieval: BM25 over that file with the user's goal, skills, revisit request and the roles on
-  the board; up to four passages go to the Coach as `publicSources`.
+  the board; up to four passages go to the Coach as `publicSources`. Title, description and tasks
+  count fully and the software list at one fifth; plurals are stemmed and a short synonym table
+  maps posting titles (software engineer, DevOps, data or business analyst) to O*NET names
+  (CFS-137). The built corpus has 46 occupations (see `data/coach-sources/README.md`).
 - The Coach may add a source id (`onet:<code>`) to an item's evidence only after at least one
   approved fact ID; the server rejects any other unknown ID. Sources describe jobs, never the
   candidate. The Coach page links each cited source to O*NET OnLine and shows the attribution.
