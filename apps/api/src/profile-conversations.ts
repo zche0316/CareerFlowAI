@@ -22,7 +22,13 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { db } from './db.js';
 import { digest, json } from './domain.js';
-import { CHANGE_CLAIM, phraseQuestion, runProfileTurn, summariseTurn } from './profile-turn.js';
+import {
+  CHANGE_CLAIM,
+  classifyControl,
+  phraseQuestion,
+  runProfileTurn,
+  summariseTurn,
+} from './profile-turn.js';
 import { AppError, requireValue } from './errors.js';
 import { prepareProfileBuilderDraft, citeExactUserValues } from './profile-builder.js';
 import { retrieveEvidence } from './career-memory.js';
@@ -344,8 +350,17 @@ export function registerProfileConversations(app: Express) {
     const userId = req.actor!.id,
       t = await owner(userId, String(req.params.id));
     const messages = t.messages as any[];
-    const action = interviewIntent(input.text);
-    if (input.mode === 'build' && action && !input.retryMessageId && !input.recoverSavedAnswers) {
+    const steering = input.mode === 'build' && !input.retryMessageId && !input.recoverSavedAnswers;
+    const action =
+      interviewIntent(input.text) ||
+      (steering && configuredMode() !== 'fixture'
+        ? await classifyControl(
+            input.text,
+            [...(t.messages as any[])].reverse().find((m) => m.role === 'assistant')
+              ?.questions?.[0] || null,
+          )
+        : null);
+    if (steering && action) {
       res.json(await controlInterview(userId, t.id, { ...input, action }));
       return;
     }
@@ -1206,7 +1221,10 @@ export function registerProfileConversations(app: Express) {
             (r) => r.key === response.interviewState?.active,
           )?.starStory?.situation;
           const phrased = await phraseQuestion({
-            situation,
+            // Only story questions refer back to the situation (CFS-155).
+            situation: String(response.questionKey || '').includes(':story:')
+              ? situation
+              : undefined,
             question: response.questions[0],
             // A bare name or "SQL" says nothing about language: use the conversation's.
             language:

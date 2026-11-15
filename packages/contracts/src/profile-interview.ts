@@ -393,11 +393,14 @@ export function planInterview(p: any, current: InterviewState, latestText = '') 
     state.phase = state.phase === 'inventory' ? 'inventory' : 'collecting';
     // After "next experience" the user wants to tell another story first.
     if (hasExperience && state.phase !== 'inventory') addFields('experience');
+    // Asked whenever no experience is in focus, even if asked before: a turn never ends without
+    // a question while the interview is open (CFS-155).
     add(
       `inventory:${state.closed.length}`,
       state.closed.length
         ? 'Would you like to add a different experience? Tell me its name, or finish the interview.'
         : 'Tell me about one work, course or personal project, volunteering or club experience. No formal employment is required.',
+      true,
     );
   }
   state.question = questions[0] || null;
@@ -407,6 +410,12 @@ export function planInterview(p: any, current: InterviewState, latestText = '') 
     return {
       state,
       hint: `Before you finish, these are still empty: ${missing.map((m) => m.label).join(', ')}. Answer the question below, skip it, or finish again ("that's all" or Finish and review) to review your draft as it is.`,
+    };
+  // Nothing left to ask and nothing empty: say the profile is complete and offer review (CFS-155).
+  if (!state.question && hasExperience && !missing.length)
+    return {
+      state,
+      hint: 'Your profile now has everything it needs. Review your draft whenever you are ready (say "that\'s all" or press Finish and review), or tell me about another experience to add.',
     };
   return {
     state,

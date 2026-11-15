@@ -479,3 +479,21 @@ it('does not ask whether a degree is ongoing when an expected completion month i
   const q = planInterview(p, interviewState([], p)).state.question;
   expect(q?.key).not.toMatch(/^education:/);
 });
+
+// CFS-155: the interview never ends a turn without a question, and says when the profile is complete.
+it('asks for an experience again even after asking once, and offers review once nothing is empty', () => {
+  const start = {
+    ...empty,
+    goals: 'Graduate data analyst',
+    skills: ['SQL'],
+    location: 'Sydney',
+    workArrangement: 'Hybrid',
+    employmentType: 'Full-time',
+  };
+  const state = { ...interviewState([], start), addressed: ['inventory:0'] };
+  expect(planInterview(start, state).state.question?.key).toBe('inventory:0');
+  const full = { ...start, workExperiences: [story] };
+  const plan = planInterview(full, interviewState([], full));
+  expect(plan.state.question).toBeNull();
+  expect(plan.hint).toContain('Your profile now has everything it needs');
+});
