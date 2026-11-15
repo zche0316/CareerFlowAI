@@ -1,12 +1,18 @@
 import { it, expect } from 'vitest';
-import { sampleProfile } from '../packages/contracts/src/index.js';
+import { sampleProfile as sample } from '../packages/contracts/src/index.js';
 import { recordSchema } from '../packages/contracts/src/profile-records.js';
 import {
+  coverageFields,
+  missingFields,
   interviewState,
   interviewIntent,
   planInterview,
   transitionInterview,
 } from '../packages/contracts/src/profile-interview.js';
+// The experience tests below start from a profile with every coverage field filled (CFS-151),
+// so they see only the experience questions.
+const sampleProfile = { ...sample, workArrangement: 'Hybrid' };
+
 it('does not require optional majors or coursework before continuing the interview', () => {
   const p = {
     ...sampleProfile,
@@ -377,4 +383,76 @@ it('asks for quantified impact after approval, accepts estimates or unmeasured o
   }
   transitionInterview(next.state, 'skip_question', p);
   expect(planInterview(p, next.state).state.question).toBeNull();
+});
+
+// CFS-151: the interview keeps asking until every profile field is filled or skipped.
+const story = {
+  id: 'intern',
+  title: 'Data analyst intern',
+  organisation: 'Harbourline Logistics',
+  startMonth: '2025-12',
+  endMonth: '2026-02',
+  current: false,
+  details: ['I wrote SQL views for the weekly report.'],
+  overview: 'I wrote SQL views for the weekly report.',
+  technologies: ['SQL'],
+  starStory: {
+    situation: 's',
+    task: 't',
+    action: 'a',
+    result: 'It took 15 minutes instead of 4 hours.',
+  },
+};
+const empty = {
+  name: 'Sam Rivera',
+  goals: '',
+  education: 'BSc Statistics',
+  skills: [],
+  location: '',
+  workArrangement: '',
+  employmentType: '',
+};
+
+it('asks an empty profile field again even after it was answered once', () => {
+  const state = { ...interviewState([], empty), addressed: ['profile:goals'] };
+  expect(planInterview(empty, state).state.question?.key).toBe('profile:goals');
+});
+
+it('asks matching preferences only after the first experience, then lists what is still empty', () => {
+  const start = { ...empty, goals: 'Graduate data analyst' };
+  expect(planInterview(start, interviewState([], start)).state.question?.key).toBe('inventory:0');
+  const withStory = { ...start, workExperiences: [story] };
+  const keys: string[] = [];
+  let state = interviewState([], withStory);
+  for (let i = 0; i < 6; i++) {
+    const q = planInterview(withStory, state).state.question;
+    if (!q) break;
+    keys.push(q.key);
+    state = { ...planInterview(withStory, state).state };
+    transitionInterview(state, 'skip_question', withStory);
+  }
+  expect(keys).toEqual(coverageFields.filter((f) => f.after === 'experience').map((f) => f.key));
+  expect(missingFields(withStory, state)).toEqual([]);
+});
+
+it('lists the empty fields on the first request to finish and finishes on the second', () => {
+  const p = { ...empty, goals: 'Graduate data analyst', workExperiences: [story] };
+  const state = planInterview(p, interviewState([], p)).state;
+  transitionInterview(state, 'finish_interview', p);
+  expect(state.phase).not.toBe('review');
+  const plan = planInterview(p, state);
+  expect(plan.hint).toContain('Skills, Preferred location, Work arrangement, Employment type');
+  expect(plan.state.question?.key).toBe('profile:skills');
+  transitionInterview(plan.state, 'finish_interview', p);
+  expect(plan.state.phase).toBe('review');
+  const full = {
+    ...p,
+    skills: ['SQL'],
+    location: 'Sydney',
+    workArrangement: 'Hybrid',
+    employmentType: 'Full-time',
+  };
+  const done = planInterview(full, interviewState([], full)).state;
+  transitionInterview(done, 'finish_interview', full);
+  expect(done.phase).toBe('review');
 });

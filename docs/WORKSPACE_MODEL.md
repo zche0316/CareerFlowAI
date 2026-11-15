@@ -581,3 +581,41 @@ Live runs of the 10 labelled dialogues, 2026-11-15, separate database:
 - `npx tsx scripts/trace-turns.ts` lists recent turns; `--find "words"` prints one turn's graph
   nodes and each model call's raw output; `--health` counts model answers the server cannot
   parse. It needs a key with read access.
+
+## Profile Builder: a field-coverage interview that closes the loop (CFS-151)
+
+Before, the next question came from a fixed checklist with English templates. It covered only
+career direction, name, education and the current experience, counted a field as done once it
+had been asked, and finished whenever the user said so.
+
+- **Long-range plan.** `coverageFields` in `packages/contracts/src/profile-interview.ts` lists the
+  profile fields the interview fills: career direction, name, education, skills, preferred
+  location, work arrangement and employment type, plus at least one experience. A field counts
+  as filled when the working profile or a pending suggestion has a value. Until then it is asked
+  again, however often it was asked before, unless the user skipped it; the turn graph still
+  sets a question aside after repeated non-answers or frustration (CFS-144), so it cannot loop.
+- **Next step.** `planInterview` asks the start fields first, then one experience in depth, then
+  the matching preferences once that story has nothing left to ask. After "next project" the
+  new story comes first.
+- **Wording.** The planner chooses the field; `phraseQuestion` (light model) words the question
+  for the moment and in the user's language, after both model turns and typed controls. A
+  rewrite with a change claim, the wrong script, more than two question marks or too much text
+  is dropped and the planner's wording is used. The conversation's language comes from the last
+  three user messages, so a bare name does not switch a Chinese conversation to English.
+- **Closing the loop.** The first request to finish ("that's all" or Finish and review) lists the
+  empty fields once and asks about the first; the second request finishes as it is
+  (`closingChecked`).
+
+`npx tsx scripts/closure-eval.ts <url>` runs a simulated user who answers whatever field is
+asked. Live runs, 2026-11-15, separate databases, `main` against this change:
+
+| Scenario | Before | After |
+| --- | --- | --- |
+| Answers everything | 4 of 7 fields empty at the end, 0/4 preferences asked | 0 empty, 4/4 asked |
+| Says "that's all" early | review with 4 empty fields, never mentioned | empty fields listed, then review |
+| Chinese conversation | 4 empty; 5/8 questions in Chinese | 0 empty; 11/12 in Chinese (the opening question comes before the user has written anything) |
+
+The 10 labelled dialogues (`eval:conversation`) did not regress: extraction recall 33/35, no
+stuck dialogue, intent accuracy 100%, re-asked after an answer 3/47. Wording costs one light
+call per turn: p50 latency 4.3 s to 5.5 s and p95 6.8 s to 10.7 s in that run.
+

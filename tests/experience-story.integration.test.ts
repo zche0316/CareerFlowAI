@@ -1,9 +1,12 @@
 import { afterAll, beforeAll, it, expect, vi } from 'vitest';
 import { createApp } from '../apps/api/src/app.js';
 import { db } from '../apps/api/src/db.js';
-import { sampleProfile } from '../packages/contracts/src/index.js';
+import { sampleProfile as sample } from '../packages/contracts/src/index.js';
 import * as provider from '../packages/agents/src/provider.js';
 import type { Server } from 'node:http';
+// Interview tests start from a profile with every coverage field filled (CFS-151), so finishing
+// and "no more questions" mean what they did before the interview asked for preferences.
+const sampleProfile = { ...sample, workArrangement: 'Hybrid' };
 let server: Server, base: string, userId: string;
 beforeAll(async () => {
   process.env.PROVIDER_MODE = 'fixture';

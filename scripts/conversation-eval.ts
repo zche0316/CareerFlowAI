@@ -18,6 +18,7 @@
 // - failures, latency per turn, and calls to the extraction model.
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { blankProfile } from '../packages/contracts/src/index.js';
+import { coverageFields, missingFields } from '../packages/contracts/src/profile-interview.js';
 
 type Turn = { text: string; kind: 'answer' | 'other'; mayAdvance?: boolean };
 type Dialogue = { id: string; tier: string; turns: Turn[]; expect: Record<string, string> };
@@ -123,6 +124,26 @@ async function runDialogue(d: Dialogue) {
   const draft = JSON.stringify(
     (thread.proposals || []).filter((p: any) => p.status === 'PENDING').map((p: any) => p.after),
   ).toLowerCase();
+  // Closure (CFS-151): which profile fields are still empty at the end, and whether the
+  // interview asked about each of them. Pending suggestions count as filled, as in the planner.
+  const planned = Object.assign(
+    structuredClone(blankProfile),
+    ...(thread.proposals || [])
+      .filter((p: any) => ['PENDING', 'APPLIED_TO_FORM', 'ACCEPTED'].includes(p.status))
+      .map((p: any) => ({ [p.field]: p.after })),
+  );
+  const lastState = [...thread.messages]
+    .reverse()
+    .find((m: any) => m.interviewState)?.interviewState;
+  const askedKeys = new Set(thread.messages.map((m: any) => m.questionKey).filter(Boolean));
+  const emptyAtEnd = missingFields(planned, { skipped: lastState?.skipped || [] }).filter((m) =>
+    m.key.startsWith('profile:'),
+  );
+  const coverage = {
+    fields: coverageFields.length,
+    emptyAtEnd: emptyAtEnd.map((m) => m.key),
+    emptyAsked: emptyAtEnd.filter((m) => askedKeys.has(m.key)).length,
+  };
   const expected = Object.entries(d.expect);
   const found = expected.filter(([, v]) => draft.includes(v.toLowerCase())).map(([k]) => k);
   return {
@@ -130,6 +151,7 @@ async function runDialogue(d: Dialogue) {
     tier: d.tier,
     turns,
     longestRepeat: longest,
+    coverage,
     extraction: {
       expected: expected.length,
       found: found.length,
@@ -188,6 +210,16 @@ function summarise(results: Awaited<ReturnType<typeof runDialogue>>[], tier?: st
     stuck,
     intentAccuracy: labelled.length ? pct(intentRight.length, labelled.length) : 'n/a',
     extractionRecall: `${extraction.f}/${extraction.e} (${pct(extraction.f, extraction.e)})`,
+    ...(rs.every((r: any) => r.coverage)
+      ? (() => {
+          const empty = rs.reduce((n, r: any) => n + r.coverage.emptyAtEnd.length, 0);
+          const asked = rs.reduce((n, r: any) => n + r.coverage.emptyAsked, 0);
+          return {
+            fieldsEmptyAtEnd: `${empty}/${rs.length * coverageFields.length}`,
+            emptyFieldsAsked: `${asked}/${empty} (${pct(asked, empty)})`,
+          };
+        })()
+      : {}),
     failures: turns.filter((t) => t.error).length,
     p50ms: quantile(
       turns.map((t) => t.ms),

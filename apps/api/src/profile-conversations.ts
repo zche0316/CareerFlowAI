@@ -22,7 +22,7 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { db } from './db.js';
 import { digest, json } from './domain.js';
-import { CHANGE_CLAIM, runProfileTurn, summariseTurn } from './profile-turn.js';
+import { CHANGE_CLAIM, phraseQuestion, runProfileTurn, summariseTurn } from './profile-turn.js';
 import { AppError, requireValue } from './errors.js';
 import { prepareProfileBuilderDraft, citeExactUserValues } from './profile-builder.js';
 import { retrieveEvidence } from './career-memory.js';
@@ -124,17 +124,49 @@ const assistantSchema = z.object({
   reply: z.string().max(1500).optional(),
 });
 
-async function controlInterview(
-  userId: string,
-  id: string,
-  input: {
-    currentProfile: any;
-    revision: number;
-    action: InterviewAction;
-    recordKey?: string;
-    text?: string;
-  },
-) {
+type ControlInput = {
+  currentProfile: any;
+  revision: number;
+  action: InterviewAction;
+  recordKey?: string;
+  text?: string;
+};
+
+/**
+ * Interview controls ("skip", "next project", "that's all", the Finish button) need no model;
+ * the next question is still worded for the moment and in the user's language (CFS-151). The
+ * wording runs after the control is saved, outside its transaction, and is dropped if the
+ * conversation changed in the meantime.
+ */
+async function controlInterview(userId: string, id: string, input: ControlInput) {
+  const thread = await controlInterviewSaved(userId, id, input);
+  if (configuredMode() === 'fixture') return thread;
+  const messages = thread.messages as any[];
+  const last = messages.at(-1);
+  if (last?.role !== 'assistant' || last.questions?.length !== 1) return thread;
+  const said = [...messages]
+    .reverse()
+    .filter((m) => m.role === 'user')
+    .map((m) => String(m.text || ''));
+  const language = said.slice(0, 3).some((t) => /\p{Script=Han}/u.test(t)) ? 'zh' : 'en';
+  const phrased = await phraseQuestion({
+    question: last.questions[0],
+    language,
+    lastUser: said.find((t) => !interviewIntent(t)) || '',
+    reply: String(last.text || ''),
+  });
+  if (!phrased) return thread;
+  const updated = await db.profileThread.updateMany({
+    where: { id, userId, revision: thread.revision, busyToken: null },
+    data: {
+      messages: json([...messages.slice(0, -1), { ...last, questions: [phrased] }]),
+      revision: { increment: 1 },
+    },
+  });
+  return updated.count ? publicThread(await owner(userId, id)) : thread;
+}
+
+async function controlInterviewSaved(userId: string, id: string, input: ControlInput) {
   return db.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "User" WHERE id=${userId} FOR UPDATE`;
     const t = requireValue(await tx.profileThread.findFirst({ where: { id, userId } }));
@@ -1156,6 +1188,25 @@ export function registerProfileConversations(app: Express) {
           response.questions = turn.draft.question ? [turn.draft.question] : [];
         }
         response.turn = summariseTurn(turn);
+        // The planner chose the field; the light model words the question for this moment.
+        if (configuredMode() !== 'fixture' && response.questions?.length === 1) {
+          const phrased = await phraseQuestion({
+            question: response.questions[0],
+            // A bare name or "SQL" says nothing about language: use the conversation's.
+            language:
+              turn.perception.language === 'zh' ||
+              messages
+                .filter((m: any) => m.role === 'user')
+                .slice(-3)
+                .some((m: any) => /\p{Script=Han}/u.test(String(m.text || '')))
+                ? 'zh'
+                : turn.perception.language,
+            lastUser: input.text,
+            reply: String(response.text || ''),
+          });
+          if (phrased) response.questions = [phrased];
+          response.turn = { ...response.turn, phrased: Boolean(phrased) };
+        }
       }
       await db.profileThread.updateMany({
         where: { id: t.id, userId, busyToken: token },

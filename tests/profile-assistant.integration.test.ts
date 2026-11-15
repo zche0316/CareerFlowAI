@@ -2,11 +2,14 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Server } from 'node:http';
 import { createApp } from '../apps/api/src/app.js';
 import { db } from '../apps/api/src/db.js';
-import { sampleProfile, blankProfile } from '../packages/contracts/src/index.js';
+import { sampleProfile as sample, blankProfile } from '../packages/contracts/src/index.js';
 import { digest, json, validateResumeClaims } from '../apps/api/src/domain.js';
 import * as importProvider from '../packages/agents/src/import-model.js';
 import * as provider from '../packages/agents/src/provider.js';
 import { conversationModelProfile } from '../apps/api/src/profile-conversations.js';
+// Interview tests start from a profile with every coverage field filled (CFS-151), so finishing
+// and "no more questions" mean what they did before the interview asked for preferences.
+const sampleProfile = { ...sample, workArrangement: 'Hybrid' };
 let server: Server, base: string;
 const ids: string[] = [];
 const isolatedServers: Server[] = [];
