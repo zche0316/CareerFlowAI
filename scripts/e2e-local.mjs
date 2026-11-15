@@ -20,6 +20,7 @@ const env = {
   // Defined-but-empty values stop dotenv from loading live keys.
   OPENAI_API_KEY: '',
   OPENAI_NATIVE_API_KEY: '',
+  LANGSMITH_TRACING: 'false',
 };
 const app = spawn(process.execPath, ['scripts/local-run.mjs'], {
   cwd: root,

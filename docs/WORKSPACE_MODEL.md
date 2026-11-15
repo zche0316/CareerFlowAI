@@ -539,3 +539,45 @@ checks enforce on live answers.
 - **Coach before the first approval.** `GET /api/coach` returns `null` without a profile; the
   page used to treat that as still loading. It now says the Coach needs a profile and links to
   the Profile Builder.
+
+## Profile Builder answers lost to the off-topic rule and repeated JSON (CFS-148)
+
+Two causes made the Profile Builder reply "no new profile changes" to real answers.
+
+- **Off-topic rule.** Every persona instruction told the model to refuse off-topic messages in
+  one sentence. The extraction model applied it to plain answers such as a target role and
+  returned an empty draft. The Profile Builder persona now lists career goals, locations, working
+  arrangements, study, work, projects and skills as on-topic, and when the turn graph has already
+  classified the message as career information the refusal rule is left out
+  (`careerInformation` in the provider context).
+- **The same JSON twice.** LangSmith traces showed the extraction model often writes its whole
+  JSON answer twice in one message (9 of 22 traced turns, 23 of 58 in a second run).
+  `parseProviderJson` rejected that, the provider asked for a corrected answer, and the second
+  answer was often empty. Complete copies with the same top-level fields now count as one answer
+  and the first is used; anything else is still an error.
+
+Live runs of the 10 labelled dialogues, 2026-11-15, separate database:
+
+| Measure | Before (CFS-144 final) | After |
+| --- | --- | --- |
+| Extraction recall | 30/35 (86%) | 33/35 (94%) |
+| Goal tier recall | 11/12 | 12/12 |
+| Stuck dialogues | 0 | 0 |
+| Intent accuracy | 100% | 100% |
+| Re-asked after an answer | 1/47 | 3/47 (1 to 6 across runs) |
+
+## LangSmith tracing (CFS-149)
+
+- Off by default. With `LANGSMITH_TRACING=true` and `LANGSMITH_API_KEY` set, each Profile
+  Builder, Interview panel and Ask Coach turn becomes one LangSmith trace: the turn graph's nodes
+  (perceive, plan, extract or converse, reflect, revise) and every model call inside them, with
+  the prompt, the structured output, tokens and latency.
+- All OpenAI-compatible clients are created through `modelClient` in
+  `packages/agents/src/tracing.ts`, so specialist, light-model, import and job-search calls are
+  traced the same way. Mission graphs are traced by LangGraph itself under the same switch.
+- Traces contain user messages and profile data. Use tracing on development and test accounts
+  only; trace metadata carries no names or emails. `TraceSpan` keeps the local per-call record
+  whether or not LangSmith is on.
+- `npx tsx scripts/trace-turns.ts` lists recent turns; `--find "words"` prints one turn's graph
+  nodes and each model call's raw output; `--health` counts model answers the server cannot
+  parse. It needs a key with read access.

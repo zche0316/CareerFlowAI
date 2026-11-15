@@ -31,6 +31,13 @@ it('keeps a maximum-size latest answer within the interactive context bound', ()
 it('accepts a JSON code fence but rejects incomplete or prose-wrapped responses', () => {
   expect(parseProviderJson('```json\n{"ok":true}\n```')).toEqual({ ok: true });
   expect(() => parseProviderJson('{"ok":')).toThrow();
+  // CFS-148: a model sometimes repeats the whole object; identical copies are one answer.
+  const once = '{"reply":"a } inside \\"quotes\\"","records":[{"title":"x"}]}';
+  expect(parseProviderJson(`${once}\n${once}`)).toEqual(JSON.parse(once));
+  expect(parseProviderJson(`${once}  ${once}\n${once}`)).toEqual(JSON.parse(once));
+  expect(parseProviderJson('{"a":1,"b":[]}\n{"b":[1],"a":2}')).toEqual({ a: 1, b: [] });
+  expect(() => parseProviderJson('{"a":1}\n{"b":2}')).toThrow();
+  expect(() => parseProviderJson('{"a":1} trailing')).toThrow();
   expect(() => parseProviderJson('Here is the answer: {"ok":true}')).toThrow();
 });
 

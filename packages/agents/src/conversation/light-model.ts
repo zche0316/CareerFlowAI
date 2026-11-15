@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { z } from 'zod';
+import { modelClient } from '../tracing.js';
 
 // Small, fast model calls for the conversation turn graph (CFS-144): perceiving a message,
 // replying to small talk and reflecting on a draft reply. They run before or around the main
@@ -45,7 +46,13 @@ const clients = new Map<string, OpenAI>();
 const clientFor = (r: LightRoute) => {
   const key = `${r.baseURL}|${r.apiKey.slice(-6)}`;
   if (!clients.has(key))
-    clients.set(key, new OpenAI({ apiKey: r.apiKey, baseURL: r.baseURL, maxRetries: 0 }));
+    clients.set(
+      key,
+      modelClient(
+        { apiKey: r.apiKey, baseURL: r.baseURL, maxRetries: 0 },
+        { agent: 'light-model' },
+      ),
+    );
   return clients.get(key)!;
 };
 

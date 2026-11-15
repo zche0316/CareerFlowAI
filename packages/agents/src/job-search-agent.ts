@@ -1,5 +1,5 @@
-import OpenAI from 'openai';
 import { z } from 'zod';
+import { modelClient } from './tracing.js';
 import { spanErrorClass, type Mode, type ProviderHooks } from './provider.js';
 import { modelRoute } from './router.js';
 
@@ -57,7 +57,10 @@ export async function searchJobsWithModel(
       { code: 'CONFIG_REQUIRED', status: 422 },
     );
   const route = modelRoute('text');
-  const client = new OpenAI({ apiKey: route.apiKey, baseURL: route.baseURL, maxRetries: 0 });
+  const client = modelClient(
+    { apiKey: route.apiKey, baseURL: route.baseURL, maxRetries: 0 },
+    { agent: 'job-search', model: route.model },
+  );
   const today = new Date().toISOString().slice(0, 10);
   const where = [criteria.location, criteria.countryName].filter(Boolean).join(', ');
   const started = Date.now();

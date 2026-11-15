@@ -13,6 +13,14 @@ it('opens user-facing instructions with a persona, its scope and the off-topic r
   expect(rolePreamble('matching')).toBe('You are one specialist in CareerFlow AI. ');
 });
 
+it('names career goals as on-topic and drops the refusal once a message is classified (CFS-148)', () => {
+  expect(rolePreamble('conversation')).toContain('career goals and target roles');
+  const classified = rolePreamble('conversation', { careerInformation: true });
+  expect(classified).toContain('contains career information');
+  expect(classified).not.toContain('Do not answer the off-topic request');
+  expect(classified).toContain('never say you are ChatGPT');
+});
+
 it('replaces a vendor self-description with the persona introduction', () => {
   const reply =
     'I’m ChatGPT, an AI assistant. I can help with your career profile, job applications, and interview preparation.';

@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { rolePreamble } from './personas.js';
+import { modelClient } from './tracing.js';
 import { modelRoute } from './router.js';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { z } from 'zod';
@@ -9,6 +10,8 @@ export type Mode = 'fixture' | 'openai';
 
 export type ProviderContext = {
   goal: string;
+  /** Set when the turn graph classified the latest message as career information (CFS-148). */
+  careerInformation?: boolean;
   facts: Pick<Fact, 'id' | 'kind' | 'text'>[];
   analysisFeedback?: string;
   /** Coach only: reference passages about occupations (CFS-125), never facts about the user. */
@@ -66,7 +69,45 @@ export type ProviderSpan = {
 };
 export function parseProviderJson(text: string) {
   const fenced = /^\s*```(?:json)?\s*\n([\s\S]*?)\n```\s*$/i.exec(text);
-  return JSON.parse(fenced ? fenced[1] : text);
+  const body = fenced ? fenced[1] : text;
+  try {
+    return JSON.parse(body);
+  } catch (error) {
+    // Some models emit the whole JSON answer twice in one message (CFS-148: 9 of 22 Profile
+    // Builder turns, sometimes with a reworded reply in the second copy). Asking again for a
+    // correction often returned an empty result, so the user's answer was lost. Complete copies
+    // with the same top-level fields are one answer: keep the first. Anything else is an error.
+    const copies = topLevelObjects(body).map((c) => JSON.parse(c));
+    const keys = (o: object) => Object.keys(o).sort().join(',');
+    if (copies.length > 1 && copies.every((c) => keys(c) === keys(copies[0]))) return copies[0];
+    throw error;
+  }
+}
+
+/** Splits text made only of top-level JSON objects (whitespace between) into their sources. */
+function topLevelObjects(text: string) {
+  const out: string[] = [];
+  let depth = 0,
+    start = -1,
+    inString = false,
+    escaped = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === '{') {
+      if (depth++ === 0) start = i;
+    } else if (ch === '}') {
+      if (--depth < 0) return [];
+      if (depth === 0) out.push(text.slice(start, i + 1));
+    } else if (depth === 0 && !/\s/.test(ch)) return [];
+  }
+  return depth === 0 ? out : [];
 }
 
 export function configuredMode(): Mode {
@@ -454,11 +495,10 @@ async function generateOnce<T>(
 
   // Disable SDK retries: mission-level retries and call accounting remain explicit.
   const baseURL = route.baseURL;
-  const client = new OpenAI({
-    apiKey,
-    baseURL,
-    maxRetries: 0,
-  });
+  const client = modelClient(
+    { apiKey, baseURL, maxRetries: 0 },
+    { agent: role, model: route.model },
+  );
   // DeepSeek enables thinking by default, while its Responses API does not accept a required
   // tool choice in that mode. Disabling reasoning keeps the allowlisted tool gate deterministic.
   const providerCompatibility = requiresNonThinkingMode(baseURL)
@@ -502,11 +542,11 @@ async function generateOnce<T>(
   }[role];
   const coachFormat =
     role === 'coach'
-      ? ' publicSources, when supplied, are reference descriptions of occupations from O*NET (US) and ESCO (EU): what the work involves, common software and essential skills. Use them to explain directions, gaps and actions, and add a source id to evidenceIds only after at least one approved fact ID, and only when that item uses the source. They describe jobs, never the candidate; do not present them as the candidate\'s skills or experience.' +
+      ? " publicSources, when supplied, are reference descriptions of occupations from O*NET (US) and ESCO (EU): what the work involves, common software and essential skills. Use them to explain directions, gaps and actions, and add a source id to evidenceIds only after at least one approved fact ID, and only when that item uses the source. They describe jobs, never the candidate; do not present them as the candidate's skills or experience." +
         ' Return strengths, gaps, directions and actions arrays with at most three items each. Every item must contain text, evidenceIds and reason. Use one to three exact IDs copied from facts per item; never invent IDs or use an empty evidenceIds array. Keep text and reason to one short sentence each. Be concise so the complete JSON finishes within the output limit.'
       : '';
   const instruction =
-    rolePreamble(role) +
+    rolePreamble(role, { careerInformation: context.careerInformation }) +
     coachFormat +
     task +
     (role === 'conversation'
