@@ -714,6 +714,11 @@ async function overview(userId: string) {
     take: 40,
   });
   const saveable = await saveableRoles(userId, tracked);
+  // Why a role seen in a search was not shortlisted: its score against the minimum (CFS-165).
+  const screened = new Map<string, { score: number; minScore: number; gaps: string[] }>();
+  for (const run of await recentRuns(userId))
+    for (const s of ((run.data as MissionData).screenedOut || []) as any[])
+      if (!screened.has(s.jobId)) screened.set(s.jobId, s);
   // Roles already on the board show their stage instead of a Save button.
   const board = new Map(
     (await listApplications(userId)).map((a) => [
@@ -749,6 +754,7 @@ async function overview(userId: string) {
       record: t.record as unknown as JobRecord,
       board: board.get(t.fingerprint) || null,
       saveable: saveable.has(t.fingerprint),
+      screened: screened.get((t.record as any)?.jobId) || null,
     })),
     sweeps: sweeps.map((s) => {
       const d = s.data as unknown as SweepData;

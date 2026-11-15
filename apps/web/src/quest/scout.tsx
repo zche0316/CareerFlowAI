@@ -82,6 +82,7 @@ type Overview = {
     board: { id: string; stage: string; checkedAt?: string | null } | null;
     /** False when a search showed the role without ranking it, so no full listing is kept. */
     saveable?: boolean;
+    screened?: { score: number; minScore: number; gaps: string[] } | null;
   }[];
   sweeps: Sweep[];
 };
@@ -734,8 +735,18 @@ export function QuestScout({
                             </span>
                           ) : !r.lead && t.saveable === false ? (
                             <small className="muted sc-unsaveable">
-                              Seen in a search but not shortlisted, so its full listing is not
-                              kept. Find it again or paste its link to save it.
+                              {t.screened
+                                ? `Not shortlisted: scored ${t.screened.score}, below your minimum ${t.screened.minScore}.` +
+                                  (t.screened.gaps.length
+                                    ? ` Missing evidence for ${t.screened.gaps.join(', ')}.`
+                                    : '')
+                                : 'Seen in a search but not shortlisted.'}{' '}
+                              {r.url && (
+                                <a href={r.url} target="_blank" rel="noreferrer noopener">
+                                  View the listing
+                                </a>
+                              )}{' '}
+                              Paste its link under Jobs to review it anyway.
                             </small>
                           ) : (
                             !r.lead && (
