@@ -511,6 +511,7 @@ export function registerProfileConversations(app: Express) {
                             ? ' It corrects something said earlier: propose the corrected value for that field, quoting the new wording.'
                             : '')
                         : ''),
+                careerInformation: Boolean(perceived),
                 prepareSavedAnswers: Boolean(input.recoverSavedAnswers),
                 requireSourceLookup:
                   input.mode === 'edit' &&
