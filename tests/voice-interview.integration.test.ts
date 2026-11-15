@@ -4,6 +4,8 @@ import { json } from '../apps/api/src/domain.js';
 import {
   createVoiceSession,
   transcribeAnswer,
+  transcribeProfileMessage,
+  PROFILE_TRANSCRIPTIONS_PER_DAY,
   voiceStatus,
   voiceInstructions,
   VOICE_SESSIONS_PER_RUN,
@@ -187,4 +189,31 @@ it('reports which voice features the project can use, so the page hides the rest
       status: url.endsWith('/gpt-transcribe') ? 200 : 404,
     })) as unknown as typeof fetch;
   expect(await voiceStatus(fetcher)).toEqual({ realtime: false, transcribe: true });
+});
+
+it('transcribes a spoken Profile Builder message within a daily cap (CFS-143)', async () => {
+  process.env.PROVIDER_MODE = 'openai';
+  process.env.OPENAI_NATIVE_API_KEY = 'test-only-not-a-real-key';
+  const sent: FormData[] = [];
+  const fetcher = (async (_url: string, init: any) => {
+    sent.push(init.body as FormData);
+    return new Response(JSON.stringify({ text: ' 我在悉尼大学读统计。 ' }), { status: 200 });
+  }) as unknown as typeof fetch;
+  const audio = Buffer.from('fake-opus-bytes');
+  const r = await transcribeProfileMessage(userId, audio, 'audio/webm', fetcher, '2026-11-15');
+  expect(r).toMatchObject({
+    text: '我在悉尼大学读统计。',
+    remaining: PROFILE_TRANSCRIPTIONS_PER_DAY - 1,
+  });
+  // No language is forced, so Chinese and English both transcribe as spoken.
+  expect(sent[0].get('language')).toBeNull();
+  for (let i = 1; i < PROFILE_TRANSCRIPTIONS_PER_DAY; i++)
+    await transcribeProfileMessage(userId, audio, 'audio/webm', fetcher, '2026-11-15');
+  await expect(
+    transcribeProfileMessage(userId, audio, 'audio/webm', fetcher, '2026-11-15'),
+  ).rejects.toMatchObject({ code: 'TRANSCRIBE_LIMIT' });
+  // A new day starts a new count.
+  await expect(
+    transcribeProfileMessage(userId, audio, 'audio/webm', fetcher, '2026-11-16'),
+  ).resolves.toMatchObject({ remaining: PROFILE_TRANSCRIPTIONS_PER_DAY - 1 });
 });

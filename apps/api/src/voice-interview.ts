@@ -179,12 +179,12 @@ export const TRANSCRIPTIONS_PER_RUN = 40;
 export const MAX_AUDIO_BYTES = 8 * 1024 * 1024;
 const audioTypes = /^audio\/(webm|ogg|mp4|mpeg|mp3|m4a|wav|x-wav|x-m4a)(;.*)?$/i;
 
-export async function transcribeAnswer(
-  userId: string,
-  missionId: string,
+/** Checks one recording and sends it to the transcription API; nothing is stored. */
+async function transcribeAudio(
   audio: Buffer,
   contentType: string,
-  fetcher: typeof fetch = fetch,
+  fetcher: typeof fetch,
+  language?: string,
 ) {
   if (configuredMode() === 'fixture')
     throw new AppError(409, 'LIVE_ONLY', 'Recorded answers are transcribed in live mode only.');
@@ -200,17 +200,6 @@ export async function transcribeAnswer(
   if (!audio.length) throw new AppError(422, 'AUDIO_EMPTY', 'The recording was empty.');
   if (audio.length > MAX_AUDIO_BYTES)
     throw new AppError(413, 'AUDIO_TOO_LARGE', 'Keep one answer under about five minutes.');
-  const m = await ownedMission(userId, missionId);
-  const d = m.data as MissionData;
-  if (m.status !== 'AWAITING_INTERVIEW')
-    throw new AppError(409, 'INTERVIEW_NOT_READY', 'Record answers while the interview is open.');
-  const used = d.transcriptions || { count: 0, seconds: 0 };
-  if (used.count >= TRANSCRIPTIONS_PER_RUN)
-    throw new AppError(
-      429,
-      'TRANSCRIBE_LIMIT',
-      'This practice run has reached its recording limit. Type your answers.',
-    );
   const model = process.env.OPENAI_TRANSCRIBE_MODEL?.trim() || 'gpt-transcribe';
   const ext = /wav/i.test(contentType)
     ? 'wav'
@@ -223,7 +212,8 @@ export async function transcribeAnswer(
           : 'webm';
   const form = new FormData();
   form.append('model', model);
-  form.append('language', 'en');
+  // Interview answers are in English; profile messages may be in any language the user speaks.
+  if (language) form.append('language', language);
   form.append(
     'file',
     new Blob([new Uint8Array(audio)], { type: contentType.split(';')[0] }),
@@ -251,7 +241,32 @@ export async function transcribeAnswer(
       `The transcription service refused the recording (${response.status}). Type your answer instead.`,
     );
   const result = (await response.json()) as { text?: string; usage?: { seconds?: number } };
-  const text = String(result.text || '').trim();
+  return {
+    text: String(result.text || '').trim(),
+    seconds: result.usage?.seconds ?? null,
+    model,
+  };
+}
+
+export async function transcribeAnswer(
+  userId: string,
+  missionId: string,
+  audio: Buffer,
+  contentType: string,
+  fetcher: typeof fetch = fetch,
+) {
+  const m = await ownedMission(userId, missionId);
+  const d = m.data as MissionData;
+  if (m.status !== 'AWAITING_INTERVIEW')
+    throw new AppError(409, 'INTERVIEW_NOT_READY', 'Record answers while the interview is open.');
+  const used = d.transcriptions || { count: 0, seconds: 0 };
+  if (used.count >= TRANSCRIPTIONS_PER_RUN)
+    throw new AppError(
+      429,
+      'TRANSCRIBE_LIMIT',
+      'This practice run has reached its recording limit. Type your answers.',
+    );
+  const result = await transcribeAudio(audio, contentType, fetcher, 'en');
   await db.mission.update({
     where: { id: m.id },
     data: {
@@ -259,16 +274,45 @@ export async function transcribeAnswer(
         ...d,
         transcriptions: {
           count: used.count + 1,
-          seconds: used.seconds + Math.round(result.usage?.seconds || 0),
-          model,
+          seconds: used.seconds + Math.round(result.seconds || 0),
+          model: result.model,
         },
       }),
     },
   });
   return {
-    text,
-    seconds: result.usage?.seconds ?? null,
+    text: result.text,
+    seconds: result.seconds,
     remaining: TRANSCRIPTIONS_PER_RUN - used.count - 1,
+  };
+}
+
+// Spoken messages to the Profile Builder (CFS-143). Same rules as interview answers; a daily cap
+// per user bounds cost. The count lives in memory, so a restart resets it.
+export const PROFILE_TRANSCRIPTIONS_PER_DAY = 60;
+const profileUse = new Map<string, number>();
+
+export async function transcribeProfileMessage(
+  userId: string,
+  audio: Buffer,
+  contentType: string,
+  fetcher: typeof fetch = fetch,
+  today = new Date().toISOString().slice(0, 10),
+) {
+  const key = `${userId}:${today}`;
+  const used = profileUse.get(key) || 0;
+  if (used >= PROFILE_TRANSCRIPTIONS_PER_DAY)
+    throw new AppError(
+      429,
+      'TRANSCRIBE_LIMIT',
+      "You have reached today's recording limit for the Profile Builder. Type your message.",
+    );
+  const result = await transcribeAudio(audio, contentType, fetcher);
+  profileUse.set(key, used + 1);
+  return {
+    text: result.text,
+    seconds: result.seconds,
+    remaining: PROFILE_TRANSCRIPTIONS_PER_DAY - used - 1,
   };
 }
 
@@ -281,6 +325,18 @@ export function registerTranscription(app: Express) {
         await transcribeAnswer(
           req.actor!.id,
           String(req.params.id),
+          Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0),
+          String(req.headers['content-type'] || ''),
+        ),
+      ),
+  );
+  app.post(
+    '/api/profile/transcribe',
+    express.raw({ type: 'audio/*', limit: MAX_AUDIO_BYTES }),
+    async (req, res) =>
+      res.json(
+        await transcribeProfileMessage(
+          req.actor!.id,
           Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0),
           String(req.headers['content-type'] || ''),
         ),

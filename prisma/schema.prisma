@@ -26,6 +26,7 @@ model User {
   traceSpans TraceSpan[]
   applications Application[]
   coachReviews CoachReview[]
+  coachChat CoachChat?
 }
 model Session {
   id String @id @default(uuid())
@@ -102,6 +103,14 @@ model Application {
   @@unique([userId, fingerprint])
   @@index([userId, updatedAt])
   @@index([userId, postingKey])
+}
+// Ask Coach: one rolling chat per user, with each Coach message's turn summary (CFS-146).
+model CoachChat {
+  id String @id @default(uuid())
+  userId String @unique
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages Json
+  updatedAt DateTime @updatedAt
 }
 // Workspace-level Career Coach advice, kept per profile version so it outlives any one run.
 model CoachReview {

@@ -222,8 +222,7 @@ export function RecordAnswer({
             : 'Record your answer'}
       </button>
       <small className="muted">
-        Your recording is transcribed and then discarded; the text appears below for you to edit
-        before you submit.
+        Your recording is turned into text and then discarded. Edit the text before you send it.
       </small>
       {error && (
         <small role="alert" className="voice-error">

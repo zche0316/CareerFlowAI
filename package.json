@@ -27,6 +27,7 @@
     "coach:sources": "node scripts/coach-sources.mjs",
     "coach:esco": "node scripts/coach-sources-esco.mjs",
     "coach:embed": "node --env-file=.env scripts/coach-embeddings.mjs",
+    "eval:conversation": "tsx scripts/conversation-eval.ts",
     "verify:local": "node scripts/local-run.mjs --verify",
     "verify:quick": "node scripts/local-run.mjs --quick"
   },

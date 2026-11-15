@@ -79,6 +79,19 @@ const ResumeAgent = lazyPage(() => import('./resume-agent.js'), 'ResumeAgent');
 
 // The session endpoint supplies this token; all JSON mutations share the same request wrapper.
 let csrf = '';
+// Sends one recording to a transcription route and returns its text (CFS-139, CFS-143).
+const transcribeAt = (path: string) => async (audio: Blob) => {
+  const r = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': audio.type || 'audio/webm', 'X-CSRF-Token': csrf },
+    body: audio,
+  });
+  const body = await r.json();
+  if (!r.ok) throw Error(body.error || 'Transcription failed.');
+  return String(body.text || '');
+};
+// Shown only when /api/voice/status reports the transcription model (never in demo mode).
+const profileTranscribe = transcribeAt('/api/profile/transcribe');
 
 async function api(path: string, method = 'GET', body?: unknown) {
   const r = await fetch('/api' + path, {
@@ -1398,6 +1411,7 @@ function Profile({
         profileVersion={profile?.version || 0}
         form={form}
         api={api}
+        transcribe={profileTranscribe}
         onChange={(key, value) => {
           change(key, value);
           if (key === 'skills') setSkillInput(value.join(', '));
@@ -2507,18 +2521,7 @@ function MissionDetail({
             m.mode === 'fixture' ? undefined : () => api(`/missions/${m.id}/voice-session`, 'POST')
           }
           transcribe={
-            m.mode === 'fixture'
-              ? undefined
-              : async (audio) => {
-                  const r = await fetch(`/api/missions/${m.id}/transcribe`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': audio.type || 'audio/webm', 'X-CSRF-Token': csrf },
-                    body: audio,
-                  });
-                  const body = await r.json();
-                  if (!r.ok) throw Error(body.error || 'Transcription failed.');
-                  return String(body.text || '');
-                }
+            m.mode === 'fixture' ? undefined : transcribeAt(`/api/missions/${m.id}/transcribe`)
           }
         />
       )}

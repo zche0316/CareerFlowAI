@@ -6,6 +6,12 @@ import { AppError } from './errors.js';
 import { recordSpan, spanHook } from './trace.js';
 import { listApplications } from './applications.js';
 import { coachSources, loadCorpus } from './coach-sources.js';
+import { runCoachTurn } from './coach-turn.js';
+import {
+  summariseTurn,
+  type TurnSummary,
+} from '../../../packages/agents/src/conversation/turn-graph.js';
+import { randomUUID } from 'node:crypto';
 import { configuredMode, generate, type Mode } from '../../../packages/agents/src/provider.js';
 import { missionContext } from '../../../packages/agents/src/mission-context.js';
 import { coachSchema, type Fact } from '../../../packages/contracts/src/index.js';
@@ -326,8 +332,121 @@ export async function refreshCoach(userId: string, feedback = '') {
   return coachOverview(userId, apps);
 }
 
+// ---- Ask Coach (CFS-146) ------------------------------------------------------------------------
+export const COACH_CHAT_KEEP = 60;
+export const COACH_QUESTIONS_PER_DAY = 40;
+
+type ChatMessage = {
+  id: string;
+  role: 'user' | 'coach';
+  text: string;
+  at: string;
+  citations?: string[];
+  general?: boolean;
+  turn?: TurnSummary;
+};
+
+/** Titles and links for the public sources, and the text of the facts, cited in the chat. */
+function chatSources(messages: ChatMessage[], facts: Fact[] = []) {
+  const corpus = loadCorpus();
+  const ids = new Set(messages.flatMap((m) => m.citations || []));
+  const cited = facts
+    .filter((f) => ids.has(f.id))
+    .map((f) => ({ id: f.id, text: f.text.split('\n')[0].slice(0, 160) }));
+  if (!corpus || !ids.size) return { docs: [], attribution: '', facts: cited };
+  const docs = corpus.docs
+    .filter((d) => ids.has(d.id))
+    .map(({ id, title, url, source }) => ({ id, title, url, source }));
+  const used = corpus.sources.filter((s) => docs.some((d) => d.id.startsWith(s.prefix)));
+  return { docs, attribution: used.map((s) => s.attribution).join('\n'), facts: cited };
+}
+
+export async function coachChat(userId: string) {
+  const chat = await db.coachChat.findUnique({ where: { userId } });
+  const messages = (chat?.messages as ChatMessage[] | undefined) || [];
+  const profile = await db.profile.findFirst({ where: { userId }, orderBy: { version: 'desc' } });
+  return {
+    messages,
+    sources: chatSources(messages, (profile?.facts as unknown as Fact[]) || []),
+  };
+}
+
+export async function askCoach(userId: string, text: string) {
+  const profile = await db.profile.findFirst({ where: { userId }, orderBy: { version: 'desc' } });
+  if (!profile) throw new AppError(409, 'PROFILE_REQUIRED', 'Approve your profile first.');
+  if ((profile.data as any)?.sharing?.coach === false)
+    throw new AppError(403, 'SHARING_DISABLED', 'Coach access to your profile is turned off.');
+  const chat = await db.coachChat.findUnique({ where: { userId } });
+  const messages = (chat?.messages as ChatMessage[] | undefined) || [];
+  const today = new Date().toISOString().slice(0, 10);
+  if (
+    messages.filter((m) => m.role === 'user' && m.at.startsWith(today)).length >=
+    COACH_QUESTIONS_PER_DAY
+  )
+    throw new AppError(
+      429,
+      'COACH_CHAT_LIMIT',
+      `You have asked the Coach ${COACH_QUESTIONS_PER_DAY} questions today. Try again tomorrow.`,
+    );
+  const mode = configuredMode() as Mode;
+  const facts = profile.facts as unknown as Fact[];
+  const turn = await runCoachTurn({
+    text,
+    mode,
+    goal: String((profile.data as any)?.goals || ''),
+    facts: facts.map(({ id, kind, text }) => ({ id, kind, text })),
+    history: messages.slice(-8).map((m) => ({ role: m.role, text: m.text })),
+    sources: async (query) => {
+      const started = Date.now();
+      const r = await coachSources(query);
+      if (r.method === 'embedding')
+        await recordSpan({ userId, agent: 'Coach sources' }, {
+          role: 'embedding',
+          model: 'text-embedding-3-small',
+          mode,
+          startedAt: new Date(started).toISOString(),
+          durationMs: Date.now() - started,
+          attempts: 1,
+          inputTokens: r.tokens,
+          outputTokens: 0,
+          status: 'ok',
+        } as any);
+      return r.sources;
+    },
+  });
+  const at = new Date().toISOString();
+  const next: ChatMessage[] = [
+    ...messages,
+    { id: randomUUID(), role: 'user' as const, text, at },
+    {
+      id: randomUUID(),
+      role: 'coach' as const,
+      text: turn.draft.reply,
+      at,
+      citations: turn.draft.citations,
+      general: turn.draft.general,
+      turn: summariseTurn(turn),
+    },
+  ].slice(-COACH_CHAT_KEEP);
+  await db.coachChat.upsert({
+    where: { userId },
+    create: { userId, messages: json(next) },
+    update: { messages: json(next) },
+  });
+  return { messages: next, sources: chatSources(next, facts) };
+}
+
 export function registerCoach(app: Express) {
   app.get('/api/coach', async (req, res) => res.json(await coachOverview(req.actor!.id)));
+  app.get('/api/coach/chat', async (req, res) => res.json(await coachChat(req.actor!.id)));
+  app.post('/api/coach/chat', async (req, res) => {
+    const { text } = z.object({ text: z.string().trim().min(1).max(2000) }).parse(req.body || {});
+    res.json(await askCoach(req.actor!.id, text));
+  });
+  app.post('/api/coach/chat/clear', async (req, res) => {
+    await db.coachChat.deleteMany({ where: { userId: req.actor!.id } });
+    res.json({ messages: [], sources: { docs: [], attribution: '' } });
+  });
   app.post('/api/coach/refresh', async (req, res) => {
     const { feedback } = z
       .object({ feedback: z.string().trim().max(2000).default('') })

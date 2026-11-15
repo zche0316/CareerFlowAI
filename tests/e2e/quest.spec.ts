@@ -100,6 +100,14 @@ test('a quest runs from the log through review, a return to the Rewriter and the
   await expect(page.getByRole('heading', { name: 'Your turn', exact: true })).toBeVisible();
 
   const answer = page.locator('.boss-turn textarea, textarea').first();
+  // Asking what the question means gets the panel's reply and no score (CFS-145).
+  await answer.fill('What do you mean?');
+  await page.getByRole('button', { name: 'Answer', exact: true }).click();
+  await expect(page.locator('.boss-panel-reply')).toContainText('real example', {
+    timeout: 20000,
+  });
+  await expect(page.getByRole('heading', { name: 'Last round', exact: true })).toBeVisible();
+  await expect(page.locator('.boss-dmg')).toHaveText('–');
   await answer.fill('We worked on a dashboard as a group.');
   await page.getByRole('button', { name: 'Answer', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Answer the follow-up', exact: true })).toBeVisible(
