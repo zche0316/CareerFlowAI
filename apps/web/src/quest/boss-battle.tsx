@@ -162,6 +162,23 @@ export function QuestBossBattle({
   const chat: { questionId: string; user: string; reply: string; at: string; skipped: boolean }[] =
     d.panelChat || [];
   const [text, setText] = useState('');
+  // Voice only (CFS-162): answers come from the microphone like a real interview; the
+  // transcript stays visible to check, but cannot be typed into or pasted from items.
+  const [voiceOnly, setVoiceOnly] = useState(() => {
+    try {
+      return localStorage.getItem('careerflow.voiceOnly') === 'yes';
+    } catch {
+      return false;
+    }
+  });
+  const toggleVoiceOnly = (on: boolean) => {
+    setVoiceOnly(on);
+    try {
+      localStorage.setItem('careerflow.voiceOnly', on ? 'yes' : 'no');
+    } catch {
+      /* private mode: for this page only */
+    }
+  };
   const q = questions[Math.min(index, questions.length - 1)];
   const main = q ? mainFor(q.id) : undefined;
   const pendingFollow =
@@ -317,12 +334,22 @@ export function QuestBossBattle({
                 onAnswer={(questionId, answer) => onRound({ questionId, answer, followUp: false })}
               />
             )}
+            <label className="checkbox boss-voice-only">
+              <input
+                type="checkbox"
+                checked={voiceOnly}
+                onChange={(e) => toggleVoiceOnly(e.target.checked)}
+              />
+              Voice only, like a real interview: answer by recording, no typing
+            </label>
             <label className="quest-field">
               {pendingFollow ? 'Your follow-up answer' : 'Your answer'}
+              {voiceOnly && ' (transcript of your recording)'}
               <textarea
                 rows={6}
                 maxLength={6000}
                 value={text}
+                readOnly={voiceOnly}
                 disabled={busy}
                 onChange={(e) => setText(e.target.value)}
                 placeholder="Situation, what you were asked to do, what you personally did, and what changed. Real experience only."
@@ -340,7 +367,12 @@ export function QuestBossBattle({
                 onText={(words) => setText((t) => (t ? `${t} ` : '') + words)}
               />
             )}
-            {showChoices && (
+            {voiceOnly && text && (
+              <button type="button" className="text-button" onClick={() => setText('')}>
+                Clear and record again
+              </button>
+            )}
+            {showChoices && !voiceOnly && (
               <div className="boss-items">
                 <span>Use an item</span>
                 <div>
