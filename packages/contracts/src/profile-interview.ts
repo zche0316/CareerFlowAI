@@ -16,6 +16,8 @@ export type InterviewState = {
   /** Questions set aside after repeated non-answers or frustration (CFS-144); also in skipped. */
   parked?: string[];
   outcomeReviewed?: string[];
+  /** Set once the user was shown the empty fields before finishing (CFS-151). */
+  closingChecked?: boolean;
   inventoryBaseline?: string[];
   question: { key: string; text: string } | null;
 };
@@ -152,6 +154,12 @@ export function transitionInterview(
 ) {
   const records = experiences(p);
   if (action === 'finish_interview') {
+    // The first request to finish lists the empty fields once; the second one finishes (CFS-151).
+    if (s.phase !== 'review' && !s.closingChecked && missingFields(p, s).length) {
+      s.closingChecked = true;
+      s.question = null;
+      return;
+    }
     s.phase = 'review';
     s.question = null;
     return;
@@ -191,14 +199,95 @@ export function hasOutcomeDetail(text: string) {
   );
 }
 
+const text = (v: unknown) => typeof v === 'string' && v.trim().length > 0;
+/**
+ * The profile fields the interview fills in, in the order it asks for them (CFS-151). A field
+ * counts as filled when the working profile or a pending suggestion has a value; until then it
+ * is asked again, however often it was asked before, unless the user skipped it. `after` fields
+ * are asked once there is at least one experience, so the conversation starts with the story.
+ */
+export const coverageFields: {
+  key: string;
+  label: string;
+  question: string;
+  after?: 'experience';
+  filled: (p: any) => boolean;
+}[] = [
+  {
+    key: 'profile:goals',
+    label: 'Career direction',
+    question: 'Which role or career direction would you like to target?',
+    filled: (p) => text(p.goals),
+  },
+  {
+    key: 'profile:name',
+    label: 'Name',
+    question: 'What name would you like on your resume?',
+    filled: (p) => text(p.name),
+  },
+  {
+    key: 'profile:education',
+    label: 'Education',
+    question: 'What did you study, where, and when? You can skip this if it does not apply.',
+    filled: (p) => text(p.education) || Boolean(p.educations?.length),
+  },
+  {
+    key: 'profile:skills',
+    label: 'Skills',
+    question:
+      'Which skills should your profile list? Tools, languages and methods you have used all count.',
+    after: 'experience',
+    filled: (p) => Boolean(p.skills?.length),
+  },
+  {
+    key: 'profile:location',
+    label: 'Preferred location',
+    question: 'Where would you like to work? A city, a region or remote is fine.',
+    after: 'experience',
+    filled: (p) => text(p.location),
+  },
+  {
+    key: 'profile:workArrangement',
+    label: 'Work arrangement',
+    question: 'Do you prefer on-site, hybrid or remote work?',
+    after: 'experience',
+    filled: (p) => text(p.workArrangement),
+  },
+  {
+    key: 'profile:employmentType',
+    label: 'Employment type',
+    question: 'Are you looking for full-time, part-time, contract or graduate roles?',
+    after: 'experience',
+    filled: (p) => text(p.employmentType),
+  },
+];
+
+/** Profile fields still empty and not skipped, plus a missing experience (CFS-151). */
+export function missingFields(p: any, state: Partial<Pick<InterviewState, 'skipped' | 'closed'>>) {
+  const skipped = state.skipped || [];
+  const missing = coverageFields
+    .filter((f) => !f.filled(p) && !skipped.includes(f.key))
+    .map(({ key, label }) => ({ key, label }));
+  // A finished experience counts even before its answers are organised into a record.
+  if (!experiences(p).length && !state.closed?.length)
+    missing.push({ key: 'experience', label: 'At least one experience' });
+  return missing;
+}
+
 export function planInterview(p: any, current: InterviewState, latestText = '') {
   const state = structuredClone(current);
   const records = experiences(p).filter((r) => !closedExperience(state.closed, r.key));
   const questions: { key: string; text: string }[] = [];
-  const add = (key: string, text: string) => {
+  // `again` marks profile fields: they are asked until filled, not just until answered once.
+  const add = (key: string, text: string, again = false) => {
     const skipped = (state.skipped || []).includes(key);
-    if (!skipped && (!state.addressed.includes(key) || key.includes(':story:')))
+    if (!skipped && (again || !state.addressed.includes(key) || key.includes(':story:')))
       questions.push({ key, text });
+  };
+  const hasExperience = experiences(p).length > 0 || state.closed.length > 0;
+  const addFields = (after?: 'experience') => {
+    for (const f of coverageFields)
+      if (f.after === after && !f.filled(p)) add(f.key, f.question, true);
   };
   if (state.phase === 'review')
     return {
@@ -231,13 +320,7 @@ export function planInterview(p: any, current: InterviewState, latestText = '') 
     state.phase = 'collecting';
   }
   if (state.phase !== 'inventory') {
-    if (!p.goals) add('profile:goals', 'Which role or career direction would you like to target?');
-    if (!p.name) add('profile:name', 'What name would you like on your resume?');
-    if (!p.education && !p.educations?.length)
-      add(
-        'profile:education',
-        'What did you study, where, and when? You can skip this if it does not apply.',
-      );
+    addFields();
     for (const r of p.educations || []) {
       const key = `education:${careerTitle(r.title)}`;
       if (!r.organisation) add(`${key}:institution`, `Which institution is ${r.title} with?`);
@@ -299,8 +382,12 @@ export function planInterview(p: any, current: InterviewState, latestText = '') 
           `After that result in ${active.title}, was there a measurable change, such as time saved, fewer errors, people helped or work completed? A rough before-and-after estimate is fine. Was it measured or estimated, and was it your own or the team's result? If it was not measured or you do not know, say so.`,
         );
     }
+    // Matching preferences come once the current story has nothing left to ask.
+    addFields('experience');
   } else {
     state.phase = state.phase === 'inventory' ? 'inventory' : 'collecting';
+    // After "next experience" the user wants to tell another story first.
+    if (hasExperience && state.phase !== 'inventory') addFields('experience');
     add(
       `inventory:${state.closed.length}`,
       state.closed.length
@@ -309,6 +396,13 @@ export function planInterview(p: any, current: InterviewState, latestText = '') 
     );
   }
   state.question = questions[0] || null;
+  const missing = missingFields(p, state);
+  // Only on the turn that asked to finish: the transition cleared the question.
+  if (current.closingChecked && !current.question && current.phase !== 'review' && missing.length)
+    return {
+      state,
+      hint: `Before you finish, these are still empty: ${missing.map((m) => m.label).join(', ')}. Answer the question below, skip it, or finish again ("that's all" or Finish and review) to review your draft as it is.`,
+    };
   return {
     state,
     hint:

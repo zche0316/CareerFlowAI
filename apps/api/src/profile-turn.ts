@@ -101,6 +101,43 @@ const fallbackReply = (p: Perception) => {
   }
 };
 
+const PHRASE = `You are the Profile Builder in CareerFlow, a warm and precise career interviewer. Rewrite the next interview question so it follows on naturally from the conversation. Keep its meaning: ask about the same single thing and nothing else, and keep any note that the user may skip it. Write in the user's language (language "zh" means Simplified Chinese). One short question: at most 30 words, or 60 Chinese characters. Do not repeat or summarise the user's message, do not praise, and do not say anything was saved or added. Return {"question": "..."}.`;
+const phraseSchema = z.object({ question: z.string().min(3).max(400) });
+
+/**
+ * The planner picks the next field to ask about; this words that question for the moment, in the
+ * user's language (CFS-151). Returns null, and the planner's own wording is used, when no light
+ * model answers or the rewrite fails a check.
+ */
+export async function phraseQuestion(
+  input: { question: string; language: string; lastUser: string; reply: string },
+  calls: LightCall[] = [],
+): Promise<string | null> {
+  const out = await lightJson(
+    PHRASE,
+    {
+      plannedQuestion: input.question,
+      language: input.language,
+      userMessage: input.lastUser.slice(0, 600),
+      yourReplyBeforeTheQuestion: input.reply.slice(0, 600),
+    },
+    phraseSchema,
+    calls,
+    { timeoutMs: 4000, maxTokens: 200 },
+  );
+  const q = out?.question.trim().replace(/\s+/g, ' ');
+  if (!q) return null;
+  const zh = input.language === 'zh';
+  // One request, written as a question or a short instruction ("请简要介绍…"), with at most a
+  // two-part question ("ongoing or completed? If completed, when?") and a short skip note.
+  const ok =
+    (q.match(/[?？]/g) || []).length <= 2 &&
+    q.length <= (zh ? 120 : 260) &&
+    zh === /\p{Script=Han}/u.test(q) &&
+    !CHANGE_CLAIM.test(q);
+  return ok ? q : null;
+}
+
 export function profileTurnPorts(calls: LightCall[] = []): TurnPorts<ProfileTurnCtx> {
   const live = (ctx: ProfileTurnCtx) => ctx.mode !== 'fixture';
   return {

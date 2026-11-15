@@ -59,6 +59,11 @@ test('interview controls stop and skip without model calls, survive reload and l
   await expect(page.getByRole('log').locator('article').last()).toContainText(
     'different experience',
   );
+  // The first request to finish lists the empty profile fields once (CFS-151).
+  await page.getByRole('button', { name: 'Finish and review', exact: true }).click();
+  await expect(page.getByRole('log').locator('article').last()).toContainText(
+    'Before you finish, these are still empty',
+  );
   await page.getByRole('button', { name: 'Finish and review', exact: true }).click();
   await expect(page.getByLabel('Your next profile message')).not.toBeVisible();
   await page.reload();

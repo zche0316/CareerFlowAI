@@ -89,7 +89,17 @@ education, an internship, a university project and a skill list.
     > checks after each load.
     > Result: weekend demand figures dropped to realistic levels and our tutor accepted the
     > dashboard; we received a distinction. The 8% figure was measured from the raw files.
-14. Type **that's all** (or press **Finish and review** under the message box).
+14. Answer the matching preferences the Profile Builder now asks about, one at a time:
+    > SQL, Python, pandas, PostgreSQL, Power BI, Tableau and Excel.
+
+    > Sydney.
+
+    > Hybrid.
+
+    > Full-time graduate roles.
+15. Type **that's all** (or press **Finish and review** under the message box). If any profile
+    field is still empty, the Profile Builder lists it once and asks about it; say **skip**, or
+    finish again to review the draft as it is.
 
 Before approving, open **Edit profile details manually** and check the dates, organisations and
 skills (SQL, Python, pandas, PostgreSQL, Power BI, Tableau, Excel). Nothing Coach drafted is used
