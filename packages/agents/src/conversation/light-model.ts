@@ -69,6 +69,22 @@ const reasoning = (model: string) =>
  * One JSON call to the first light route that answers. Returns null when no route is
  * configured or all of them fail; `calls` records every attempt for the turn trace.
  */
+// A route that answered 429 is skipped until its cooldown ends (CFS-153), instead of being
+// asked again on every call while its quota is gone. Retry-After is used when the provider
+// sends it, capped at an hour; otherwise five minutes.
+const cooldowns = new Map<string, number>();
+const DEFAULT_COOLDOWN_MS = 5 * 60_000;
+const MAX_COOLDOWN_MS = 60 * 60_000;
+export function coolDown(route: string, retryAfterSeconds?: number, now = Date.now()) {
+  const ms =
+    retryAfterSeconds && retryAfterSeconds > 0
+      ? Math.min(retryAfterSeconds * 1000, MAX_COOLDOWN_MS)
+      : DEFAULT_COOLDOWN_MS;
+  cooldowns.set(route, now + ms);
+}
+export const coolingDown = (route: string, now = Date.now()) => (cooldowns.get(route) || 0) > now;
+export const resetCooldowns = () => cooldowns.clear();
+
 export async function lightJson<T>(
   system: string,
   user: unknown,
@@ -81,6 +97,7 @@ export async function lightJson<T>(
   }: { timeoutMs?: number; maxTokens?: number; routes?: LightRoute[] } = {},
 ): Promise<T | null> {
   for (const route of routes) {
+    if (coolingDown(route.name)) continue;
     const started = Date.now();
     try {
       const r = await clientFor(route).chat.completions.create(
@@ -109,6 +126,10 @@ export async function lightJson<T>(
       return parsed;
     } catch (error) {
       const e = error as any;
+      if (e?.status === 429) {
+        const retryAfter = Number(e?.headers?.get?.('retry-after') ?? e?.headers?.['retry-after']);
+        coolDown(route.name, Number.isFinite(retryAfter) ? retryAfter : undefined);
+      }
       calls.push({
         route: route.name,
         model: route.model,
