@@ -3,6 +3,7 @@ import { Check, CheckCheck, FilePenLine, ArrowRight, X } from 'lucide-react';
 import type { CareerProfile } from '../../../packages/contracts/src/index.js';
 import { storyFingerprint } from '../../../packages/contracts/src/profile-records.js';
 import { experienceOverview } from '../../../packages/contracts/src/experience-view.js';
+import { workMonths } from './quest/experience-rank.js';
 
 export const profileFieldLabels: Record<string, string> = {
   name: 'Name',
@@ -87,7 +88,12 @@ function FieldValue({ value }: { value: any }) {
                 <p className="profile-experience-overview">{experienceOverview(r)}</p>
               )}
               {r.starStory && Object.values(r.starStory).some(Boolean) && (
-                <details className="profile-star-story" aria-label="Example from this experience">
+                // Open by default: the example is the most useful part of a record (CFS-157).
+                <details
+                  className="profile-star-story"
+                  aria-label="Example from this experience"
+                  open
+                >
                   <summary>Personal STAR example</summary>
                   <dl>
                     {(['situation', 'task', 'action', 'result'] as const)
@@ -143,6 +149,21 @@ function FieldValue({ value }: { value: any }) {
       </dl>
     );
   return <p>{String(value)}</p>;
+}
+
+/** Years of experience not stated: the time on work records, as the Character rank counts it (CFS-157). */
+function WorkTime({ records }: { records: any[] }) {
+  const months = workMonths(records);
+  if (!months) return <p className="profile-placeholder">Not added yet</p>;
+  const text =
+    months < 12
+      ? `${months} month${months === 1 ? '' : 's'}`
+      : `${Math.floor(months / 12)} year${months >= 24 ? 's' : ''}${months % 12 ? ` ${months % 12} months` : ''}`;
+  return (
+    <p>
+      {text} <span className="profile-placeholder">from your work dates</span>
+    </p>
+  );
 }
 
 // Record arrays are one versioned field; show only the records changed by that proposal.
@@ -330,6 +351,8 @@ export function ProfileCanvas({
                     </div>
                   );
                 })
+              ) : field === 'experienceYears' && !Number(data.experienceYears) ? (
+                <WorkTime records={data.workExperiences || []} />
               ) : (
                 <FieldValue value={data[field]} />
               )}
