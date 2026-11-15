@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { rolePreamble } from './personas.js';
+import { modelClient } from './tracing.js';
 import { modelRoute } from './router.js';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { z } from 'zod';
@@ -494,11 +495,10 @@ async function generateOnce<T>(
 
   // Disable SDK retries: mission-level retries and call accounting remain explicit.
   const baseURL = route.baseURL;
-  const client = new OpenAI({
-    apiKey,
-    baseURL,
-    maxRetries: 0,
-  });
+  const client = modelClient(
+    { apiKey, baseURL, maxRetries: 0 },
+    { agent: role, model: route.model },
+  );
   // DeepSeek enables thinking by default, while its Responses API does not accept a required
   // tool choice in that mode. Disabling reasoning keeps the allowlisted tool gate deterministic.
   const providerCompatibility = requiresNonThinkingMode(baseURL)

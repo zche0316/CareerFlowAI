@@ -565,3 +565,19 @@ Live runs of the 10 labelled dialogues, 2026-11-15, separate database:
 | Stuck dialogues | 0 | 0 |
 | Intent accuracy | 100% | 100% |
 | Re-asked after an answer | 1/47 | 3/47 (1 to 6 across runs) |
+
+## LangSmith tracing (CFS-149)
+
+- Off by default. With `LANGSMITH_TRACING=true` and `LANGSMITH_API_KEY` set, each Profile
+  Builder, Interview panel and Ask Coach turn becomes one LangSmith trace: the turn graph's nodes
+  (perceive, plan, extract or converse, reflect, revise) and every model call inside them, with
+  the prompt, the structured output, tokens and latency.
+- All OpenAI-compatible clients are created through `modelClient` in
+  `packages/agents/src/tracing.ts`, so specialist, light-model, import and job-search calls are
+  traced the same way. Mission graphs are traced by LangGraph itself under the same switch.
+- Traces contain user messages and profile data. Use tracing on development and test accounts
+  only; trace metadata carries no names or emails. `TraceSpan` keeps the local per-call record
+  whether or not LangSmith is on.
+- `npx tsx scripts/trace-turns.ts` lists recent turns; `--find "words"` prints one turn's graph
+  nodes and each model call's raw output; `--health` counts model answers the server cannot
+  parse. It needs a key with read access.

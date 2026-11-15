@@ -9,7 +9,12 @@ const env = {
   DEV_DATABASE: 'portable',
   DATABASE_URL: database.url,
   ...(process.argv.includes('--verify') || process.argv.includes('--quick')
-    ? { JOB_SOURCE: 'fixtures', PROVIDER_MODE: 'fixture', OPENAI_NATIVE_API_KEY: '' }
+    ? {
+        JOB_SOURCE: 'fixtures',
+        PROVIDER_MODE: 'fixture',
+        OPENAI_NATIVE_API_KEY: '',
+        LANGSMITH_TRACING: 'false',
+      }
     : {}),
 };
 let active,

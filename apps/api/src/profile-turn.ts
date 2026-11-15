@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { traceTurn } from '../../../packages/agents/src/tracing.js';
 import {
   lightJson,
   type LightCall,
@@ -254,7 +255,7 @@ export function profileTurnPorts(calls: LightCall[] = []): TurnPorts<ProfileTurn
   };
 }
 
-export async function runProfileTurn(ctx: ProfileTurnCtx) {
+async function runProfileTurnUntraced(ctx: ProfileTurnCtx) {
   const calls: LightCall[] = [];
   const result = await runTurn(profileTurnPorts(calls), ctx);
   return { ...result, calls };
@@ -264,3 +265,6 @@ export {
   summariseTurn,
   type TurnSummary as ProfileTurnSummary,
 } from '../../../packages/agents/src/conversation/turn-graph.js';
+
+/** One turn; a single LangSmith trace when tracing is on (CFS-149). */
+export const runProfileTurn = traceTurn('profile-builder-turn', runProfileTurnUntraced);

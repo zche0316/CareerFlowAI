@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { traceTurn } from '../../../packages/agents/src/tracing.js';
 import {
   lightJson,
   type LightCall,
@@ -227,8 +228,11 @@ export function interviewTurnPorts(calls: LightCall[] = []): TurnPorts<Interview
   };
 }
 
-export async function runInterviewTurn(ctx: InterviewTurnCtx) {
+async function runInterviewTurnUntraced(ctx: InterviewTurnCtx) {
   const calls: LightCall[] = [];
   const result = await runTurn(interviewTurnPorts(calls), ctx);
   return { ...result, calls };
 }
+
+/** One turn; a single LangSmith trace when tracing is on (CFS-149). */
+export const runInterviewTurn = traceTurn('interview-panel-turn', runInterviewTurnUntraced);

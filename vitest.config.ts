@@ -5,5 +5,7 @@ export default defineConfig({
     testTimeout: 45000,
     hookTimeout: 45000,
     fileParallelism: false,
+    // Tests never send LangSmith traces, whatever .env says (CFS-149).
+    env: { LANGSMITH_TRACING: 'false' },
   },
 });

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { traceTurn } from '../../../packages/agents/src/tracing.js';
 import {
   lightJson,
   lightRoutes,
@@ -329,8 +330,11 @@ export function coachTurnPorts(calls: LightCall[] = []): TurnPorts<CoachTurnCtx>
   };
 }
 
-export async function runCoachTurn(ctx: CoachTurnCtx) {
+async function runCoachTurnUntraced(ctx: CoachTurnCtx) {
   const calls: LightCall[] = [];
   const result = await runTurn(coachTurnPorts(calls), ctx);
   return { ...result, draft: result.draft as CoachAnswer, calls };
 }
+
+/** One turn; a single LangSmith trace when tracing is on (CFS-149). */
+export const runCoachTurn = traceTurn('ask-coach-turn', runCoachTurnUntraced);
