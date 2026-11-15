@@ -14,7 +14,7 @@ const form = {
       startMonth: '2025-11',
       endMonth: '2026-02',
       current: false,
-      details: ['I supported reporting.'],
+      details: ['I supported weekly delivery reporting with SQL and Excel.'],
       starStory: {
         situation: 'Inconsistent categories.',
         task: 'Help standardise them.',
@@ -126,7 +126,7 @@ it('saves a direct STAR answer verbatim on the active experience and leads with 
   const situationFirst = planInterview(
     {
       ...p,
-      workExperiences: [{ ...role, starStory: undefined, overview: 'I maintained reports.' }],
+      workExperiences: [{ ...role, starStory: undefined, overview: 'I maintained the weekly delivery reports in Excel and SQL.' }],
     },
     interviewState([], p),
   ).state.question;

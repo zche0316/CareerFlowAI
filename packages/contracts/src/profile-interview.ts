@@ -274,6 +274,31 @@ export function missingFields(p: any, state: Partial<Pick<InterviewState, 'skipp
   return missing;
 }
 
+// Words that only introduce an experience, not what it was about or what the person did.
+const HEADER_WORDS =
+  /\b(?:i|i'm|i’m|i've|also|was|were|am|been|worked|working|participated|participate|took|part|joined|did|do|a|an|the|in|on|at|of|for|my|our|from|to|until|as|and|with|this|that|it|team|group|project|projects|university|uni|course|unit|subject|class|internship|intern|role|job|position|part-time|full-time|casual|volunteer|volunteering|club|personal|work|experience|january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec|present|now|current|currently|fictional)\b/gi;
+
+/**
+ * An overview counts once it says what the experience was about or what the person did. An
+ * introduction ("a team project in my data visualisation unit, August to October 2026") is not
+ * enough (CFS-158): with the title, organisation, dates and introducing words removed, a few
+ * real words must remain.
+ */
+export function substantiveOverview(r: any) {
+  const text = experienceOverview(r);
+  if (!text) return false;
+  if (/\p{Script=Han}/u.test(text)) return text.replace(/[\p{P}\s\d]/gu, '').length >= 15;
+  let rest = ` ${text.toLowerCase()} `;
+  for (const part of [r.title, r.organisation, r.location].filter(Boolean))
+    rest = rest.split(String(part).toLowerCase()).join(' ');
+  const words = rest
+    .replace(/\(fictional\)/g, ' ')
+    .replace(HEADER_WORDS, ' ')
+    .replace(/\b\d{1,4}\b/g, ' ')
+    .match(/[a-z][a-z'-]+/g);
+  return (words?.length || 0) >= 3;
+}
+
 export function planInterview(p: any, current: InterviewState, latestText = '') {
   const state = structuredClone(current);
   const records = experiences(p).filter((r) => !closedExperience(state.closed, r.key));
@@ -347,10 +372,10 @@ export function planInterview(p: any, current: InterviewState, latestText = '') 
         `${active.key}:organisation`,
         `Which organisation, university, course or personal context was ${active.title} part of?`,
       );
-    if (!experienceOverview(active))
+    if (!substantiveOverview(active))
       add(
         `${active.key}:overview`,
-        `Briefly describe your role in ${active.title}: your usual responsibilities, tools and scope of work.`,
+        `What was ${active.title} about, and what was your part in it? For example the problem it tackled, who used it, and the tools and work you were responsible for.`,
       );
     else if (!active.starStory?.situation)
       add(

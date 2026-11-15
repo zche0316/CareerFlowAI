@@ -2,6 +2,7 @@ import { it, expect } from 'vitest';
 import { sampleProfile as sample } from '../packages/contracts/src/index.js';
 import { recordSchema } from '../packages/contracts/src/profile-records.js';
 import {
+  substantiveOverview,
   coverageFields,
   missingFields,
   interviewState,
@@ -212,7 +213,7 @@ it('switches to a uniquely named new role and asks STAR without closing or losin
     startMonth: '2025-11',
     endMonth: '2026-02',
     current: false,
-    details: ['I supported reporting.'],
+    details: ['I supported weekly delivery reporting with SQL and Excel.'],
     starStory: {
       situation: 'Different labels.',
       task: 'Standardise labels.',
@@ -294,14 +295,14 @@ it('uses a unique role title when two experiences share one employer', () => {
         organisation: 'Example Company',
         startMonth: '2025-01',
         current: true,
-        details: ['I checked records.'],
+        details: ['I checked customer records for duplicates in Excel.'],
       },
       {
         title: 'Retail Assistant',
         organisation: 'Example Company',
         startMonth: '2024-01',
         current: true,
-        details: ['I handled returns.'],
+        details: ['I handled customer returns and refunds at the front desk.'],
       },
     ],
   };
@@ -322,7 +323,7 @@ it('does not treat an unrelated reply or old addressed flag as a completed STAR 
         organisation: 'Harbour Retail',
         startMonth: '2024-07',
         endMonth: '2025-10',
-        details: ['I handled enquiries.'],
+        details: ['I handled customer enquiries by phone and email.'],
         starStory: {
           situation: 'Colleagues asked repeated questions.',
           task: 'Help new staff.',
@@ -357,7 +358,7 @@ it('asks for quantified impact after approval, accepts estimates or unmeasured o
     startMonth: '2025-11',
     endMonth: '2026-02',
     current: false,
-    details: ['I supported reporting.'],
+    details: ['I supported weekly delivery reporting with SQL and Excel.'],
     starStory: {
       situation: 'Inconsistent categories.',
       task: 'Help standardise them.',
@@ -496,4 +497,38 @@ it('asks for an experience again even after asking once, and offers review once 
   const plan = planInterview(full, interviewState([], full));
   expect(plan.state.question).toBeNull();
   expect(plan.hint).toContain('Your profile now has everything it needs');
+});
+
+// CFS-158: an introduction is not an overview; the interview asks what the experience was about.
+it('asks what an experience was about when its description only introduces it', () => {
+  const intro = {
+    id: 'bike',
+    title: 'Sydney Bike Share Demand Dashboard',
+    organisation: 'University of Sydney',
+    startMonth: '2026-08',
+    endMonth: '2026-10',
+    current: false,
+    details: [],
+    technologies: [],
+    overview:
+      'I also participated an university project: Sydney Bike Share Demand Dashboard, a team project in my data visualisation unit, August to October 2026.',
+  };
+  expect(substantiveOverview(intro)).toBe(false);
+  expect(
+    substantiveOverview({
+      ...intro,
+      overview: 'Team of four. I owned the data pipeline and built the demand charts in Tableau.',
+    }),
+  ).toBe(true);
+  expect(
+    substantiveOverview({
+      title: 'Booking website',
+      organisation: "my sister's yoga studio",
+      overview: "I built a booking website for my sister's yoga studio with React and Supabase.",
+    }),
+  ).toBe(true);
+  const p = { ...empty, goals: 'Graduate data analyst', projects: [intro] };
+  const q = planInterview(p, interviewState([], p)).state.question;
+  expect(q?.key).toMatch(/:overview$/);
+  expect(q?.text).toContain('What was Sydney Bike Share Demand Dashboard about');
 });
