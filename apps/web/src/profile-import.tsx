@@ -83,10 +83,8 @@ export function ProfileImport({
   }
   return (
     <section className="sharing import-panel">
-      <h3>Import an existing resume</h3>
-      <p>
-        PDF, UTF-8 TXT, PNG or JPEG · up to 4 MB and 10 PDF pages. Text extraction runs locally on
-        this server. Importing never approves or replaces your profile.
+      <p className="muted">
+        PDF, TXT, PNG or JPEG, up to 4 MB. Nothing changes in your profile until you review it.
       </p>
       <label>
         Resume file

@@ -177,13 +177,15 @@ export function CoachPage({
   onProfile: () => void;
 }) {
   const [coach, setCoach] = useState<any>(null);
+  const [loaded, setLoaded] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   useEffect(() => {
     request('/coach')
       .then(setCoach)
-      .catch((e) => setError((e as Error).message));
+      .catch((e) => setError((e as Error).message))
+      .finally(() => setLoaded(true));
   }, []);
   const refresh = async () => {
     setBusy(true);
@@ -198,7 +200,21 @@ export function CoachPage({
       setBusy(false);
     }
   };
-  if (!coach && !error) return <p className="quest-fine dark">Loading your Coach…</p>;
+  if (!loaded) return <p className="quest-fine dark">Loading your Coach…</p>;
+  // The Coach reads the approved profile; before the first approval there is nothing to read.
+  if (coach === null && !error)
+    return (
+      <section className="quest-tile coach-empty">
+        <h2>Your Coach needs a profile first</h2>
+        <p>
+          Once you approve your first profile, the Coach can point out strengths, gaps and next
+          steps, and answer questions about your career.
+        </p>
+        <button className="quest-press lime" onClick={onProfile}>
+          Build my profile
+        </button>
+      </section>
+    );
   if (!coach || typeof coach !== 'object' || Array.isArray(coach))
     return (
       <section className="quest-tile">

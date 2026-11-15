@@ -36,7 +36,7 @@ export function interviewIntent(text: string): InterviewAction | null {
   )
     return null;
   if (
-    /^(?:(?:please )?(?:finish|end|stop) (?:the |this )?(?:interview|profile|conversation)(?: & review)?|(?:结束|完成)(?:整个)?(?:访谈|问答|对话)|(?:no|don't have any) (?:more|other) experiences?)[.!。！]?$/i.test(
+    /^(?:(?:please )?(?:finish|end|stop) (?:the |this )?(?:interview|profile|conversation)(?: & review)?|(?:结束|完成)(?:整个)?(?:访谈|问答|对话)|(?:no|don't have any) (?:more|other) experiences?|that['’]?s (?:all|it)|i['’]?m (?:all )?done|nothing (?:else|more)|就这些|我说完了|没有了)[.!。！]?$/i.test(
       s,
     )
   )

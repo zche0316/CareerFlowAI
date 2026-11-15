@@ -60,9 +60,12 @@ export function ReadAloud({ text, label = 'Read aloud' }: { text: string; label?
  * editable answer and never submits anything.
  */
 export function SpeakAnswer({
+  compact,
   disabled,
   onText,
 }: {
+  /** Icon-only button for a chat composer; the note moves into the tooltip. */
+  compact?: boolean;
   disabled?: boolean;
   onText: (text: string) => void;
 }) {
@@ -106,24 +109,37 @@ export function SpeakAnswer({
     setListening(true);
   };
   return (
-    <div className="voice-input">
+    <div className={`voice-input${compact ? ' compact' : ''}`}>
       <button
         type="button"
-        className={`quest-press${listening ? ' lime' : ''}`}
+        className={
+          compact ? `icon-press${listening ? ' on' : ''}` : `quest-press${listening ? ' lime' : ''}`
+        }
         disabled={disabled && !listening}
         aria-pressed={listening}
+        aria-label={compact ? (listening ? 'Stop speaking' : 'Speak your answer') : undefined}
+        title={
+          compact
+            ? 'Your browser turns speech into text. CareerFlow keeps only the text you send.'
+            : undefined
+        }
         onClick={listening ? stop : start}
       >
         {listening ? <Square size={15} /> : <Mic size={15} />}
-        {listening ? 'Stop speaking' : 'Speak your answer'}
+        {!compact && (listening ? 'Stop speaking' : 'Speak your answer')}
       </button>
-      <small className="muted">
-        {listening
-          ? interim
-            ? `Hearing: ${interim}`
-            : 'Listening… your words appear in the answer box for you to edit.'
-          : 'Your browser’s speech service turns speech into text. CareerFlow keeps only the text you submit, never audio.'}
-      </small>
+      {compact && listening && (
+        <small className="muted">{interim ? `Hearing: ${interim}` : 'Listening…'}</small>
+      )}
+      {!compact && (
+        <small className="muted">
+          {listening
+            ? interim
+              ? `Hearing: ${interim}`
+              : 'Listening… your words appear in the answer box for you to edit.'
+            : 'Your browser’s speech service turns speech into text. CareerFlow keeps only the text you submit, never audio.'}
+        </small>
+      )}
       {error && (
         <small role="alert" className="voice-error">
           {error}
@@ -138,10 +154,12 @@ export function SpeakAnswer({
  * browser with a microphone; the words land in the editable answer box and nothing is submitted.
  */
 export function RecordAnswer({
+  compact,
   disabled,
   transcribe,
   onText,
 }: {
+  compact?: boolean;
   disabled?: boolean;
   transcribe: (audio: Blob) => Promise<string>;
   onText: (text: string) => void;
@@ -205,25 +223,40 @@ export function RecordAnswer({
       );
     }
   };
+  const label =
+    state === 'recording'
+      ? `Stop · ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+      : state === 'transcribing'
+        ? 'Transcribing…'
+        : 'Record your answer';
   return (
-    <div className="voice-input">
+    <div className={`voice-input${compact ? ' compact' : ''}`}>
       <button
         type="button"
-        className={`quest-press${state === 'recording' ? ' lime' : ''}`}
+        className={
+          compact
+            ? `icon-press${state === 'recording' ? ' on' : ''}`
+            : `quest-press${state === 'recording' ? ' lime' : ''}`
+        }
         disabled={(disabled && state !== 'recording') || state === 'transcribing'}
         aria-pressed={state === 'recording'}
+        aria-label={compact ? label : undefined}
+        title={
+          compact
+            ? 'Your recording is turned into text and then discarded. Edit the text before you send it.'
+            : undefined
+        }
         onClick={state === 'recording' ? () => rec.current?.stop() : start}
       >
         {state === 'recording' ? <Square size={15} /> : <Mic size={15} />}
-        {state === 'recording'
-          ? `Stop · ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
-          : state === 'transcribing'
-            ? 'Transcribing…'
-            : 'Record your answer'}
+        {!compact && label}
       </button>
-      <small className="muted">
-        Your recording is turned into text and then discarded. Edit the text before you send it.
-      </small>
+      {compact && state !== 'idle' && <small className="muted">{label}</small>}
+      {!compact && (
+        <small className="muted">
+          Your recording is turned into text and then discarded. Edit the text before you send it.
+        </small>
+      )}
       {error && (
         <small role="alert" className="voice-error">
           {error}

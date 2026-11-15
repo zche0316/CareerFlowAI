@@ -4630,3 +4630,125 @@ body:has(.quest) {
   flex-direction: column;
   gap: 8px;
 }
+
+/* ---------- One-box chat composer and quiet resume import (CFS-147) ---------- */
+.quest .content main .profile-assistant .composer {
+  display: grid;
+  gap: 0;
+  border: 2px solid var(--q-ink);
+  border-radius: 18px;
+  background: #fff;
+  overflow: hidden;
+}
+.quest .content main .profile-assistant .composer textarea {
+  border: 0;
+  border-radius: 0;
+  min-height: 84px;
+  padding: 12px 14px 4px;
+  resize: vertical;
+  box-shadow: none;
+  outline: none;
+}
+.composer-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px 8px 10px;
+}
+.composer-bar .voice-input {
+  margin: 0;
+  flex-wrap: nowrap;
+}
+.voice-input.compact small {
+  flex: none;
+  font-size: 12px;
+}
+.icon-press {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1.5px solid var(--q-rail);
+  background: #fff;
+  color: var(--q-ink);
+  cursor: pointer;
+}
+.icon-press.on {
+  background: var(--q-lime, #d9f26b);
+  border-color: var(--q-ink);
+}
+.icon-press:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.composer-consent {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 auto 0 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--q-muted);
+  cursor: pointer;
+}
+.quest .content main .profile-assistant .composer-consent input {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+.composer-consent span {
+  white-space: nowrap;
+}
+.quest .content main .profile-assistant .composer-send {
+  margin: 0;
+  min-height: 34px;
+  padding: 6px 18px;
+  border-radius: 999px;
+}
+.composer-hint {
+  margin: 6px 2px 0;
+  font-size: 12px;
+  color: var(--q-muted);
+}
+.composer-hint .text-button {
+  font-size: 12px;
+  padding: 0;
+  margin-left: 4px;
+}
+.quest details.optional-import {
+  margin: 4px 0 12px;
+  padding: 0;
+  border: 0;
+}
+.quest details.optional-import > summary {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--q-muted);
+  list-style: none;
+}
+.quest details.optional-import > summary::-webkit-details-marker {
+  display: none;
+}
+.quest details.optional-import > summary::before {
+  content: '↑';
+}
+.quest details.optional-import[open] > summary {
+  margin-bottom: 8px;
+}
+.coach-empty {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  max-width: 560px;
+}
+.coach-empty h2,
+.coach-empty p {
+  margin: 0;
+}

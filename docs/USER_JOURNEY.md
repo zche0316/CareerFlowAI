@@ -24,7 +24,7 @@ documents and Sign out.
 
 Press **Build my profile**. Two ways in, and you can mix them:
 
-- **Start from your resume** (open at the top of the right-hand panel on a new account). Upload
+- **Have a resume? Import it instead of typing** (a link at the top of the right-hand panel). Upload
   a PDF, text file or photo of your resume. CareerFlow drafts work, project and education
   records from it; nothing is saved yet.
 - **Chat with Coach** on the left. Answer its questions about study, work and projects; the
@@ -75,7 +75,7 @@ education, an internship, a university project and a skill list.
 10. **Measurable change** (Coach asks this when the result has no numbers)
     > Preparation went from about four hours to about fifteen minutes of checking. That is my own
     > estimate, not a measured figure, and it was my own work.
-11. **Finish this experience**, then add another when Coach offers:
+11. Type **finish this experience**, then **next project** (or just start describing it):
     > A university project: Sydney Bike Share Demand Dashboard, a team project in my data
     > visualisation unit, August to October 2026.
 12. **Overview of the project**
@@ -89,14 +89,14 @@ education, an internship, a university project and a skill list.
     > checks after each load.
     > Result: weekend demand figures dropped to realistic levels and our tutor accepted the
     > dashboard; we received a distinction. The 8% figure was measured from the raw files.
-14. **Finish this experience**, then **Finish interview and review**.
+14. Type **that's all** (or press **Finish and review** under the message box).
 
 Before approving, open **Edit profile details manually** and check the dates, organisations and
 skills (SQL, Python, pandas, PostgreSQL, Power BI, Tableau, Excel). Nothing Coach drafted is used
 until you approve it. With about three months of internship, Sam's rank is Rookie.
 
 To try the resume path instead, copy the same facts into a text file and upload it under
-**Start from your resume**.
+**Have a resume? Import it instead of typing**.
 
 Press **Approve & save profile**. Only approved facts are used anywhere else in the app.
 
