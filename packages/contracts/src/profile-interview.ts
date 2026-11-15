@@ -326,7 +326,8 @@ export function planInterview(p: any, current: InterviewState, latestText = '') 
       if (!r.organisation) add(`${key}:institution`, `Which institution is ${r.title} with?`);
       if (!r.startMonth)
         add(`${key}:start`, `When did ${r.title} start? You can skip an unknown date.`);
-      if (!r.current && !r.endMonth)
+      // An expected completion month already answers "ongoing or completed" (CFS-154).
+      if (!r.current && !r.endMonth && !r.expectedEndMonth)
         add(`${key}:end`, `Is ${r.title} ongoing or completed, and when?`);
     }
   }

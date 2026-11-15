@@ -456,3 +456,26 @@ it('lists the empty fields on the first request to finish and finishes on the se
   transitionInterview(done, 'finish_interview', full);
   expect(done.phase).toBe('review');
 });
+
+it('does not ask whether a degree is ongoing when an expected completion month is known (CFS-154)', () => {
+  const p = {
+    ...empty,
+    goals: 'Graduate data analyst',
+    education: '',
+    educations: [
+      {
+        id: 'bsc',
+        title: 'Bachelor of Science in Statistics',
+        organisation: 'University of Sydney',
+        startMonth: '2023-03',
+        endMonth: null,
+        expectedEndMonth: '2026-11',
+        current: false,
+        details: [],
+        technologies: [],
+      },
+    ],
+  };
+  const q = planInterview(p, interviewState([], p)).state.question;
+  expect(q?.key).not.toMatch(/^education:/);
+});
