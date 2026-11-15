@@ -19,6 +19,17 @@ type Round = {
   at?: string;
 };
 
+// A resume fact id ("workExperiences-<uuid>-detail-2") is internal; players see its kind.
+const itemLabel = (factId: string) =>
+  /^workExperiences/.test(factId)
+    ? 'Work'
+    : /^projects/.test(factId)
+      ? 'Project'
+      : /^educations?/.test(factId)
+        ? 'Education'
+        : /^skill/.test(factId)
+          ? 'Skill'
+          : 'Evidence';
 export const damageFor: Record<Mark, number> = { critical: 15, hit: 10, partial: 5, miss: 0 };
 const markLabel: Record<Mark, string> = {
   critical: 'Critical',
@@ -340,14 +351,18 @@ export function QuestBossBattle({
                       className="boss-item"
                       onClick={() => setText((t) => (t ? `${t} ` : '') + c.text)}
                     >
-                      <span className="quest-chip ink">{c.factId}</span>
-                      {c.text.length > 70 ? c.text.slice(0, 67) + '…' : c.text}
+                      <span className="quest-chip ink">{itemLabel(c.factId)}</span>
+                      <span className="boss-item-text">
+                        {c.text.length > 140 ? c.text.slice(0, 137) + '…' : c.text}
+                      </span>
                     </button>
                   ))}
                   {lesson && (
                     <p className="boss-item lesson">
                       <span className="quest-chip lilac">Lesson</span>
-                      {lesson.length > 90 ? lesson.slice(0, 87) + '…' : lesson}
+                      <span className="boss-item-text">
+                        {lesson.length > 140 ? lesson.slice(0, 137) + '…' : lesson}
+                      </span>
                     </p>
                   )}
                 </div>

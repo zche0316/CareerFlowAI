@@ -2646,11 +2646,16 @@ body:has(.quest) {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 8px;
 }
+/* Label above, text below; the text wraps inside the card (CFS-160). */
 .agent-app.quest .content main .boss-item,
 .boss-item {
   display: flex;
-  gap: 10px;
-  align-items: center;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+  min-width: 0;
+  min-height: 0;
+  height: auto;
   margin: 0;
   padding: 10px 12px;
   border-radius: 16px;
@@ -2660,6 +2665,18 @@ body:has(.quest) {
   font: 500 13px var(--q-body);
   text-align: left;
   cursor: pointer;
+}
+.boss-item .quest-chip {
+  flex: none;
+  max-width: 100%;
+}
+.boss-item-text {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 .boss-item:hover {
   border-color: var(--q-ink);
