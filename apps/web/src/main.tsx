@@ -1469,8 +1469,8 @@ function Profile({
                   {error}
                 </p>
               )}
-              <details className="optional-import" open={!profile}>
-                <summary>Start from your resume</summary>
+              <details className="optional-import">
+                <summary>Have a resume? Import it instead of typing</summary>
                 <ProfileImport
                   api={api}
                   disabled={busy || committing || preparing}

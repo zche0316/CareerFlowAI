@@ -249,6 +249,9 @@ it('recognises explicit next/end choices while retaining narratives containing t
   expect(interviewIntent('add another experience')).toBe('next_experience');
   expect(interviewIntent('end conversation')).toBe('finish_interview');
   expect(interviewIntent('End conversation & review')).toBe('finish_interview');
+  for (const text of ["that's all", 'That’s it.', "I'm done", 'nothing else', '就这些', '我说完了'])
+    expect(interviewIntent(text)).toBe('finish_interview');
+  expect(interviewIntent("that's all I did at Harbour Retail, I wrote SQL")).toBeNull();
   expect(interviewIntent('Add another experience: I worked at Harbour Retail.')).toBeNull();
   expect(interviewIntent('End interview after I explain my result.')).toBeNull();
   expect(interviewIntent("Don't end conversation")).toBeNull();

@@ -349,8 +349,8 @@ Found by walking the app from a new account (see [USER_JOURNEY.md](USER_JOURNEY.
 - **Navigation.** The top bar keeps Home, Quests, Jobs, Scout and World; Coach, Party, Season
   event, Decision inbox, Applications and Activity sit under More. Pages about the user
   (Character, My profile, My documents) and Sign out moved under the avatar's Account menu.
-- **Start from your resume.** Resume import is a top-level panel on the profile builder, open
-  by default until a profile is approved, instead of nested inside the manual editor.
+- **Resume import** is a top-level panel on the profile builder instead of nested inside the
+  manual editor. Since CFS-147 it starts collapsed behind one link.
 - **Finished runs** show what to do next: download the resume, apply on the employer's site,
   mark the role applied, practise again. A step notice is replaced when its run completes.
 - **Experience rank** on the Character page: Rookie (under 1 year), Apprentice (1+), Adventurer
@@ -524,3 +524,18 @@ profile does show. Both responses avoid the false claim.
 
 There is no chat on `main`, so this evaluation has no baseline. It measures what the server
 checks enforce on live answers.
+
+## Quieter Profile Builder composer and Coach empty state (CFS-147)
+
+- **One message box.** The microphone, the AI consent tick and Send sit in one bar inside the
+  box. The consent is remembered in the browser (`careerflow.profileChatConsent`) and can be
+  unticked at any time; unticked, nothing is sent to a model.
+- **No interview buttons.** "Finish this experience", "Add another experience", "End
+  conversation & review" and "Skip this question" are gone. The user types the command
+  ("skip", "next project", "finish this experience", "that's all", "就这些"), which the rule
+  matcher in `interviewIntent` turns into the same interview control without a model call. One
+  quiet **Finish and review** link stays under the box. The review stage keeps its buttons.
+- **Resume import** is collapsed to a single "Have a resume? Import it instead of typing" link.
+- **Coach before the first approval.** `GET /api/coach` returns `null` without a profile; the
+  page used to treat that as still loading. It now says the Coach needs a profile and links to
+  the Profile Builder.

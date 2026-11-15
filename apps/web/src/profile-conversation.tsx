@@ -8,6 +8,23 @@ import { ProfileCanvas, profileFieldLabels, type ProfileProposal } from './profi
 export type Request = (path: string, method?: string, body?: unknown) => Promise<any>;
 // The model's reply may repeat/paraphrase its structured question. Show that
 // question once, rather than turning one turn into two competing prompts.
+// Consent is asked once per browser; unticking it stops AI use until it is ticked again.
+const CONSENT_KEY = 'careerflow.profileChatConsent';
+const rememberedConsent = () => {
+  try {
+    return localStorage.getItem(CONSENT_KEY) === 'yes';
+  } catch {
+    return false;
+  }
+};
+const rememberConsent = (on: boolean) => {
+  try {
+    localStorage.setItem(CONSENT_KEY, on ? 'yes' : 'no');
+  } catch {
+    /* private mode: consent lasts for this page only */
+  }
+};
+
 const narrative = (m: any) =>
   m.role === 'assistant' && m.questions?.length
     ? m.text
@@ -57,7 +74,7 @@ export function ProfileConversation({
     [thread, setThread] = useState<any>(null),
     [message, setMessage] = useState(''),
     [outgoing, setOutgoing] = useState<{ text: string; failed?: boolean } | null>(null),
-    [consent, setConsent] = useState(false),
+    [consent, setConsent] = useState(rememberedConsent),
     [busy, setBusy] = useState(false),
     [waitSeconds, setWaitSeconds] = useState(0),
     [error, setError] = useState(''),
@@ -552,7 +569,7 @@ export function ProfileConversation({
               </div>
             </details>
           )}
-        {mode === 'build' && thread && (
+        {mode === 'build' && thread && reviewStage && (
           <section className="interview-controls" aria-label="Interview progress">
             {reviewStage ? (
               <>
@@ -597,39 +614,6 @@ export function ProfileConversation({
                   Resume interview
                 </button>
               </>
-            ) : !busy &&
-              !outgoing &&
-              (!thread.interview?.question ||
-                thread.interview.question.key.startsWith('inventory:')) ? (
-              <div className="form-actions">
-                {thread.interview?.active && (
-                  <button
-                    className="secondary"
-                    disabled={busy}
-                    onClick={() => void control('finish_experience')}
-                  >
-                    Finish this experience
-                  </button>
-                )}
-                <button
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() => void control('next_experience')}
-                >
-                  Add another experience
-                </button>
-                <button
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() => void control('finish_interview')}
-                >
-                  End conversation & review
-                </button>
-              </div>
-            ) : !busy && !outgoing && thread.interview?.question ? (
-              <button className="text-button" onClick={() => void control('skip_question')}>
-                Skip this question
-              </button>
             ) : null}
           </section>
         )}
@@ -639,8 +623,7 @@ export function ProfileConversation({
           </p>
         )}
         {!reviewStage && (
-          <label>
-            Your next profile message
+          <div className="composer">
             <textarea
               aria-label="Your next profile message"
               placeholder={
@@ -666,42 +649,69 @@ export function ProfileConversation({
               disabled={busy}
               onChange={(e) => setMessage(e.target.value)}
             />
-          </label>
+            <div className="composer-bar">
+              {transcribe && canRecord ? (
+                <RecordAnswer
+                  compact
+                  disabled={busy}
+                  transcribe={transcribe}
+                  onText={(words) => setMessage((t) => (t ? `${t} ` : '') + words)}
+                />
+              ) : (
+                <SpeakAnswer
+                  compact
+                  disabled={busy}
+                  onText={(words) => setMessage((t) => (t ? `${t} ` : '') + words)}
+                />
+              )}
+              <label className="composer-consent">
+                <input
+                  type="checkbox"
+                  checked={consent}
+                  aria-label="I allow the configured model to process this conversation, working form and retrieved confirmed evidence."
+                  onChange={(e) => {
+                    setConsent(e.target.checked);
+                    rememberConsent(e.target.checked);
+                  }}
+                />
+                <span aria-hidden="true">Let AI read this chat</span>
+              </label>
+              <button
+                className="primary composer-send"
+                aria-label="Send profile message"
+                disabled={busy || !message.trim() || !consent}
+                onClick={() => void send()}
+              >
+                {busy ? 'Thinking…' : 'Send'}
+              </button>
+            </div>
+          </div>
         )}
-        {!reviewStage &&
-          (transcribe && canRecord ? (
-            <RecordAnswer
-              disabled={busy}
-              transcribe={transcribe}
-              onText={(words) => setMessage((t) => (t ? `${t} ` : '') + words)}
-            />
-          ) : (
-            <SpeakAnswer
-              disabled={busy}
-              onText={(words) => setMessage((t) => (t ? `${t} ` : '') + words)}
-            />
-          ))}
-        {(thread || !reviewStage) && (
+        {reviewStage && thread && (
           <label className="checkbox">
             <input
               type="checkbox"
               checked={consent}
               aria-label="I allow the configured model to process this conversation, working form and retrieved confirmed evidence."
-              onChange={(e) => setConsent(e.target.checked)}
+              onChange={(e) => {
+                setConsent(e.target.checked);
+                rememberConsent(e.target.checked);
+              }}
             />
-            <span aria-hidden="true">
-              Allow AI to use this conversation, profile and confirmed evidence.
-            </span>
+            <span aria-hidden="true">Let AI read this chat</span>
           </label>
         )}
-        {!reviewStage && (
-          <button
-            className="primary"
-            disabled={busy || !message.trim() || !consent}
-            onClick={() => void send()}
-          >
-            {busy ? 'Preparing a reply…' : 'Send profile message'}
-          </button>
+        {mode === 'build' && thread && !reviewStage && (
+          <p className="composer-hint">
+            Say “skip”, “next project” or “that’s all” whenever you like.{' '}
+            <button
+              className="text-button"
+              disabled={busy || !!outgoing}
+              onClick={() => void control('finish_interview')}
+            >
+              Finish and review
+            </button>
+          </p>
         )}
         {thread?.messages.at(-1)?.failed && (
           <button className="secondary" disabled={busy || !consent} onClick={() => void retry()}>

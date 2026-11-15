@@ -1,12 +1,31 @@
 import { fillProfileFixture } from './profile-fixture.js';
 import { test, expect } from '@playwright/test';
 import { openProfile } from './nav.js';
+import type { Page } from '@playwright/test';
+
+const CONSENT =
+  'I allow the configured model to process this conversation, working form and retrieved confirmed evidence.';
+const COMMANDS = ['finish this experience', 'next project', "that's all"];
+// The buttons are gone (CFS-147): the user types the command and the conversation handles it.
+async function say(page: Page, text: string) {
+  await page.getByLabel('Your next profile message').fill(text);
+  await page.getByLabel(CONSENT, { exact: true }).check();
+  await Promise.all([
+    page.waitForResponse((r) => r.url().includes('/messages') && r.request().method() === 'POST'),
+    page.getByRole('button', { name: 'Send profile message', exact: true }).click(),
+  ]);
+}
 test('interview controls stop and skip without model calls, survive reload and lead to review without approval', async ({
   page,
 }) => {
   let modelTurns = 0;
   page.on('request', (r) => {
-    if (r.method() === 'POST' && /\/profile-threads\/[^/]+\/messages$/.test(r.url())) modelTurns++;
+    if (
+      r.method() === 'POST' &&
+      /\/profile-threads\/[^/]+\/messages$/.test(r.url()) &&
+      !COMMANDS.includes(r.postDataJSON()?.text)
+    )
+      modelTurns++;
   });
   await page.goto('/');
   await page.getByRole('button', { name: 'New here? Create an account' }).click();
@@ -28,21 +47,7 @@ test('interview controls stop and skip without model calls, survive reload and l
   await page.getByRole('button', { name: 'Start a separate conversation', exact: true }).click();
   await expect(page.getByRole('log')).toContainText('When did Alpha data project start?');
   await expect(page.getByText('Switch experience', { exact: true })).toHaveCount(0);
-  await expect(
-    page.getByRole('button', { name: 'Finish this experience', exact: true }),
-  ).toHaveCount(0);
-  const finish = page.getByRole('button', { name: 'Finish this experience', exact: true });
-  for (let i = 0; i < 10; i++) {
-    const skip = page.getByRole('button', { name: 'Skip this question', exact: true });
-    // Both buttons are hidden while a skip is saving; decide only once one of them is back.
-    await expect(skip.or(finish).first()).toBeVisible();
-    if (!(await skip.count())) break;
-    await Promise.all([
-      page.waitForResponse((r) => r.url().includes('/controls') && r.request().method() === 'POST'),
-      skip.click(),
-    ]);
-  }
-  await finish.click();
+  await say(page, 'finish this experience');
   await expect(page.getByRole('log').locator('article').last()).toContainText(
     'This experience is finished',
   );
@@ -50,11 +55,11 @@ test('interview controls stop and skip without model calls, survive reload and l
   await page.reload();
   await openProfile(page);
   await expect(page.getByText('Switch experience', { exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Add another experience', exact: true }).click();
+  await say(page, 'next project');
   await expect(page.getByRole('log').locator('article').last()).toContainText(
     'different experience',
   );
-  await page.getByRole('button', { name: 'End conversation & review', exact: true }).click();
+  await page.getByRole('button', { name: 'Finish and review', exact: true }).click();
   await expect(page.getByLabel('Your next profile message')).not.toBeVisible();
   await page.reload();
   await openProfile(page);
@@ -63,7 +68,7 @@ test('interview controls stop and skip without model calls, survive reload and l
   ).toBeVisible();
   await page.getByRole('button', { name: 'Resume interview', exact: true }).click();
   await expect(page.getByRole('log').locator('article').last()).not.toContainText('When did Alpha');
-  await page.getByRole('button', { name: 'End conversation & review', exact: true }).click();
+  await say(page, "that's all");
   await page.getByRole('button', { name: 'Review profile draft now', exact: true }).click();
   await expect(page.getByLabel('I reviewed this exact draft')).not.toBeChecked();
   await expect(page.getByText('Approved v1', { exact: true })).toHaveCount(0);
@@ -122,18 +127,7 @@ test('finishing a pending experience retains suggestions without a hidden model 
   await expect(
     page.getByRole('button', { name: 'Use these details in my draft', exact: true }),
   ).toBeVisible();
-  const finish = page.getByRole('button', { name: 'Finish this experience', exact: true });
-  for (let i = 0; i < 12; i++) {
-    const skip = page.getByRole('button', { name: 'Skip this question', exact: true });
-    // Both buttons are hidden while a skip is saving; decide only once one of them is back.
-    await expect(skip.or(finish).first()).toBeVisible();
-    if (!(await skip.count())) break;
-    await Promise.all([
-      page.waitForResponse((r) => r.url().includes('/controls') && r.request().method() === 'POST'),
-      skip.click(),
-    ]);
-  }
-  await finish.click();
+  await say(page, 'finish this experience');
   await expect(page.getByRole('log').locator('article').last()).toContainText(
     'This experience is finished',
   );

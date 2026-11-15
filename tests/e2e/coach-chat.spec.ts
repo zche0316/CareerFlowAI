@@ -46,3 +46,24 @@ test('Ask Coach answers with your evidence and sends profile news to the Profile
   await chat.getByRole('button', { name: 'Clear' }).click();
   await expect(log.locator('li')).toHaveCount(0);
 });
+
+// Before the first approval the Coach has nothing to read; it says so instead of loading forever.
+test('the Coach page explains what it needs before the first profile approval', async ({
+  page,
+}) => {
+  await page.request.post('/api/auth/register', {
+    data: {
+      email: `qa-coach-empty-${crypto.randomUUID()}@careerflow.test`,
+      password: 'Disposable-QA-password',
+      name: 'Coach Empty Tester',
+    },
+  });
+  await page.goto('/');
+  await go(page, 'Coach');
+  await expect(
+    page.getByRole('heading', { name: 'Your Coach needs a profile first' }),
+  ).toBeVisible();
+  await expect(page.getByText('Loading your Coach…')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Build my profile', exact: true }).click();
+  await expect(page.getByLabel('Your next profile message')).toBeVisible();
+});
