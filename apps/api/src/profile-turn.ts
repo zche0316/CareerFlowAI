@@ -101,7 +101,7 @@ const fallbackReply = (p: Perception) => {
   }
 };
 
-const PHRASE = `You are the Profile Builder in CareerFlow, a warm and precise career interviewer. Rewrite the next interview question so it follows on naturally from the conversation. Keep its meaning: ask about the same single thing and nothing else, and keep any note that the user may skip it. Write in the user's language (language "zh" means Simplified Chinese). One short question: at most 30 words, or 60 Chinese characters. Do not repeat or summarise the user's message, do not praise, and do not say anything was saved or added. Return {"question": "..."}.`;
+const PHRASE = `You are the Profile Builder in CareerFlow, a warm and precise career interviewer. Rewrite the next interview question so it follows on naturally from the conversation. Keep its meaning: ask about the same single thing and nothing else, and keep any note that the user may skip it. When a situation is given, name it in a few of the user's own words so the question clearly belongs to that one example. Write in the user's language (language "zh" means Simplified Chinese). One short question: at most 30 words, or 60 Chinese characters. Do not repeat or summarise the user's message, do not praise, and do not say anything was saved or added. Return {"question": "..."}.`;
 const phraseSchema = z.object({ question: z.string().min(3).max(400) });
 
 /**
@@ -110,7 +110,14 @@ const phraseSchema = z.object({ question: z.string().min(3).max(400) });
  * model answers or the rewrite fails a check.
  */
 export async function phraseQuestion(
-  input: { question: string; language: string; lastUser: string; reply: string },
+  input: {
+    question: string;
+    language: string;
+    lastUser: string;
+    reply: string;
+    /** The user's own situation of the experience being discussed, if any. */
+    situation?: string;
+  },
   calls: LightCall[] = [],
 ): Promise<string | null> {
   const out = await lightJson(
@@ -120,6 +127,7 @@ export async function phraseQuestion(
       language: input.language,
       userMessage: input.lastUser.slice(0, 600),
       yourReplyBeforeTheQuestion: input.reply.slice(0, 600),
+      situation: input.situation?.slice(0, 400) || null,
     },
     phraseSchema,
     calls,

@@ -1,7 +1,7 @@
 import { it, expect } from 'vitest';
 import { sampleProfile } from '../packages/contracts/src/index.js';
 import { planInterview, interviewState } from '../packages/contracts/src/profile-interview.js';
-import { proposeOutcomeAnswer } from '../apps/api/src/profile-outcomes.js';
+import { proposeOutcomeAnswer, proposeStoryAnswer } from '../apps/api/src/profile-outcomes.js';
 
 const form = {
   ...sampleProfile,
@@ -88,4 +88,70 @@ it('retains the current outcome citation when the existing record already has te
   expect(proposal.after[0].conversationEvidence.at(-1).quote).toBe(
     'About one hour, a team estimate.',
   );
+});
+
+// CFS-152: an answer to the situation, task or action question is kept word for word on the
+// experience being discussed, even when extraction files it elsewhere.
+it('saves a direct STAR answer verbatim on the active experience and leads with its situation', () => {
+  const role = {
+    ...form.workExperiences[0],
+    starStory: {
+      situation: 'The weekly report was built by hand in Excel.',
+      task: 'Automate it.',
+      action: '',
+      result: '',
+    },
+  };
+  const p = { ...form, workExperiences: [role] };
+  const state = planInterview(p, interviewState([], p)).state;
+  expect(state.question?.key).toContain(':story:action');
+  expect(state.question?.text).toContain(
+    'that situation (“The weekly report was built by hand in Excel.”)',
+  );
+  const text = 'I wrote one SQL view and a pandas script, then checked it against four past weeks.';
+  const [thread, message] = [crypto.randomUUID(), crypto.randomUUID()];
+  const proposal = proposeStoryAnswer(p, state, text, thread, message);
+  expect(proposal?.field).toBe('workExperiences');
+  expect(proposal?.after[0].starStory).toMatchObject({
+    situation: role.starStory.situation,
+    task: 'Automate it.',
+    action: text,
+  });
+  expect(proposal?.after[0].conversationEvidence?.at(-1)).toMatchObject({
+    quote: text,
+    messageId: message,
+  });
+  expect(proposeStoryAnswer(p, state, 'What do you mean by action?', 't', 'm')).toBeNull();
+  expect(proposeStoryAnswer(p, { ...state, question: null }, text, 't', 'm')).toBeNull();
+  const situationFirst = planInterview(
+    {
+      ...p,
+      workExperiences: [{ ...role, starStory: undefined, overview: 'I maintained reports.' }],
+    },
+    interviewState([], p),
+  ).state.question;
+  expect(situationFirst?.text).toMatch(/^Pick one specific situation from Business Analyst Intern/);
+});
+
+it('keeps the extraction split when the model already filled the asked part this turn', () => {
+  const role = {
+    ...form.workExperiences[0],
+    starStory: { situation: 'Labels differed.', task: '', action: '', result: '' },
+  };
+  const before = { ...form, workExperiences: [role] };
+  const state = planInterview(before, interviewState([], before)).state;
+  expect(state.question?.key).toContain(':story:task');
+  const split = {
+    ...role,
+    starStory: { ...role.starStory, task: 'Standardise categories.', action: 'Compared labels.' },
+  };
+  const after = { ...form, workExperiences: [split] };
+  const text = 'I had to standardise categories, so I compared labels.';
+  expect(
+    proposeStoryAnswer(after, state, text, crypto.randomUUID(), crypto.randomUUID(), before),
+  ).toBeNull();
+  expect(
+    proposeStoryAnswer(before, state, text, crypto.randomUUID(), crypto.randomUUID(), before)
+      ?.after[0].starStory.task,
+  ).toBe(text);
 });

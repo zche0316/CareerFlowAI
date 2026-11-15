@@ -1,4 +1,4 @@
-import { proposeOutcomeAnswer } from './profile-outcomes.js';
+import { proposeOutcomeAnswer, proposeStoryAnswer } from './profile-outcomes.js';
 import { guardIdentity } from '../../../packages/agents/src/personas.js';
 import type { Express } from 'express';
 import { labelledExperience } from './labelled-experience.js';
@@ -974,17 +974,18 @@ export function registerProfileConversations(app: Express) {
             (key) => !unsupported.has(key.replace('profile:', '') as any),
           ),
         };
+        const pendingBefore = (t.proposals as any[])
+          .filter(
+            (p) =>
+              p.status === 'PENDING' &&
+              fieldDigest(input.currentProfile[p.field as keyof typeof input.currentProfile]) ===
+                fieldDigest(p.before),
+          )
+          .map((p) => ({ [p.field]: p.after }));
         const planProfile = Object.assign(
           {},
           prepared.data,
-          ...(t.proposals as any[])
-            .filter(
-              (p) =>
-                p.status === 'PENDING' &&
-                fieldDigest(input.currentProfile[p.field as keyof typeof input.currentProfile]) ===
-                  fieldDigest(p.before),
-            )
-            .map((p) => ({ [p.field]: p.after })),
+          ...pendingBefore,
           ...changes.map((p) => ({ [p.field]: p.after })),
         );
         const focusedPlan = planInterview(planProfile, planState, input.text);
@@ -993,13 +994,19 @@ export function registerProfileConversations(app: Express) {
           input.mode === 'build' &&
           focusedPlan.state.active === previousState.active
         ) {
-          const outcome = proposeOutcomeAnswer(
-            planProfile,
-            previousState,
-            input.text,
-            t.id,
-            answerId,
-          );
+          const outcome =
+            proposeOutcomeAnswer(planProfile, previousState, input.text, t.id, answerId) ||
+            // Only when the message answers the pending question, not a detour (CFS-152).
+            (!perceived || perceived.addressesPending
+              ? proposeStoryAnswer(
+                  planProfile,
+                  previousState,
+                  input.text,
+                  t.id,
+                  answerId,
+                  Object.assign({}, input.currentProfile, ...pendingBefore),
+                )
+              : null);
           if (outcome) {
             const original =
               input.currentProfile[outcome.field as 'workExperiences' | 'projects'] || [];
@@ -1190,7 +1197,16 @@ export function registerProfileConversations(app: Express) {
         response.turn = summariseTurn(turn);
         // The planner chose the field; the light model words the question for this moment.
         if (configuredMode() !== 'fixture' && response.questions?.length === 1) {
+          const after = Object.assign(
+            {},
+            turnProfile,
+            ...changes.map((c: any) => ({ [c.field]: c.after })),
+          );
+          const situation = experiences(after).find(
+            (r) => r.key === response.interviewState?.active,
+          )?.starStory?.situation;
           const phrased = await phraseQuestion({
+            situation,
             question: response.questions[0],
             // A bare name or "SQL" says nothing about language: use the conversation's.
             language:

@@ -75,6 +75,8 @@ const sameQuestion = (a: any, b: any) =>
 async function runDialogue(d: Dialogue) {
   const call = await account();
   let thread = await call('/profile-threads', 'POST', { currentProfile: blankProfile });
+  // --apply accepts every suggestion after each turn, as "Use these details" does in the UI.
+  let form: any = structuredClone(blankProfile);
   const turns: any[] = [];
   for (const turn of d.turns) {
     const before = [...thread.messages].reverse().find((m: any) => m.role === 'assistant');
@@ -82,7 +84,7 @@ async function runDialogue(d: Dialogue) {
     let error = '';
     try {
       thread = await call(`/profile-threads/${thread.id}/messages`, 'POST', {
-        currentProfile: blankProfile,
+        currentProfile: form,
         text: turn.text,
         revision: thread.revision,
         consent: true,
@@ -92,6 +94,15 @@ async function runDialogue(d: Dialogue) {
       thread = await call(`/profile-threads/${thread.id}`);
     }
     const ms = Date.now() - started;
+    if (args.includes('--apply') && thread.proposals?.some((p: any) => p.status === 'PENDING')) {
+      const applied = await call(`/profile-threads/${thread.id}/proposals`, 'POST', {
+        currentProfile: form,
+        revision: thread.revision,
+        reviewed: true,
+      });
+      form = applied.data;
+      thread = applied.thread;
+    }
     const after = [...thread.messages].reverse().find((m: any) => m.role === 'assistant');
     const parked = after?.turn?.parked?.length > 0;
     const moved =
@@ -121,15 +132,16 @@ async function runDialogue(d: Dialogue) {
     run = sameQuestion(asked[i - 1], asked[i]) ? run + 1 : 1;
     longest = Math.max(longest, run);
   }
-  const draft = JSON.stringify(
-    (thread.proposals || []).filter((p: any) => p.status === 'PENDING').map((p: any) => p.after),
-  ).toLowerCase();
+  const draft = JSON.stringify([
+    form,
+    ...(thread.proposals || []).filter((p: any) => p.status === 'PENDING').map((p: any) => p.after),
+  ]).toLowerCase();
   // Closure (CFS-151): which profile fields are still empty at the end, and whether the
   // interview asked about each of them. Pending suggestions count as filled, as in the planner.
   const planned = Object.assign(
-    structuredClone(blankProfile),
+    structuredClone(form),
     ...(thread.proposals || [])
-      .filter((p: any) => ['PENDING', 'APPLIED_TO_FORM', 'ACCEPTED'].includes(p.status))
+      .filter((p: any) => ['PENDING', 'APPLIED_TO_FORM'].includes(p.status))
       .map((p: any) => ({ [p.field]: p.after })),
   );
   const lastState = [...thread.messages]

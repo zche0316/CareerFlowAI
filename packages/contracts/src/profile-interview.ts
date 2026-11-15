@@ -354,24 +354,28 @@ export function planInterview(p: any, current: InterviewState, latestText = '') 
     else if (!active.starStory?.situation)
       add(
         `${active.key}:story:situation`,
-        `Can you share one specific problem or improvement from ${active.title}? This example is optional; you can skip it or finish this experience.`,
+        // Lead with one concrete situation: the rest of the story hangs on it (CFS-152).
+        `Pick one specific situation from ${active.title}: what was happening, and what problem, deadline or request made it matter? One example is enough. This example is optional; you can skip it or finish this experience.`,
       );
     else {
       const story = active.starStory;
+      // Later questions point back to the user's own situation, so the story stays one story.
+      const brief = story.situation.replace(/\s+/g, ' ').trim();
+      const that = `that situation (“${brief.length > 70 ? `${brief.slice(0, 67).trimEnd()}…` : brief}”)`;
       if (!story.task)
         add(
           `${active.key}:story:task`,
-          `In that example from ${active.title}, what was your own responsibility or goal?`,
+          `In ${that}, what were you responsible for, or what goal did you set?`,
         );
       if (!story.action)
         add(
           `${active.key}:story:action`,
-          `What did you personally do in that example from ${active.title}?`,
+          `What did you personally do in ${that}? Walk me through the steps you took.`,
         );
       if (!story.result)
         add(
           `${active.key}:story:result`,
-          `What happened after your actions in that example from ${active.title}? An unknown or unmeasured result is fine.`,
+          `What changed after what you did in ${that}? An unknown or unmeasured result is fine.`,
         );
       else if (
         !hasOutcomeDetail(story.result) &&

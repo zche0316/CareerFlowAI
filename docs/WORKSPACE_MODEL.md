@@ -619,3 +619,29 @@ The 10 labelled dialogues (`eval:conversation`) did not regress: extraction reca
 stuck dialogue, intent accuracy 100%, re-asked after an answer 3/47. Wording costs one light
 call per turn: p50 latency 4.3 s to 5.5 s and p95 6.8 s to 10.7 s in that run.
 
+## Profile Builder: STAR answers kept on the right experience, situation first (CFS-152)
+
+Reported on 8787: the answer to "What did you personally do…?" produced no change. The LangSmith
+trace showed the extraction model filing the answer under a new, invented project ("Automated
+delivery reporting project"); its title is not in the user's words, so grounding dropped it.
+
+- **Saved where it was asked.** While the interview asks for the situation, task or action of
+  the experience being discussed, the answer is saved word for word to that part of its STAR
+  story (`proposeStoryAnswer`), unless extraction already filled that part this turn, in which
+  case its split of a longer answer stands. Results and measurements already worked this way.
+- **Situation first.** The first story question asks for one specific situation (what was
+  happening, and what problem, deadline or request made it matter). Task, action and result
+  questions quote a few words of that situation, and the wording step receives it, so the story
+  stays one story.
+- **No duplicate question.** The conversation no longer shows the planner's wording as a second
+  bubble when the reply asked the same question in other words (compared by question key).
+- `eval:conversation --apply` accepts every suggestion after each turn, as the UI does.
+
+Live goal-tier dialogues with suggestions applied, 2026-11-16, separate databases:
+
+| Measure | `main` | After |
+| --- | --- | --- |
+| STAR answers lost | 1 of 5 (the action answer, as reported) | 0 of 7 |
+| Re-asked after an answer | 8/22 (36%) | 1/22 (5%) |
+| Stuck dialogues | 1 | 0 |
+
