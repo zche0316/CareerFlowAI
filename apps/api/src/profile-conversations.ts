@@ -782,6 +782,12 @@ export function registerProfileConversations(app: Express) {
               })),
             status: 'PENDING',
           }));
+        // This message answers the overview question of that experience (CFS-156). The model may
+        // also have put its sentences into a tentative STAR story, which must not shorten it.
+        const answersOverview = (section: string, title: string) =>
+          !input.recoverSavedAnswers &&
+          Boolean(previousState.question?.key.endsWith(':overview')) &&
+          previousState.question!.key.startsWith(`${section}:${careerTitle(title)}:`);
         for (const section of recordKeys) {
           const records = grounded.records
             .filter(
@@ -840,22 +846,25 @@ export function registerProfileConversations(app: Express) {
                     );
               return recordSchema.parse({
                 ...r,
-                ...(section !== 'educations' && originals.length
-                  ? {
-                      overview: originals
-                        .filter(
-                          (line) =>
-                            line.messageId === originals[0].messageId &&
-                            !Object.values(r.starStory || {}).some((part) =>
-                              part.includes(line.text),
-                            ) &&
-                            !/^From .*\bI worked as\b/i.test(line.text),
-                        )
-                        .map((line) => line.text)
-                        .join(' ')
-                        .slice(0, 4000),
-                    }
-                  : {}),
+                ...(section !== 'educations' && answersOverview(section, r.title)
+                  ? // The answer to "describe your role" is the overview, whole (CFS-156).
+                    { overview: input.text.trim().slice(0, 4000) }
+                  : section !== 'educations' && originals.length
+                    ? {
+                        overview: originals
+                          .filter(
+                            (line) =>
+                              line.messageId === originals[0].messageId &&
+                              !Object.values(r.starStory || {}).some((part) =>
+                                part.includes(line.text),
+                              ) &&
+                              !/^From .*\bI worked as\b/i.test(line.text),
+                          )
+                          .map((line) => line.text)
+                          .join(' ')
+                          .slice(0, 4000),
+                      }
+                    : {}),
                 // Only the deterministic labelled-answer path supplies a type.
                 // Keep it after grounding; the model cannot invent a category.
                 ...(labelled ? { experienceType: labelled.experienceType } : {}),
@@ -916,7 +925,10 @@ export function registerProfileConversations(app: Express) {
                 const old = merged[index];
                 merged[index] = {
                   ...old,
-                  overview: old.overview || record.overview,
+                  overview:
+                    answersOverview(section, record.title) && record.overview
+                      ? record.overview
+                      : old.overview || record.overview,
                   starStory:
                     old.starStory || record.starStory
                       ? {
