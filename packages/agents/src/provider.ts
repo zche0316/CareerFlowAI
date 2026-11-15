@@ -674,6 +674,16 @@ async function generateOnce<T>(
         response.usage?.completion_tokens || 0,
       );
       const calls = response.choices[0]?.message.tool_calls;
+      // A reply can carry a complete answer and another search request. The answer stands:
+      // searching again discarded it and the next reply was often empty (CFS-158).
+      if (calls?.length && response.choices[0]?.message.content?.trim()) {
+        try {
+          parseProviderJson(response.choices[0].message.content);
+          break;
+        } catch {
+          /* not a complete answer: run the search */
+        }
+      }
       if (!calls?.length) {
         try {
           const decoded = parseProviderJson(response.choices[0]?.message.content || '{}');
