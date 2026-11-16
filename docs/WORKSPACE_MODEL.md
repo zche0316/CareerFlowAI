@@ -691,3 +691,10 @@ version this run approved (`ApprovedResume` via `approvedResumeId`), rendered as
 would hand to this employer. A follow-up may ask about a related resume item the answer left out;
 scores count only what the answers say, and resume content is never credited as said. A run
 without an approved resume sends none. Question generation still reads the approved profile facts.
+
+## Live call subtitles (CFS-172)
+
+During a call the arena shows one exchange at a time: the panel's latest line, cut to its last
+220 characters at a word, and the candidate's latest reply, highlighted while they speak. The
+full transcript sits under the call controls in a collapsed "Transcript · N lines" box with a
+fixed height that follows the newest line, and opens after the call for review.

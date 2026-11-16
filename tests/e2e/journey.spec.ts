@@ -303,3 +303,109 @@ test('speech input fills an editable answer and read-aloud speaks the question (
     page.getByText('Answer a question and the Evaluator’s STAR verdict appears here.'),
   ).toBeVisible();
 });
+
+test('a live call shows one exchange as subtitles and folds the transcript (CFS-172)', async ({
+  page,
+}) => {
+  // No microphone, WebRTC or OpenAI in CI: the call is replaced with a fake data channel the
+  // test drives with the realtime events the page listens to.
+  await page.addInitScript(() => {
+    const w = window as any;
+    class Channel extends EventTarget {
+      send() {}
+    }
+    w.__channel = new Channel();
+    w.RTCPeerConnection = class {
+      ontrack: any = null;
+      addTrack() {}
+      createDataChannel() {
+        setTimeout(() => w.__channel.dispatchEvent(new Event('open')), 10);
+        return w.__channel;
+      }
+      async createOffer() {
+        return { type: 'offer', sdp: 'v=0' };
+      }
+      async setLocalDescription() {}
+      async setRemoteDescription() {}
+      close() {}
+    };
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia: async () => ({ getTracks: () => [{ stop() {} }] }) },
+    });
+    w.__emit = (event: object) =>
+      w.__channel.dispatchEvent(new MessageEvent('message', { data: JSON.stringify(event) }));
+  });
+  await openInterview(page);
+  // Show the page as a live-mode run whose project has realtime voice.
+  const live = (body: any, depth = 0): any => {
+    if (!body || typeof body !== 'object' || depth > 3) return body;
+    if (body.mode === 'fixture' && body.data) body.mode = 'openai';
+    for (const v of Object.values(body)) live(v, depth + 1);
+    return body;
+  };
+  await page.route('**/api/workspace', async (route) => {
+    const response = await route.fetch();
+    await route.fulfill({ response, json: live(await response.json()) });
+  });
+  await page.route('**/api/voice/status', (route) =>
+    route.fulfill({ json: { realtime: true, transcribe: true } }),
+  );
+  await page.route('**/voice-session', async (route) => {
+    const id = new URL(page.url()).searchParams.get('mission');
+    const workspace = await (await page.request.get('/api/workspace')).json();
+    const questions = workspace.missions.find((m: any) => m.id === id).data.questions;
+    await route.fulfill({
+      json: {
+        clientSecret: 'test',
+        callsUrl: 'https://api.openai.com/v1/realtime/calls',
+        limitSeconds: 600,
+        questions,
+        remaining: 2,
+      },
+    });
+  });
+  await page.route('https://api.openai.com/**', (route) =>
+    route.fulfill({ body: 'v=0', headers: { 'access-control-allow-origin': '*' } }),
+  );
+  await page.reload();
+  await page.getByRole('button', { name: /Live call/ }).click();
+  await page.getByRole('button', { name: 'Start the voice interview', exact: true }).click();
+  await expect(page.getByText('Your turn to speak')).toBeVisible();
+
+  const emit = (event: object) => page.evaluate((e) => (window as any).__emit(e), event);
+  const long =
+    'Thanks for joining us today. ' + 'We would like to hear about your work. '.repeat(12);
+  await emit({ type: 'output_audio_buffer.started' });
+  await emit({
+    type: 'response.output_audio_transcript.done',
+    transcript: long + 'Question 1. Tell us about a project.',
+  });
+  await emit({ type: 'output_audio_buffer.stopped' });
+  await expect(page.getByText('The panel is speaking')).toHaveCount(0);
+  // A long line is cut to its end, so the subtitle stays a few lines tall.
+  const panelLine = page.locator('.boss-subtitles .boss-bubble.live');
+  await expect(panelLine).toContainText('…');
+  await expect(panelLine).toContainText('Question 1. Tell us about a project.');
+  expect((await panelLine.innerText()).length).toBeLessThan(260);
+
+  await emit({ type: 'input_audio_buffer.speech_started' });
+  await expect(page.getByText('Listening to you')).toBeVisible();
+  await expect(page.locator('.boss-bubble.you')).toContainText('Listening…');
+  await emit({ type: 'input_audio_buffer.speech_stopped' });
+  await emit({
+    type: 'conversation.item.input_audio_transcription.completed',
+    transcript: 'I built a sales dashboard with SQL for my capstone.',
+  });
+  await expect(page.locator('.boss-bubble.you')).toContainText('I built a sales dashboard');
+
+  // The full transcript is folded with a count and keeps a fixed height when opened.
+  const log = page.locator('details.voice-log');
+  await expect(log.locator('summary')).toHaveText('Transcript · 2 lines');
+  await expect(log.getByRole('list', { name: 'Interview transcript' })).toBeHidden();
+  await log.locator('summary').click();
+  await expect(log.getByRole('list', { name: 'Interview transcript' })).toBeVisible();
+  const box = await log.locator('ol').boundingBox();
+  expect(box!.height).toBeLessThanOrEqual(222);
+  await page.screenshot({ path: 'output/acceptance/live-call-subtitles.png', fullPage: false });
+});

@@ -4936,3 +4936,46 @@ body:has(.quest) {
   padding-top: 5px;
   padding-bottom: 5px;
 }
+
+/* ---------- Live call subtitles (CFS-172) ---------- */
+/* One exchange at a time in the arena; the full transcript is folded under the call controls. */
+.boss-subtitles {
+  display: grid;
+  gap: 10px;
+}
+.boss-subtitles .boss-bubble b {
+  display: block;
+  margin-bottom: 4px;
+  font: 800 11px/1 var(--q-body);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+.boss-bubble.you {
+  justify-self: end;
+  max-width: 92%;
+  padding: 14px 18px;
+  border-radius: 22px 22px 6px 22px;
+  background: var(--q-lime);
+  font: 600 clamp(15px, 1.4vw, 18px) / 1.4 var(--q-body);
+  opacity: 0.85;
+  transition: opacity 0.2s;
+}
+.boss-bubble.you.on {
+  opacity: 1;
+  box-shadow: 0 0 0 3px #ffffff55;
+}
+.voice-log {
+  border-top: 1px solid #0001;
+  padding-top: 8px;
+}
+.voice-log summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+}
+.voice-log .voice-transcript {
+  margin-top: 8px;
+  max-height: 220px;
+  overscroll-behavior: contain;
+}

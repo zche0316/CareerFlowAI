@@ -22,6 +22,9 @@ export type LiveCall = {
   speaker: 'panel' | 'you' | null;
   questionId: string | null;
   caption: string;
+  // Your latest transcribed reply (CFS-172): the arena shows one exchange at a time, like
+  // subtitles, while the full transcript stays folded away.
+  yours: string;
 };
 
 /** "Question 2." in the panel's speech moves the answer pointer to the second question. */
@@ -45,10 +48,16 @@ export function VoiceInterviewer({
   const [speaker, setSpeaker] = useState<LiveCall['speaker']>(null);
   const [caption, setCaption] = useState('');
   const [questionId, setQuestionId] = useState<string | null>(null);
+  const [yours, setYours] = useState('');
   useEffect(() => {
-    onLive?.({ phase, speaker, questionId, caption });
-  }, [phase, speaker, questionId, caption]);
+    onLive?.({ phase, speaker, questionId, caption, yours });
+  }, [phase, speaker, questionId, caption, yours]);
   const [lines, setLines] = useState<Line[]>([]);
+  // The transcript box keeps its height and follows the newest line.
+  const log = useRef<HTMLOListElement | null>(null);
+  useEffect(() => {
+    if (log.current) log.current.scrollTop = log.current.scrollHeight;
+  }, [lines.length]);
   const [error, setError] = useState('');
   const [seconds, setSeconds] = useState(0);
   const [saved, setSaved] = useState(0);
@@ -95,6 +104,7 @@ export function VoiceInterviewer({
     answers.current = {};
     current.current = 0;
     setCaption('');
+    setYours('');
     setQuestionId(null);
     setPhase('connecting');
     try {
@@ -120,7 +130,10 @@ export function VoiceInterviewer({
           return;
         }
         // Who is talking drives the panel's animation in the arena.
-        if (event.type === 'input_audio_buffer.speech_started') setSpeaker('you');
+        if (event.type === 'input_audio_buffer.speech_started') {
+          setSpeaker('you');
+          setYours('');
+        }
         if (event.type === 'input_audio_buffer.speech_stopped') setSpeaker(null);
         if (event.type === 'output_audio_buffer.started') setSpeaker('panel');
         if (event.type === 'output_audio_buffer.stopped') setSpeaker(null);
@@ -132,6 +145,7 @@ export function VoiceInterviewer({
           if (!text) return;
           const q = s.questions[current.current];
           if (q) (answers.current[q.id] ||= []).push(text);
+          setYours((y) => (y ? `${y} ${text}` : text));
           setLines((l) => [...l, { who: 'you', text }]);
         }
         if (event.type === 'response.output_audio_transcript.done') {
@@ -191,10 +205,12 @@ export function VoiceInterviewer({
         <AgentAvatar agent="interviewer" size={40} label={false} />
         <div>
           <h3 id="voice-live">Live voice interview</h3>
-          <small className="muted">
-            Up to 10 minutes, billed per minute of audio. When you hang up, each answer is scored
-            like a typed one.
-          </small>
+          {phase !== 'live' && (
+            <small className="muted">
+              Up to 10 minutes, billed per minute of audio. When you hang up, each answer is scored
+              like a typed one.
+            </small>
+          )}
         </div>
       </div>
       <audio ref={audio} autoPlay />
@@ -222,13 +238,20 @@ export function VoiceInterviewer({
         </p>
       )}
       {lines.length > 0 && (
-        <ol className="voice-transcript" aria-label="Interview transcript">
-          {lines.map((l, i) => (
-            <li key={i} className={l.who}>
-              <b>{l.who === 'panel' ? 'Panel' : 'You'}</b> {l.text}
-            </li>
-          ))}
-        </ol>
+        // While the call runs, the arena shows the current exchange; the full log is folded
+        // here, opens on demand and keeps a fixed height. After the call it opens for review.
+        <details className="voice-log" open={phase === 'done' || undefined}>
+          <summary>
+            Transcript · {lines.length} line{lines.length === 1 ? '' : 's'}
+          </summary>
+          <ol ref={log} className="voice-transcript" aria-label="Interview transcript">
+            {lines.map((l, i) => (
+              <li key={i} className={l.who}>
+                <b>{l.who === 'panel' ? 'Panel' : 'You'}</b> {l.text}
+              </li>
+            ))}
+          </ol>
+        </details>
       )}
       {error && (
         <p role="alert" className="voice-error">

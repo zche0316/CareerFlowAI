@@ -20,6 +20,14 @@ type Round = {
   at?: string;
 };
 
+/** The end of a long spoken line, cut at a word, so a subtitle never grows past a few lines. */
+export const subtitle = (text: string, max = 220) => {
+  const t = text.trim();
+  if (t.length <= max) return t;
+  const cut = t.slice(-max);
+  return '…' + cut.slice(cut.indexOf(' ') + 1);
+};
+
 // A resume fact id ("workExperiences-<uuid>-detail-2") is internal; players see its kind.
 const stageStatus = {
   open: 'not started',
@@ -392,9 +400,18 @@ export function QuestBossBattle({
                 </p>
               )}
               {onCall ? (
-                <p className="boss-bubble live" aria-live="polite">
-                  {call!.caption || '…'}
-                </p>
+                // One exchange at a time, like subtitles (CFS-172): the panel's line and yours.
+                <div className="boss-subtitles">
+                  <p className="boss-bubble live" aria-live="polite">
+                    <b>Panel</b> {subtitle(call!.caption) || '…'}
+                  </p>
+                  <p className={`boss-bubble you${call!.speaker === 'you' ? ' on' : ''}`}>
+                    <b>You</b>{' '}
+                    {call!.speaker === 'you' && !call!.yours
+                      ? 'Listening…'
+                      : subtitle(call!.yours) || 'Answer out loud when the panel finishes.'}
+                  </p>
+                </div>
               ) : (
                 <>
                   <p className="boss-bubble">“{calling ? q.question : prompt}”</p>
