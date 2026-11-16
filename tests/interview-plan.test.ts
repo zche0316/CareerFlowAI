@@ -50,3 +50,16 @@ describe('interview stage plan', () => {
     expect(interviewPlan(qs, [round('q1', 'answer')]).steps[0].status).toBe('covered');
   });
 });
+
+describe('interview stage plan, budget spent', () => {
+  it('records a stage as partly covered when the panel still wanted a follow-up', () => {
+    const r = [
+      { ...round('q1', 'answer', 'Why us?') },
+      { ...round('q1', 'follow_up'), unresolved: 'And why this team?' },
+    ];
+    expect(interviewPlan(qs, r).steps[0]).toMatchObject({ status: 'partly', used: 1 });
+    const strong = { situation: 'hit', task: 'hit', action: 'critical', result: 'hit' };
+    r[1] = { ...r[1], evaluation: { followUp: '', star: strong } } as any;
+    expect(interviewPlan(qs, r).steps[0].status).toBe('covered');
+  });
+});

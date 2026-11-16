@@ -64,8 +64,9 @@ export type PlanRound = {
   kind: 'answer' | 'follow_up';
   answer: string;
   prompt?: string;
-  evaluation: { followUp: string };
+  evaluation: { followUp: string; star?: Record<string, string> };
   at: string;
+  unresolved?: string;
 };
 
 export type PlanStep = {
@@ -81,6 +82,11 @@ export type PlanStep = {
   pendingFollowUp: string;
   answers: string[];
 };
+
+// A stage left with a wanted follow-up is only partly covered if a STAR part is still weak: the
+// model nearly always finds one more thing to ask.
+const weak = (star?: Record<string, string>) =>
+  !star || Object.values(star).some((m) => m === 'miss' || m === 'partial');
 
 export function interviewPlan(
   questions: { id: string; stage?: string | null }[],
@@ -100,7 +106,7 @@ export function interviewPlan(
       ? 'open'
       : wants && used < plan.followUps
         ? 'probing'
-        : wants
+        : wants || (latest.unresolved && weak(latest.evaluation.star))
           ? 'partly'
           : 'covered';
     // Moving on from an unanswered question skips it; from a follow-up, leaves it partly covered.

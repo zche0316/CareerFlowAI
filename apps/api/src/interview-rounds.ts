@@ -27,6 +27,9 @@ export type InterviewRound = {
   evaluation: RoundEvaluation;
   reviewer: 'rules' | 'model';
   at: string;
+  // The follow-up the panel wanted after the stage's budget ran out (CFS-166): the stage is
+  // recorded as partly covered instead of covered.
+  unresolved?: string;
 };
 
 // Runs a function on the locked mission row while it is still the current interview.
@@ -148,6 +151,7 @@ async function scoreRound(
         answer: round.answer,
         // No follow-up beyond the stage's budget, whatever the model wrote.
         evaluation: prompt.left > 0 ? evaluation : { ...evaluation, followUp: '' },
+        ...(prompt.left <= 0 && evaluation.followUp ? { unresolved: evaluation.followUp } : {}),
         reviewer: mission.mode === 'fixture' ? 'rules' : 'model',
         at,
       };

@@ -234,8 +234,9 @@ export const questionsSchema = z
           id: z.string().trim().min(1).max(100),
           question: z.string().trim().min(8).max(2000),
           focus: z.string().trim().min(1).max(200),
-          // Interview stage this question covers (CFS-166); older questions have none.
-          stage: z.enum(interviewStages).optional(),
+          // Interview stage this question covers (CFS-166); older questions have none. Nullable as well
+          // as optional: OpenAI structured output requires every field, so absence is sent as null.
+          stage: z.enum(interviewStages).nullable().optional(),
         }),
       )
       .min(1)
