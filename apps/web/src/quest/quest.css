@@ -5040,3 +5040,13 @@ body:has(.quest) {
 .voice-warn .quest-press {
   margin-left: 6px;
 }
+
+/* ---------- Pause a live call (CFS-176) ---------- */
+.voice-dot.paused {
+  background: #8a8f98;
+  box-shadow: 0 0 0 4px #8a8f9833;
+}
+.voice-warn.paused {
+  background: #eef0f4;
+  color: var(--q-ink);
+}

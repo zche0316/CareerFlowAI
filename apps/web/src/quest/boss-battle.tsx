@@ -335,11 +335,13 @@ export function QuestBossBattle({
               </span>
               {call!.phase === 'connecting'
                 ? 'Connecting to the panel…'
-                : call!.speaker === 'panel'
-                  ? 'The panel is speaking'
-                  : call!.speaker === 'you'
-                    ? 'Listening to you'
-                    : 'Your turn to speak'}
+                : call!.paused
+                  ? 'Paused · the panel is waiting'
+                  : call!.speaker === 'panel'
+                    ? 'The panel is speaking'
+                    : call!.speaker === 'you'
+                      ? 'Listening to you'
+                      : 'Your turn to speak'}
             </p>
           )}
           <div className="boss-hp-head">

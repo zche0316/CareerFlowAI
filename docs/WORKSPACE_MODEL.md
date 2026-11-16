@@ -707,3 +707,10 @@ interview". `POST /api/missions/:id/interview/replan` regenerates the questions 
 context as the workflow (job, the approved facts behind the approved resume, prior feedback),
 counts one model call against the run's budget, and replaces the questions. A staged or started
 interview is refused, so it happens at most once.
+
+## Pause a live call (CFS-176)
+
+**Pause** in the call bar disables the microphone track, mutes the panel's audio and stops the
+call clock; the realtime session stays connected, so no voice session is spent. If the panel was
+speaking, its response is cancelled and its audio buffer cleared; on **Resume** it is asked to
+repeat its last question briefly. The microphone meter and silence warning ignore the pause.

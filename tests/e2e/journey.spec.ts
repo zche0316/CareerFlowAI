@@ -311,8 +311,12 @@ test('a live call shows one exchange as subtitles and folds the transcript (CFS-
   // test drives with the realtime events the page listens to.
   await page.addInitScript(() => {
     const w = window as any;
+    w.__sent = [];
     class Channel extends EventTarget {
-      send() {}
+      readyState = 'open';
+      send(data: string) {
+        w.__sent.push(JSON.parse(data));
+      }
     }
     w.__channel = new Channel();
     w.RTCPeerConnection = class {
@@ -335,7 +339,8 @@ test('a live call shows one exchange as subtitles and folds the transcript (CFS-
     Object.defineProperty(navigator, 'mediaDevices', {
       configurable: true,
       value: {
-        getUserMedia: async () => new AudioContext().createMediaStreamDestination().stream,
+        getUserMedia: async () =>
+          (w.__mic = new AudioContext().createMediaStreamDestination().stream),
       },
     });
     HTMLMediaElement.prototype.play = () =>
@@ -424,5 +429,29 @@ test('a live call shows one exchange as subtitles and folds the transcript (CFS-
   await emit({ type: 'conversation.item.input_audio_transcription.completed', transcript: '' });
   await expect(log.locator('summary')).toHaveText('Transcript · 3 lines');
   await expect(log.getByText('(no words recognised in this reply)')).toBeVisible();
+
+  // Pause mutes both sides, stops the clock and stops the panel mid-sentence (CFS-176).
+  await emit({ type: 'output_audio_buffer.started' });
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await expect(page.getByText('Paused · the panel is waiting')).toBeVisible();
+  expect(
+    await page.evaluate(() => (window as any).__mic.getTracks().every((t: any) => !t.enabled)),
+  ).toBe(true);
+  expect(await page.evaluate(() => (window as any).__sent.map((e: any) => e.type))).toContain(
+    'response.cancel',
+  );
+  const clock = page.locator('.voice-live-bar');
+  const before = await clock.innerText();
+  await page.waitForTimeout(2200);
+  expect(await clock.innerText()).toBe(before);
+  await page.getByRole('button', { name: 'Resume', exact: true }).click();
+  await expect(page.getByText('Paused · the panel is waiting')).toHaveCount(0);
+  expect(
+    await page.evaluate(() => (window as any).__mic.getTracks().every((t: any) => t.enabled)),
+  ).toBe(true);
+  // The panel was cut off, so it is asked to repeat its question.
+  expect(await page.evaluate(() => (window as any).__sent.at(-1))).toMatchObject({
+    type: 'response.create',
+  });
   await page.screenshot({ path: 'output/acceptance/live-call-subtitles.png', fullPage: false });
 });

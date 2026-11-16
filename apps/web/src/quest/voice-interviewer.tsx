@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Mic, PhoneOff, Volume2 } from 'lucide-react';
+import { Mic, Pause, PhoneOff, Play, Volume2 } from 'lucide-react';
 import { AgentAvatar } from './characters.js';
 
 // Live voice interviewer (CFS-136). The server hands out a one-minute key for one realtime
@@ -25,6 +25,8 @@ export type LiveCall = {
   // Your latest transcribed reply (CFS-172): the arena shows one exchange at a time, like
   // subtitles, while the full transcript stays folded away.
   yours: string;
+  // The candidate paused the call (CFS-176): microphone and panel muted, timer stopped.
+  paused: boolean;
 };
 
 /** "Question 2." in the panel's speech moves the answer pointer to the second question. */
@@ -49,9 +51,44 @@ export function VoiceInterviewer({
   const [caption, setCaption] = useState('');
   const [questionId, setQuestionId] = useState<string | null>(null);
   const [yours, setYours] = useState('');
+  const [paused, setPaused] = useState(false);
+  const pausedRef = useRef(false);
+  const speakerRef = useRef<LiveCall['speaker']>(null);
+  const cutOff = useRef(false);
+  const chan = useRef<RTCDataChannel | null>(null);
   useEffect(() => {
-    onLive?.({ phase, speaker, questionId, caption, yours });
-  }, [phase, speaker, questionId, caption, yours]);
+    speakerRef.current = speaker;
+    onLive?.({ phase, speaker, questionId, caption, yours, paused });
+  }, [phase, speaker, questionId, caption, yours, paused]);
+
+  const send = (event: object) => {
+    if (chan.current?.readyState === 'open') chan.current.send(JSON.stringify(event));
+  };
+  // Pause mutes both sides and stops the clock; a panel cut off mid-sentence repeats on resume.
+  const togglePause = () => {
+    const next = !pausedRef.current;
+    pausedRef.current = next;
+    setPaused(next);
+    mic.current?.getTracks().forEach((t) => (t.enabled = !next));
+    if (audio.current) audio.current.muted = next;
+    if (next) {
+      if (speakerRef.current === 'panel') {
+        cutOff.current = true;
+        send({ type: 'response.cancel' });
+        send({ type: 'output_audio_buffer.clear' });
+      }
+      setSpeaker(null);
+    } else if (cutOff.current) {
+      cutOff.current = false;
+      send({
+        type: 'response.create',
+        response: {
+          instructions:
+            'The candidate paused the interview while you were speaking. Briefly repeat your last question, without its number.',
+        },
+      });
+    }
+  };
   const [lines, setLines] = useState<Line[]>([]);
   // The transcript box keeps its height and follows the newest line.
   const log = useRef<HTMLOListElement | null>(null);
@@ -85,6 +122,8 @@ export function VoiceInterviewer({
       let loudest = 0;
       const started = Date.now();
       const poll = setInterval(() => {
+        // A paused call mutes the microphone on purpose: no meter, no silence warning.
+        if (pausedRef.current) return setLevel(0);
         analyser.getFloatTimeDomainData(buf);
         let sum = 0;
         for (const v of buf) sum += v * v;
@@ -111,6 +150,10 @@ export function VoiceInterviewer({
     mic.current?.getTracks().forEach((t) => t.stop());
     pc.current?.close();
     pc.current = null;
+    chan.current = null;
+    pausedRef.current = false;
+    cutOff.current = false;
+    setPaused(false);
     setSpeaker(null);
   };
   useEffect(() => () => hangUp(), []);
@@ -162,6 +205,7 @@ export function VoiceInterviewer({
       listen(mic.current);
       conn.addTrack(mic.current.getTracks()[0], mic.current);
       const channel = conn.createDataChannel('oai-events');
+      chan.current = channel;
       channel.addEventListener('open', () =>
         channel.send(JSON.stringify({ type: 'response.create' })),
       );
@@ -205,7 +249,12 @@ export function VoiceInterviewer({
               note: true,
             },
           ]);
-        if (event.type === 'error' && event.error?.message)
+        // Cancelling on pause when the panel has just finished is harmless.
+        if (
+          event.type === 'error' &&
+          event.error?.message &&
+          event.error?.code !== 'response_cancel_not_active'
+        )
           setError(`The voice service reported: ${event.error.message}`);
         if (event.type === 'response.output_audio_transcript.done') {
           const text = String(event.transcript || event.text || '').trim();
@@ -241,6 +290,7 @@ export function VoiceInterviewer({
       timer.current = setInterval(
         () =>
           setSeconds((t) => {
+            if (pausedRef.current) return t;
             if (t + 1 >= s.limitSeconds) void finish();
             return t + 1;
           }),
@@ -281,7 +331,8 @@ export function VoiceInterviewer({
       {phase === 'connecting' && <p role="status">Connecting to the panel…</p>}
       {phase === 'live' && (
         <div className="voice-live-bar">
-          <span className="voice-dot" aria-hidden="true" /> Live · {mmss(seconds)} /{' '}
+          <span className={`voice-dot${paused ? ' paused' : ''}`} aria-hidden="true" />{' '}
+          {paused ? 'Paused' : 'Live'} · {mmss(seconds)} /{' '}
           {mmss(session.current?.limitSeconds || 600)}
           <span
             className="voice-meter"
@@ -291,6 +342,9 @@ export function VoiceInterviewer({
             <Mic size={14} aria-hidden="true" />
             <i style={{ width: `${Math.round(level * 100)}%` }} />
           </span>
+          <button type="button" className="quest-press" onClick={togglePause}>
+            {paused ? <Play size={16} /> : <Pause size={16} />} {paused ? 'Resume' : 'Pause'}
+          </button>
           <button type="button" className="quest-press" onClick={() => void finish()}>
             <PhoneOff size={16} /> End and score my answers
           </button>
@@ -313,7 +367,13 @@ export function VoiceInterviewer({
           </button>
         </p>
       )}
-      {phase === 'live' && micSilent && (
+      {phase === 'live' && paused && (
+        <p className="voice-warn paused" role="status">
+          Paused. Your microphone and the panel are muted and the clock is stopped. Resume when you
+          are ready; if the panel was mid-sentence, it repeats its question.
+        </p>
+      )}
+      {phase === 'live' && micSilent && !paused && (
         <p className="voice-warn" role="alert">
           Your microphone is sending silence, so the panel cannot hear you. Allow this browser to
           use the microphone (macOS: System Settings → Privacy &amp; Security → Microphone), check
