@@ -179,6 +179,9 @@ test('a user answers every interview question and receives complete feedback', a
   const questionCount = await questionTabs.count();
   expect(questionCount).toBeGreaterThan(0);
   expect(questionCount).toBeLessThanOrEqual(5);
+  // Later questions stay hidden until the panel asks them (CFS-177).
+  await expect(questionTabs.nth(1)).toBeDisabled();
+  await expect(questionTabs.nth(questionCount - 1)).toHaveAttribute('title', /not asked yet/);
 
   for (let index = 0; index < questionCount; index += 1) {
     await questionTabs.nth(index).click();
@@ -382,6 +385,12 @@ test('a live call shows one exchange as subtitles and folds the transcript (CFS-
   );
   await page.reload();
   await page.getByRole('button', { name: /Live call/ }).click();
+  // Before the call no question is shown, and no tab can be opened (CFS-177).
+  const tabs = page.getByRole('group', { name: 'Interview plan' }).getByRole('button');
+  await expect(
+    page.getByText('The panel asks this question when the call reaches it.'),
+  ).toBeVisible();
+  await expect(tabs.first()).toBeDisabled();
   await page.getByRole('button', { name: 'Start the voice interview', exact: true }).click();
   await expect(page.getByText('Your turn to speak')).toBeVisible();
 
@@ -399,6 +408,9 @@ test('a live call shows one exchange as subtitles and folds the transcript (CFS-
   const panelLine = page.locator('.boss-subtitles .boss-bubble.live');
   await expect(panelLine).toContainText('…');
   await expect(panelLine).toContainText('Question 1. Tell us about a project.');
+  // The question the call reached opens up; the next one stays hidden.
+  await expect(tabs.first()).toBeEnabled();
+  await expect(tabs.nth(1)).toBeDisabled();
   expect((await panelLine.innerText()).length).toBeLessThan(260);
 
   await emit({ type: 'input_audio_buffer.speech_started' });

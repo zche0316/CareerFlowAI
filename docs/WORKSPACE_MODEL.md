@@ -714,3 +714,12 @@ interview is refused, so it happens at most once.
 call clock; the realtime session stays connected, so no voice session is spent. If the panel was
 speaking, its response is cancelled and its audio buffer cleared; on **Resume** it is asked to
 repeat its last question briefly. The microphone meter and silence warning ignore the pause.
+
+## Questions stay hidden until asked (CFS-177)
+
+During an interview a question is shown only once the panel asks it: stages already answered or
+skipped, the current question in One question at a time, and in a live call the questions the
+call has reached (tracked from `questionId` in the live call state). Other plan tabs show their
+stage name, are disabled and read "not asked yet"; before a call starts the arena says the panel
+will ask when the call reaches it. The questions are generated up front, so this is display only;
+after the interview every question is shown.

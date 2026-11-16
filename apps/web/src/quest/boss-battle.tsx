@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, Flag, Swords } from 'lucide-react';
+import { ArrowRight, Flag, Lock, Swords } from 'lucide-react';
 import { XP_RULES } from './progress.js';
 import { ReadAloud, RecordAnswer, SpeakAnswer } from './voice.js';
 import { VoiceInterviewer, type LiveCall } from './voice-interviewer.js';
@@ -310,6 +310,19 @@ export function QuestBossBattle({
     if (onCall && i >= 0) setIndex(i);
   }, [call?.questionId, onCall]);
   const waiting = plan.steps.filter((s) => s.status === 'probing').length;
+  // Questions stay hidden until the panel asks them (CFS-177): answered or skipped ones, the one
+  // being asked one at a time, and those a live call has reached. All show once it is over.
+  const [callAsked, setCallAsked] = useState<string[]>([]);
+  useEffect(() => {
+    const id = call?.questionId;
+    if (onCall && id) setCallAsked((a) => (a.includes(id) ? a : [...a, id]));
+  }, [call?.questionId, onCall]);
+  const asked = (i: number) =>
+    !live ||
+    plan.steps[i]?.status !== 'open' ||
+    (!calling && i === index) ||
+    callAsked.includes(questions[i]?.id);
+  const shown = q ? asked(Math.min(index, questions.length - 1)) : false;
   // Mirrors the server's canReplan (CFS-173): no stages and nothing answered yet.
   const replannable =
     Boolean(onReplan) &&
@@ -401,16 +414,23 @@ export function QuestBossBattle({
               <button
                 key={s.questionId}
                 type="button"
-                className={`boss-qtab ${s.status}${i === index ? ' on' : ''}${settled(s) ? ' done' : ''}`}
+                className={`boss-qtab ${s.status}${i === index ? ' on' : ''}${settled(s) ? ' done' : ''}${asked(i) ? '' : ' locked'}`}
                 aria-pressed={i === index}
-                title={`${s.label}: ${stageStatus[s.status]}`}
+                disabled={!asked(i)}
+                title={
+                  asked(i) ? `${s.label}: ${stageStatus[s.status]}` : `${s.label}: not asked yet`
+                }
                 onClick={() => setIndex(i)}
               >
+                {!asked(i) && <Lock size={12} aria-hidden="true" />}
                 {i + 1} · {s.label}
                 {settled(s) && (
                   <span aria-hidden="true"> {s.status === 'covered' ? '✓' : '–'}</span>
                 )}
-                <span className="sr-only"> ({stageStatus[s.status]})</span>
+                <span className="sr-only">
+                  {' '}
+                  ({asked(i) ? stageStatus[s.status] : 'not asked yet'})
+                </span>
               </button>
             ))}
           </div>
@@ -423,7 +443,7 @@ export function QuestBossBattle({
                     ? `Up next on the call · ${step?.label || 'Question'}`
                     : pendingFollow
                       ? `The panel counters · follow-up ${(step?.used || 0) + 1} of ${step?.budget}`
-                      : `${step?.label || 'Question'} · ${q.focus}`}
+                      : `${step?.label || 'Question'}${shown ? ` · ${q.focus}` : ''}`}
               </span>
               {panelReply && !calling && (
                 <p className="boss-panel-reply" role="status">
@@ -445,8 +465,17 @@ export function QuestBossBattle({
                 </div>
               ) : (
                 <>
-                  <p className="boss-bubble">“{calling ? q.question : prompt}”</p>
-                  {!calling && <ReadAloud text={prompt || ''} label="Read the question aloud" />}
+                  {shown ? (
+                    <p className="boss-bubble">“{calling ? q.question : prompt}”</p>
+                  ) : (
+                    <p className="boss-bubble hidden-question">
+                      The panel asks this question when the call reaches it. Questions stay hidden
+                      until they are asked, as in a real interview.
+                    </p>
+                  )}
+                  {!calling && shown && (
+                    <ReadAloud text={prompt || ''} label="Read the question aloud" />
+                  )}
                 </>
               )}
               <small className="boss-fine">

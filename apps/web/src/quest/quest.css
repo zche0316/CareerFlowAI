@@ -5050,3 +5050,16 @@ body:has(.quest) {
   background: #eef0f4;
   color: var(--q-ink);
 }
+
+/* ---------- Questions hidden until asked (CFS-177) ---------- */
+.boss-qtab.locked {
+  opacity: 0.45;
+  cursor: not-allowed;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.boss-bubble.hidden-question {
+  font: 600 clamp(15px, 1.4vw, 18px) / 1.45 var(--q-body);
+  color: #5b5f6b;
+}
