@@ -31,6 +31,19 @@ npx tsx site/record/party-export.tsx > site/assets/party.json
 node site/record/inline-data.mjs
 ```
 
+## Languages
+
+The page is in English and Chinese; the button in the top bar switches between them. The first
+visit follows the browser language, the choice is remembered in the browser, and `?lang=zh` or
+`?lang=en` in the address forces one.
+
+English is the text in `index.html` itself. Each translated element carries a `data-i18n` key
+(`data-i18n-alt`, `data-i18n-aria-label` and so on for attributes), and the Chinese for that key
+is in `STR.zh` in the page script. When you add or change text, add the key and its Chinese
+there. Agent names, rules and video chapter labels come from the exported data; their Chinese
+is in `DATA_ZH`, keyed by the English text, so new entries show in English until they are added.
+The screenshots and the video stay in English.
+
 ## Publish
 
 GitHub Pages serves the `gh-pages` branch: copy `index.html` and `assets/` there and push.
