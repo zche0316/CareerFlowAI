@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { resumeLayout } from '../packages/contracts/src/resume-layout.js';
+import { resumeLayout, resumeText } from '../packages/contracts/src/resume-layout.js';
 import { composeSelection } from '../apps/api/src/resume-composition.js';
 it('selects at most three relevant courses without losing the major or qualification', () => {
   const courses = [
@@ -127,6 +127,10 @@ it('uses one structured, source-linked view with roles/dates and bullets, withou
   expect(body).toContain('• Wrote 20 tests for the test dataset only.');
   expect(body).not.toContain('Evidence passport');
   expect(c.claims[1].text).toContain('Personal actions: I');
+  // The interview panel reads the same sections as text, without the name (CFS-171).
+  const text = resumeText(c);
+  expect(text).toContain('Work Experience:\nEngineer\nExample · 2024-01 – 2024-03');
+  expect(text).not.toContain('Fictional QA');
   c.claims = c.claims.filter((x: any) => x.factId !== 'a');
   expect(resumeLayout(c).find((x) => x.title === 'Work Experience')).toBeUndefined();
 });

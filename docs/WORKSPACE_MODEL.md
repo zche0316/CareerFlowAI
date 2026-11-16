@@ -682,3 +682,12 @@ the live caption (`response.output_audio_transcript.*`). The lead interviewer ta
 panel speaks, the panel leans in while the candidate speaks, and the plan tab follows the
 question being asked. Motion stops under `prefers-reduced-motion`. Written follow-ups from a
 verdict stay in One question at a time; the call covers the stages not answered yet.
+
+## Interview follow-ups read the approved resume (CFS-171)
+
+The live voice interviewer and the Evaluator that writes typed follow-ups receive the resume
+version this run approved (`ApprovedResume` via `approvedResumeId`), rendered as plain text by
+`resumeText` without the name or contact details. Not the whole profile: it is what the candidate
+would hand to this employer. A follow-up may ask about a related resume item the answer left out;
+scores count only what the answers say, and resume content is never credited as said. A run
+without an approved resume sends none. Question generation still reads the approved profile facts.

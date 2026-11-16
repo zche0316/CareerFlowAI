@@ -14,6 +14,7 @@ import {
 import { generate, type Mode } from '../../../packages/agents/src/provider.js';
 import { spanHook } from './trace.js';
 import { runInterviewTurn } from './interview-turn.js';
+import { approvedResumeText } from './interview-resume.js';
 import {
   summariseTurn,
   type TurnSummary,
@@ -69,6 +70,11 @@ async function scoreRound(
   round: ReturnType<typeof interviewRoundInputSchema.parse>,
 ) {
   const mission = await ownedMission(userId, id);
+  const resume = await approvedResumeText(
+    userId,
+    id,
+    (mission.data as MissionData).approvedResumeId,
+  );
 
   const prompt = await locked(userId, id, async (data, _events, tx) => {
     const question = (data.questions || []).find((q: any) => q.id === round.questionId);
@@ -115,6 +121,7 @@ async function scoreRound(
         stageGoal: prompt.step.goal,
         earlierAnswers: prompt.earlier,
         followUpsLeft: Math.max(0, prompt.left),
+        ...(resume ? { resume } : {}),
       },
       roundEvaluationSchema,
       mission.mode as Mode,

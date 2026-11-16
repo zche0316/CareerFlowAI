@@ -93,6 +93,15 @@ it('tells the realtime panel its persona, the questions in order and not to scor
   // No hints before the first answer, no announced questions that are never asked.
   expect(text).toContain('one greeting sentence followed by Question 1 and nothing else');
   expect(text).toContain('Never announce a question you do not ask');
+  // The run's approved resume rides along, labelled as claims, never as answers (CFS-171).
+  expect(text).not.toContain('Resume:');
+  const withResume = voiceInstructions(
+    { title: 'Data Analyst' },
+    questions,
+    'Projects:\nSales dashboard',
+  );
+  expect(withResume).toContain('Resume:\nProjects:\nSales dashboard');
+  expect(withResume).toContain('never credit it as said');
   expect(questionNumber('Thanks. Question 2. How do you check data quality?')).toBe(1);
   expect(questionNumber('Could you say more about that?')).toBeNull();
 });
