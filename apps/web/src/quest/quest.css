@@ -4927,3 +4927,12 @@ body:has(.quest) {
 .boss-bubble.live {
   font: 700 clamp(16px, 1.6vw, 20px) / 1.35 var(--q-body);
 }
+.boss-traits .quest-chip {
+  white-space: normal;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  height: auto;
+  line-height: 1.3;
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
