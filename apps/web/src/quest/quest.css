@@ -5063,3 +5063,151 @@ body:has(.quest) {
   font: 600 clamp(15px, 1.4vw, 18px) / 1.45 var(--q-body);
   color: #5b5f6b;
 }
+
+/* ---------- Battle report (CFS-178) ---------- */
+.battle-report {
+  flex: 1 1 100%;
+  display: grid;
+  gap: 16px;
+}
+.battle-report-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.battle-report-head h2 {
+  margin: 0 0 4px;
+}
+.battle-report-head p {
+  margin: 0;
+}
+.battle-grade {
+  display: inline-grid;
+  place-items: center;
+  min-width: 52px;
+  padding: 6px 10px;
+  border-radius: 16px;
+  background: var(--q-ink);
+  color: #fff;
+  font: 800 24px/1 var(--q-display);
+}
+.battle-grade small {
+  font: 700 11px/1.2 var(--q-body);
+  opacity: 0.8;
+  margin-top: 3px;
+}
+.battle-grade.big {
+  min-width: 96px;
+  padding: 12px 16px;
+  font-size: 44px;
+}
+.battle-grade.g-S,
+.battle-grade.g-A {
+  background: var(--q-lime);
+  color: var(--q-ink);
+}
+.battle-grade.g-C {
+  background: #ffd9a8;
+  color: var(--q-ink);
+}
+.battle-grade.g-D {
+  background: #ffb3a7;
+  color: var(--q-ink);
+}
+.battle-grade.none {
+  background: #0000000f;
+  color: #8a8f98;
+}
+.battle-scale summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+}
+.battle-scale p {
+  font-size: 14px;
+  line-height: 1.5;
+}
+.battle-stages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.battle-stage {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 2px solid #0000001a;
+  border-radius: 20px;
+}
+.battle-stage-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.battle-stage-head h3 {
+  margin: 0;
+  margin-right: auto;
+}
+.battle-question {
+  margin: 0;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.battle-round {
+  display: grid;
+  gap: 4px;
+  padding-left: 12px;
+  border-left: 3px solid #0000001a;
+}
+.battle-round-kind {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.6;
+}
+.battle-round summary {
+  cursor: pointer;
+  font-size: 14px;
+}
+.battle-round p,
+.battle-note,
+.battle-wanted {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.battle-wanted {
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: #fff4e5;
+}
+@media (max-width: 640px) {
+  .battle-grade.big {
+    min-width: 72px;
+    font-size: 34px;
+  }
+}
+.battle-status {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #eef0f4;
+  color: var(--q-ink);
+}
+.battle-status.covered {
+  background: var(--q-lime);
+}
+.battle-status.partly {
+  background: #ffe6bf;
+}
+.battle-status.skipped,
+.battle-status.open {
+  background: #f1f1f1;
+  color: #6b6f78;
+}

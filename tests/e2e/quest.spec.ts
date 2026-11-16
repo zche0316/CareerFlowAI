@@ -59,9 +59,7 @@ test('a quest runs from the log through review, a return to the Rewriter and the
   await expect(page.getByRole('heading', { name: /Runs waiting on you/ })).toBeVisible();
 
   await page.goto(`/?view=missions&mission=${id}&step=2`);
-  await expect(
-    page.getByRole('heading', { name: 'Pick a role.', exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Pick a role.', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Shortlist', exact: true })).toBeVisible();
   await expect(page.getByRole('group', { name: 'Filters' })).toBeVisible();
 
@@ -117,7 +115,7 @@ test('a quest runs from the log through review, a return to the Rewriter and the
   );
   await expect(page.getByRole('heading', { name: 'Last round', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Retreat · get feedback now', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Battle over', exact: true })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Battle report', exact: true })).toBeVisible({
     timeout: 30000,
   });
   const done = await waitFor(api, id, 'COMPLETE');

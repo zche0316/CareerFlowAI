@@ -4,6 +4,11 @@ import { XP_RULES } from './progress.js';
 import { ReadAloud, RecordAnswer, SpeakAnswer } from './voice.js';
 import { VoiceInterviewer, type LiveCall } from './voice-interviewer.js';
 import { interviewPlan } from '../../../../packages/contracts/src/interview-plan.js';
+import {
+  battleReport,
+  starParts,
+  type BattleReport,
+} from '../../../../packages/contracts/src/battle-report.js';
 
 type Mark = 'critical' | 'hit' | 'partial' | 'miss';
 type Round = {
@@ -285,7 +290,6 @@ export function QuestBossBattle({
     .map((i) => i.term);
   const claims: { factId: string; text: string }[] = (d.resumeDraft?.claims || []).slice(0, 4);
   const lesson: string | undefined = d.priorFeedback?.improvements?.[0];
-  const total = rounds.reduce((n, r) => n + roundDamage(r), 0);
   const allDone = plan.done;
   const left = plan.steps.filter((s) => !settled(s)).length;
 
@@ -654,55 +658,169 @@ export function QuestBossBattle({
             </div>
           </section>
         ) : (
-          <section className="quest-tile boss-turn" aria-labelledby="boss-done">
-            <h2 id="boss-done">Battle over</h2>
-            <p>
-              {answered.length} of {questions.length} questions answered · {total} total damage.
-              {d.endedEarly ? ' You retreated early; feedback covers the answers you gave.' : ''}
-            </p>
-          </section>
+          <BattleReportView
+            report={battleReport(
+              questions,
+              rounds.map((r) => ({ ...r, at: r.at || '' })),
+              skipped,
+            )}
+            endedEarly={Boolean(d.endedEarly)}
+            rules={rounds.some((r) => r.reviewer === 'rules')}
+          />
         )}
 
-        <section className="quest-tile lime boss-last" aria-labelledby="boss-last">
-          <div className="quest-tile-head">
-            <h2 id="boss-last">Last round</h2>
-            <b className="boss-dmg">{last ? `${roundDamage(last)} dmg` : '–'}</b>
-          </div>
-          {last ? (
-            <>
+        {live && (
+          <section className="quest-tile lime boss-last" aria-labelledby="boss-last">
+            <div className="quest-tile-head">
+              <h2 id="boss-last">Last round</h2>
+              <b className="boss-dmg">{last ? `${roundDamage(last)} dmg` : '–'}</b>
+            </div>
+            {last ? (
+              <>
+                <div className="boss-star">
+                  {(['situation', 'task', 'action', 'result'] as const).map((k) => (
+                    <div key={k} className={`boss-mark ${last.evaluation.star[k]}`}>
+                      <span>{k.toUpperCase()}</span>
+                      <b>{markLabel[last.evaluation.star[k]]}</b>
+                    </div>
+                  ))}
+                </div>
+                <p className="boss-note">{last.evaluation.note}</p>
+                <ReadAloud
+                  text={[last.evaluation.note, last.evaluation.followUp].filter(Boolean).join(' ')}
+                  label="Read the verdict aloud"
+                />
+                {last.evaluation.followUp && (
+                  <div className="boss-counter">
+                    <span>THE PANEL COUNTERS</span>
+                    <b>“{last.evaluation.followUp}”</b>
+                  </div>
+                )}
+                <small>
+                  {last.reviewer === 'rules'
+                    ? 'Demo mode: rule-based scoring, not an AI assessment.'
+                    : 'Scored by the Evaluator model.'}{' '}
+                  Practice answers are feedback, never facts.
+                </small>
+              </>
+            ) : (
+              <p className="boss-note">
+                Answer a question and the Evaluator’s STAR verdict appears here.
+              </p>
+            )}
+          </section>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const gradeWord = { S: 'Outstanding', A: 'Strong', B: 'Solid', C: 'Developing', D: 'Early' };
+
+/**
+ * Battle report (CFS-178): an overall grade, then per stage its grade, the STAR marks (each part
+ * at its best across the answer and follow-ups), every answer with the panel's note, and what
+ * the panel still wanted to know. Grades come from the saved marks, not a new model call.
+ */
+function BattleReportView({
+  report,
+  endedEarly,
+  rules,
+}: {
+  report: BattleReport;
+  endedEarly: boolean;
+  rules: boolean;
+}) {
+  const pct = (n: number) => `${Math.round(n * 100)}%`;
+  return (
+    <section className="quest-tile battle-report" aria-labelledby="battle-report">
+      <div className="battle-report-head">
+        <div>
+          <h2 id="battle-report">Battle report</h2>
+          <p>
+            {report.answered} of {report.stages.length} stages answered · overall{' '}
+            {pct(report.score)}
+            {endedEarly ? ' · you retreated early' : ''}
+          </p>
+        </div>
+        <span
+          className={`battle-grade big g-${report.grade}`}
+          aria-label={`Overall grade ${report.grade}`}
+        >
+          {report.grade}
+          <small>{gradeWord[report.grade]}</small>
+        </span>
+      </div>
+      <details className="battle-scale">
+        <summary>How grades work</summary>
+        <p>
+          Each STAR part counts at its best mark across a stage’s answer and follow-ups: Critical 3,
+          Hit 2, Glancing 1, Missed 0. A stage’s score is its share of 12 points: S from 90%, A from
+          75%, B from 55%, C from 35%, D below. The overall score averages every planned stage, so
+          an unanswered or skipped stage counts as zero.{' '}
+          {rules
+            ? 'Demo mode marks answers with simple rules, not an AI assessment.'
+            : 'Marks come from the Evaluator model.'}
+        </p>
+      </details>
+      <ol className="battle-stages">
+        {report.stages.map((s, i) => (
+          <li key={s.step.questionId} className="battle-stage">
+            <div className="battle-stage-head">
+              <h3>
+                {i + 1} · {s.step.label}
+              </h3>
+              <span className={`battle-status ${s.step.status}`}>{stageStatus[s.step.status]}</span>
+              {s.grade ? (
+                <span className={`battle-grade g-${s.grade}`} aria-label={`Grade ${s.grade}`}>
+                  {s.grade}
+                  <small>{pct(s.score!)}</small>
+                </span>
+              ) : (
+                <span className="battle-grade none">–</span>
+              )}
+            </div>
+            <p className="battle-question">“{s.question}”</p>
+            {s.star ? (
               <div className="boss-star">
-                {(['situation', 'task', 'action', 'result'] as const).map((k) => (
-                  <div key={k} className={`boss-mark ${last.evaluation.star[k]}`}>
+                {starParts.map((k) => (
+                  <div key={k} className={`boss-mark ${s.star![k]}`}>
                     <span>{k.toUpperCase()}</span>
-                    <b>{markLabel[last.evaluation.star[k]]}</b>
+                    <b>{markLabel[s.star![k]]}</b>
                   </div>
                 ))}
               </div>
-              <p className="boss-note">{last.evaluation.note}</p>
-              <ReadAloud
-                text={[last.evaluation.note, last.evaluation.followUp].filter(Boolean).join(' ')}
-                label="Read the verdict aloud"
-              />
-              {last.evaluation.followUp && (
-                <div className="boss-counter">
-                  <span>THE PANEL COUNTERS</span>
-                  <b>“{last.evaluation.followUp}”</b>
-                </div>
-              )}
-              <small>
-                {last.reviewer === 'rules'
-                  ? 'Demo mode: rule-based scoring, not an AI assessment.'
-                  : 'Scored by the Evaluator model.'}{' '}
-                Practice answers are feedback, never facts.
-              </small>
-            </>
-          ) : (
-            <p className="boss-note">
-              Answer a question and the Evaluator’s STAR verdict appears here.
-            </p>
-          )}
-        </section>
-      </div>
-    </div>
+            ) : (
+              <p className="muted">
+                {s.step.status === 'skipped' ? 'Skipped' : 'Not answered'}: this stage scores zero.
+              </p>
+            )}
+            {s.rounds.map((r, j) => (
+              <div key={j} className="battle-round">
+                <span className="battle-round-kind">
+                  {r.kind === 'answer' ? 'Your answer' : `Follow-up: “${r.prompt || ''}”`}
+                </span>
+                <details>
+                  <summary>
+                    {r.answer.length > 120 ? r.answer.slice(0, 117) + '…' : r.answer}
+                  </summary>
+                  <p>{r.answer}</p>
+                </details>
+                {r.evaluation.note && (
+                  <p className="battle-note">
+                    <b>Panel:</b> {r.evaluation.note}
+                  </p>
+                )}
+              </div>
+            ))}
+            {s.stillWanted && (
+              <p className="battle-wanted">
+                <b>The panel still wanted to know:</b> {s.stillWanted}
+              </p>
+            )}
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }

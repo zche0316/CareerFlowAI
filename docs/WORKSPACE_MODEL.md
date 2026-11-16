@@ -723,3 +723,13 @@ call has reached (tracked from `questionId` in the live call state). Other plan 
 stage name, are disabled and read "not asked yet"; before a call starts the arena says the panel
 will ask when the call reaches it. The questions are generated up front, so this is display only;
 after the interview every question is shown.
+
+## Battle report (CFS-178)
+
+After the interview the arena's turn and last-round tiles give way to a battle report built by
+`battleReport` in `packages/contracts/src/battle-report.ts` from the saved rounds; no model call.
+Each stage counts every STAR part at its best mark across its answer and follow-ups (Critical 3,
+Hit 2, Glancing 1, Missed 0), scored out of 12: S from 90%, A from 75%, B from 55%, C from 35%,
+D below. The overall score averages every planned stage, unanswered or skipped ones as zero. Each
+stage card lists the question, its status, the STAR grid, every answer and follow-up with the
+panel's note, and what the panel still wanted to know.

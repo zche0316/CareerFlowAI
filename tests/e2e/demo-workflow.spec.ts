@@ -37,9 +37,9 @@ test('the demo workflow runs end to end in the Quest interface', async ({ page }
   await page.getByRole('button', { name: 'Send the party out', exact: true }).click();
 
   // 4. Choose one role from the shortlist.
-  await expect(
-    page.getByRole('heading', { name: 'Pick a role.', exact: true }),
-  ).toBeVisible({ timeout: 45000 });
+  await expect(page.getByRole('heading', { name: 'Pick a role.', exact: true })).toBeVisible({
+    timeout: 45000,
+  });
   const roles = page.locator('button.qj-role');
   expect(await roles.count()).toBeGreaterThan(1);
   // Save a second role to the quest log for later; the run keeps waiting for a choice.
@@ -52,9 +52,9 @@ test('the demo workflow runs end to end in the Quest interface', async ({ page }
   await page.getByRole('button', { name: 'Select this opportunity' }).first().click();
 
   // 5. Resume team stops at the draft review.
-  await expect(
-    page.getByRole('heading', { name: 'Review your resume.', exact: true }),
-  ).toBeVisible({ timeout: 45000 });
+  await expect(page.getByRole('heading', { name: 'Review your resume.', exact: true })).toBeVisible(
+    { timeout: 45000 },
+  );
   await expect(page.locator('.qm-crumb')).toContainText(title);
   const approve = page.getByRole('button', { name: 'Approve this draft', exact: true });
   await expect(approve).toBeDisabled();
@@ -78,7 +78,7 @@ test('the demo workflow runs end to end in the Quest interface', async ({ page }
     .fill('I used SQL in a student project to clean a sample dataset and report what changed.');
   await page.getByRole('button', { name: 'Answer', exact: true }).click();
   await page.getByRole('button', { name: 'Retreat · get feedback now', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Battle over', exact: true })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Battle report', exact: true })).toBeVisible({
     timeout: 45000,
   });
   await expect(page.getByRole('heading', { name: 'Areas to improve' })).toBeVisible({
@@ -126,12 +126,14 @@ test('the demo workflow runs end to end in the Quest interface', async ({ page }
   ).toBeVisible();
 
   // Practice is available before any resume for the saved role (CFS-134).
-  await expect(later.getByRole('button', { name: 'Practise interview', exact: true })).toBeEnabled();
+  await expect(
+    later.getByRole('button', { name: 'Practise interview', exact: true }),
+  ).toBeEnabled();
   // A saved role starts its own run at the resume team with the role already chosen.
   await later.getByRole('button', { name: 'Tailor resume' }).click();
-  await expect(
-    page.getByRole('heading', { name: 'Review your resume.', exact: true }),
-  ).toBeVisible({ timeout: 45000 });
+  await expect(page.getByRole('heading', { name: 'Review your resume.', exact: true })).toBeVisible(
+    { timeout: 45000 },
+  );
   await expect(page.locator('.qm-crumb')).toContainText(saved);
 
   // The Coach on Home keeps advice for this profile version, outside any one run.

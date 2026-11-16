@@ -405,3 +405,4 @@ export const jobSearchSchema = z.object({
 });
 
 export * from './interview-plan.js';
+export * from './battle-report.js';

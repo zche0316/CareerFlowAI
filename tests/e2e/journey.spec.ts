@@ -56,7 +56,7 @@ async function answer(page: Page, text: string, followThrough = false) {
   // The panel follows up until the stage is covered or its budget is spent (CFS-166);
   // skipping the follow-up leaves the stage partly covered and moves on.
   const skip = page.getByRole('button', { name: 'Skip follow-up', exact: true });
-  await expect(skip.or(page.getByRole('heading', { name: 'Battle over' }))).toBeVisible({
+  await expect(skip.or(page.getByRole('heading', { name: 'Battle report' }))).toBeVisible({
     timeout: 20000,
   });
   if (followThrough && (await skip.isVisible())) await skip.click();
@@ -146,11 +146,11 @@ test('a user finishes early and receives feedback from the saved response', asyn
     'I used SQL in my student project to check a sample dataset and prepare a report. My task was to review missing values and document the queries.',
   );
   await page.getByRole('button', { name: 'Retreat · get feedback now', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Battle over', exact: true })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Battle report', exact: true })).toBeVisible({
     timeout: 30000,
   });
   await expect(
-    page.getByText('You retreated early; feedback covers the answers you gave.'),
+    page.getByText(/stages answered · overall \d+% · you retreated early/),
   ).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Areas to improve' })).toBeVisible({
     timeout: 30000,
@@ -204,6 +204,18 @@ test('a user answers every interview question and receives complete feedback', a
     page.getByText(`${questionCount} responses retained.`, { exact: false }),
   ).toBeVisible();
   await expect(page.getByText('You retreated early')).toHaveCount(0);
+  // The battle report grades every stage from its STAR marks (CFS-178).
+  const report = page.getByRole('region', { name: 'Battle report' });
+  await expect(report.getByLabel(/^Overall grade [SABCD]$/)).toBeVisible();
+  await expect(report.locator('.battle-stage')).toHaveCount(questionCount);
+  await expect(
+    report
+      .locator('.battle-stage')
+      .first()
+      .getByLabel(/^Grade [SABCD]$/),
+  ).toBeVisible();
+  await expect(report.locator('.battle-stage').first().locator('.boss-mark')).toHaveCount(4);
+  await expect(report.getByText('Your answer').first()).toBeVisible();
   await page.screenshot({
     path: `output/acceptance/interview-complete-${process.env.PROVIDER_MODE === 'openai' ? 'live' : 'fixture'}.png`,
     fullPage: true,
