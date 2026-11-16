@@ -7,6 +7,7 @@ import {
   criteriaOf,
   interviewPlan,
   marksOf,
+  requirementGaps,
   stageOf,
 } from '../../../../packages/contracts/src/interview-plan.js';
 import {
@@ -313,10 +314,7 @@ export function QuestBossBattle({
     .filter((i) => i.level === 'required' && i.status === 'evidenced')
     .slice(0, 2)
     .map((i) => i.term);
-  const resists = items
-    .filter((i) => i.level === 'required' && i.status === 'not_evidenced')
-    .slice(0, 2)
-    .map((i) => i.term);
+  const resists = requirementGaps(d).slice(0, 2);
   const claims: { factId: string; text: string }[] = (d.resumeDraft?.claims || []).slice(0, 4);
   const lesson: string | undefined = d.priorFeedback?.improvements?.[0];
   const allDone = plan.done;

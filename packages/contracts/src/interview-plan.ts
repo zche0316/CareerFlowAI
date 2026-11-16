@@ -253,6 +253,25 @@ export const marksOf = (e: Evaluation) => e.marks || e.star;
 /** The criteria a round was scored on. */
 export const criteriaOf = (stage: PlanStage, e: Evaluation) => (e.marks ? RUBRICS[stage] : STAR);
 
+/**
+ * Required skills of the chosen role that the resume does not evidence (CFS-180): the resume
+ * team's gap report when there is one (it includes answers confirmed while tailoring), else the
+ * job mapping. Question planning uses them for the gap stage; the arena shows them as traits.
+ */
+export const requirementGaps = (data: unknown): string[] => {
+  const d = (data || {}) as {
+    resumeTeam?: { gaps?: { requirements?: any[] } };
+    selectedJob?: { mapping?: { items?: any[] } };
+  };
+  return [
+    ...new Set(
+      ((d.resumeTeam?.gaps?.requirements || d.selectedJob?.mapping?.items || []) as any[])
+        .filter((i) => i?.level === 'required' && i?.status === 'not_evidenced' && i?.term)
+        .map((i) => String(i.term).trim()),
+    ),
+  ].slice(0, 5);
+};
+
 // Guessing a stage from position mislabelled older questions (a data-quality question shown as
 // Motivation), so questions without a stage are general.
 export const stageOf = (q: { stage?: string | null }, _index?: number): PlanStage =>

@@ -745,3 +745,12 @@ progress; closing on relevance, specificity, insight and growth. `evaluationSche
 builds the Evaluator's structured output from the stage's keys (`marks`), the demo rules use each
 criterion's cue and follow-up, and the voice plan names the criteria per stage. Rounds saved
 before this keep their `star` marks and are shown as STAR (`marksOf`, `criteriaOf`).
+
+## Gap question from unevidenced requirements (CFS-180)
+
+Main questions stay planned up front, like a real panel, with follow-ups per stage. Question
+planning (the workflow's Interview Coach and Re-plan the interview) also receives
+`requirementGaps`: required requirement terms marked not evidenced, from the resume team's gap
+report or else the job mapping (`requirementGaps` in `interview-plan.ts`, also used for the
+arena's "Resists" traits). When there are any, the fourth question is the gap stage about the one
+that matters most; otherwise it is a scenario question.

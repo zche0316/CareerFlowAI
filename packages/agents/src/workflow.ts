@@ -29,6 +29,7 @@ import { evidenceFacts, gapSkills, markAnswered } from './resume-team/evidence-q
 import {
   coachSchema,
   questionsSchema,
+  requirementGaps,
   feedbackSchema,
   type Fact,
   type CareerProfile,
@@ -197,6 +198,7 @@ export async function createWorkflow() {
               }))
             : undefined,
         priorFeedback: c.d.priorFeedback,
+        requirementGaps: role === 'questions' ? requirementGaps(c.d) : undefined,
       }),
       schema,
       c.m.mode as Mode,

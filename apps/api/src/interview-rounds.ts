@@ -8,6 +8,7 @@ import { mergeInterviewAnswer, type InterviewQuestion } from './interview.js';
 import {
   interviewRoundInputSchema,
   evaluationSchemaFor,
+  requirementGaps,
   RUBRICS,
   questionsSchema,
   type RoundEvaluation,
@@ -111,6 +112,7 @@ export async function replanInterview(userId: string, id: string) {
         facts: claims.length ? facts.filter((f) => claims.some((c) => c.factId === f.id)) : facts,
         job: d.selectedJob?.job,
         priorFeedback: d.priorFeedback,
+        requirementGaps: requirementGaps(d),
       }),
       questionsSchema,
       m.mode as Mode,

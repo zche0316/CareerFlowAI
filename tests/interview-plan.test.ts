@@ -63,3 +63,37 @@ describe('interview stage plan, budget spent', () => {
     expect(interviewPlan(qs, r).steps[0].status).toBe('covered');
   });
 });
+
+it('finds required skills the resume does not evidence, for the gap question (CFS-180)', async () => {
+  const { requirementGaps } = await import('../packages/contracts/src/interview-plan.js');
+  const { missionContext } = await import('../packages/agents/src/mission-context.js');
+  const item = (term: string, level: string, status: string) => ({ term, level, status });
+  // The resume team's report wins over the job mapping; preferred and evidenced items are out.
+  const d = {
+    resumeTeam: {
+      gaps: {
+        requirements: [
+          item('Stata', 'required', 'not_evidenced'),
+          item('SQL', 'required', 'evidenced'),
+          item('R', 'preferred', 'not_evidenced'),
+          item('Stata', 'required', 'not_evidenced'),
+        ],
+      },
+    },
+    selectedJob: { mapping: { items: [item('Excel', 'required', 'not_evidenced')] } },
+  };
+  expect(requirementGaps(d)).toEqual(['Stata']);
+  expect(requirementGaps({ selectedJob: d.selectedJob })).toEqual(['Excel']);
+  expect(requirementGaps(undefined)).toEqual([]);
+  const base = { goal: 'g', facts: [] } as any;
+  expect(
+    missionContext('questions', { ...base, requirementGaps: ['Stata'] }).requirementGaps,
+  ).toEqual(['Stata']);
+  expect(missionContext('questions', { ...base, requirementGaps: [] })).not.toHaveProperty(
+    'requirementGaps',
+  );
+  // Only question planning receives them.
+  expect(missionContext('feedback', { ...base, requirementGaps: ['Stata'] })).not.toHaveProperty(
+    'requirementGaps',
+  );
+});
