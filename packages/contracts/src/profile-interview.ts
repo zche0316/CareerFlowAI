@@ -285,6 +285,8 @@ const HEADER_WORDS =
  * real words must remain.
  */
 export function substantiveOverview(r: any) {
+  // A story with a situation and an action already says what it was about (CFS-167).
+  if (r.starStory?.situation?.trim() && r.starStory?.action?.trim()) return true;
   const text = experienceOverview(r);
   if (!text) return false;
   if (/\p{Script=Han}/u.test(text)) return text.replace(/[\p{P}\s\d]/gu, '').length >= 15;

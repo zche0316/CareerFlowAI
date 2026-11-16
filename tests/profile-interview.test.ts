@@ -527,6 +527,18 @@ it('asks what an experience was about when its description only introduces it', 
       overview: "I built a booking website for my sister's yoga studio with React and Supabase.",
     }),
   ).toBe(true);
+  // A story with a situation and an action already says what the experience was about.
+  expect(
+    substantiveOverview({
+      ...intro,
+      starStory: {
+        situation: 'Riders saw empty docks.',
+        task: '',
+        action: 'I modelled demand.',
+        result: '',
+      },
+    }),
+  ).toBe(true);
   const p = { ...empty, goals: 'Graduate data analyst', projects: [intro] };
   const q = planInterview(p, interviewState([], p)).state.question;
   expect(q?.key).toMatch(/:overview$/);
