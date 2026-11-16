@@ -3,6 +3,7 @@ import { ArrowRight, Flag, Swords } from 'lucide-react';
 import { XP_RULES } from './progress.js';
 import { ReadAloud, RecordAnswer, SpeakAnswer } from './voice.js';
 import { VoiceInterviewer } from './voice-interviewer.js';
+import { interviewPlan } from '../../../../packages/contracts/src/interview-plan.js';
 
 type Mark = 'critical' | 'hit' | 'partial' | 'miss';
 type Round = {
@@ -20,6 +21,14 @@ type Round = {
 };
 
 // A resume fact id ("workExperiences-<uuid>-detail-2") is internal; players see its kind.
+const stageStatus = {
+  open: 'not started',
+  probing: 'follow-up waiting',
+  covered: 'covered',
+  partly: 'partly covered',
+  skipped: 'skipped',
+} as const;
+
 const itemLabel = (factId: string) =>
   /^workExperiences/.test(factId)
     ? 'Work'
@@ -146,8 +155,6 @@ export function QuestBossBattle({
   const rounds: Round[] = d.rounds || [];
   const live = m.status === 'AWAITING_INTERVIEW';
   const mainFor = (id: string) => rounds.find((r) => r.questionId === id && r.kind === 'answer');
-  const followFor = (id: string) =>
-    rounds.find((r) => r.questionId === id && r.kind === 'follow_up');
   const answered = questions.filter((q) => mainFor(q.id));
   const firstOpen = Math.max(
     0,
@@ -179,18 +186,23 @@ export function QuestBossBattle({
       /* private mode: for this page only */
     }
   };
+  // The stage plan (CFS-166): one stage per question, follow-ups until covered or the stage's
+  // budget is spent, done when every stage is settled.
+  const plan = interviewPlan(
+    questions,
+    rounds.map((r) => ({ ...r, at: r.at || '' })),
+    skipped,
+  );
+  const settled = (s: (typeof plan.steps)[number]) => s.status !== 'open' && s.status !== 'probing';
   const q = questions[Math.min(index, questions.length - 1)];
+  const step = plan.steps[Math.min(index, questions.length - 1)];
   const main = q ? mainFor(q.id) : undefined;
-  const pendingFollow =
-    live && main?.evaluation.followUp && !followFor(q.id) && !skipped.includes(q.id)
-      ? main.evaluation.followUp
-      : '';
+  const pendingFollow = live && step ? step.pendingFollowUp : '';
   useEffect(() => setText(''), [q?.id, pendingFollow, rounds.length, chat.length]);
-  // Once a question is settled (answered, follow-up done or skipped), move to the next open one.
+  // Once a stage is settled (covered, out of follow-ups or skipped), move to the next open one.
   useEffect(() => {
-    if (!live || !main || pendingFollow) return;
-    const next = questions.findIndex((x) => !mainFor(x.id));
-    if (next >= 0) setIndex(next);
+    if (!live || !step || !settled(step) || !plan.next) return;
+    setIndex(plan.steps.indexOf(plan.next));
   }, [rounds.length, skipped.length]);
   const last = rounds.at(-1);
   const lastChat = chat.at(-1);
@@ -225,7 +237,8 @@ export function QuestBossBattle({
   const claims: { factId: string; text: string }[] = (d.resumeDraft?.claims || []).slice(0, 4);
   const lesson: string | undefined = d.priorFeedback?.improvements?.[0];
   const total = rounds.reduce((n, r) => n + roundDamage(r), 0);
-  const allDone = questions.length > 0 && answered.length === questions.length;
+  const allDone = plan.done;
+  const left = plan.steps.filter((s) => !settled(s)).length;
 
   const prompt = pendingFollow || q?.question;
   const submit = async () => {
@@ -234,8 +247,11 @@ export function QuestBossBattle({
   };
   const nextQuestion = () => {
     if (q) setSkipped((s) => [...s, q.id]);
-    const next = questions.findIndex((x, i) => i > index && !mainFor(x.id));
-    if (next >= 0) setIndex(next);
+    const open = plan.steps
+      .map((s, i) => (i !== index && !settled(s) ? i : -1))
+      .filter((i) => i >= 0);
+    const next = open.find((i) => i > index) ?? open[0];
+    if (next !== undefined) setIndex(next);
   };
 
   const showChoices = claims.length > 0 || Boolean(lesson);
@@ -248,17 +264,16 @@ export function QuestBossBattle({
           <div className="boss-hp-head">
             <span>The Panel</span>
             <span>
-              {questions.length - answered.length} of {questions.length} question
-              {questions.length === 1 ? '' : 's'} left
+              {left} of {questions.length} stage{questions.length === 1 ? '' : 's'} left
             </span>
           </div>
           <div
             className="boss-hp"
             role="img"
-            aria-label={`${questions.length - answered.length} of ${questions.length} questions left`}
+            aria-label={`${left} of ${questions.length} stages left`}
           >
-            {questions.map((x) => (
-              <span key={x.id} className={mainFor(x.id) ? 'gone' : ''} />
+            {plan.steps.map((s) => (
+              <span key={s.questionId} className={settled(s) ? 'gone' : ''} />
             ))}
           </div>
           {(weak.length > 0 || resists.length > 0) && (
@@ -281,23 +296,30 @@ export function QuestBossBattle({
           </small>
         </div>
         <div className="boss-ask">
-          <div className="boss-qtabs" role="group" aria-label="Questions">
-            {questions.map((x, i) => (
+          <div className="boss-qtabs" role="group" aria-label="Interview plan">
+            {plan.steps.map((s, i) => (
               <button
-                key={x.id}
+                key={s.questionId}
                 type="button"
-                className={`boss-qtab${i === index ? ' on' : ''}${mainFor(x.id) ? ' done' : ''}`}
+                className={`boss-qtab ${s.status}${i === index ? ' on' : ''}${settled(s) ? ' done' : ''}`}
                 aria-pressed={i === index}
+                title={`${s.label}: ${stageStatus[s.status]}`}
                 onClick={() => setIndex(i)}
               >
-                Q{i + 1}
+                {i + 1} · {s.label}
+                {settled(s) && (
+                  <span aria-hidden="true"> {s.status === 'covered' ? '✓' : '–'}</span>
+                )}
+                <span className="sr-only"> ({stageStatus[s.status]})</span>
               </button>
             ))}
           </div>
           {q && (
             <>
               <span className="quest-chip coral">
-                {pendingFollow ? 'The panel counters' : `Question ${index + 1} · ${q.focus}`}
+                {pendingFollow
+                  ? `The panel counters · follow-up ${(step?.used || 0) + 1} of ${step?.budget}`
+                  : `${step?.label || 'Question'} · ${q.focus}`}
               </span>
               {panelReply && (
                 <p className="boss-panel-reply" role="status">
@@ -307,8 +329,14 @@ export function QuestBossBattle({
               <p className="boss-bubble">“{prompt}”</p>
               <ReadAloud text={prompt || ''} label="Read the question aloud" />
               <small className="boss-fine">
-                The Evaluator can follow up once per answer. Practice answers never become profile
-                facts.
+                {step
+                  ? `This stage checks ${step.goal}. The panel follows up ${
+                      step.budget === 0
+                        ? 'never here'
+                        : `up to ${step.budget} time${step.budget === 1 ? '' : 's'}`
+                    } until it is covered.`
+                  : ''}{' '}
+                Practice answers never become profile facts.
               </small>
             </>
           )}

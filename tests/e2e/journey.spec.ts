@@ -50,14 +50,16 @@ async function openInterview(page: Page) {
   await expect(page.getByRole('heading', { name: 'Your turn', exact: true })).toBeVisible();
 }
 
-async function answer(page: Page, text: string) {
+async function answer(page: Page, text: string, followThrough = false) {
   await page.getByLabel('Your answer', { exact: true }).fill(text);
   await page.getByRole('button', { name: 'Answer', exact: true }).click();
-  // Each answer may get one follow-up; skipping it moves to the next question.
+  // The panel follows up until the stage is covered or its budget is spent (CFS-166);
+  // skipping the follow-up leaves the stage partly covered and moves on.
   const skip = page.getByRole('button', { name: 'Skip follow-up', exact: true });
   await expect(skip.or(page.getByRole('heading', { name: 'Battle over' }))).toBeVisible({
     timeout: 20000,
   });
+  if (followThrough && (await skip.isVisible())) await skip.click();
 }
 
 test('a user must explicitly review a profile before v1 is persisted', async ({ page }) => {
@@ -109,9 +111,9 @@ test('a user compares ranked jobs and selects one for downstream context', async
 
   const selectedTitle = await detail.locator('.rc-title h3').innerText();
   await page.getByRole('button', { name: 'Select this opportunity' }).first().click();
-  await expect(
-    page.getByRole('heading', { name: 'Review your resume.', exact: true }),
-  ).toBeVisible({ timeout: 45000 });
+  await expect(page.getByRole('heading', { name: 'Review your resume.', exact: true })).toBeVisible(
+    { timeout: 45000 },
+  );
   await expect(page.locator('.qm-crumb')).toContainText(selectedTitle);
   // The chosen role stays on the Shortlist step.
   await step(page, 'Shortlist');
@@ -122,9 +124,9 @@ test('a user compares ranked jobs and selects one for downstream context', async
   // Verify persisted context rather than a transient selection notice.
   await page.reload();
   await step(page, 'Review');
-  await expect(
-    page.getByRole('heading', { name: 'Review your resume.', exact: true }),
-  ).toBeVisible({ timeout: 45000 });
+  await expect(page.getByRole('heading', { name: 'Review your resume.', exact: true })).toBeVisible(
+    { timeout: 45000 },
+  );
   await expect(page.locator('.qm-crumb')).toContainText(selectedTitle);
   await page.screenshot({
     path: 'output/acceptance/cfs-21-selected-job-handoff.png',
@@ -135,7 +137,7 @@ test('a user compares ranked jobs and selects one for downstream context', async
 test('a user finishes early and receives feedback from the saved response', async ({ page }) => {
   await openInterview(page);
   const questionCount = await page
-    .getByRole('group', { name: 'Questions' })
+    .getByRole('group', { name: 'Interview plan' })
     .getByRole('button')
     .count();
   expect(questionCount).toBeGreaterThan(1);
@@ -173,16 +175,17 @@ test('a user finishes early and receives feedback from the saved response', asyn
 
 test('a user answers every interview question and receives complete feedback', async ({ page }) => {
   await openInterview(page);
-  const questionTabs = page.getByRole('group', { name: 'Questions' }).getByRole('button');
+  const questionTabs = page.getByRole('group', { name: 'Interview plan' }).getByRole('button');
   const questionCount = await questionTabs.count();
   expect(questionCount).toBeGreaterThan(0);
-  expect(questionCount).toBeLessThanOrEqual(3);
+  expect(questionCount).toBeLessThanOrEqual(5);
 
   for (let index = 0; index < questionCount; index += 1) {
     await questionTabs.nth(index).click();
     await answer(
       page,
       `In example ${index + 1}, I identified the situation, completed the relevant action myself and reviewed the result before reporting it.`,
+      true,
     );
   }
 

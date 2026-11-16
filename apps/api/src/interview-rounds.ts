@@ -8,6 +8,8 @@ import {
   interviewRoundInputSchema,
   roundEvaluationSchema,
   type RoundEvaluation,
+  interviewPlan,
+  type PlanStep,
 } from '../../../packages/contracts/src/index.js';
 import { generate, type Mode } from '../../../packages/agents/src/provider.js';
 import { spanHook } from './trace.js';
@@ -74,20 +76,24 @@ async function scoreRound(
     if ((data.apiCalls || 0) >= MISSION_MODEL_CALL_LIMIT)
       throw new AppError(409, 'BUDGET_REACHED', 'This quest reached its model-call budget.');
     const rounds: InterviewRound[] = data.rounds || [];
-    const main = rounds.find((r) => r.questionId === round.questionId && r.kind === 'answer');
+    // The stage plan (CFS-166) decides whether a follow-up is waiting and how many remain.
+    const step = stepFor(data, round.questionId);
     let text = question.question;
     if (round.followUp) {
-      if (!main?.evaluation.followUp)
-        throw new AppError(409, 'NO_FOLLOW_UP', 'The panel has no follow-up for this question.');
-      if (rounds.some((r) => r.questionId === round.questionId && r.kind === 'follow_up'))
-        throw new AppError(409, 'FOLLOW_UP_DONE', 'This follow-up was already answered.');
-      text = main.evaluation.followUp;
+      if (!step.pendingFollowUp)
+        throw rounds.some((r) => r.questionId === round.questionId && r.kind === 'follow_up')
+          ? new AppError(409, 'FOLLOW_UP_DONE', 'This follow-up was already answered.')
+          : new AppError(409, 'NO_FOLLOW_UP', 'The panel has no follow-up for this question.');
+      text = step.pendingFollowUp;
     }
     await save(tx, id, {
       ...data,
       interviewRun: { status: 'RUNNING', startedAt: new Date().toISOString() },
     });
-    return { question, text };
+    // A fresh main answer restarts the stage; a follow-up builds on the stage's answers so far.
+    const earlier = round.followUp ? step.answers : [];
+    const left = round.followUp ? step.budget - step.used - 1 : step.budget;
+    return { question, text, step, earlier, left };
   });
 
   try {
@@ -103,6 +109,9 @@ async function scoreRound(
         question: { ...prompt.question, question: prompt.text },
         candidateAnswer: round.answer,
         isFollowUp: round.followUp,
+        stageGoal: prompt.step.goal,
+        earlierAnswers: prompt.earlier,
+        followUpsLeft: Math.max(0, prompt.left),
       },
       roundEvaluationSchema,
       mission.mode as Mode,
@@ -137,14 +146,15 @@ async function scoreRound(
         kind: round.followUp ? 'follow_up' : 'answer',
         prompt: prompt.text,
         answer: round.answer,
-        evaluation: round.followUp ? { ...evaluation, followUp: '' } : evaluation,
+        // No follow-up beyond the stage's budget, whatever the model wrote.
+        evaluation: prompt.left > 0 ? evaluation : { ...evaluation, followUp: '' },
         reviewer: mission.mode === 'fixture' ? 'rules' : 'model',
         at,
       };
       // A fresh answer to the main question replaces its earlier round and follow-up.
       const rounds = [
         ...((data.rounds || []) as InterviewRound[]).filter(
-          (r) => r.questionId !== round.questionId || (round.followUp && r.kind === 'answer'),
+          (r) => r.questionId !== round.questionId || round.followUp,
         ),
         saved,
       ];
@@ -163,7 +173,9 @@ async function scoreRound(
           action: 'evaluated',
           detail:
             `Evaluator scored ${round.followUp ? 'a follow-up' : 'an answer'}: situation ${s.situation}, task ${s.task}, action ${s.action}, result ${s.result}.` +
-            (saved.evaluation.followUp ? ' The panel asked one follow-up.' : ''),
+            (saved.evaluation.followUp
+              ? ' The panel asked a follow-up.'
+              : ` The ${prompt.step.label.toLowerCase()} stage is ${prompt.left > 0 || !evaluation.followUp ? 'covered' : 'closed with its follow-ups spent'}.`),
         },
       ]);
     });
@@ -180,6 +192,11 @@ async function scoreRound(
     );
   }
 }
+
+const stepFor = (data: MissionData, questionId: string): PlanStep => {
+  const plan = interviewPlan(data.questions || [], data.rounds || [], data.skippedQuestions || []);
+  return requireValue(plan.steps.find((s) => s.questionId === questionId));
+};
 
 // Non-answer exchanges with the panel are kept on the run, capped, for the battle view (CFS-145).
 export const PANEL_CHAT_LIMIT = 40;
@@ -206,16 +223,13 @@ export async function playInterviewRound(userId: string, id: string, input: unkn
   const question = ((d.questions || []) as any[]).find((q) => q.id === round.questionId);
   if (!question)
     throw new AppError(422, 'INVALID_QUESTION', 'Choose a question from this interview.');
-  const main = ((d.rounds || []) as InterviewRound[]).find(
-    (r) => r.questionId === round.questionId && r.kind === 'answer',
-  );
   const chat: PanelExchange[] = d.panelChat || [];
   let scored: Awaited<ReturnType<typeof scoreRound>> | null = null;
   const turn = await runInterviewTurn({
     text: round.answer,
     mode: mission.mode as Mode,
     question,
-    followUp: round.followUp ? main?.evaluation.followUp || null : null,
+    followUp: round.followUp ? stepFor(d, round.questionId).pendingFollowUp || null : null,
     history: chat
       .filter((c) => c.questionId === round.questionId)
       .map(({ user, reply, intent }) => ({ user, reply, intent })),

@@ -2590,6 +2590,18 @@ body:has(.quest) {
   border-color: var(--q-lime);
   color: var(--q-lime);
 }
+.agent-app.quest .content main .boss-qtab.partly,
+.boss-qtab.partly,
+.agent-app.quest .content main .boss-qtab.skipped,
+.boss-qtab.skipped {
+  border-color: #6b6e7c;
+  color: #b9bbc6;
+}
+.agent-app.quest .content main .boss-qtab.probing,
+.boss-qtab.probing {
+  border-color: #ffb59e;
+  color: #ffb59e;
+}
 .agent-app.quest .content main .boss-qtab.on,
 .boss-qtab.on {
   background: #fff;

@@ -1,3 +1,4 @@
+import { interviewStages } from './interview-plan.js';
 import { z } from 'zod';
 import { recordSchema } from './profile-records.js';
 
@@ -233,10 +234,12 @@ export const questionsSchema = z
           id: z.string().trim().min(1).max(100),
           question: z.string().trim().min(8).max(2000),
           focus: z.string().trim().min(1).max(200),
+          // Interview stage this question covers (CFS-166); older questions have none.
+          stage: z.enum(interviewStages).optional(),
         }),
       )
       .min(1)
-      .max(3),
+      .max(5),
   })
   .superRefine(({ questions }, context) => {
     if (new Set(questions.map((question) => question.id)).size !== questions.length)
@@ -399,3 +402,5 @@ export const jobSearchSchema = z.object({
     })
     .optional(),
 });
+
+export * from './interview-plan.js';

@@ -645,3 +645,23 @@ Live goal-tier dialogues with suggestions applied, 2026-11-16, separate database
 | Re-asked after an answer | 8/22 (36%) | 1/22 (5%) |
 | Stuck dialogues | 1 | 0 |
 
+
+## Practice interview: a stage plan with follow-ups until covered (CFS-166)
+
+The practice interview follows the loop most Australian graduate and junior tech roles use:
+motivation, behavioural (STAR), technical, then scenario or growth area, and optionally the
+candidate's questions. `packages/contracts/src/interview-plan.ts` holds the plan and is shared by
+the API and the battle view.
+
+- The interviewer returns four or five questions, one per stage, each tagged with `stage`.
+  Questions saved before this change get a stage from their position.
+- Each stage has a goal and a follow-up budget (motivation 1, behavioural 2, technical 2,
+  scenario 1, growth area 1, closing 0). The Evaluator receives the stage goal, the earlier
+  answers in that stage and how many follow-ups remain. It asks another follow-up only while
+  the budget allows; the server clears any follow-up beyond it.
+- A stage is open, probing (a follow-up is waiting), covered (the panel asked nothing more),
+  partly covered (the budget ran out, or the candidate skipped the follow-up) or skipped. The
+  battle is complete when no stage is open or probing; the view moves to the next open stage.
+- Follow-up answers stay rounds, not answers: the final feedback still reads one answer per
+  question, and nothing becomes a profile fact.
+- `scripts/interview-plan-demo.ts` (CFS-164) is the command-line version of the same plan.
