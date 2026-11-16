@@ -93,6 +93,8 @@ it('tells the realtime panel its persona, the questions in order and not to scor
   // No hints before the first answer, no announced questions that are never asked.
   expect(text).toContain('one greeting sentence followed by Question 1 and nothing else');
   expect(text).toContain('Never announce a question you do not ask');
+  // An unclear reply gets a request to repeat, not the numbered question again (CFS-175).
+  expect(text).toContain('never restart the question or say its number again');
   // The run's approved resume rides along, labelled as claims, never as answers (CFS-171).
   expect(text).not.toContain('Resume:');
   const withResume = voiceInstructions(

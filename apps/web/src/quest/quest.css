@@ -4580,7 +4580,7 @@ body:has(.quest) {
   overflow: auto;
   font-size: 14px;
 }
-.voice-transcript li.you {
+.voice-transcript li.line-you {
   padding-left: 18px;
 }
 .coach-refs {
@@ -4995,4 +4995,48 @@ body:has(.quest) {
 }
 .boss-replan p {
   margin: 0;
+}
+
+/* ---------- Live call health (CFS-175) ---------- */
+.voice-transcript li.line-note {
+  font-style: italic;
+  opacity: 0.7;
+}
+.voice-meter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 92px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #0000000d;
+  position: relative;
+  overflow: hidden;
+}
+.voice-meter i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--q-lime);
+  opacity: 0.7;
+  transition: width 0.15s linear;
+  z-index: 0;
+}
+.voice-meter svg {
+  position: relative;
+  z-index: 1;
+}
+.voice-warn {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #fff4e5;
+  color: #6b3d00;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.voice-warn .quest-press {
+  margin-left: 6px;
 }

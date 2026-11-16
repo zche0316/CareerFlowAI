@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Mic, PhoneOff } from 'lucide-react';
+import { Mic, PhoneOff, Volume2 } from 'lucide-react';
 import { AgentAvatar } from './characters.js';
 
 // Live voice interviewer (CFS-136). The server hands out a one-minute key for one realtime
@@ -14,7 +14,7 @@ type Session = {
   questions: { id: string; question: string }[];
   remaining: number;
 };
-type Line = { who: 'panel' | 'you'; text: string };
+type Line = { who: 'panel' | 'you'; text: string; note?: boolean };
 
 /** What the battle view shows while a call runs (CFS-170): who is talking and what is said. */
 export type LiveCall = {
@@ -68,9 +68,46 @@ export function VoiceInterviewer({
   const current = useRef(0);
   const answers = useRef<Record<string, string[]>>({});
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Silent failures made visible (CFS-175): a browser that blocks the panel's audio, and a
+  // microphone that delivers only silence (an embedded browser or an app without mic permission).
+  const [blocked, setBlocked] = useState(false);
+  const [level, setLevel] = useState(0);
+  const [micSilent, setMicSilent] = useState(false);
+  const meter = useRef<{ ctx: AudioContext; poll: ReturnType<typeof setInterval> } | null>(null);
+
+  const listen = (stream: MediaStream) => {
+    try {
+      const ctx = new AudioContext();
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 512;
+      ctx.createMediaStreamSource(stream).connect(analyser);
+      const buf = new Float32Array(analyser.fftSize);
+      let loudest = 0;
+      const started = Date.now();
+      const poll = setInterval(() => {
+        analyser.getFloatTimeDomainData(buf);
+        let sum = 0;
+        for (const v of buf) sum += v * v;
+        const rms = Math.sqrt(sum / buf.length);
+        loudest = Math.max(loudest, rms);
+        setLevel(Math.min(1, rms * 8));
+        // Speech is far above 0.01; a dead or blocked microphone stays near zero.
+        setMicSilent(Date.now() - started > 6000 && loudest < 0.004);
+      }, 200);
+      meter.current = { ctx, poll };
+    } catch {
+      /* no Web Audio: the call still works, without the meter */
+    }
+  };
 
   const hangUp = () => {
     if (timer.current) clearInterval(timer.current);
+    if (meter.current) {
+      clearInterval(meter.current.poll);
+      void meter.current.ctx.close().catch(() => {});
+      meter.current = null;
+    }
+    setLevel(0);
     mic.current?.getTracks().forEach((t) => t.stop());
     pc.current?.close();
     pc.current = null;
@@ -106,6 +143,8 @@ export function VoiceInterviewer({
     setCaption('');
     setYours('');
     setQuestionId(null);
+    setBlocked(false);
+    setMicSilent(false);
     setPhase('connecting');
     try {
       const s = await start();
@@ -114,9 +153,13 @@ export function VoiceInterviewer({
       const conn = new RTCPeerConnection();
       pc.current = conn;
       conn.ontrack = (e) => {
-        if (audio.current) audio.current.srcObject = e.streams[0];
+        if (!audio.current) return;
+        audio.current.srcObject = e.streams[0];
+        // Some browsers, embedded ones especially, refuse to autoplay: offer a button instead.
+        audio.current.play().catch(() => setBlocked(true));
       };
       mic.current = await navigator.mediaDevices.getUserMedia({ audio: true });
+      listen(mic.current);
       conn.addTrack(mic.current.getTracks()[0], mic.current);
       const channel = conn.createDataChannel('oai-events');
       channel.addEventListener('open', () =>
@@ -142,12 +185,28 @@ export function VoiceInterviewer({
           setCaption((c) => c + String(event.delta || ''));
         if (event.type === 'conversation.item.input_audio_transcription.completed') {
           const text = String(event.transcript || '').trim();
-          if (!text) return;
+          // A turn that was heard but held no words shows up, so a silent mic is visible.
+          if (!text)
+            return setLines((l) => [
+              ...l,
+              { who: 'you', text: '(no words recognised in this reply)', note: true },
+            ]);
           const q = s.questions[current.current];
           if (q) (answers.current[q.id] ||= []).push(text);
           setYours((y) => (y ? `${y} ${text}` : text));
           setLines((l) => [...l, { who: 'you', text }]);
         }
+        if (event.type === 'conversation.item.input_audio_transcription.failed')
+          setLines((l) => [
+            ...l,
+            {
+              who: 'you',
+              text: `(this reply could not be transcribed${event.error?.message ? `: ${event.error.message}` : ''})`,
+              note: true,
+            },
+          ]);
+        if (event.type === 'error' && event.error?.message)
+          setError(`The voice service reported: ${event.error.message}`);
         if (event.type === 'response.output_audio_transcript.done') {
           const text = String(event.transcript || event.text || '').trim();
           if (!text) return;
@@ -224,10 +283,43 @@ export function VoiceInterviewer({
         <div className="voice-live-bar">
           <span className="voice-dot" aria-hidden="true" /> Live · {mmss(seconds)} /{' '}
           {mmss(session.current?.limitSeconds || 600)}
+          <span
+            className="voice-meter"
+            role="img"
+            aria-label={micSilent ? 'Microphone: silent' : 'Microphone level'}
+          >
+            <Mic size={14} aria-hidden="true" />
+            <i style={{ width: `${Math.round(level * 100)}%` }} />
+          </span>
           <button type="button" className="quest-press" onClick={() => void finish()}>
             <PhoneOff size={16} /> End and score my answers
           </button>
         </div>
+      )}
+      {phase === 'live' && blocked && (
+        <p className="voice-warn" role="alert">
+          This browser blocked the panel’s voice.{' '}
+          <button
+            type="button"
+            className="quest-press lime"
+            onClick={() =>
+              void audio.current
+                ?.play()
+                .then(() => setBlocked(false))
+                .catch(() => {})
+            }
+          >
+            <Volume2 size={16} /> Play the panel’s voice
+          </button>
+        </p>
+      )}
+      {phase === 'live' && micSilent && (
+        <p className="voice-warn" role="alert">
+          Your microphone is sending silence, so the panel cannot hear you. Allow this browser to
+          use the microphone (macOS: System Settings → Privacy &amp; Security → Microphone), check
+          the input device, or open the page in Chrome or Safari instead of an editor’s built-in
+          browser.
+        </p>
       )}
       {phase === 'saving' && <p role="status">Scoring your answers… {saved} saved</p>}
       {phase === 'done' && (
@@ -246,7 +338,7 @@ export function VoiceInterviewer({
           </summary>
           <ol ref={log} className="voice-transcript" aria-label="Interview transcript">
             {lines.map((l, i) => (
-              <li key={i} className={l.who}>
+              <li key={i} className={`line-${l.who}${l.note ? ' line-note' : ''}`}>
                 <b>{l.who === 'panel' ? 'Panel' : 'You'}</b> {l.text}
               </li>
             ))}

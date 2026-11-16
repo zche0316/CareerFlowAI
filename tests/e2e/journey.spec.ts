@@ -326,13 +326,20 @@ test('a live call shows one exchange as subtitles and folds the transcript (CFS-
         return { type: 'offer', sdp: 'v=0' };
       }
       async setLocalDescription() {}
-      async setRemoteDescription() {}
+      async setRemoteDescription() {
+        this.ontrack?.({ streams: [new MediaStream()] });
+      }
       close() {}
     };
+    // A microphone that only ever sends silence, and a browser that refuses to autoplay (CFS-175).
     Object.defineProperty(navigator, 'mediaDevices', {
       configurable: true,
-      value: { getUserMedia: async () => ({ getTracks: () => [{ stop() {} }] }) },
+      value: {
+        getUserMedia: async () => new AudioContext().createMediaStreamDestination().stream,
+      },
     });
+    HTMLMediaElement.prototype.play = () =>
+      Promise.reject(new DOMException('Autoplay blocked', 'NotAllowedError'));
     w.__emit = (event: object) =>
       w.__channel.dispatchEvent(new MessageEvent('message', { data: JSON.stringify(event) }));
   });
@@ -407,5 +414,15 @@ test('a live call shows one exchange as subtitles and folds the transcript (CFS-
   await expect(log.getByRole('list', { name: 'Interview transcript' })).toBeVisible();
   const box = await log.locator('ol').boundingBox();
   expect(box!.height).toBeLessThanOrEqual(222);
+
+  // Silent failures are shown (CFS-175): blocked panel audio, a silent microphone and a reply
+  // that held no words.
+  await expect(page.getByRole('button', { name: 'Play the panel’s voice' })).toBeVisible();
+  await expect(page.getByText('Your microphone is sending silence')).toBeVisible({
+    timeout: 12000,
+  });
+  await emit({ type: 'conversation.item.input_audio_transcription.completed', transcript: '' });
+  await expect(log.locator('summary')).toHaveText('Transcript · 3 lines');
+  await expect(log.getByText('(no words recognised in this reply)')).toBeVisible();
   await page.screenshot({ path: 'output/acceptance/live-call-subtitles.png', fullPage: false });
 });

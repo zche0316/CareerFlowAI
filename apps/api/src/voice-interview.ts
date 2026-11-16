@@ -51,6 +51,7 @@ export function voiceInstructions(
     'Do not score, praise at length, coach or give feedback; the written evaluation comes afterwards. ' +
     'Never state facts about the candidate that they did not say. ' +
     'Ask a follow-up only after the candidate has answered. Never announce a question you do not ask in the same turn, such as "one more detail": either ask it or move on. ' +
+    'If you could not make out what the candidate said, or heard only noise or silence, say so in one short sentence and ask them to say it again; never restart the question or say its number again. Say each main question with its number only once. ' +
     'After the last question, thank them in one sentence and say the panel will now score the answers. ' +
     `Questions:\n${questions.map((q, i) => `${i + 1}. ${q.question}`).join('\n')}\n` +
     `Interview plan:\n${stages.join('\n')}` +
