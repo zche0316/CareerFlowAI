@@ -29,6 +29,7 @@ import { evidenceFacts, gapSkills, markAnswered } from './resume-team/evidence-q
 import {
   coachSchema,
   questionsSchema,
+  requirementGaps,
   feedbackSchema,
   type Fact,
   type CareerProfile,
@@ -197,6 +198,7 @@ export async function createWorkflow() {
               }))
             : undefined,
         priorFeedback: c.d.priorFeedback,
+        requirementGaps: role === 'questions' ? requirementGaps(c.d) : undefined,
       }),
       schema,
       c.m.mode as Mode,
@@ -864,17 +866,27 @@ export async function createWorkflow() {
         }
         if (!matches.length && unmapped.length) throw unmapped[0];
       }
-      matches = matches
+      matches = matches.map((r: any) => ({
+        ...r,
+        fingerprint: identities.get(r.job.id) || jobFingerprint(r.job),
+      }));
+      // Roles below the minimum are dropped from the shortlist, but their score and top gaps
+      // are kept so Scout can say why a role was not shortlisted (CFS-165).
+      const screenedOut = matches
+        .filter((r: any) => r.score < (c.d.minScore ?? 40))
         .map((r: any) => ({
-          ...r,
-          fingerprint: identities.get(r.job.id) || jobFingerprint(r.job),
-        }))
+          jobId: r.job.id,
+          score: r.score,
+          minScore: c.d.minScore ?? 40,
+          gaps: (r.gaps || []).slice(0, 3).map((g: any) => String(g?.term ?? g)),
+        }));
+      matches = matches
         .filter((r: any) => r.score >= (c.d.minScore ?? 40))
         .sort((a: any, b: any) => b.score - a.score || a.job.id.localeCompare(b.job.id));
       await patchRun(
         s.missionId,
         c.token,
-        { matches, jobRetrieval },
+        { matches, jobRetrieval, screenedOut },
         'Job Matcher',
         'completed',
         query.provider === 'fixtures'

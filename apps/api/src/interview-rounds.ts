@@ -2,16 +2,23 @@ import { MISSION_MODEL_CALL_LIMIT } from '../../../packages/contracts/src/missio
 import type { Express } from 'express';
 import { db } from './db.js';
 import { AppError, requireValue } from './errors.js';
-import { json, ownedMission, type Event, type MissionData } from './domain.js';
+import { json, ownedMission, runFacts, type Event, type MissionData } from './domain.js';
+import { missionContext } from '../../../packages/agents/src/mission-context.js';
 import { mergeInterviewAnswer, type InterviewQuestion } from './interview.js';
 import {
   interviewRoundInputSchema,
-  roundEvaluationSchema,
+  evaluationSchemaFor,
+  requirementGaps,
+  RUBRICS,
+  questionsSchema,
   type RoundEvaluation,
+  interviewPlan,
+  type PlanStep,
 } from '../../../packages/contracts/src/index.js';
 import { generate, type Mode } from '../../../packages/agents/src/provider.js';
 import { spanHook } from './trace.js';
 import { runInterviewTurn } from './interview-turn.js';
+import { approvedResumeText } from './interview-resume.js';
 import {
   summariseTurn,
   type TurnSummary,
@@ -25,6 +32,9 @@ export type InterviewRound = {
   evaluation: RoundEvaluation;
   reviewer: 'rules' | 'model';
   at: string;
+  // The follow-up the panel wanted after the stage's budget ran out (CFS-166): the stage is
+  // recorded as partly covered instead of covered.
+  unresolved?: string;
 };
 
 // Runs a function on the locked mission row while it is still the current interview.
@@ -55,6 +65,122 @@ const save = (tx: any, id: string, data: MissionData, events?: Event[]) =>
   });
 
 /**
+ * Questions made before the stage plan (CFS-166) carry no stage. While nothing has been answered,
+ * such an interview can be planned again once with the current prompt and the same context the
+ * workflow uses (CFS-173). A started or already staged interview keeps its questions.
+ */
+export const canReplan = (data: MissionData) =>
+  Boolean(data.questions?.length) &&
+  !data.questions.some((q: any) => q.stage) &&
+  !data.rounds?.length &&
+  !data.answers?.some((a: any) => a.answer?.trim()) &&
+  !data.panelChat?.length &&
+  data.interviewRun?.status !== 'RUNNING';
+
+export async function replanInterview(userId: string, id: string) {
+  const m = requireValue(
+    await db.mission.findFirst({ where: { id, userId }, include: { profile: true } }),
+  );
+  const d = m.data as MissionData;
+  const p = m.profile.data as any;
+  if (d.agentAccess !== 'all-approved-profile' && !p.sharing?.interview)
+    throw new AppError(
+      403,
+      'SHARING_DENIED',
+      'Enable interview sharing in a newly reviewed profile to use this workflow.',
+    );
+  await locked(userId, id, async (data, _e, tx) => {
+    if (!canReplan(data))
+      throw new AppError(
+        409,
+        'REPLAN_UNAVAILABLE',
+        'Only an unstarted interview from before the stage plan can be planned again.',
+      );
+    await save(tx, id, {
+      ...data,
+      interviewRun: { status: 'RUNNING', startedAt: new Date().toISOString() },
+    });
+  });
+  try {
+    const facts = runFacts(m);
+    const claims: any[] = d.resumeDraft?.claims || [];
+    const result = await generate(
+      'questions',
+      missionContext('questions', {
+        goal: m.goal,
+        // As in the workflow: the facts behind the approved resume when there is one.
+        facts: claims.length ? facts.filter((f) => claims.some((c) => c.factId === f.id)) : facts,
+        job: d.selectedJob?.job,
+        priorFeedback: d.priorFeedback,
+        requirementGaps: requirementGaps(d),
+      }),
+      questionsSchema,
+      m.mode as Mode,
+      {
+        onCall: () =>
+          locked(userId, id, async (data, _e, tx) => {
+            if ((data.apiCalls || 0) >= MISSION_MODEL_CALL_LIMIT)
+              throw new AppError(
+                409,
+                'BUDGET_REACHED',
+                'This quest reached its model-call budget.',
+              );
+            await save(tx, id, { ...data, apiCalls: (data.apiCalls || 0) + 1 });
+          }),
+        onTool: async () => {},
+        onUsage: (input, output) =>
+          locked(userId, id, (data, _e, tx) =>
+            save(tx, id, {
+              ...data,
+              inputTokens: (data.inputTokens || 0) + input,
+              outputTokens: (data.outputTokens || 0) + output,
+            }),
+          ),
+        onSpan: spanHook({ userId, missionId: id }),
+      },
+    );
+    if (new Set(result.questions.map((q) => q.id)).size !== result.questions.length)
+      throw Error('Interview question IDs must be unique.');
+    await locked(userId, id, async (data, events, tx) => {
+      // Something was answered meanwhile: keep what the candidate already saw.
+      if (data.rounds?.length || data.answers?.some((a: any) => a.answer?.trim()))
+        throw new AppError(409, 'REPLAN_UNAVAILABLE', 'This interview has started meanwhile.');
+      await save(
+        tx,
+        id,
+        {
+          ...data,
+          questions: result.questions,
+          answers: [],
+          skippedQuestions: [],
+          interviewRun: null,
+        },
+        [
+          ...events,
+          {
+            at: new Date().toISOString(),
+            agent: 'Interview Coach',
+            action: 'prepared',
+            detail: `Planned the interview again in stages: ${result.questions.length} questions.`,
+          },
+        ],
+      );
+    });
+    return ownedMission(userId, id);
+  } catch (error) {
+    await locked(userId, id, (data, _e, tx) => save(tx, id, { ...data, interviewRun: null })).catch(
+      () => {},
+    );
+    if (error instanceof AppError) throw error;
+    throw new AppError(
+      503,
+      'REPLAN_FAILED',
+      'The interview could not be planned again. The current questions are unchanged. Try again.',
+    );
+  }
+}
+
+/**
  * One boss-battle round: the Evaluator scores the answer against STAR and may ask one follow-up.
  * Practice answers are saved as answers (so final feedback still sees them), never as facts.
  */
@@ -64,6 +190,11 @@ async function scoreRound(
   round: ReturnType<typeof interviewRoundInputSchema.parse>,
 ) {
   const mission = await ownedMission(userId, id);
+  const resume = await approvedResumeText(
+    userId,
+    id,
+    (mission.data as MissionData).approvedResumeId,
+  );
 
   const prompt = await locked(userId, id, async (data, _events, tx) => {
     const question = (data.questions || []).find((q: any) => q.id === round.questionId);
@@ -74,20 +205,24 @@ async function scoreRound(
     if ((data.apiCalls || 0) >= MISSION_MODEL_CALL_LIMIT)
       throw new AppError(409, 'BUDGET_REACHED', 'This quest reached its model-call budget.');
     const rounds: InterviewRound[] = data.rounds || [];
-    const main = rounds.find((r) => r.questionId === round.questionId && r.kind === 'answer');
+    // The stage plan (CFS-166) decides whether a follow-up is waiting and how many remain.
+    const step = stepFor(data, round.questionId);
     let text = question.question;
     if (round.followUp) {
-      if (!main?.evaluation.followUp)
-        throw new AppError(409, 'NO_FOLLOW_UP', 'The panel has no follow-up for this question.');
-      if (rounds.some((r) => r.questionId === round.questionId && r.kind === 'follow_up'))
-        throw new AppError(409, 'FOLLOW_UP_DONE', 'This follow-up was already answered.');
-      text = main.evaluation.followUp;
+      if (!step.pendingFollowUp)
+        throw rounds.some((r) => r.questionId === round.questionId && r.kind === 'follow_up')
+          ? new AppError(409, 'FOLLOW_UP_DONE', 'This follow-up was already answered.')
+          : new AppError(409, 'NO_FOLLOW_UP', 'The panel has no follow-up for this question.');
+      text = step.pendingFollowUp;
     }
     await save(tx, id, {
       ...data,
       interviewRun: { status: 'RUNNING', startedAt: new Date().toISOString() },
     });
-    return { question, text };
+    // A fresh main answer restarts the stage; a follow-up builds on the stage's answers so far.
+    const earlier = round.followUp ? step.answers : [];
+    const left = round.followUp ? step.budget - step.used - 1 : step.budget;
+    return { question, text, step, earlier, left };
   });
 
   try {
@@ -103,8 +238,14 @@ async function scoreRound(
         question: { ...prompt.question, question: prompt.text },
         candidateAnswer: round.answer,
         isFollowUp: round.followUp,
+        stageGoal: prompt.step.goal,
+        earlierAnswers: prompt.earlier,
+        followUpsLeft: Math.max(0, prompt.left),
+        // The stage's own criteria (CFS-179): STAR only for behavioural questions.
+        rubric: RUBRICS[prompt.step.stage].map(({ key, means }) => ({ key, means })),
+        ...(resume ? { resume } : {}),
       },
-      roundEvaluationSchema,
+      evaluationSchemaFor(prompt.step.stage),
       mission.mode as Mode,
       {
         onCall: () =>
@@ -137,14 +278,16 @@ async function scoreRound(
         kind: round.followUp ? 'follow_up' : 'answer',
         prompt: prompt.text,
         answer: round.answer,
-        evaluation: round.followUp ? { ...evaluation, followUp: '' } : evaluation,
+        // No follow-up beyond the stage's budget, whatever the model wrote.
+        evaluation: prompt.left > 0 ? evaluation : { ...evaluation, followUp: '' },
+        ...(prompt.left <= 0 && evaluation.followUp ? { unresolved: evaluation.followUp } : {}),
         reviewer: mission.mode === 'fixture' ? 'rules' : 'model',
         at,
       };
       // A fresh answer to the main question replaces its earlier round and follow-up.
       const rounds = [
         ...((data.rounds || []) as InterviewRound[]).filter(
-          (r) => r.questionId !== round.questionId || (round.followUp && r.kind === 'answer'),
+          (r) => r.questionId !== round.questionId || round.followUp,
         ),
         saved,
       ];
@@ -154,7 +297,9 @@ async function scoreRound(
             questionId: round.questionId,
             answer: round.answer,
           });
-      const s = saved.evaluation.star;
+      const marks = RUBRICS[prompt.step.stage]
+        .map((c) => `${c.label.toLowerCase()} ${saved.evaluation.marks[c.key]}`)
+        .join(', ');
       await save(tx, id, { ...data, rounds, answers, interviewRun: null }, [
         ...events,
         {
@@ -162,8 +307,10 @@ async function scoreRound(
           agent: 'Interview Coach',
           action: 'evaluated',
           detail:
-            `Evaluator scored ${round.followUp ? 'a follow-up' : 'an answer'}: situation ${s.situation}, task ${s.task}, action ${s.action}, result ${s.result}.` +
-            (saved.evaluation.followUp ? ' The panel asked one follow-up.' : ''),
+            `Evaluator scored ${round.followUp ? 'a follow-up' : 'an answer'}: ${marks}.` +
+            (saved.evaluation.followUp
+              ? ' The panel asked a follow-up.'
+              : ` The ${prompt.step.label.toLowerCase()} stage is ${prompt.left > 0 || !evaluation.followUp ? 'covered' : 'closed with its follow-ups spent'}.`),
         },
       ]);
     });
@@ -180,6 +327,11 @@ async function scoreRound(
     );
   }
 }
+
+const stepFor = (data: MissionData, questionId: string): PlanStep => {
+  const plan = interviewPlan(data.questions || [], data.rounds || [], data.skippedQuestions || []);
+  return requireValue(plan.steps.find((s) => s.questionId === questionId));
+};
 
 // Non-answer exchanges with the panel are kept on the run, capped, for the battle view (CFS-145).
 export const PANEL_CHAT_LIMIT = 40;
@@ -206,16 +358,13 @@ export async function playInterviewRound(userId: string, id: string, input: unkn
   const question = ((d.questions || []) as any[]).find((q) => q.id === round.questionId);
   if (!question)
     throw new AppError(422, 'INVALID_QUESTION', 'Choose a question from this interview.');
-  const main = ((d.rounds || []) as InterviewRound[]).find(
-    (r) => r.questionId === round.questionId && r.kind === 'answer',
-  );
   const chat: PanelExchange[] = d.panelChat || [];
   let scored: Awaited<ReturnType<typeof scoreRound>> | null = null;
   const turn = await runInterviewTurn({
     text: round.answer,
     mode: mission.mode as Mode,
     question,
-    followUp: round.followUp ? main?.evaluation.followUp || null : null,
+    followUp: round.followUp ? stepFor(d, round.questionId).pendingFollowUp || null : null,
     history: chat
       .filter((c) => c.questionId === round.questionId)
       .map(({ user, reply, intent }) => ({ user, reply, intent })),
@@ -290,5 +439,8 @@ export async function playInterviewRound(userId: string, id: string, input: unkn
 export function registerInterviewRounds(app: Express) {
   app.post('/api/missions/:id/interview/rounds', async (req, res) =>
     res.json(await playInterviewRound(req.actor!.id, String(req.params.id), req.body)),
+  );
+  app.post('/api/missions/:id/interview/replan', async (req, res) =>
+    res.json(await replanInterview(req.actor!.id, String(req.params.id))),
   );
 }

@@ -101,7 +101,7 @@ const fallbackReply = (p: Perception) => {
   }
 };
 
-const PHRASE = `You are the Profile Builder in CareerFlow, a warm and precise career interviewer. Rewrite the next interview question so it follows on naturally from the conversation. Keep its meaning: ask about the same single thing and nothing else, and keep any note that the user may skip it. Write in the user's language (language "zh" means Simplified Chinese). One short question: at most 30 words, or 60 Chinese characters. Do not repeat or summarise the user's message, do not praise, and do not say anything was saved or added. Return {"question": "..."}.`;
+const PHRASE = `You are the Profile Builder in CareerFlow, a warm and precise career interviewer. Rewrite the next interview question so it follows on naturally from the conversation. Keep its meaning: ask about the same single thing and nothing else, and keep any note that the user may skip it. When a situation is given, name it in a few of the user's own words so the question clearly belongs to that one example. Write in the user's language (language "zh" means Simplified Chinese). One short question: at most 30 words, or 60 Chinese characters. Do not repeat or summarise the user's message, do not praise, and do not say anything was saved or added. Return {"question": "..."}.`;
 const phraseSchema = z.object({ question: z.string().min(3).max(400) });
 
 /**
@@ -110,7 +110,14 @@ const phraseSchema = z.object({ question: z.string().min(3).max(400) });
  * model answers or the rewrite fails a check.
  */
 export async function phraseQuestion(
-  input: { question: string; language: string; lastUser: string; reply: string },
+  input: {
+    question: string;
+    language: string;
+    lastUser: string;
+    reply: string;
+    /** The user's own situation of the experience being discussed, if any. */
+    situation?: string;
+  },
   calls: LightCall[] = [],
 ): Promise<string | null> {
   const out = await lightJson(
@@ -120,6 +127,7 @@ export async function phraseQuestion(
       language: input.language,
       userMessage: input.lastUser.slice(0, 600),
       yourReplyBeforeTheQuestion: input.reply.slice(0, 600),
+      situation: input.situation?.slice(0, 400) || null,
     },
     phraseSchema,
     calls,
@@ -136,6 +144,43 @@ export async function phraseQuestion(
     zh === /\p{Script=Han}/u.test(q) &&
     !CHANGE_CLAIM.test(q);
   return ok ? q : null;
+}
+
+const CONTROL = `You read one message from a person in a career-profile interview. Decide whether the message only asks to steer the interview and contains no career information. Return {"action": "skip_question" | "next_experience" | "finish_experience" | "finish_interview" | "none"}.
+- skip_question: skip, postpone or decline the current question ("skip this for now", "not sure, move on", "先跳过").
+- next_experience: move on to a different experience or project ("let's talk about another project").
+- finish_experience: done with the current experience ("that's enough about the internship").
+- finish_interview: done with the whole interview or ready to review ("I think we're done", "let's review").
+- none: anything else, including any answer, fact, date, name, question or greeting. When unsure, return none.`;
+const controlSchema = z.object({
+  action: z.enum([
+    'skip_question',
+    'next_experience',
+    'finish_experience',
+    'finish_interview',
+    'none',
+  ]),
+});
+// Only short messages with a steering word are checked, so ordinary answers cost no extra call.
+const STEERING =
+  /\b(?:skip|pass|later|next|another|move on|done|finish|enough|stop|review|wrap up|not now|don'?t know)\b|跳过|下一|结束|算了|先不|不知道|不清楚|够了|复核/i;
+
+/**
+ * Steering requests in the user's own words ("skip this for now", "先跳过吧"), beyond the fixed
+ * phrases `interviewIntent` knows (CFS-155). Returns the interview action, or null.
+ */
+export async function classifyControl(
+  text: string,
+  pendingQuestion: string | null,
+  calls: LightCall[] = [],
+) {
+  const message = text.trim();
+  if (message.length > 120 || !STEERING.test(message)) return null;
+  const out = await lightJson(CONTROL, { pendingQuestion, message }, controlSchema, calls, {
+    timeoutMs: 4000,
+    maxTokens: 120,
+  });
+  return out && out.action !== 'none' ? out.action : null;
 }
 
 export function profileTurnPorts(calls: LightCall[] = []): TurnPorts<ProfileTurnCtx> {

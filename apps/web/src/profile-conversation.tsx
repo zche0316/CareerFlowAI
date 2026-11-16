@@ -477,6 +477,8 @@ export function ProfileConversation({
           {!outgoing &&
             mode === 'build' &&
             thread?.interview?.question &&
+            // Same question by key: the last reply may word it differently (CFS-151/152).
+            thread.messages.at(-1)?.questionKey !== thread.interview.question.key &&
             !(thread.messages.at(-1)?.questions || []).includes(thread.interview.question.text) && (
               <article className="conversation-message assistant">
                 <Speaker role="assistant" name={leader} />

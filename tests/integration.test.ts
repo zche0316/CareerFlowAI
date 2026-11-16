@@ -140,7 +140,7 @@ it('answers clarify and repeat requests without scoring, and skips on request (C
   expect(answered.body.data.rounds[0].turn).toMatchObject({ intent: 'answer', route: 'extract' });
 });
 
-it('scores interview rounds with STAR, asks one follow-up and still completes with feedback', async () => {
+it('scores interview rounds on the stage criteria, asks one follow-up and still completes with feedback', async () => {
   const c = await client();
   const { id, interview } = await prepareInterview(c);
   const q = interview.data.questions[0];
@@ -152,7 +152,14 @@ it('scores interview rounds with STAR, asks one follow-up and still completes wi
   expect(first.body.data.rounds).toHaveLength(1);
   const round = first.body.data.rounds[0];
   expect(round).toMatchObject({ questionId: q.id, kind: 'answer', reviewer: 'rules' });
-  expect(round.evaluation.star.result).toBe('miss');
+  // The first question is the motivation stage: judged on role, employer, evidence, direction.
+  expect(Object.keys(round.evaluation.marks)).toEqual([
+    'role',
+    'employer',
+    'evidence',
+    'direction',
+  ]);
+  expect(round.evaluation.marks.direction).toBe('miss');
   expect(round.evaluation.followUp).not.toBe('');
   expect(first.body.data.answers).toEqual([
     { questionId: q.id, answer: 'We worked on a dashboard as a group.' },
@@ -169,7 +176,7 @@ it('scores interview rounds with STAR, asks one follow-up and still completes wi
   expect(follow.body.data.rounds.map((r: any) => r.kind)).toEqual(['answer', 'follow_up']);
   expect(follow.body.data.rounds[1].prompt).toBe(round.evaluation.followUp);
   expect(follow.body.data.rounds[1].evaluation.followUp).toBe('');
-  expect(follow.body.data.rounds[1].evaluation.star.action).toBe('critical');
+  expect(follow.body.data.rounds[1].evaluation.marks.evidence).toBe('hit');
   expect(follow.body.data.answers).toHaveLength(1);
   expect(
     (
@@ -1569,4 +1576,44 @@ describe('Zero-resume product journey', () => {
     ).toBe(404);
     expect((await db.user.findUniqueOrThrow({ where: { id: c.id } })).profileVersion).toBe(1);
   });
+});
+
+it('plans an unstarted interview from before the stage plan again, once (CFS-173)', async () => {
+  const c = await client();
+  const { id } = await prepareInterview(c);
+  // An interview whose questions predate the stage plan: no stages, nothing answered.
+  const m = await db.mission.findUniqueOrThrow({ where: { id } });
+  const data = m.data as any;
+  const old = data.questions.map(({ stage: _s, ...q }: any) => ({ ...q, id: 'old-' + q.id }));
+  await db.mission.update({ where: { id }, data: { data: json({ ...data, questions: old }) } });
+
+  const replanned = await c.request(`/missions/${id}/interview/replan`, 'POST', {});
+  expect(replanned.status).toBe(200);
+  const questions = replanned.body.data.questions;
+  expect(questions.length).toBeGreaterThan(0);
+  expect(questions.every((q: any) => q.stage)).toBe(true);
+  expect(questions.some((q: any) => q.id.startsWith('old-'))).toBe(false);
+  expect(replanned.body.events.at(-1)).toMatchObject({
+    agent: 'Interview Coach',
+    action: 'prepared',
+  });
+  // Staged now: a second re-plan is refused.
+  expect((await c.request(`/missions/${id}/interview/replan`, 'POST', {})).status).toBe(409);
+
+  // A started interview keeps its questions.
+  const now = (await db.mission.findUniqueOrThrow({ where: { id } })).data as any;
+  await db.mission.update({
+    where: { id },
+    data: {
+      data: json({
+        ...now,
+        questions: old,
+        answers: [{ questionId: old[0].id, answer: 'I did it.' }],
+      }),
+    },
+  });
+  expect((await c.request(`/missions/${id}/interview/replan`, 'POST', {})).status).toBe(409);
+  // Other users cannot touch it.
+  const stranger = await client();
+  expect((await stranger.request(`/missions/${id}/interview/replan`, 'POST', {})).status).toBe(404);
 });

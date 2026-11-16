@@ -619,3 +619,138 @@ The 10 labelled dialogues (`eval:conversation`) did not regress: extraction reca
 stuck dialogue, intent accuracy 100%, re-asked after an answer 3/47. Wording costs one light
 call per turn: p50 latency 4.3 s to 5.5 s and p95 6.8 s to 10.7 s in that run.
 
+## Profile Builder: STAR answers kept on the right experience, situation first (CFS-152)
+
+Reported on 8787: the answer to "What did you personally do…?" produced no change. The LangSmith
+trace showed the extraction model filing the answer under a new, invented project ("Automated
+delivery reporting project"); its title is not in the user's words, so grounding dropped it.
+
+- **Saved where it was asked.** While the interview asks for the situation, task or action of
+  the experience being discussed, the answer is saved word for word to that part of its STAR
+  story (`proposeStoryAnswer`), unless extraction already filled that part this turn, in which
+  case its split of a longer answer stands. Results and measurements already worked this way.
+- **Situation first.** The first story question asks for one specific situation (what was
+  happening, and what problem, deadline or request made it matter). Task, action and result
+  questions quote a few words of that situation, and the wording step receives it, so the story
+  stays one story.
+- **No duplicate question.** The conversation no longer shows the planner's wording as a second
+  bubble when the reply asked the same question in other words (compared by question key).
+- `eval:conversation --apply` accepts every suggestion after each turn, as the UI does.
+
+Live goal-tier dialogues with suggestions applied, 2026-11-16, separate databases:
+
+| Measure | `main` | After |
+| --- | --- | --- |
+| STAR answers lost | 1 of 5 (the action answer, as reported) | 0 of 7 |
+| Re-asked after an answer | 8/22 (36%) | 1/22 (5%) |
+| Stuck dialogues | 1 | 0 |
+
+
+## Practice interview: a stage plan with follow-ups until covered (CFS-166)
+
+The practice interview follows the loop most Australian graduate and junior tech roles use:
+motivation, behavioural (STAR), technical, then scenario or growth area, and optionally the
+candidate's questions. `packages/contracts/src/interview-plan.ts` holds the plan and is shared by
+the API and the battle view.
+
+- The interviewer returns four or five questions, one per stage, each tagged with `stage`.
+  Questions saved before this change are "general" (one follow-up), not a guessed stage.
+- Each stage has a goal and a follow-up budget (motivation 1, behavioural 2, technical 2,
+  scenario 1, growth area 1, closing 0). The Evaluator receives the stage goal, the earlier
+  answers in that stage and how many follow-ups remain. It asks another follow-up only while
+  the budget allows; the server clears any follow-up beyond it.
+- A stage is open, probing (a follow-up is waiting), covered (the panel asked nothing more),
+  partly covered (the budget ran out, or the candidate skipped the follow-up) or skipped. The
+  battle is complete when no stage is open or probing; the view moves to the next open stage.
+- Follow-up answers stay rounds, not answers: the final feedback still reads one answer per
+  question, and nothing becomes a profile fact.
+- The live voice panel (CFS-136) follows the same plan. Its instructions list each question's
+  stage, goal and follow-up limit, and a session speaks only the stages still open. Each stage's
+  spoken answers are joined and scored as one main answer. If the Evaluator still wants more,
+  the follow-up continues by typing or recording.
+- Voice can use its own key, `OPENAI_VOICE_API_KEY` (CFS-169), for a project with realtime
+  access; when it is empty, voice uses `OPENAI_NATIVE_API_KEY`.
+- `scripts/interview-plan-demo.ts` (CFS-164) is the command-line version of the same plan.
+
+## Interview practice: one answer mode at a time, a live panel (CFS-170)
+
+When the live voice interviewer is available, "Your turn" offers two modes and shows only one:
+Live call, or One question at a time (type or record, with a verdict after each). The choice is
+kept in `localStorage` (`careerflow.answerMode`). During a call the arena follows it: the voice
+component reports who is talking (`input_audio_buffer.speech_*`, `output_audio_buffer.*`) and
+the live caption (`response.output_audio_transcript.*`). The lead interviewer talks while the
+panel speaks, the panel leans in while the candidate speaks, and the plan tab follows the
+question being asked. Motion stops under `prefers-reduced-motion`. Written follow-ups from a
+verdict stay in One question at a time; the call covers the stages not answered yet.
+
+## Interview follow-ups read the approved resume (CFS-171)
+
+The live voice interviewer and the Evaluator that writes typed follow-ups receive the resume
+version this run approved (`ApprovedResume` via `approvedResumeId`), rendered as plain text by
+`resumeText` without the name or contact details. Not the whole profile: it is what the candidate
+would hand to this employer. A follow-up may ask about a related resume item the answer left out;
+scores count only what the answers say, and resume content is never credited as said. A run
+without an approved resume sends none. Question generation still reads the approved profile facts.
+
+## Live call subtitles (CFS-172)
+
+During a call the arena shows one exchange at a time: the panel's latest line, cut to its last
+220 characters at a word, and the candidate's latest reply, highlighted while they speak. The
+full transcript sits under the call controls in a collapsed "Transcript · N lines" box with a
+fixed height that follows the newest line, and opens after the call for review.
+
+## Re-plan an interview from before the stage plan (CFS-173)
+
+Questions are generated once per run, so a run whose questions predate CFS-166 has no stages.
+While nothing is answered (no rounds, saved answers or panel chat), the arena offers "Re-plan the
+interview". `POST /api/missions/:id/interview/replan` regenerates the questions with the same
+context as the workflow (job, the approved facts behind the approved resume, prior feedback),
+counts one model call against the run's budget, and replaces the questions. A staged or started
+interview is refused, so it happens at most once.
+
+## Pause a live call (CFS-176)
+
+**Pause** in the call bar disables the microphone track, mutes the panel's audio and stops the
+call clock; the realtime session stays connected, so no voice session is spent. If the panel was
+speaking, its response is cancelled and its audio buffer cleared; on **Resume** it is asked to
+repeat its last question briefly. The microphone meter and silence warning ignore the pause.
+
+## Questions stay hidden until asked (CFS-177)
+
+During an interview a question is shown only once the panel asks it: stages already answered or
+skipped, the current question in One question at a time, and in a live call the questions the
+call has reached (tracked from `questionId` in the live call state). Other plan tabs show their
+stage name, are disabled and read "not asked yet"; before a call starts the arena says the panel
+will ask when the call reaches it. The questions are generated up front, so this is display only;
+after the interview every question is shown.
+
+## Battle report (CFS-178)
+
+After the interview the arena's turn and last-round tiles give way to a battle report built by
+`battleReport` in `packages/contracts/src/battle-report.ts` from the saved rounds; no model call.
+Each stage counts every STAR part at its best mark across its answer and follow-ups (Critical 3,
+Hit 2, Glancing 1, Missed 0), scored out of 12: S from 90%, A from 75%, B from 55%, C from 35%,
+D below. The overall score averages every planned stage, unanswered or skipped ones as zero. Each
+stage card lists the question, its status, the STAR grid, every answer and follow-up with the
+panel's note, and what the panel still wanted to know.
+
+## Stage criteria instead of STAR everywhere (CFS-179)
+
+STAR fits behavioural questions only. `RUBRICS` in `packages/contracts/src/interview-plan.ts`
+gives each stage four criteria, scored with the same four marks so grades compare across stages:
+behavioural and older general questions keep STAR; motivation is judged on role, employer,
+evidence and direction; technical on approach, specifics, checks and experience; scenario on
+clarify, plan, judgement and communication; gap on honesty, related experience, plan and
+progress; closing on relevance, specificity, insight and growth. `evaluationSchemaFor(stage)`
+builds the Evaluator's structured output from the stage's keys (`marks`), the demo rules use each
+criterion's cue and follow-up, and the voice plan names the criteria per stage. Rounds saved
+before this keep their `star` marks and are shown as STAR (`marksOf`, `criteriaOf`).
+
+## Gap question from unevidenced requirements (CFS-180)
+
+Main questions stay planned up front, like a real panel, with follow-ups per stage. Question
+planning (the workflow's Interview Coach and Re-plan the interview) also receives
+`requirementGaps`: required requirement terms marked not evidenced, from the resume team's gap
+report or else the job mapping (`requirementGaps` in `interview-plan.ts`, also used for the
+arena's "Resists" traits). When there are any, the fourth question is the gap stage about the one
+that matters most; otherwise it is a scenario question.

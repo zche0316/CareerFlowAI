@@ -50,14 +50,16 @@ async function openInterview(page: Page) {
   await expect(page.getByRole('heading', { name: 'Your turn', exact: true })).toBeVisible();
 }
 
-async function answer(page: Page, text: string) {
+async function answer(page: Page, text: string, followThrough = false) {
   await page.getByLabel('Your answer', { exact: true }).fill(text);
   await page.getByRole('button', { name: 'Answer', exact: true }).click();
-  // Each answer may get one follow-up; skipping it moves to the next question.
+  // The panel follows up until the stage is covered or its budget is spent (CFS-166);
+  // skipping the follow-up leaves the stage partly covered and moves on.
   const skip = page.getByRole('button', { name: 'Skip follow-up', exact: true });
-  await expect(skip.or(page.getByRole('heading', { name: 'Battle over' }))).toBeVisible({
+  await expect(skip.or(page.getByRole('heading', { name: 'Battle report' }))).toBeVisible({
     timeout: 20000,
   });
+  if (followThrough && (await skip.isVisible())) await skip.click();
 }
 
 test('a user must explicitly review a profile before v1 is persisted', async ({ page }) => {
@@ -109,9 +111,9 @@ test('a user compares ranked jobs and selects one for downstream context', async
 
   const selectedTitle = await detail.locator('.rc-title h3').innerText();
   await page.getByRole('button', { name: 'Select this opportunity' }).first().click();
-  await expect(
-    page.getByRole('heading', { name: 'Review your resume.', exact: true }),
-  ).toBeVisible({ timeout: 45000 });
+  await expect(page.getByRole('heading', { name: 'Review your resume.', exact: true })).toBeVisible(
+    { timeout: 45000 },
+  );
   await expect(page.locator('.qm-crumb')).toContainText(selectedTitle);
   // The chosen role stays on the Shortlist step.
   await step(page, 'Shortlist');
@@ -122,9 +124,9 @@ test('a user compares ranked jobs and selects one for downstream context', async
   // Verify persisted context rather than a transient selection notice.
   await page.reload();
   await step(page, 'Review');
-  await expect(
-    page.getByRole('heading', { name: 'Review your resume.', exact: true }),
-  ).toBeVisible({ timeout: 45000 });
+  await expect(page.getByRole('heading', { name: 'Review your resume.', exact: true })).toBeVisible(
+    { timeout: 45000 },
+  );
   await expect(page.locator('.qm-crumb')).toContainText(selectedTitle);
   await page.screenshot({
     path: 'output/acceptance/cfs-21-selected-job-handoff.png',
@@ -135,7 +137,7 @@ test('a user compares ranked jobs and selects one for downstream context', async
 test('a user finishes early and receives feedback from the saved response', async ({ page }) => {
   await openInterview(page);
   const questionCount = await page
-    .getByRole('group', { name: 'Questions' })
+    .getByRole('group', { name: 'Interview plan' })
     .getByRole('button')
     .count();
   expect(questionCount).toBeGreaterThan(1);
@@ -144,11 +146,11 @@ test('a user finishes early and receives feedback from the saved response', asyn
     'I used SQL in my student project to check a sample dataset and prepare a report. My task was to review missing values and document the queries.',
   );
   await page.getByRole('button', { name: 'Retreat · get feedback now', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Battle over', exact: true })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Battle report', exact: true })).toBeVisible({
     timeout: 30000,
   });
   await expect(
-    page.getByText('You retreated early; feedback covers the answers you gave.'),
+    page.getByText(/stages answered · overall \d+% · you retreated early/),
   ).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Areas to improve' })).toBeVisible({
     timeout: 30000,
@@ -173,16 +175,20 @@ test('a user finishes early and receives feedback from the saved response', asyn
 
 test('a user answers every interview question and receives complete feedback', async ({ page }) => {
   await openInterview(page);
-  const questionTabs = page.getByRole('group', { name: 'Questions' }).getByRole('button');
+  const questionTabs = page.getByRole('group', { name: 'Interview plan' }).getByRole('button');
   const questionCount = await questionTabs.count();
   expect(questionCount).toBeGreaterThan(0);
-  expect(questionCount).toBeLessThanOrEqual(3);
+  expect(questionCount).toBeLessThanOrEqual(5);
+  // Later questions stay hidden until the panel asks them (CFS-177).
+  await expect(questionTabs.nth(1)).toBeDisabled();
+  await expect(questionTabs.nth(questionCount - 1)).toHaveAttribute('title', /not asked yet/);
 
   for (let index = 0; index < questionCount; index += 1) {
     await questionTabs.nth(index).click();
     await answer(
       page,
       `In example ${index + 1}, I identified the situation, completed the relevant action myself and reviewed the result before reporting it.`,
+      true,
     );
   }
 
@@ -198,6 +204,18 @@ test('a user answers every interview question and receives complete feedback', a
     page.getByText(`${questionCount} responses retained.`, { exact: false }),
   ).toBeVisible();
   await expect(page.getByText('You retreated early')).toHaveCount(0);
+  // The battle report grades every stage from its STAR marks (CFS-178).
+  const report = page.getByRole('region', { name: 'Battle report' });
+  await expect(report.getByLabel(/^Overall grade [SABCD]$/)).toBeVisible();
+  await expect(report.locator('.battle-stage')).toHaveCount(questionCount);
+  await expect(
+    report
+      .locator('.battle-stage')
+      .first()
+      .getByLabel(/^Grade [SABCD]$/),
+  ).toBeVisible();
+  await expect(report.locator('.battle-stage').first().locator('.boss-mark')).toHaveCount(4);
+  await expect(report.getByText('Your answer').first()).toBeVisible();
   await page.screenshot({
     path: `output/acceptance/interview-complete-${process.env.PROVIDER_MODE === 'openai' ? 'live' : 'fixture'}.png`,
     fullPage: true,
@@ -299,4 +317,188 @@ test('speech input fills an editable answer and read-aloud speaks the question (
   await expect(
     page.getByText('Answer a question and the Evaluator’s STAR verdict appears here.'),
   ).toBeVisible();
+});
+
+test('a live call shows one exchange as subtitles and folds the transcript (CFS-172)', async ({
+  page,
+}) => {
+  // No microphone, WebRTC or OpenAI in CI: the call is replaced with a fake data channel the
+  // test drives with the realtime events the page listens to.
+  await page.addInitScript(() => {
+    const w = window as any;
+    w.__sent = [];
+    class Channel extends EventTarget {
+      readyState = 'open';
+      send(data: string) {
+        w.__sent.push(JSON.parse(data));
+      }
+    }
+    w.__channel = new Channel();
+    w.RTCPeerConnection = class {
+      ontrack: any = null;
+      addTrack() {}
+      createDataChannel() {
+        setTimeout(() => w.__channel.dispatchEvent(new Event('open')), 10);
+        return w.__channel;
+      }
+      async createOffer() {
+        return { type: 'offer', sdp: 'v=0' };
+      }
+      async setLocalDescription() {}
+      async setRemoteDescription() {
+        this.ontrack?.({ streams: [new MediaStream()] });
+      }
+      close() {}
+    };
+    // A microphone that only ever sends silence, and a browser that refuses to autoplay (CFS-175).
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: async () =>
+          (w.__mic = new AudioContext().createMediaStreamDestination().stream),
+      },
+    });
+    HTMLMediaElement.prototype.play = () =>
+      Promise.reject(new DOMException('Autoplay blocked', 'NotAllowedError'));
+    w.__emit = (event: object) =>
+      w.__channel.dispatchEvent(new MessageEvent('message', { data: JSON.stringify(event) }));
+  });
+  await openInterview(page);
+  // Show the page as a live-mode run whose project has realtime voice.
+  const live = (body: any, depth = 0): any => {
+    if (!body || typeof body !== 'object' || depth > 3) return body;
+    if (body.mode === 'fixture' && body.data) body.mode = 'openai';
+    for (const v of Object.values(body)) live(v, depth + 1);
+    return body;
+  };
+  await page.route('**/api/workspace', async (route) => {
+    const response = await route.fetch();
+    await route.fulfill({ response, json: live(await response.json()) });
+  });
+  await page.route('**/api/voice/status', (route) =>
+    route.fulfill({ json: { realtime: true, transcribe: true } }),
+  );
+  await page.route('**/voice-session', async (route) => {
+    const id = new URL(page.url()).searchParams.get('mission');
+    const workspace = await (await page.request.get('/api/workspace')).json();
+    const questions = workspace.missions.find((m: any) => m.id === id).data.questions;
+    await route.fulfill({
+      json: {
+        clientSecret: 'test',
+        callsUrl: 'https://api.openai.com/v1/realtime/calls',
+        limitSeconds: 600,
+        questions,
+        remaining: 2,
+      },
+    });
+  });
+  await page.route('https://api.openai.com/**', (route) =>
+    route.fulfill({ body: 'v=0', headers: { 'access-control-allow-origin': '*' } }),
+  );
+  await page.reload();
+  await page.getByRole('button', { name: /Live call/ }).click();
+  // Before the call no question is shown, and no tab can be opened (CFS-177).
+  const tabs = page.getByRole('group', { name: 'Interview plan' }).getByRole('button');
+  await expect(
+    page.getByText('The panel asks this question when the call reaches it.'),
+  ).toBeVisible();
+  await expect(tabs.first()).toBeDisabled();
+  await page.getByRole('button', { name: 'Start the voice interview', exact: true }).click();
+  await expect(page.getByText('Your turn to speak')).toBeVisible();
+
+  const emit = (event: object) => page.evaluate((e) => (window as any).__emit(e), event);
+  const long =
+    'Thanks for joining us today. ' + 'We would like to hear about your work. '.repeat(12);
+  await emit({ type: 'output_audio_buffer.started' });
+  await emit({
+    type: 'response.output_audio_transcript.done',
+    transcript: long + 'Question 1. Tell us about a project.',
+  });
+  await emit({ type: 'output_audio_buffer.stopped' });
+  await expect(page.getByText('The panel is speaking')).toHaveCount(0);
+  // A long line is cut to its end, so the subtitle stays a few lines tall.
+  const panelLine = page.locator('.boss-subtitles .boss-bubble.live');
+  await expect(panelLine).toContainText('…');
+  await expect(panelLine).toContainText('Question 1. Tell us about a project.');
+  // The question the call reached opens up; the next one stays hidden.
+  await expect(tabs.first()).toBeEnabled();
+  await expect(tabs.nth(1)).toBeDisabled();
+  expect((await panelLine.innerText()).length).toBeLessThan(260);
+
+  await emit({ type: 'input_audio_buffer.speech_started' });
+  await expect(page.getByText('Listening to you')).toBeVisible();
+  await expect(page.locator('.boss-bubble.you')).toContainText('Listening…');
+  await emit({ type: 'input_audio_buffer.speech_stopped' });
+  await emit({
+    type: 'conversation.item.input_audio_transcription.completed',
+    transcript: 'I built a sales dashboard with SQL for my capstone.',
+  });
+  await expect(page.locator('.boss-bubble.you')).toContainText('I built a sales dashboard');
+
+  // The full transcript is folded with a count and keeps a fixed height when opened.
+  const log = page.locator('details.voice-log');
+  await expect(log.locator('summary')).toHaveText('Transcript · 2 lines');
+  await expect(log.getByRole('list', { name: 'Interview transcript' })).toBeHidden();
+  await log.locator('summary').click();
+  await expect(log.getByRole('list', { name: 'Interview transcript' })).toBeVisible();
+  const box = await log.locator('ol').boundingBox();
+  expect(box!.height).toBeLessThanOrEqual(222);
+
+  // Silent failures are shown (CFS-175): blocked panel audio, a silent microphone and a reply
+  // that held no words.
+  await expect(page.getByRole('button', { name: 'Play the panel’s voice' })).toBeVisible();
+  await expect(page.getByText('Your microphone is sending silence')).toBeVisible({
+    timeout: 12000,
+  });
+  await emit({ type: 'conversation.item.input_audio_transcription.completed', transcript: '' });
+  await expect(log.locator('summary')).toHaveText('Transcript · 3 lines');
+  await expect(log.getByText('(no words recognised in this reply)')).toBeVisible();
+
+  // Pause mutes both sides, stops the clock and stops the panel mid-sentence (CFS-176).
+  await emit({ type: 'output_audio_buffer.started' });
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await expect(page.getByText('Paused · the panel is waiting')).toBeVisible();
+  expect(
+    await page.evaluate(() => (window as any).__mic.getTracks().every((t: any) => !t.enabled)),
+  ).toBe(true);
+  expect(await page.evaluate(() => (window as any).__sent.map((e: any) => e.type))).toContain(
+    'response.cancel',
+  );
+  const clock = page.locator('.voice-live-bar');
+  const before = await clock.innerText();
+  await page.waitForTimeout(2200);
+  expect(await clock.innerText()).toBe(before);
+  await page.getByRole('button', { name: 'Resume', exact: true }).click();
+  await expect(page.getByText('Paused · the panel is waiting')).toHaveCount(0);
+  expect(
+    await page.evaluate(() => (window as any).__mic.getTracks().every((t: any) => t.enabled)),
+  ).toBe(true);
+  // The panel was cut off, so it is asked to repeat its question.
+  expect(await page.evaluate(() => (window as any).__sent.at(-1))).toMatchObject({
+    type: 'response.create',
+  });
+  await page.screenshot({ path: 'output/acceptance/live-call-subtitles.png', fullPage: false });
+
+  // A reply's transcript can arrive after the panel has moved on to Question 2; it still belongs
+  // to the question active when the speech was committed (CFS-181).
+  await emit({ type: 'input_audio_buffer.committed', item_id: 'late-reply' });
+  await emit({
+    type: 'response.output_audio_transcript.done',
+    transcript: 'Thank you. Question 2. Tell us about a time you fixed a problem.',
+  });
+  await emit({
+    type: 'conversation.item.input_audio_transcription.completed',
+    item_id: 'late-reply',
+    transcript: 'I would also add row count checks after each load of the data.',
+  });
+  await page.getByRole('button', { name: 'End and score my answers', exact: true }).click();
+  await expect(page.getByText(/spoken answers? scored/)).toBeVisible({ timeout: 30000 });
+  const id = new URL(page.url()).searchParams.get('mission');
+  const workspace = await (await page.request.get('/api/workspace')).json();
+  const run = workspace.missions.find((m: any) => m.id === id);
+  const [first, second] = run.data.questions;
+  const rounds = run.data.rounds.filter((r: any) => r.kind === 'answer');
+  expect(rounds.map((r: any) => r.questionId)).toEqual([first.id]);
+  expect(rounds[0].answer).toContain('row count checks');
+  expect(rounds.some((r: any) => r.questionId === second.id)).toBe(false);
 });

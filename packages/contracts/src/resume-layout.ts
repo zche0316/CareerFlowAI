@@ -102,6 +102,12 @@ export function resumeLayout(c: ResumeView) {
   return [...groups].map(([title, items]) => ({ title, items }));
 }
 
+/** The resume's sections as plain text, without the name or contact details. */
+export const resumeText = (c: ResumeView) =>
+  resumeLayout(c)
+    .map((g) => `${g.title}:\n${g.items.join('\n')}`)
+    .join('\n\n');
+
 export function resumeRecordIndex(p: any): ResumeRecord[] {
   return ['workExperiences', 'projects', 'educations'].flatMap((section) =>
     (p[section] || []).map((r: any) => ({

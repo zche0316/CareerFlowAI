@@ -52,3 +52,62 @@ export function proposeOutcomeAnswer(
     status: 'PENDING',
   };
 }
+
+/**
+ * A direct answer to the situation, task or action question of the experience being discussed
+ * is saved word for word to that part of its STAR story (CFS-152). The extraction model sometimes
+ * filed such an answer under a new, invented experience, which grounding then dropped, so the
+ * user's answer was lost. Returns a proposal only, like proposeOutcomeAnswer.
+ */
+export function proposeStoryAnswer(
+  profile: any,
+  state: InterviewState,
+  text: string,
+  threadId: string,
+  messageId: string,
+  /** The profile before this turn: when extraction already filled the part, its split stands. */
+  before?: any,
+) {
+  const part = state.question?.key.match(/:story:(situation|task|action)$/)?.[1] as
+    'situation' | 'task' | 'action' | undefined;
+  const answer = text.trim();
+  if (!part || !state.active || !answer || /[?？]\s*$/.test(answer)) return null;
+  const record = experiences(profile).find((r) => r.key === state.active);
+  if (!record) return null;
+  const field = record.key.startsWith('workExperiences:') ? 'workExperiences' : 'projects';
+  const old = record.starStory?.[part] || '';
+  if (old.includes(answer)) return null;
+  const previous = before && experiences(before).find((r) => r.key === state.active);
+  if (before && old && old !== (previous?.starStory?.[part] || '')) return null;
+  const value = [old, answer].filter(Boolean).join('\n');
+  if (value.length > 2000)
+    throw new AppError(
+      422,
+      'STORY_PART_TOO_LONG',
+      'Your answer is saved. Please shorten this part of the example to fit the profile; no details were silently removed.',
+    );
+  const starStory = {
+    situation: '',
+    task: '',
+    action: '',
+    result: '',
+    ...record.starStory,
+    [part]: value,
+  };
+  const updated = recordSchema.parse({
+    ...record,
+    starStory,
+    conversationEvidence: [
+      ...(record.conversationEvidence || []).slice(-9),
+      { quote: answer, threadId, messageId },
+    ],
+  });
+  return {
+    id: randomUUID(),
+    field,
+    before: profile[field] || [],
+    after: (profile[field] || []).map((r: any) => (r.id === record.id ? updated : r)),
+    evidence: [{ quote: answer, messageId, memoryRef: null, profileRef: null }],
+    status: 'PENDING',
+  };
+}

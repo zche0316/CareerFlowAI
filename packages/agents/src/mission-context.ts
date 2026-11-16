@@ -28,13 +28,13 @@ export function missionContext(role: string, input: ProviderContext): ProviderCo
     };
   if (role === 'rewrite')
     return { ...base, job, ...(input.feedback ? { feedback: input.feedback } : {}) };
-  if (role === 'critic')
-    return { ...base, job, draftClaims: input.draftClaims || [] };
+  if (role === 'critic') return { ...base, job, draftClaims: input.draftClaims || [] };
   if (role === 'questions')
     return {
       ...base,
       job,
       ...(input.priorFeedback ? { priorFeedback: input.priorFeedback } : {}),
+      ...(input.requirementGaps?.length ? { requirementGaps: input.requirementGaps } : {}),
     };
   if (role === 'feedback')
     return { ...base, job, questions: input.questions, answers: input.answers };

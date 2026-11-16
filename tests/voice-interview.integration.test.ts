@@ -8,6 +8,7 @@ import {
   PROFILE_TRANSCRIPTIONS_PER_DAY,
   voiceStatus,
   voiceInstructions,
+  voiceKey,
   VOICE_SESSIONS_PER_RUN,
 } from '../apps/api/src/voice-interview.js';
 import { questionNumber } from '../apps/web/src/quest/voice-interviewer.js';
@@ -17,6 +18,7 @@ import { questionNumber } from '../apps/web/src/quest/voice-interviewer.js';
 
 let userId = '';
 let missionId = '';
+delete process.env.OPENAI_VOICE_API_KEY; // the tests set keys themselves
 const questions = [
   { id: 'q1', question: 'Tell me about a report you built.', focus: 'SQL' },
   { id: 'q2', question: 'How do you check data quality?', focus: 'Quality' },
@@ -53,10 +55,23 @@ beforeAll(async () => {
 afterAll(async () => {
   process.env.PROVIDER_MODE = 'fixture';
   delete process.env.OPENAI_NATIVE_API_KEY;
+  delete process.env.OPENAI_VOICE_API_KEY;
   await db.mission.deleteMany({ where: { userId } });
   await db.profile.deleteMany({ where: { userId } });
   await db.user.delete({ where: { id: userId } });
   await db.$disconnect();
+});
+
+it('uses its own voice key when set, else the main native key (CFS-169)', () => {
+  const saved = [process.env.OPENAI_VOICE_API_KEY, process.env.OPENAI_NATIVE_API_KEY];
+  process.env.OPENAI_NATIVE_API_KEY = 'main-test-key';
+  delete process.env.OPENAI_VOICE_API_KEY;
+  expect(voiceKey()).toBe('main-test-key');
+  process.env.OPENAI_VOICE_API_KEY = ' voice-test-key ';
+  expect(voiceKey()).toBe('voice-test-key');
+  [process.env.OPENAI_VOICE_API_KEY, process.env.OPENAI_NATIVE_API_KEY] = saved;
+  if (saved[0] === undefined) delete process.env.OPENAI_VOICE_API_KEY;
+  if (saved[1] === undefined) delete process.env.OPENAI_NATIVE_API_KEY;
 });
 
 it('tells the realtime panel its persona, the questions in order and not to score', () => {
@@ -65,6 +80,30 @@ it('tells the realtime panel its persona, the questions in order and not to scor
   expect(text).toContain('1. Tell me about a report you built.\n2. How do you check data quality?');
   expect(text).toContain('Start every main question with the words "Question"');
   expect(text).toContain('Do not score');
+  // The spoken panel follows the same stage plan as the typed one (CFS-166).
+  expect(text).toContain('Interview plan:\n1. Question: establish');
+  expect(text).toContain('up to 1 follow-up.');
+  expect(
+    voiceInstructions({ title: 'Data Analyst' }, [
+      { id: 'b', question: 'Tell me about a conflict.', stage: 'behavioural' },
+    ]),
+  ).toContain(
+    '1. Behavioural: establish one real STAR example of teamwork or handling a problem, judged on situation, task, action, result; up to 2 follow-ups.',
+  );
+  // No hints before the first answer, no announced questions that are never asked.
+  expect(text).toContain('one greeting sentence followed by Question 1 and nothing else');
+  expect(text).toContain('Never announce a question you do not ask');
+  // An unclear reply gets a request to repeat, not the numbered question again (CFS-175).
+  expect(text).toContain('never restart the question or say its number again');
+  // The run's approved resume rides along, labelled as claims, never as answers (CFS-171).
+  expect(text).not.toContain('Resume:');
+  const withResume = voiceInstructions(
+    { title: 'Data Analyst' },
+    questions,
+    'Projects:\nSales dashboard',
+  );
+  expect(withResume).toContain('Resume:\nProjects:\nSales dashboard');
+  expect(withResume).toContain('never credit it as said');
   expect(questionNumber('Thanks. Question 2. How do you check data quality?')).toBe(1);
   expect(questionNumber('Could you say more about that?')).toBeNull();
 });

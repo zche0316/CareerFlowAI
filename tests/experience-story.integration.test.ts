@@ -90,7 +90,7 @@ it('keeps a role overview and one grounded STAR example in the same experience, 
         consent: true,
       })
     ).body;
-    expect(t.messages.at(-1).questions[0]).toContain('specific problem or improvement');
+    expect(t.messages.at(-1).questions[0]).toContain('Pick one specific situation');
     let accepted = (
       await c.request(`/profile-threads/${t.id}/proposals`, 'POST', {
         currentProfile: form,

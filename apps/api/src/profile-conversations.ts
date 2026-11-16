@@ -1,4 +1,4 @@
-import { proposeOutcomeAnswer } from './profile-outcomes.js';
+import { proposeOutcomeAnswer, proposeStoryAnswer } from './profile-outcomes.js';
 import { guardIdentity } from '../../../packages/agents/src/personas.js';
 import type { Express } from 'express';
 import { labelledExperience } from './labelled-experience.js';
@@ -22,7 +22,13 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { db } from './db.js';
 import { digest, json } from './domain.js';
-import { CHANGE_CLAIM, phraseQuestion, runProfileTurn, summariseTurn } from './profile-turn.js';
+import {
+  CHANGE_CLAIM,
+  classifyControl,
+  phraseQuestion,
+  runProfileTurn,
+  summariseTurn,
+} from './profile-turn.js';
 import { AppError, requireValue } from './errors.js';
 import { prepareProfileBuilderDraft, citeExactUserValues } from './profile-builder.js';
 import { retrieveEvidence } from './career-memory.js';
@@ -344,8 +350,17 @@ export function registerProfileConversations(app: Express) {
     const userId = req.actor!.id,
       t = await owner(userId, String(req.params.id));
     const messages = t.messages as any[];
-    const action = interviewIntent(input.text);
-    if (input.mode === 'build' && action && !input.retryMessageId && !input.recoverSavedAnswers) {
+    const steering = input.mode === 'build' && !input.retryMessageId && !input.recoverSavedAnswers;
+    const action =
+      interviewIntent(input.text) ||
+      (steering && configuredMode() !== 'fixture'
+        ? await classifyControl(
+            input.text,
+            [...(t.messages as any[])].reverse().find((m) => m.role === 'assistant')
+              ?.questions?.[0] || null,
+          )
+        : null);
+    if (steering && action) {
       res.json(await controlInterview(userId, t.id, { ...input, action }));
       return;
     }
@@ -767,6 +782,12 @@ export function registerProfileConversations(app: Express) {
               })),
             status: 'PENDING',
           }));
+        // This message answers the overview question of that experience (CFS-156). The model may
+        // also have put its sentences into a tentative STAR story, which must not shorten it.
+        const answersOverview = (section: string, title: string) =>
+          !input.recoverSavedAnswers &&
+          Boolean(previousState.question?.key.endsWith(':overview')) &&
+          previousState.question!.key.startsWith(`${section}:${careerTitle(title)}:`);
         for (const section of recordKeys) {
           const records = grounded.records
             .filter(
@@ -825,22 +846,25 @@ export function registerProfileConversations(app: Express) {
                     );
               return recordSchema.parse({
                 ...r,
-                ...(section !== 'educations' && originals.length
-                  ? {
-                      overview: originals
-                        .filter(
-                          (line) =>
-                            line.messageId === originals[0].messageId &&
-                            !Object.values(r.starStory || {}).some((part) =>
-                              part.includes(line.text),
-                            ) &&
-                            !/^From .*\bI worked as\b/i.test(line.text),
-                        )
-                        .map((line) => line.text)
-                        .join(' ')
-                        .slice(0, 4000),
-                    }
-                  : {}),
+                ...(section !== 'educations' && answersOverview(section, r.title)
+                  ? // The answer to "describe your role" is the overview, whole (CFS-156).
+                    { overview: input.text.trim().slice(0, 4000) }
+                  : section !== 'educations' && originals.length
+                    ? {
+                        overview: originals
+                          .filter(
+                            (line) =>
+                              line.messageId === originals[0].messageId &&
+                              !Object.values(r.starStory || {}).some((part) =>
+                                part.includes(line.text),
+                              ) &&
+                              !/^From .*\bI worked as\b/i.test(line.text),
+                          )
+                          .map((line) => line.text)
+                          .join(' ')
+                          .slice(0, 4000),
+                      }
+                    : {}),
                 // Only the deterministic labelled-answer path supplies a type.
                 // Keep it after grounding; the model cannot invent a category.
                 ...(labelled ? { experienceType: labelled.experienceType } : {}),
@@ -901,7 +925,10 @@ export function registerProfileConversations(app: Express) {
                 const old = merged[index];
                 merged[index] = {
                   ...old,
-                  overview: old.overview || record.overview,
+                  overview:
+                    answersOverview(section, record.title) && record.overview
+                      ? record.overview
+                      : old.overview || record.overview,
                   starStory:
                     old.starStory || record.starStory
                       ? {
@@ -974,17 +1001,18 @@ export function registerProfileConversations(app: Express) {
             (key) => !unsupported.has(key.replace('profile:', '') as any),
           ),
         };
+        const pendingBefore = (t.proposals as any[])
+          .filter(
+            (p) =>
+              p.status === 'PENDING' &&
+              fieldDigest(input.currentProfile[p.field as keyof typeof input.currentProfile]) ===
+                fieldDigest(p.before),
+          )
+          .map((p) => ({ [p.field]: p.after }));
         const planProfile = Object.assign(
           {},
           prepared.data,
-          ...(t.proposals as any[])
-            .filter(
-              (p) =>
-                p.status === 'PENDING' &&
-                fieldDigest(input.currentProfile[p.field as keyof typeof input.currentProfile]) ===
-                  fieldDigest(p.before),
-            )
-            .map((p) => ({ [p.field]: p.after })),
+          ...pendingBefore,
           ...changes.map((p) => ({ [p.field]: p.after })),
         );
         const focusedPlan = planInterview(planProfile, planState, input.text);
@@ -993,13 +1021,19 @@ export function registerProfileConversations(app: Express) {
           input.mode === 'build' &&
           focusedPlan.state.active === previousState.active
         ) {
-          const outcome = proposeOutcomeAnswer(
-            planProfile,
-            previousState,
-            input.text,
-            t.id,
-            answerId,
-          );
+          const outcome =
+            proposeOutcomeAnswer(planProfile, previousState, input.text, t.id, answerId) ||
+            // Only when the message answers the pending question, not a detour (CFS-152).
+            (!perceived || perceived.addressesPending
+              ? proposeStoryAnswer(
+                  planProfile,
+                  previousState,
+                  input.text,
+                  t.id,
+                  answerId,
+                  Object.assign({}, input.currentProfile, ...pendingBefore),
+                )
+              : null);
           if (outcome) {
             const original =
               input.currentProfile[outcome.field as 'workExperiences' | 'projects'] || [];
@@ -1190,7 +1224,19 @@ export function registerProfileConversations(app: Express) {
         response.turn = summariseTurn(turn);
         // The planner chose the field; the light model words the question for this moment.
         if (configuredMode() !== 'fixture' && response.questions?.length === 1) {
+          const after = Object.assign(
+            {},
+            turnProfile,
+            ...changes.map((c: any) => ({ [c.field]: c.after })),
+          );
+          const situation = experiences(after).find(
+            (r) => r.key === response.interviewState?.active,
+          )?.starStory?.situation;
           const phrased = await phraseQuestion({
+            // Only story questions refer back to the situation (CFS-155).
+            situation: String(response.questionKey || '').includes(':story:')
+              ? situation
+              : undefined,
             question: response.questions[0],
             // A bare name or "SQL" says nothing about language: use the conversation's.
             language:

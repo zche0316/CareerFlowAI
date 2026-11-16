@@ -274,6 +274,33 @@ export function missingFields(p: any, state: Partial<Pick<InterviewState, 'skipp
   return missing;
 }
 
+// Words that only introduce an experience, not what it was about or what the person did.
+const HEADER_WORDS =
+  /\b(?:i|i'm|i’m|i've|also|was|were|am|been|worked|working|participated|participate|took|part|joined|did|do|a|an|the|in|on|at|of|for|my|our|from|to|until|as|and|with|this|that|it|team|group|project|projects|university|uni|course|unit|subject|class|internship|intern|role|job|position|part-time|full-time|casual|volunteer|volunteering|club|personal|work|experience|january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec|present|now|current|currently|fictional)\b/gi;
+
+/**
+ * An overview counts once it says what the experience was about or what the person did. An
+ * introduction ("a team project in my data visualisation unit, August to October 2026") is not
+ * enough (CFS-158): with the title, organisation, dates and introducing words removed, a few
+ * real words must remain.
+ */
+export function substantiveOverview(r: any) {
+  // A story with a situation and an action already says what it was about (CFS-167).
+  if (r.starStory?.situation?.trim() && r.starStory?.action?.trim()) return true;
+  const text = experienceOverview(r);
+  if (!text) return false;
+  if (/\p{Script=Han}/u.test(text)) return text.replace(/[\p{P}\s\d]/gu, '').length >= 15;
+  let rest = ` ${text.toLowerCase()} `;
+  for (const part of [r.title, r.organisation, r.location].filter(Boolean))
+    rest = rest.split(String(part).toLowerCase()).join(' ');
+  const words = rest
+    .replace(/\(fictional\)/g, ' ')
+    .replace(HEADER_WORDS, ' ')
+    .replace(/\b\d{1,4}\b/g, ' ')
+    .match(/[a-z][a-z'-]+/g);
+  return (words?.length || 0) >= 3;
+}
+
 export function planInterview(p: any, current: InterviewState, latestText = '') {
   const state = structuredClone(current);
   const records = experiences(p).filter((r) => !closedExperience(state.closed, r.key));
@@ -326,7 +353,8 @@ export function planInterview(p: any, current: InterviewState, latestText = '') 
       if (!r.organisation) add(`${key}:institution`, `Which institution is ${r.title} with?`);
       if (!r.startMonth)
         add(`${key}:start`, `When did ${r.title} start? You can skip an unknown date.`);
-      if (!r.current && !r.endMonth)
+      // An expected completion month already answers "ongoing or completed" (CFS-154).
+      if (!r.current && !r.endMonth && !r.expectedEndMonth)
         add(`${key}:end`, `Is ${r.title} ongoing or completed, and when?`);
     }
   }
@@ -346,32 +374,36 @@ export function planInterview(p: any, current: InterviewState, latestText = '') 
         `${active.key}:organisation`,
         `Which organisation, university, course or personal context was ${active.title} part of?`,
       );
-    if (!experienceOverview(active))
+    if (!substantiveOverview(active))
       add(
         `${active.key}:overview`,
-        `Briefly describe your role in ${active.title}: your usual responsibilities, tools and scope of work.`,
+        `What was ${active.title} about, and what was your part in it? For example the problem it tackled, who used it, and the tools and work you were responsible for.`,
       );
     else if (!active.starStory?.situation)
       add(
         `${active.key}:story:situation`,
-        `Can you share one specific problem or improvement from ${active.title}? This example is optional; you can skip it or finish this experience.`,
+        // Lead with one concrete situation: the rest of the story hangs on it (CFS-152).
+        `Pick one specific situation from ${active.title}: what was happening, and what problem, deadline or request made it matter? One example is enough. This example is optional; you can skip it or finish this experience.`,
       );
     else {
       const story = active.starStory;
+      // Later questions point back to the user's own situation, so the story stays one story.
+      const brief = story.situation.replace(/\s+/g, ' ').trim();
+      const that = `that situation (“${brief.length > 70 ? `${brief.slice(0, 67).trimEnd()}…` : brief}”)`;
       if (!story.task)
         add(
           `${active.key}:story:task`,
-          `In that example from ${active.title}, what was your own responsibility or goal?`,
+          `In ${that}, what were you responsible for, or what goal did you set?`,
         );
       if (!story.action)
         add(
           `${active.key}:story:action`,
-          `What did you personally do in that example from ${active.title}?`,
+          `What did you personally do in ${that}? Walk me through the steps you took.`,
         );
       if (!story.result)
         add(
           `${active.key}:story:result`,
-          `What happened after your actions in that example from ${active.title}? An unknown or unmeasured result is fine.`,
+          `What changed after what you did in ${that}? An unknown or unmeasured result is fine.`,
         );
       else if (
         !hasOutcomeDetail(story.result) &&
@@ -388,11 +420,14 @@ export function planInterview(p: any, current: InterviewState, latestText = '') 
     state.phase = state.phase === 'inventory' ? 'inventory' : 'collecting';
     // After "next experience" the user wants to tell another story first.
     if (hasExperience && state.phase !== 'inventory') addFields('experience');
+    // Asked whenever no experience is in focus, even if asked before: a turn never ends without
+    // a question while the interview is open (CFS-155).
     add(
       `inventory:${state.closed.length}`,
       state.closed.length
         ? 'Would you like to add a different experience? Tell me its name, or finish the interview.'
         : 'Tell me about one work, course or personal project, volunteering or club experience. No formal employment is required.',
+      true,
     );
   }
   state.question = questions[0] || null;
@@ -402,6 +437,12 @@ export function planInterview(p: any, current: InterviewState, latestText = '') 
     return {
       state,
       hint: `Before you finish, these are still empty: ${missing.map((m) => m.label).join(', ')}. Answer the question below, skip it, or finish again ("that's all" or Finish and review) to review your draft as it is.`,
+    };
+  // Nothing left to ask and nothing empty: say the profile is complete and offer review (CFS-155).
+  if (!state.question && hasExperience && !missing.length)
+    return {
+      state,
+      hint: 'Your profile now has everything it needs. Review your draft whenever you are ready (say "that\'s all" or press Finish and review), or tell me about another experience to add.',
     };
   return {
     state,

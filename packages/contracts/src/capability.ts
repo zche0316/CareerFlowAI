@@ -67,6 +67,8 @@ export type SkillCapability = {
   lastUsed: string | null;
   stale: boolean;
   evidence: SkillEvidence[];
+  /** A model's reading of the evidence (CFS-161); `level` then follows it within the rule bounds. */
+  judgement?: { level: Level; ruleLevel: Level; reason: string };
 };
 
 // Canonical names for common technical skills and the spellings employers and boards use.

@@ -95,21 +95,8 @@ export function QuestTopBar({
           go('home');
         }}
       >
-        <span className="qt-mark" aria-hidden="true">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#D4F55B"
-            strokeWidth="2.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M4 18c4 0 4-8 8-8s4 8 8 8" />
-            <circle cx="12" cy="6" r="2" />
-          </svg>
-        </span>
+        {/* One mark everywhere (CFS-182): a party face, like the agents. */}
+        <img className="qt-mark" src="/careerflow-logo.svg" alt="" width="38" height="38" />
         careerflow
       </a>
       <nav aria-label="Main" className="qt-nav">

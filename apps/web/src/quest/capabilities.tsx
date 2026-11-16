@@ -76,6 +76,11 @@ export function CapabilityLevels({
               </button>
               {open === s.skill && (
                 <ul className="cap-evidence">
+                  {s.judgement && (
+                    <li className="cap-judgement">
+                      <strong>Why {levelNames[s.level].toLowerCase()}:</strong> {s.judgement.reason}
+                    </li>
+                  )}
                   {s.evidence.map((e: any, i: number) => (
                     <li key={i}>
                       {e.kind === 'external'
