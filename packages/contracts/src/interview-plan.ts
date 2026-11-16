@@ -15,11 +15,10 @@ export const interviewStages = [
   'closing',
 ] as const;
 export type InterviewStage = (typeof interviewStages)[number];
+// Questions saved before stages existed are "general": one follow-up, as they always had.
+export type PlanStage = InterviewStage | 'general';
 
-export const STAGE_PLAN: Record<
-  InterviewStage,
-  { label: string; goal: string; followUps: number }
-> = {
+export const STAGE_PLAN: Record<PlanStage, { label: string; goal: string; followUps: number }> = {
   motivation: {
     label: 'Motivation',
     goal: 'why this role and company, and what the candidate wants next',
@@ -50,14 +49,17 @@ export const STAGE_PLAN: Record<
     goal: 'a thoughtful question the candidate has for the panel',
     followUps: 0,
   },
+  general: {
+    label: 'Question',
+    goal: 'a specific, personal answer to the question',
+    followUps: 1,
+  },
 };
 
-// Questions saved before stages existed get one from their position.
-const LEGACY_ORDER: InterviewStage[] = ['motivation', 'behavioural', 'gap', 'technical', 'closing'];
-export const stageOf = (q: { stage?: string | null }, index: number): InterviewStage =>
-  interviewStages.includes(q.stage as InterviewStage)
-    ? (q.stage as InterviewStage)
-    : LEGACY_ORDER[index] || 'behavioural';
+// Guessing a stage from position mislabelled older questions (a data-quality question shown as
+// Motivation), so questions without a stage are general.
+export const stageOf = (q: { stage?: string | null }, _index?: number): PlanStage =>
+  interviewStages.includes(q.stage as InterviewStage) ? (q.stage as InterviewStage) : 'general';
 
 export type PlanRound = {
   questionId: string;
@@ -71,7 +73,7 @@ export type PlanRound = {
 
 export type PlanStep = {
   questionId: string;
-  stage: InterviewStage;
+  stage: PlanStage;
   label: string;
   goal: string;
   budget: number;

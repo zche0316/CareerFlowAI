@@ -16,6 +16,14 @@ type Session = {
 };
 type Line = { who: 'panel' | 'you'; text: string };
 
+/** What the battle view shows while a call runs (CFS-170): who is talking and what is said. */
+export type LiveCall = {
+  phase: 'idle' | 'connecting' | 'live' | 'saving' | 'done';
+  speaker: 'panel' | 'you' | null;
+  questionId: string | null;
+  caption: string;
+};
+
 /** "Question 2." in the panel's speech moves the answer pointer to the second question. */
 export function questionNumber(text: string) {
   const m = /\bquestion\s+(\d{1,2})\b/i.exec(text);
@@ -25,13 +33,21 @@ export function questionNumber(text: string) {
 export function VoiceInterviewer({
   start,
   onAnswer,
+  onLive,
   disabled,
 }: {
   start: () => Promise<Session>;
   onAnswer: (questionId: string, answer: string) => Promise<void>;
+  onLive?: (call: LiveCall) => void;
   disabled?: boolean;
 }) {
-  const [phase, setPhase] = useState<'idle' | 'connecting' | 'live' | 'saving' | 'done'>('idle');
+  const [phase, setPhase] = useState<LiveCall['phase']>('idle');
+  const [speaker, setSpeaker] = useState<LiveCall['speaker']>(null);
+  const [caption, setCaption] = useState('');
+  const [questionId, setQuestionId] = useState<string | null>(null);
+  useEffect(() => {
+    onLive?.({ phase, speaker, questionId, caption });
+  }, [phase, speaker, questionId, caption]);
   const [lines, setLines] = useState<Line[]>([]);
   const [error, setError] = useState('');
   const [seconds, setSeconds] = useState(0);
@@ -49,6 +65,7 @@ export function VoiceInterviewer({
     mic.current?.getTracks().forEach((t) => t.stop());
     pc.current?.close();
     pc.current = null;
+    setSpeaker(null);
   };
   useEffect(() => () => hangUp(), []);
 
@@ -77,10 +94,13 @@ export function VoiceInterviewer({
     setLines([]);
     answers.current = {};
     current.current = 0;
+    setCaption('');
+    setQuestionId(null);
     setPhase('connecting');
     try {
       const s = await start();
       session.current = s;
+      setQuestionId(s.questions[0]?.id || null);
       const conn = new RTCPeerConnection();
       pc.current = conn;
       conn.ontrack = (e) => {
@@ -99,6 +119,14 @@ export function VoiceInterviewer({
         } catch {
           return;
         }
+        // Who is talking drives the panel's animation in the arena.
+        if (event.type === 'input_audio_buffer.speech_started') setSpeaker('you');
+        if (event.type === 'input_audio_buffer.speech_stopped') setSpeaker(null);
+        if (event.type === 'output_audio_buffer.started') setSpeaker('panel');
+        if (event.type === 'output_audio_buffer.stopped') setSpeaker(null);
+        if (event.type === 'response.created') setCaption('');
+        if (event.type === 'response.output_audio_transcript.delta')
+          setCaption((c) => c + String(event.delta || ''));
         if (event.type === 'conversation.item.input_audio_transcription.completed') {
           const text = String(event.transcript || '').trim();
           if (!text) return;
@@ -110,7 +138,11 @@ export function VoiceInterviewer({
           const text = String(event.transcript || event.text || '').trim();
           if (!text) return;
           const n = questionNumber(text);
-          if (n !== null && n >= 0 && n < s.questions.length) current.current = n;
+          if (n !== null && n >= 0 && n < s.questions.length) {
+            current.current = n;
+            setQuestionId(s.questions[n].id);
+          }
+          setCaption(text);
           setLines((l) => [...l, { who: 'panel', text }]);
         }
       });
@@ -160,8 +192,8 @@ export function VoiceInterviewer({
         <div>
           <h3 id="voice-live">Live voice interview</h3>
           <small className="muted">
-            The panel asks the questions out loud and you answer by speaking. Your answers are then
-            scored like typed ones. Live mode, billed per minute of audio; up to 10 minutes.
+            Up to 10 minutes, billed per minute of audio. When you hang up, each answer is scored
+            like a typed one.
           </small>
         </div>
       </div>

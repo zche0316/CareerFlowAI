@@ -654,7 +654,7 @@ candidate's questions. `packages/contracts/src/interview-plan.ts` holds the plan
 the API and the battle view.
 
 - The interviewer returns four or five questions, one per stage, each tagged with `stage`.
-  Questions saved before this change get a stage from their position.
+  Questions saved before this change are "general" (one follow-up), not a guessed stage.
 - Each stage has a goal and a follow-up budget (motivation 1, behavioural 2, technical 2,
   scenario 1, growth area 1, closing 0). The Evaluator receives the stage goal, the earlier
   answers in that stage and how many follow-ups remain. It asks another follow-up only while
@@ -671,3 +671,14 @@ the API and the battle view.
 - Voice can use its own key, `OPENAI_VOICE_API_KEY` (CFS-169), for a project with realtime
   access; when it is empty, voice uses `OPENAI_NATIVE_API_KEY`.
 - `scripts/interview-plan-demo.ts` (CFS-164) is the command-line version of the same plan.
+
+## Interview practice: one answer mode at a time, a live panel (CFS-170)
+
+When the live voice interviewer is available, "Your turn" offers two modes and shows only one:
+Live call, or One question at a time (type or record, with a verdict after each). The choice is
+kept in `localStorage` (`careerflow.answerMode`). During a call the arena follows it: the voice
+component reports who is talking (`input_audio_buffer.speech_*`, `output_audio_buffer.*`) and
+the live caption (`response.output_audio_transcript.*`). The lead interviewer talks while the
+panel speaks, the panel leans in while the candidate speaks, and the plan tab follows the
+question being asked. Motion stops under `prefers-reduced-motion`. Written follow-ups from a
+verdict stay in One question at a time; the call covers the stages not answered yet.

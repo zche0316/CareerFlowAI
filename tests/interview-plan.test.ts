@@ -4,7 +4,7 @@ import { interviewPlan } from '../packages/contracts/src/interview-plan.js';
 const qs = [
   { id: 'q1', stage: 'motivation' },
   { id: 'q2', stage: 'behavioural' },
-  { id: 'q3' }, // legacy question: stage from its position
+  { id: 'q3' }, // older question without a stage: general
 ];
 let t = 0;
 const round = (questionId: string, kind: 'answer' | 'follow_up', followUp = '') => ({
@@ -18,7 +18,7 @@ const round = (questionId: string, kind: 'answer' | 'follow_up', followUp = '') 
 describe('interview stage plan', () => {
   it('probes a stage until its follow-up budget is spent, then moves on', () => {
     let plan = interviewPlan(qs, []);
-    expect(plan.steps.map((s) => s.stage)).toEqual(['motivation', 'behavioural', 'gap']);
+    expect(plan.steps.map((s) => s.stage)).toEqual(['motivation', 'behavioural', 'general']);
     expect(plan.next?.questionId).toBe('q1');
 
     const rounds = [round('q2', 'answer', 'What did you do?')];

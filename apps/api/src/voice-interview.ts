@@ -43,11 +43,12 @@ export function voiceInstructions(
   return (
     rolePreamble('questions') +
     `This is a spoken mock interview for ${job.title || 'the role'}${job.company ? ` at ${job.company}` : ''}. ` +
-    'Speak in short, natural sentences. Greet the candidate in one sentence, then ask the questions below in order, one at a time. ' +
-    'Start every main question with the words "Question" and its number, for example "Question 1." ' +
+    'Speak in short, natural sentences. Your first turn is one greeting sentence followed by Question 1 and nothing else: no hints, no follow-ups, no advice on how to answer. Then ask the questions below in order, one at a time. ' +
+    'Start every main question with the words "Question" and its number, for example "Question 1." Never say "Question" and a number before a follow-up; just ask it. ' +
     "Each question belongs to a stage of the interview plan below. After an answer, if the stage is not yet established, ask one short follow-up about the weakest missing part, based on something they actually said; repeat only within the stage's follow-up limit, then move on. " +
     'Do not score, praise at length, coach or give feedback; the written evaluation comes afterwards. ' +
     'Never state facts about the candidate that they did not say. ' +
+    'Ask a follow-up only after the candidate has answered. Never announce a question you do not ask in the same turn, such as "one more detail": either ask it or move on. ' +
     'After the last question, thank them in one sentence and say the panel will now score the answers. ' +
     `Questions:\n${questions.map((q, i) => `${i + 1}. ${q.question}`).join('\n')}\n` +
     `Interview plan:\n${stages.join('\n')}`

@@ -81,8 +81,18 @@ it('tells the realtime panel its persona, the questions in order and not to scor
   expect(text).toContain('Start every main question with the words "Question"');
   expect(text).toContain('Do not score');
   // The spoken panel follows the same stage plan as the typed one (CFS-166).
-  expect(text).toContain('Interview plan:\n1. Motivation: establish');
-  expect(text).toContain('up to 2 follow-ups');
+  expect(text).toContain('Interview plan:\n1. Question: establish');
+  expect(text).toContain('up to 1 follow-up.');
+  expect(
+    voiceInstructions({ title: 'Data Analyst' }, [
+      { id: 'b', question: 'Tell me about a conflict.', stage: 'behavioural' },
+    ]),
+  ).toContain(
+    '1. Behavioural: establish one real STAR example of teamwork or handling a problem; up to 2 follow-ups.',
+  );
+  // No hints before the first answer, no announced questions that are never asked.
+  expect(text).toContain('one greeting sentence followed by Question 1 and nothing else');
+  expect(text).toContain('Never announce a question you do not ask');
   expect(questionNumber('Thanks. Question 2. How do you check data quality?')).toBe(1);
   expect(questionNumber('Could you say more about that?')).toBeNull();
 });

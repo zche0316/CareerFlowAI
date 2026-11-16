@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ArrowRight, Flag, Swords } from 'lucide-react';
 import { XP_RULES } from './progress.js';
 import { ReadAloud, RecordAnswer, SpeakAnswer } from './voice.js';
-import { VoiceInterviewer } from './voice-interviewer.js';
+import { VoiceInterviewer, type LiveCall } from './voice-interviewer.js';
 import { interviewPlan } from '../../../../packages/contracts/src/interview-plan.js';
 
 type Mark = 'critical' | 'hit' | 'partial' | 'miss';
@@ -49,12 +49,26 @@ const markLabel: Record<Mark, string> = {
 export const roundDamage = (r: Round) =>
   Object.values(r.evaluation.star).reduce((n, m) => n + damageFor[m], 0);
 
-/** Original panel of three stern interviewers. */
-function Panel() {
+/**
+ * Original panel of three stern interviewers. During a live call (CFS-170) the lead interviewer
+ * talks while the panel speaks, and the panel leans in while the candidate speaks.
+ */
+function Panel({
+  live = false,
+  speaker = null,
+}: {
+  live?: boolean;
+  speaker?: 'panel' | 'you' | null;
+}) {
   return (
     <svg
       role="img"
-      aria-label="The panel: three interviewers behind a desk"
+      aria-label={
+        live
+          ? `The panel on a live call: ${speaker === 'panel' ? 'speaking' : speaker === 'you' ? 'listening to you' : 'waiting'}`
+          : 'The panel: three interviewers behind a desk'
+      }
+      className={`boss-panel-art${live ? ' live' : ''}${speaker ? ` talk-${speaker}` : ''}`}
       width="280"
       height="140"
       viewBox="0 0 200 100"
@@ -73,26 +87,29 @@ function Panel() {
       <circle cx="34" cy="40" r="2.8" fill="#fff" />
       <circle cx="50" cy="40" r="2.8" fill="#fff" />
       <path d="M34 50h16" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" />
-      <rect
-        x="78"
-        y="6"
-        width="44"
-        height="54"
-        rx="12"
-        fill="#FF8A6B"
-        stroke="#fff"
-        strokeWidth="2.5"
-      />
-      <path d="M86 22l10 5M114 22l-10 5" stroke="#111218" strokeWidth="3" strokeLinecap="round" />
-      <circle cx="92" cy="34" r="3" fill="#111218" />
-      <circle cx="108" cy="34" r="3" fill="#111218" />
-      <path
-        d="M92 47q8-5 16 0"
-        fill="none"
-        stroke="#111218"
-        strokeWidth="2.6"
-        strokeLinecap="round"
-      />
+      <g className="boss-lead">
+        <rect
+          x="78"
+          y="6"
+          width="44"
+          height="54"
+          rx="12"
+          fill="#FF8A6B"
+          stroke="#fff"
+          strokeWidth="2.5"
+        />
+        <path d="M86 22l10 5M114 22l-10 5" stroke="#111218" strokeWidth="3" strokeLinecap="round" />
+        <circle cx="92" cy="34" r="3" fill="#111218" />
+        <circle cx="108" cy="34" r="3" fill="#111218" />
+        <path
+          className="boss-mouth"
+          d="M92 47q8-5 16 0"
+          fill="none"
+          stroke="#111218"
+          strokeWidth="2.6"
+          strokeLinecap="round"
+        />
+      </g>
       <rect
         x="136"
         y="16"
@@ -151,6 +168,27 @@ export function QuestBossBattle({
       .then(setVoice)
       .catch(() => setVoice({ realtime: false, transcribe: false }));
   }, []);
+  // Two ways to answer, one at a time on screen (CFS-170): a live call with the panel, or one
+  // question at a time by typing or recording. The choice is remembered on this browser.
+  const canCall = Boolean(startVoice && voice?.realtime);
+  const [mode, setModeState] = useState<'call' | 'turns'>(() => {
+    try {
+      return localStorage.getItem('careerflow.answerMode') === 'turns' ? 'turns' : 'call';
+    } catch {
+      return 'call';
+    }
+  });
+  const setMode = (next: 'call' | 'turns') => {
+    setModeState(next);
+    try {
+      localStorage.setItem('careerflow.answerMode', next);
+    } catch {
+      /* private mode: for this page only */
+    }
+  };
+  const calling = canCall && mode === 'call';
+  const [call, setCall] = useState<LiveCall | null>(null);
+  const onCall = Boolean(call && (call.phase === 'live' || call.phase === 'connecting'));
   const questions: { id: string; question: string; focus: string }[] = d.questions || [];
   const rounds: Round[] = d.rounds || [];
   const live = m.status === 'AWAITING_INTERVIEW';
@@ -255,12 +293,35 @@ export function QuestBossBattle({
   };
 
   const showChoices = claims.length > 0 || Boolean(lesson);
+  // The plan follows the call: the question the panel is asking is the one shown.
+  useEffect(() => {
+    const i = questions.findIndex((x) => x.id === call?.questionId);
+    if (onCall && i >= 0) setIndex(i);
+  }, [call?.questionId, onCall]);
+  const waiting = plan.steps.filter((s) => s.status === 'probing').length;
 
   return (
     <div className="quest-page boss">
       <section className="quest-tile ink boss-arena" aria-label="Arena">
         <div className="boss-foe">
-          <Panel />
+          <Panel live={onCall} speaker={onCall ? call!.speaker : null} />
+          {onCall && (
+            <p className={`boss-call-status talk-${call!.speaker || 'idle'}`} role="status">
+              <span className="boss-wave" aria-hidden="true">
+                <i />
+                <i />
+                <i />
+                <i />
+              </span>
+              {call!.phase === 'connecting'
+                ? 'Connecting to the panel…'
+                : call!.speaker === 'panel'
+                  ? 'The panel is speaking'
+                  : call!.speaker === 'you'
+                    ? 'Listening to you'
+                    : 'Your turn to speak'}
+            </p>
+          )}
           <div className="boss-hp-head">
             <span>The Panel</span>
             <span>
@@ -316,18 +377,30 @@ export function QuestBossBattle({
           </div>
           {q && (
             <>
-              <span className="quest-chip coral">
-                {pendingFollow
-                  ? `The panel counters · follow-up ${(step?.used || 0) + 1} of ${step?.budget}`
-                  : `${step?.label || 'Question'} · ${q.focus}`}
+              <span className="quest-chip coral boss-ask-chip">
+                {onCall
+                  ? `Live call · ${step?.label || 'Question'}`
+                  : calling
+                    ? `Up next on the call · ${step?.label || 'Question'}`
+                    : pendingFollow
+                      ? `The panel counters · follow-up ${(step?.used || 0) + 1} of ${step?.budget}`
+                      : `${step?.label || 'Question'} · ${q.focus}`}
               </span>
-              {panelReply && (
+              {panelReply && !calling && (
                 <p className="boss-panel-reply" role="status">
                   <b>The panel:</b> {panelReply.reply}
                 </p>
               )}
-              <p className="boss-bubble">“{prompt}”</p>
-              <ReadAloud text={prompt || ''} label="Read the question aloud" />
+              {onCall ? (
+                <p className="boss-bubble live" aria-live="polite">
+                  {call!.caption || '…'}
+                </p>
+              ) : (
+                <>
+                  <p className="boss-bubble">“{calling ? q.question : prompt}”</p>
+                  {!calling && <ReadAloud text={prompt || ''} label="Read the question aloud" />}
+                </>
+              )}
               <small className="boss-fine">
                 {step
                   ? `This stage checks ${step.goal}. The panel follows up ${
@@ -350,95 +423,138 @@ export function QuestBossBattle({
               <h2 id="boss-turn">Your turn</h2>
               <span className="quest-chip lime">+{XP_RULES.practiceAnswer} XP per answer</span>
             </div>
-            {main && !pendingFollow ? (
-              <p className="quest-note">
-                You answered this one. Answer again to replace it, or pick another question.
-              </p>
-            ) : null}
-            {startVoice && voice?.realtime && !pendingFollow && (
-              <VoiceInterviewer
-                start={startVoice}
-                disabled={busy}
-                onAnswer={(questionId, answer) => onRound({ questionId, answer, followUp: false })}
-              />
-            )}
-            <label className="checkbox boss-voice-only">
-              <input
-                type="checkbox"
-                checked={voiceOnly}
-                onChange={(e) => toggleVoiceOnly(e.target.checked)}
-              />
-              Voice only, like a real interview: answer by recording, no typing
-            </label>
-            <label className="quest-field">
-              {pendingFollow ? 'Your follow-up answer' : 'Your answer'}
-              {voiceOnly && ' (transcript of your recording)'}
-              <textarea
-                rows={6}
-                maxLength={6000}
-                value={text}
-                readOnly={voiceOnly}
-                disabled={busy}
-                onChange={(e) => setText(e.target.value)}
-                placeholder="Situation, what you were asked to do, what you personally did, and what changed. Real experience only."
-              />
-            </label>
-            {transcribe && voice?.transcribe ? (
-              <RecordAnswer
-                disabled={busy}
-                transcribe={transcribe}
-                onText={(words) => setText((t) => (t ? `${t} ` : '') + words)}
-              />
-            ) : (
-              <SpeakAnswer
-                disabled={busy}
-                onText={(words) => setText((t) => (t ? `${t} ` : '') + words)}
-              />
-            )}
-            {voiceOnly && text && (
-              <button type="button" className="text-button" onClick={() => setText('')}>
-                Clear and record again
-              </button>
-            )}
-            {showChoices && !voiceOnly && (
-              <div className="boss-items">
-                <span>Use an item</span>
-                <div>
-                  {claims.map((c) => (
-                    <button
-                      key={c.factId}
-                      type="button"
-                      className="boss-item"
-                      onClick={() => setText((t) => (t ? `${t} ` : '') + c.text)}
-                    >
-                      <span className="quest-chip ink">{itemLabel(c.factId)}</span>
-                      <span className="boss-item-text">
-                        {c.text.length > 140 ? c.text.slice(0, 137) + '…' : c.text}
-                      </span>
-                    </button>
-                  ))}
-                  {lesson && (
-                    <p className="boss-item lesson">
-                      <span className="quest-chip lilac">Lesson</span>
-                      <span className="boss-item-text">
-                        {lesson.length > 140 ? lesson.slice(0, 137) + '…' : lesson}
-                      </span>
-                    </p>
-                  )}
-                </div>
+            {canCall && (
+              <div className="boss-modes" role="group" aria-label="How to answer">
+                <button
+                  type="button"
+                  aria-pressed={mode === 'call'}
+                  disabled={onCall}
+                  onClick={() => setMode('call')}
+                >
+                  <b>Live call</b>
+                  <small>The panel asks out loud and follows up; you talk.</small>
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={mode === 'turns'}
+                  disabled={onCall}
+                  onClick={() => setMode('turns')}
+                >
+                  <b>One question at a time</b>
+                  <small>Type or record each answer and get a verdict after each.</small>
+                </button>
               </div>
             )}
+            {calling ? (
+              <>
+                <VoiceInterviewer
+                  start={startVoice!}
+                  disabled={busy}
+                  onLive={setCall}
+                  onAnswer={(questionId, answer) =>
+                    onRound({ questionId, answer, followUp: false })
+                  }
+                />
+                {waiting > 0 && !onCall && (
+                  <p className="quest-note">
+                    {waiting} written follow-up{waiting === 1 ? '' : 's'} from the verdict{' '}
+                    {waiting === 1 ? 'waits' : 'wait'} in “One question at a time”. The call covers
+                    the stages not answered yet.
+                  </p>
+                )}
+              </>
+            ) : (
+              <>
+                {main && !pendingFollow ? (
+                  <p className="quest-note">
+                    You answered this one. Answer again to replace it, or pick another question.
+                  </p>
+                ) : null}
+                <label className="checkbox boss-voice-only">
+                  <input
+                    type="checkbox"
+                    checked={voiceOnly}
+                    onChange={(e) => toggleVoiceOnly(e.target.checked)}
+                  />
+                  Voice only, like a real interview: answer by recording, no typing
+                </label>
+                <label className="quest-field">
+                  {pendingFollow ? 'Your follow-up answer' : 'Your answer'}
+                  {voiceOnly && ' (transcript of your recording)'}
+                  <textarea
+                    rows={6}
+                    maxLength={6000}
+                    value={text}
+                    readOnly={voiceOnly}
+                    disabled={busy}
+                    onChange={(e) => setText(e.target.value)}
+                    placeholder="Situation, what you were asked to do, what you personally did, and what changed. Real experience only."
+                  />
+                </label>
+                {transcribe && voice?.transcribe ? (
+                  <RecordAnswer
+                    disabled={busy}
+                    transcribe={transcribe}
+                    onText={(words) => setText((t) => (t ? `${t} ` : '') + words)}
+                  />
+                ) : (
+                  <SpeakAnswer
+                    disabled={busy}
+                    onText={(words) => setText((t) => (t ? `${t} ` : '') + words)}
+                  />
+                )}
+                {voiceOnly && text && (
+                  <button type="button" className="text-button" onClick={() => setText('')}>
+                    Clear and record again
+                  </button>
+                )}
+                {showChoices && !voiceOnly && (
+                  <div className="boss-items">
+                    <span>Use an item</span>
+                    <div>
+                      {claims.map((c) => (
+                        <button
+                          key={c.factId}
+                          type="button"
+                          className="boss-item"
+                          onClick={() => setText((t) => (t ? `${t} ` : '') + c.text)}
+                        >
+                          <span className="quest-chip ink">{itemLabel(c.factId)}</span>
+                          <span className="boss-item-text">
+                            {c.text.length > 140 ? c.text.slice(0, 137) + '…' : c.text}
+                          </span>
+                        </button>
+                      ))}
+                      {lesson && (
+                        <p className="boss-item lesson">
+                          <span className="quest-chip lilac">Lesson</span>
+                          <span className="boss-item-text">
+                            {lesson.length > 140 ? lesson.slice(0, 137) + '…' : lesson}
+                          </span>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
             <div className="boss-actions">
-              <button
-                type="button"
-                className="quest-press lime"
-                disabled={busy || !text.trim()}
-                onClick={() => void submit()}
-              >
-                <Swords size={18} />
-                {busy ? 'The panel is scoring…' : pendingFollow ? 'Answer the follow-up' : 'Answer'}
-              </button>
-              {pendingFollow && (
+              {!calling && (
+                <button
+                  type="button"
+                  className="quest-press lime"
+                  disabled={busy || !text.trim()}
+                  onClick={() => void submit()}
+                >
+                  <Swords size={18} />
+                  {busy
+                    ? 'The panel is scoring…'
+                    : pendingFollow
+                      ? 'Answer the follow-up'
+                      : 'Answer'}
+                </button>
+              )}
+              {pendingFollow && !calling && (
                 <button
                   type="button"
                   className="quest-press"
@@ -452,7 +568,7 @@ export function QuestBossBattle({
               <button
                 type="button"
                 className="quest-press"
-                disabled={busy || answered.length === 0}
+                disabled={busy || answered.length === 0 || onCall}
                 onClick={() => void onFinish(!allDone)}
               >
                 <Flag size={16} />
