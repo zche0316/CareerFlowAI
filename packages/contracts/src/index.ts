@@ -1,4 +1,4 @@
-import { interviewStages } from './interview-plan.js';
+import { interviewStages, RUBRICS, type PlanStage } from './interview-plan.js';
 import { z } from 'zod';
 import { recordSchema } from './profile-records.js';
 
@@ -259,17 +259,23 @@ export const feedbackSchema = z.object({
 
 // Evaluator verdict for one practice answer: STAR coverage plus at most one follow-up question.
 export const starMarks = ['critical', 'hit', 'partial', 'miss'] as const;
-export const roundEvaluationSchema = z.object({
-  star: z.object({
-    situation: z.enum(starMarks),
-    task: z.enum(starMarks),
-    action: z.enum(starMarks),
-    result: z.enum(starMarks),
-  }),
-  note: z.string().trim().min(1).max(400),
-  followUp: z.string().trim().max(300),
-});
-export type RoundEvaluation = z.infer<typeof roundEvaluationSchema>;
+/** The Evaluator's answer for one round, marked on the criteria of the question's stage (CFS-179). */
+export const evaluationSchemaFor = (stage: PlanStage) => {
+  const mark = z.enum(starMarks);
+  const shape: Record<string, typeof mark> = {};
+  for (const c of RUBRICS[stage]) shape[c.key] = mark;
+  return z.object({
+    marks: z.object(shape),
+    note: z.string().trim().min(1).max(400),
+    followUp: z.string().trim().max(300),
+  });
+};
+export const roundEvaluationSchema = evaluationSchemaFor('behavioural');
+export type RoundEvaluation = {
+  marks: Record<string, (typeof starMarks)[number]>;
+  note: string;
+  followUp: string;
+};
 
 export const interviewRoundInputSchema = z.object({
   questionId: z.string().max(100),

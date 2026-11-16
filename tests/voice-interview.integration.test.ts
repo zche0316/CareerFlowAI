@@ -88,7 +88,7 @@ it('tells the realtime panel its persona, the questions in order and not to scor
       { id: 'b', question: 'Tell me about a conflict.', stage: 'behavioural' },
     ]),
   ).toContain(
-    '1. Behavioural: establish one real STAR example of teamwork or handling a problem; up to 2 follow-ups.',
+    '1. Behavioural: establish one real STAR example of teamwork or handling a problem, judged on situation, task, action, result; up to 2 follow-ups.',
   );
   // No hints before the first answer, no announced questions that are never asked.
   expect(text).toContain('one greeting sentence followed by Question 1 and nothing else');

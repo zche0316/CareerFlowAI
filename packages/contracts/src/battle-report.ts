@@ -1,18 +1,24 @@
-import { interviewPlan, type PlanRound, type PlanStep } from './interview-plan.js';
+import {
+  criteriaOf,
+  interviewPlan,
+  marksOf,
+  type Criterion,
+  type Mark,
+  type PlanRound,
+  type PlanStep,
+} from './interview-plan.js';
 
-// Battle report (CFS-178): a grade per stage and overall, computed from the Evaluator's STAR
-// marks already saved with each round. No new model call: the grade explains itself from the
-// marks shown beside it.
+// Battle report (CFS-178): a grade per stage and overall, computed from the Evaluator's marks
+// already saved with each round. No new model call: the grade explains itself from the marks
+// shown beside it. Each stage is judged on its own four criteria (CFS-179): STAR for behavioural
+// questions, other criteria for motivation, technical, scenario, gap and closing questions.
 
-export const starParts = ['situation', 'task', 'action', 'result'] as const;
-export type StarPart = (typeof starParts)[number];
-export type Mark = 'critical' | 'hit' | 'partial' | 'miss';
 export type Grade = 'S' | 'A' | 'B' | 'C' | 'D';
 
 export const markPoints: Record<Mark, number> = { critical: 3, hit: 2, partial: 1, miss: 0 };
 const rank = (m?: string) => (m && m in markPoints ? markPoints[m as Mark] : -1);
 
-/** Letter grade for a share of the best possible STAR score. */
+/** Letter grade for a share of the best possible score. */
 export const gradeOf = (score: number): Grade =>
   score >= 0.9 ? 'S' : score >= 0.75 ? 'A' : score >= 0.55 ? 'B' : score >= 0.35 ? 'C' : 'D';
 
@@ -23,8 +29,9 @@ export type ReportRound = PlanRound & {
 export type StageReport = {
   step: PlanStep;
   question: string;
-  // A follow-up exists to fill a gap, so each STAR part counts at its best mark in the stage.
-  star: Record<StarPart, Mark> | null;
+  criteria: Pick<Criterion, 'key' | 'label' | 'means'>[];
+  // A follow-up exists to fill a gap, so each criterion counts at its best mark in the stage.
+  marks: Record<string, Mark> | null;
   score: number | null;
   grade: Grade | null;
   rounds: ReportRound[];
@@ -36,24 +43,46 @@ export function stageReport(step: PlanStep, question: string, rounds: ReportRoun
   const own = rounds
     .filter((r) => r.questionId === step.questionId)
     .sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
-  const scored = own.filter((r) => r.evaluation.star);
-  if (!scored.length)
-    return { step, question, star: null, score: null, grade: null, rounds: own, stillWanted: '' };
-  const star = Object.fromEntries(
-    starParts.map((p) => [
-      p,
+  const scored = own.filter((r) => marksOf(r.evaluation));
+  const latest = scored.at(-1);
+  const criteria = criteriaOf(step.stage, latest?.evaluation || { marks: {} }).map(
+    ({ key, label, means }) => ({ key, label, means }),
+  );
+  if (!latest)
+    return {
+      step,
+      question,
+      criteria,
+      marks: null,
+      score: null,
+      grade: null,
+      rounds: own,
+      stillWanted: '',
+    };
+  const marks = Object.fromEntries(
+    criteria.map(({ key }) => [
+      key,
       scored
-        .map((r) => r.evaluation.star![p])
-        .reduce((best, m) => (rank(m) > rank(best) ? m : best), 'miss'),
+        .map((r) => marksOf(r.evaluation)?.[key])
+        .reduce<Mark>((best, m) => (rank(m) > rank(best) ? (m as Mark) : best), 'miss'),
     ]),
-  ) as Record<StarPart, Mark>;
+  ) as Record<string, Mark>;
   const score =
-    starParts.reduce((n, p) => n + markPoints[star[p]], 0) /
-    (starParts.length * markPoints.critical);
-  const latest = own.at(-1)!;
+    criteria.reduce((n, c) => n + markPoints[marks[c.key]], 0) /
+    (criteria.length * markPoints.critical);
+  const last = own.at(-1)!;
   const stillWanted =
-    step.status === 'covered' ? '' : latest.unresolved || latest.evaluation.followUp || '';
-  return { step, question, star, score, grade: gradeOf(score), rounds: own, stillWanted };
+    step.status === 'covered' ? '' : last.unresolved || last.evaluation.followUp || '';
+  return {
+    step,
+    question,
+    criteria,
+    marks,
+    score,
+    grade: gradeOf(score),
+    rounds: own,
+    stillWanted,
+  };
 }
 
 export type BattleReport = {

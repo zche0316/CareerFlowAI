@@ -733,3 +733,15 @@ Hit 2, Glancing 1, Missed 0), scored out of 12: S from 90%, A from 75%, B from 5
 D below. The overall score averages every planned stage, unanswered or skipped ones as zero. Each
 stage card lists the question, its status, the STAR grid, every answer and follow-up with the
 panel's note, and what the panel still wanted to know.
+
+## Stage criteria instead of STAR everywhere (CFS-179)
+
+STAR fits behavioural questions only. `RUBRICS` in `packages/contracts/src/interview-plan.ts`
+gives each stage four criteria, scored with the same four marks so grades compare across stages:
+behavioural and older general questions keep STAR; motivation is judged on role, employer,
+evidence and direction; technical on approach, specifics, checks and experience; scenario on
+clarify, plan, judgement and communication; gap on honesty, related experience, plan and
+progress; closing on relevance, specificity, insight and growth. `evaluationSchemaFor(stage)`
+builds the Evaluator's structured output from the stage's keys (`marks`), the demo rules use each
+criterion's cue and follow-up, and the voice plan names the criteria per stage. Rounds saved
+before this keep their `star` marks and are shown as STAR (`marksOf`, `criteriaOf`).

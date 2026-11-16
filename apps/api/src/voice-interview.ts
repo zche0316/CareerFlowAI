@@ -6,6 +6,7 @@ import { approvedResumeText } from './interview-resume.js';
 import { configuredMode } from '../../../packages/agents/src/provider.js';
 import { rolePreamble } from '../../../packages/agents/src/personas.js';
 import {
+  RUBRICS,
   STAGE_PLAN,
   interviewPlan,
   stageOf,
@@ -39,8 +40,11 @@ export function voiceInstructions(
   resume = '',
 ) {
   const stages = questions.map((q, i) => {
-    const s = STAGE_PLAN[stageOf(q, i)];
-    return `${i + 1}. ${s.label}: establish ${s.goal}; ${s.followUps ? `up to ${s.followUps} follow-up${s.followUps > 1 ? 's' : ''}` : 'no follow-ups'}.`;
+    const stage = stageOf(q, i);
+    const s = STAGE_PLAN[stage];
+    // The criteria the written evaluation uses (CFS-179), so follow-ups aim at the same gaps.
+    const judged = RUBRICS[stage].map((c) => c.label.toLowerCase()).join(', ');
+    return `${i + 1}. ${s.label}: establish ${s.goal}, judged on ${judged}; ${s.followUps ? `up to ${s.followUps} follow-up${s.followUps > 1 ? 's' : ''}` : 'no follow-ups'}.`;
   });
   return (
     rolePreamble('questions') +

@@ -3,10 +3,14 @@ import { ArrowRight, Flag, Lock, Swords } from 'lucide-react';
 import { XP_RULES } from './progress.js';
 import { ReadAloud, RecordAnswer, SpeakAnswer } from './voice.js';
 import { VoiceInterviewer, type LiveCall } from './voice-interviewer.js';
-import { interviewPlan } from '../../../../packages/contracts/src/interview-plan.js';
+import {
+  criteriaOf,
+  interviewPlan,
+  marksOf,
+  stageOf,
+} from '../../../../packages/contracts/src/interview-plan.js';
 import {
   battleReport,
-  starParts,
   type BattleReport,
 } from '../../../../packages/contracts/src/battle-report.js';
 
@@ -16,8 +20,10 @@ type Round = {
   kind: 'answer' | 'follow_up';
   prompt: string;
   answer: string;
+  // Marks on the stage's criteria (CFS-179); rounds scored before that carry STAR in `star`.
   evaluation: {
-    star: Record<'situation' | 'task' | 'action' | 'result', Mark>;
+    marks?: Record<string, Mark>;
+    star?: Record<string, Mark>;
     note: string;
     followUp: string;
   };
@@ -60,7 +66,30 @@ const markLabel: Record<Mark, string> = {
   miss: 'Missed',
 };
 export const roundDamage = (r: Round) =>
-  Object.values(r.evaluation.star).reduce((n, m) => n + damageFor[m], 0);
+  Object.values(marksOf(r.evaluation) || {}).reduce((n, m) => n + damageFor[m as Mark], 0);
+
+/** One mark per criterion, labelled with what it judges. */
+function MarkGrid({
+  criteria,
+  marks,
+}: {
+  criteria: { key: string; label: string; means: string }[];
+  marks: Record<string, string>;
+}) {
+  return (
+    <div className="boss-star">
+      {criteria.map((c) => {
+        const m = (marks[c.key] || 'miss') as Mark;
+        return (
+          <div key={c.key} className={`boss-mark ${m}`} title={c.means}>
+            <span>{c.label.toUpperCase()}</span>
+            <b>{markLabel[m]}</b>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 /**
  * Original panel of three stern interviewers. During a live call (CFS-170) the lead interviewer
@@ -677,14 +706,15 @@ export function QuestBossBattle({
             </div>
             {last ? (
               <>
-                <div className="boss-star">
-                  {(['situation', 'task', 'action', 'result'] as const).map((k) => (
-                    <div key={k} className={`boss-mark ${last.evaluation.star[k]}`}>
-                      <span>{k.toUpperCase()}</span>
-                      <b>{markLabel[last.evaluation.star[k]]}</b>
-                    </div>
-                  ))}
-                </div>
+                <MarkGrid
+                  criteria={criteriaOf(
+                    stageOf(
+                      (questions.find((x) => x.id === last.questionId) || {}) as { stage?: string },
+                    ),
+                    last.evaluation,
+                  )}
+                  marks={marksOf(last.evaluation) || {}}
+                />
                 <p className="boss-note">{last.evaluation.note}</p>
                 <ReadAloud
                   text={[last.evaluation.note, last.evaluation.followUp].filter(Boolean).join(' ')}
@@ -754,10 +784,12 @@ function BattleReportView({
       <details className="battle-scale">
         <summary>How grades work</summary>
         <p>
-          Each STAR part counts at its best mark across a stage’s answer and follow-ups: Critical 3,
-          Hit 2, Glancing 1, Missed 0. A stage’s score is its share of 12 points: S from 90%, A from
-          75%, B from 55%, C from 35%, D below. The overall score averages every planned stage, so
-          an unanswered or skipped stage counts as zero.{' '}
+          Each stage is judged on four criteria that fit it: STAR for a behavioural question, and
+          for example role, employer, evidence and direction for motivation. Hover a mark to see
+          what it judges. Each criterion counts at its best mark across the stage’s answer and
+          follow-ups: Critical 3, Hit 2, Glancing 1, Missed 0. A stage’s score is its share of 12
+          points: S from 90%, A from 75%, B from 55%, C from 35%, D below. The overall score
+          averages every planned stage, so an unanswered or skipped stage counts as zero.{' '}
           {rules
             ? 'Demo mode marks answers with simple rules, not an AI assessment.'
             : 'Marks come from the Evaluator model.'}
@@ -781,15 +813,8 @@ function BattleReportView({
               )}
             </div>
             <p className="battle-question">“{s.question}”</p>
-            {s.star ? (
-              <div className="boss-star">
-                {starParts.map((k) => (
-                  <div key={k} className={`boss-mark ${s.star![k]}`}>
-                    <span>{k.toUpperCase()}</span>
-                    <b>{markLabel[s.star![k]]}</b>
-                  </div>
-                ))}
-              </div>
+            {s.marks ? (
+              <MarkGrid criteria={s.criteria} marks={s.marks} />
             ) : (
               <p className="muted">
                 {s.step.status === 'skipped' ? 'Skipped' : 'Not answered'}: this stage scores zero.

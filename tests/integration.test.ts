@@ -140,7 +140,7 @@ it('answers clarify and repeat requests without scoring, and skips on request (C
   expect(answered.body.data.rounds[0].turn).toMatchObject({ intent: 'answer', route: 'extract' });
 });
 
-it('scores interview rounds with STAR, asks one follow-up and still completes with feedback', async () => {
+it('scores interview rounds on the stage criteria, asks one follow-up and still completes with feedback', async () => {
   const c = await client();
   const { id, interview } = await prepareInterview(c);
   const q = interview.data.questions[0];
@@ -152,7 +152,14 @@ it('scores interview rounds with STAR, asks one follow-up and still completes wi
   expect(first.body.data.rounds).toHaveLength(1);
   const round = first.body.data.rounds[0];
   expect(round).toMatchObject({ questionId: q.id, kind: 'answer', reviewer: 'rules' });
-  expect(round.evaluation.star.result).toBe('miss');
+  // The first question is the motivation stage: judged on role, employer, evidence, direction.
+  expect(Object.keys(round.evaluation.marks)).toEqual([
+    'role',
+    'employer',
+    'evidence',
+    'direction',
+  ]);
+  expect(round.evaluation.marks.direction).toBe('miss');
   expect(round.evaluation.followUp).not.toBe('');
   expect(first.body.data.answers).toEqual([
     { questionId: q.id, answer: 'We worked on a dashboard as a group.' },
@@ -169,7 +176,7 @@ it('scores interview rounds with STAR, asks one follow-up and still completes wi
   expect(follow.body.data.rounds.map((r: any) => r.kind)).toEqual(['answer', 'follow_up']);
   expect(follow.body.data.rounds[1].prompt).toBe(round.evaluation.followUp);
   expect(follow.body.data.rounds[1].evaluation.followUp).toBe('');
-  expect(follow.body.data.rounds[1].evaluation.star.action).toBe('critical');
+  expect(follow.body.data.rounds[1].evaluation.marks.evidence).toBe('hit');
   expect(follow.body.data.answers).toHaveLength(1);
   expect(
     (

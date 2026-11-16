@@ -7,7 +7,8 @@ import { missionContext } from '../../../packages/agents/src/mission-context.js'
 import { mergeInterviewAnswer, type InterviewQuestion } from './interview.js';
 import {
   interviewRoundInputSchema,
-  roundEvaluationSchema,
+  evaluationSchemaFor,
+  RUBRICS,
   questionsSchema,
   type RoundEvaluation,
   interviewPlan,
@@ -238,9 +239,11 @@ async function scoreRound(
         stageGoal: prompt.step.goal,
         earlierAnswers: prompt.earlier,
         followUpsLeft: Math.max(0, prompt.left),
+        // The stage's own criteria (CFS-179): STAR only for behavioural questions.
+        rubric: RUBRICS[prompt.step.stage].map(({ key, means }) => ({ key, means })),
         ...(resume ? { resume } : {}),
       },
-      roundEvaluationSchema,
+      evaluationSchemaFor(prompt.step.stage),
       mission.mode as Mode,
       {
         onCall: () =>
@@ -292,7 +295,9 @@ async function scoreRound(
             questionId: round.questionId,
             answer: round.answer,
           });
-      const s = saved.evaluation.star;
+      const marks = RUBRICS[prompt.step.stage]
+        .map((c) => `${c.label.toLowerCase()} ${saved.evaluation.marks[c.key]}`)
+        .join(', ');
       await save(tx, id, { ...data, rounds, answers, interviewRun: null }, [
         ...events,
         {
@@ -300,7 +305,7 @@ async function scoreRound(
           agent: 'Interview Coach',
           action: 'evaluated',
           detail:
-            `Evaluator scored ${round.followUp ? 'a follow-up' : 'an answer'}: situation ${s.situation}, task ${s.task}, action ${s.action}, result ${s.result}.` +
+            `Evaluator scored ${round.followUp ? 'a follow-up' : 'an answer'}: ${marks}.` +
             (saved.evaluation.followUp
               ? ' The panel asked a follow-up.'
               : ` The ${prompt.step.label.toLowerCase()} stage is ${prompt.left > 0 || !evaluation.followUp ? 'covered' : 'closed with its follow-ups spent'}.`),
