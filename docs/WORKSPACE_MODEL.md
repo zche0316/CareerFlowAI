@@ -668,4 +668,6 @@ the API and the battle view.
   stage, goal and follow-up limit, and a session speaks only the stages still open. Each stage's
   spoken answers are joined and scored as one main answer. If the Evaluator still wants more,
   the follow-up continues by typing or recording.
+- Voice can use its own key, `OPENAI_VOICE_API_KEY` (CFS-169), for a project with realtime
+  access; when it is empty, voice uses `OPENAI_NATIVE_API_KEY`.
 - `scripts/interview-plan-demo.ts` (CFS-164) is the command-line version of the same plan.

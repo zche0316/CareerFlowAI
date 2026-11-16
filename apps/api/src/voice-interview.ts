@@ -20,6 +20,11 @@ export const VOICE_SESSIONS_PER_RUN = 3;
 export const VOICE_LIMIT_SECONDS = 600;
 const OPENAI = 'https://api.openai.com/v1';
 
+// Voice can use its own OpenAI key (CFS-169), so a personal key with realtime access can sit
+// next to the shared text key; without it, voice uses the main native key as before.
+export const voiceKey = () =>
+  process.env.OPENAI_VOICE_API_KEY?.trim() || process.env.OPENAI_NATIVE_API_KEY?.trim() || '';
+
 type Question = { id: string; question: string; focus?: string; stage?: string | null };
 
 /**
@@ -56,7 +61,7 @@ export async function createVoiceSession(
 ) {
   if (configuredMode() === 'fixture')
     throw new AppError(409, 'LIVE_ONLY', 'The voice interviewer works in live mode only.');
-  const key = process.env.OPENAI_NATIVE_API_KEY?.trim();
+  const key = voiceKey();
   if (!key)
     throw new AppError(503, 'VOICE_UNAVAILABLE', 'The voice interviewer is not configured here.');
   const m = await ownedMission(userId, missionId);
@@ -172,7 +177,7 @@ let statusCache: { at: number; value: { realtime: boolean; transcribe: boolean }
 
 /** Which voice features this deployment's OpenAI project can use; cached for an hour. */
 export async function voiceStatus(fetcher: typeof fetch = fetch) {
-  const key = process.env.OPENAI_NATIVE_API_KEY?.trim();
+  const key = voiceKey();
   if (configuredMode() === 'fixture' || !key) return { realtime: false, transcribe: false };
   if (statusCache && Date.now() - statusCache.at < 3600_000) return statusCache.value;
   const realtime = process.env.OPENAI_REALTIME_MODEL?.trim() || 'gpt-realtime-2.1';
@@ -212,7 +217,7 @@ async function transcribeAudio(
 ) {
   if (configuredMode() === 'fixture')
     throw new AppError(409, 'LIVE_ONLY', 'Recorded answers are transcribed in live mode only.');
-  const key = process.env.OPENAI_NATIVE_API_KEY?.trim();
+  const key = voiceKey();
   if (!key)
     throw new AppError(503, 'TRANSCRIBE_UNAVAILABLE', 'Transcription is not configured here.');
   if (!audioTypes.test(contentType || ''))
