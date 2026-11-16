@@ -478,4 +478,27 @@ test('a live call shows one exchange as subtitles and folds the transcript (CFS-
     type: 'response.create',
   });
   await page.screenshot({ path: 'output/acceptance/live-call-subtitles.png', fullPage: false });
+
+  // A reply's transcript can arrive after the panel has moved on to Question 2; it still belongs
+  // to the question active when the speech was committed (CFS-181).
+  await emit({ type: 'input_audio_buffer.committed', item_id: 'late-reply' });
+  await emit({
+    type: 'response.output_audio_transcript.done',
+    transcript: 'Thank you. Question 2. Tell us about a time you fixed a problem.',
+  });
+  await emit({
+    type: 'conversation.item.input_audio_transcription.completed',
+    item_id: 'late-reply',
+    transcript: 'I would also add row count checks after each load of the data.',
+  });
+  await page.getByRole('button', { name: 'End and score my answers', exact: true }).click();
+  await expect(page.getByText(/spoken answers? scored/)).toBeVisible({ timeout: 30000 });
+  const id = new URL(page.url()).searchParams.get('mission');
+  const workspace = await (await page.request.get('/api/workspace')).json();
+  const run = workspace.missions.find((m: any) => m.id === id);
+  const [first, second] = run.data.questions;
+  const rounds = run.data.rounds.filter((r: any) => r.kind === 'answer');
+  expect(rounds.map((r: any) => r.questionId)).toEqual([first.id]);
+  expect(rounds[0].answer).toContain('row count checks');
+  expect(rounds.some((r: any) => r.questionId === second.id)).toBe(false);
 });

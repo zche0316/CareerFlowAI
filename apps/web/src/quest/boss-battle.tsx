@@ -418,8 +418,8 @@ export function QuestBossBattle({
             </div>
           )}
           <small className="boss-fine">
-            Traits come from this job’s requirement mapping. Damage is STAR coverage scored by the
-            Evaluator.
+            Traits come from this job’s requirement mapping. Damage is how well each answer covers
+            its stage’s criteria, scored by the Evaluator.
           </small>
         </div>
         <div className="boss-ask">

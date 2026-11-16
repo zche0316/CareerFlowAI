@@ -104,6 +104,10 @@ export function VoiceInterviewer({
   const session = useRef<Session | null>(null);
   const current = useRef(0);
   const answers = useRef<Record<string, string[]>>({});
+  // The transcript of a reply arrives after the panel's next turn has begun, often after it has
+  // already said "Question 2" (CFS-181). A reply belongs to the question active when the speech was
+  // committed, so that index is kept per conversation item.
+  const itemQuestion = useRef<Record<string, number>>({});
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   // Silent failures made visible (CFS-175): a browser that blocks the panel's audio, and a
   // microphone that delivers only silence (an embedded browser or an app without mic permission).
@@ -182,6 +186,7 @@ export function VoiceInterviewer({
     setError('');
     setLines([]);
     answers.current = {};
+    itemQuestion.current = {};
     current.current = 0;
     setCaption('');
     setYours('');
@@ -222,6 +227,8 @@ export function VoiceInterviewer({
           setYours('');
         }
         if (event.type === 'input_audio_buffer.speech_stopped') setSpeaker(null);
+        if (event.type === 'input_audio_buffer.committed' && event.item_id)
+          itemQuestion.current[String(event.item_id)] = current.current;
         if (event.type === 'output_audio_buffer.started') setSpeaker('panel');
         if (event.type === 'output_audio_buffer.stopped') setSpeaker(null);
         if (event.type === 'response.created') setCaption('');
@@ -235,7 +242,7 @@ export function VoiceInterviewer({
               ...l,
               { who: 'you', text: '(no words recognised in this reply)', note: true },
             ]);
-          const q = s.questions[current.current];
+          const q = s.questions[itemQuestion.current[String(event.item_id)] ?? current.current];
           if (q) (answers.current[q.id] ||= []).push(text);
           setYours((y) => (y ? `${y} ${text}` : text));
           setLines((l) => [...l, { who: 'you', text }]);
