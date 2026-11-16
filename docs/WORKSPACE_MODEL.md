@@ -664,4 +664,8 @@ the API and the battle view.
   battle is complete when no stage is open or probing; the view moves to the next open stage.
 - Follow-up answers stay rounds, not answers: the final feedback still reads one answer per
   question, and nothing becomes a profile fact.
+- The live voice panel (CFS-136) follows the same plan. Its instructions list each question's
+  stage, goal and follow-up limit, and a session speaks only the stages still open. Each stage's
+  spoken answers are joined and scored as one main answer. If the Evaluator still wants more,
+  the follow-up continues by typing or recording.
 - `scripts/interview-plan-demo.ts` (CFS-164) is the command-line version of the same plan.

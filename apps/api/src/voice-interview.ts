@@ -4,6 +4,11 @@ import { json, ownedMission, type MissionData } from './domain.js';
 import { AppError } from './errors.js';
 import { configuredMode } from '../../../packages/agents/src/provider.js';
 import { rolePreamble } from '../../../packages/agents/src/personas.js';
+import {
+  STAGE_PLAN,
+  interviewPlan,
+  stageOf,
+} from '../../../packages/contracts/src/interview-plan.js';
 
 // Live voice interviewer (CFS-136, speech phase 2). The server issues a short-lived client secret
 // for one realtime session that already carries the panel's instructions and this run's questions;
@@ -15,23 +20,32 @@ export const VOICE_SESSIONS_PER_RUN = 3;
 export const VOICE_LIMIT_SECONDS = 600;
 const OPENAI = 'https://api.openai.com/v1';
 
-type Question = { id: string; question: string; focus?: string };
+type Question = { id: string; question: string; focus?: string; stage?: string | null };
 
-/** What the realtime panel is told: persona, the exact questions, and its limits. */
+/**
+ * What the realtime panel is told: persona, the exact questions, and its limits. Each question
+ * carries its interview stage (CFS-166): what the stage must establish and how many follow-ups it
+ * allows, so the spoken panel follows the same plan as the typed one.
+ */
 export function voiceInstructions(
   job: { title?: string; company?: string },
   questions: Question[],
 ) {
+  const stages = questions.map((q, i) => {
+    const s = STAGE_PLAN[stageOf(q, i)];
+    return `${i + 1}. ${s.label}: establish ${s.goal}; ${s.followUps ? `up to ${s.followUps} follow-up${s.followUps > 1 ? 's' : ''}` : 'no follow-ups'}.`;
+  });
   return (
     rolePreamble('questions') +
     `This is a spoken mock interview for ${job.title || 'the role'}${job.company ? ` at ${job.company}` : ''}. ` +
     'Speak in short, natural sentences. Greet the candidate in one sentence, then ask the questions below in order, one at a time. ' +
     'Start every main question with the words "Question" and its number, for example "Question 1." ' +
-    'After each answer you may ask at most one short follow-up about something they actually said, then move on. ' +
+    "Each question belongs to a stage of the interview plan below. After an answer, if the stage is not yet established, ask one short follow-up about the weakest missing part, based on something they actually said; repeat only within the stage's follow-up limit, then move on. " +
     'Do not score, praise at length, coach or give feedback; the written evaluation comes afterwards. ' +
     'Never state facts about the candidate that they did not say. ' +
     'After the last question, thank them in one sentence and say the panel will now score the answers. ' +
-    `Questions:\n${questions.map((q, i) => `${i + 1}. ${q.question}`).join('\n')}`
+    `Questions:\n${questions.map((q, i) => `${i + 1}. ${q.question}`).join('\n')}\n` +
+    `Interview plan:\n${stages.join('\n')}`
   );
 }
 
@@ -47,12 +61,22 @@ export async function createVoiceSession(
     throw new AppError(503, 'VOICE_UNAVAILABLE', 'The voice interviewer is not configured here.');
   const m = await ownedMission(userId, missionId);
   const d = m.data as MissionData;
-  const questions: Question[] = d.questions || [];
-  if (m.status !== 'AWAITING_INTERVIEW' || !questions.length)
+  // Only stages still open are spoken; a stage already answered keeps its typed follow-ups.
+  const plan = interviewPlan(d.questions || [], d.rounds || [], d.skippedQuestions || []);
+  const questions: Question[] = (d.questions || []).filter(
+    (q: Question) => plan.steps.find((s) => s.questionId === q.id)?.status === 'open',
+  );
+  if (m.status !== 'AWAITING_INTERVIEW' || !d.questions?.length)
     throw new AppError(
       409,
       'INTERVIEW_NOT_READY',
       'Open the interview once its questions are ready.',
+    );
+  if (!questions.length)
+    throw new AppError(
+      409,
+      'NO_OPEN_STAGES',
+      'Every stage of this interview already has an answer. Answer any follow-up by typing or recording, or finish the battle.',
     );
   const used: string[] = d.voiceSessions || [];
   if (used.length >= VOICE_SESSIONS_PER_RUN)

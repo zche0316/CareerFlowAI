@@ -65,6 +65,9 @@ it('tells the realtime panel its persona, the questions in order and not to scor
   expect(text).toContain('1. Tell me about a report you built.\n2. How do you check data quality?');
   expect(text).toContain('Start every main question with the words "Question"');
   expect(text).toContain('Do not score');
+  // The spoken panel follows the same stage plan as the typed one (CFS-166).
+  expect(text).toContain('Interview plan:\n1. Motivation: establish');
+  expect(text).toContain('up to 2 follow-ups');
   expect(questionNumber('Thanks. Question 2. How do you check data quality?')).toBe(1);
   expect(questionNumber('Could you say more about that?')).toBeNull();
 });
