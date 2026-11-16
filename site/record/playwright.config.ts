@@ -13,7 +13,7 @@ export default defineConfig({
     headless: true,
     viewport: { width: 1280, height: 800 },
     video: { mode: 'on', size: { width: 1280, height: 800 } },
-    launchOptions: { slowMo: 120 },
+    launchOptions: { slowMo: 180 },
   },
   reporter: [['list']],
 });

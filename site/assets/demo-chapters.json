@@ -1,0 +1,38 @@
+[
+  {
+    "at": 0.6,
+    "label": "Sign up"
+  },
+  {
+    "at": 11,
+    "label": "Profile"
+  },
+  {
+    "at": 28.1,
+    "label": "Find roles"
+  },
+  {
+    "at": 45.5,
+    "label": "Tailored resume"
+  },
+  {
+    "at": 55.5,
+    "label": "Interview"
+  },
+  {
+    "at": 91.7,
+    "label": "Battle report"
+  },
+  {
+    "at": 99.1,
+    "label": "Character and evidence"
+  },
+  {
+    "at": 108.7,
+    "label": "World, party, season"
+  },
+  {
+    "at": 124,
+    "label": "Scout"
+  }
+]
