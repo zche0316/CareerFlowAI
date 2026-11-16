@@ -154,6 +154,7 @@ export function QuestBossBattle({
   busy,
   onRound,
   onFinish,
+  onReplan,
   startVoice,
   transcribe,
   voiceStatus,
@@ -168,6 +169,8 @@ export function QuestBossBattle({
   busy: boolean;
   onRound: (body: { questionId: string; answer: string; followUp: boolean }) => Promise<void>;
   onFinish: (endedEarly: boolean) => Promise<void>;
+  /** Plans an unstarted interview from before the stage plan again (CFS-173). */
+  onReplan?: () => Promise<void>;
 }) {
   const d = m.data || {};
   const [voice, setVoice] = useState<{ realtime: boolean; transcribe: boolean } | null>(null);
@@ -307,6 +310,15 @@ export function QuestBossBattle({
     if (onCall && i >= 0) setIndex(i);
   }, [call?.questionId, onCall]);
   const waiting = plan.steps.filter((s) => s.status === 'probing').length;
+  // Mirrors the server's canReplan (CFS-173): no stages and nothing answered yet.
+  const replannable =
+    Boolean(onReplan) &&
+    live &&
+    questions.length > 0 &&
+    !questions.some((x: any) => x.stage) &&
+    rounds.length === 0 &&
+    !(d.answers || []).some((a: any) => a.answer?.trim()) &&
+    chat.length === 0;
 
   return (
     <div className="quest-page boss">
@@ -365,6 +377,23 @@ export function QuestBossBattle({
           </small>
         </div>
         <div className="boss-ask">
+          {replannable && !onCall && (
+            <div className="boss-replan" role="note">
+              <p>
+                These questions were made before the interview plan, so they have no stages
+                (motivation, behavioural, technical…). Nothing is answered yet, so the panel can
+                plan this interview again.
+              </p>
+              <button
+                type="button"
+                className="quest-press lime"
+                disabled={busy}
+                onClick={() => void onReplan!()}
+              >
+                Re-plan the interview
+              </button>
+            </div>
+          )}
           <div className="boss-qtabs" role="group" aria-label="Interview plan">
             {plan.steps.map((s, i) => (
               <button

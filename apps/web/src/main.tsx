@@ -69,7 +69,10 @@ const QuestWorld = lazyPage(() => import('./quest/world.js'), 'QuestWorld');
 const QuestSeason = lazyPage(() => import('./quest/season.js'), 'QuestSeason');
 const QuestScout = lazyPage(() => import('./quest/scout.js'), 'QuestScout');
 const PartyRoster = lazyPage(() => import('./quest/roster.js'), 'PartyRoster');
-const ProfileConversation = lazyPage(() => import('./profile-conversation.js'), 'ProfileConversation');
+const ProfileConversation = lazyPage(
+  () => import('./profile-conversation.js'),
+  'ProfileConversation',
+);
 const CareerMemoryPanel = lazyPage(() => import('./career-memory.js'), 'CareerMemoryPanel');
 const DocumentWorkspace = lazyPage(() => import('./document-workspace.js'), 'DocumentWorkspace');
 const CharacterSheet = lazyPage(() => import('./quest/character-sheet.js'), 'CharacterSheet');
@@ -368,10 +371,10 @@ function App() {
           : mission.status === 'AWAITING_EVIDENCE'
             ? 'Your resume team has a question about skills the role requires.'
             : mission.status === 'AWAITING_APPROVAL'
-            ? 'Your resume is ready. Review the changes before saving.'
-            : mission.status === 'AWAITING_INTERVIEW'
-              ? 'Your interview is ready. Practise your first answer.'
-              : 'Your results are ready.',
+              ? 'Your resume is ready. Review the changes before saving.'
+              : mission.status === 'AWAITING_INTERVIEW'
+                ? 'Your interview is ready. Practise your first answer.'
+                : 'Your results are ready.',
       );
       window.scrollTo({ top: 0, behavior: 'auto' });
     } else if (mission.status === 'AWAITING_EVIDENCE' && phase === next) {
@@ -381,7 +384,9 @@ function App() {
   }, [mission?.id, mission?.status, phase, tab]);
 
   // A finished run adds cost history, so start buttons show the updated estimate (CFS-124).
-  const finishedRuns = (workspace?.missions || []).filter((m: any) => m.status === 'COMPLETE').length;
+  const finishedRuns = (workspace?.missions || []).filter(
+    (m: any) => m.status === 'COMPLETE',
+  ).length;
   useEffect(() => {
     if (finishedRuns) reloadEstimates();
   }, [finishedRuns]);
@@ -644,10 +649,7 @@ function App() {
               onSeason={() => goQuest('season')}
             />
           ) : tab === 'coach' ? (
-            <CoachPage
-              request={api}
-              onProfile={() => goQuest('approved-profile')}
-            />
+            <CoachPage request={api} onProfile={() => goQuest('approved-profile')} />
           ) : tab === 'season' ? (
             <QuestSeason
               workspace={workspace}
@@ -1485,8 +1487,7 @@ function Profile({
                             ...records
                               .filter(
                                 (r) =>
-                                  r.section === key &&
-                                  !current?.[key]?.some((x) => x.id === r.id),
+                                  r.section === key && !current?.[key]?.some((x) => x.id === r.id),
                               )
                               .map(({ section, ...r }) => r),
                           ],
@@ -2232,47 +2233,47 @@ function MissionDetail({
                     }
                     actions={
                       m.status === 'AWAITING_JOB' ? (
-                      <>
-                        <button
-                          className="secondary full"
-                          disabled={busy}
-                          onClick={() =>
-                            void onAction('decisions', { kind: 'job', jobId: r.job.id })
-                          }
-                        >
-                          Select this opportunity
-                          <ArrowRight size={15} />
-                        </button>
-                        {boardStage(board, r) ? (
-                          <span className="quest-chip lime">
-                            In your quests · {stageCopy[boardStage(board, r)!]?.label}
-                          </span>
-                        ) : (
+                        <>
                           <button
-                            className="text-button"
+                            className="secondary full"
                             disabled={busy}
-                            onClick={() => void onAction('saved-roles', { jobId: r.job.id })}
-                          >
-                            Save to my quests for later
-                          </button>
-                        )}
-                        <label className="checkbox small">
-                          <input
-                            type="checkbox"
-                            checked={compareIds.includes(r.job.id)}
-                            disabled={!compareIds.includes(r.job.id) && compareIds.length >= 4}
-                            onChange={(e) =>
-                              setCompareIds(
-                                e.target.checked
-                                  ? [...compareIds, r.job.id]
-                                  : compareIds.filter((id) => id !== r.job.id),
-                              )
+                            onClick={() =>
+                              void onAction('decisions', { kind: 'job', jobId: r.job.id })
                             }
-                          />
-                          Compare this job
-                        </label>
-                      </>
-                                          ) : undefined
+                          >
+                            Select this opportunity
+                            <ArrowRight size={15} />
+                          </button>
+                          {boardStage(board, r) ? (
+                            <span className="quest-chip lime">
+                              In your quests · {stageCopy[boardStage(board, r)!]?.label}
+                            </span>
+                          ) : (
+                            <button
+                              className="text-button"
+                              disabled={busy}
+                              onClick={() => void onAction('saved-roles', { jobId: r.job.id })}
+                            >
+                              Save to my quests for later
+                            </button>
+                          )}
+                          <label className="checkbox small">
+                            <input
+                              type="checkbox"
+                              checked={compareIds.includes(r.job.id)}
+                              disabled={!compareIds.includes(r.job.id) && compareIds.length >= 4}
+                              onChange={(e) =>
+                                setCompareIds(
+                                  e.target.checked
+                                    ? [...compareIds, r.job.id]
+                                    : compareIds.filter((id) => id !== r.job.id),
+                                )
+                              }
+                            />
+                            Compare this job
+                          </label>
+                        </>
+                      ) : undefined
                     }
                   />
                 ))}
@@ -2516,6 +2517,7 @@ function MissionDetail({
           busy={busy}
           onRound={(body) => onAction('interview/rounds', body)}
           onFinish={(endedEarly) => onAction('decisions', { kind: 'interview', endedEarly })}
+          onReplan={() => onAction('interview/replan', {})}
           voiceStatus={m.mode === 'fixture' ? undefined : () => api('/voice/status')}
           startVoice={
             m.mode === 'fixture' ? undefined : () => api(`/missions/${m.id}/voice-session`, 'POST')
@@ -2621,22 +2623,22 @@ function MissionDetail({
               )}
               {d.feedback && (
                 <>
-                <div className="feedback-grid">
-                  {[
-                    ['Strengths', d.feedback.strengths],
-                    ['Areas to improve', d.feedback.improvements],
-                    ['Next practice', d.feedback.nextSteps],
-                  ].map(([label, items]: any) => (
-                    <div key={label}>
-                      <h3>{label}</h3>
-                      <ul>
-                        {items.map((s: string) => (
-                          <li key={s}>{s}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
+                  <div className="feedback-grid">
+                    {[
+                      ['Strengths', d.feedback.strengths],
+                      ['Areas to improve', d.feedback.improvements],
+                      ['Next practice', d.feedback.nextSteps],
+                    ].map(([label, items]: any) => (
+                      <div key={label}>
+                        <h3>{label}</h3>
+                        <ul>
+                          {items.map((s: string) => (
+                            <li key={s}>{s}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
                   <ReadAloud
                     label="Read the feedback aloud"
                     text={[

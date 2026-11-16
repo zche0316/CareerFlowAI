@@ -4979,3 +4979,20 @@ body:has(.quest) {
   max-height: 220px;
   overscroll-behavior: contain;
 }
+
+/* ---------- Re-plan an old interview (CFS-173) ---------- */
+.boss-replan {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: #ffffff14;
+  color: #e4e5ec;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.boss-replan p {
+  margin: 0;
+}

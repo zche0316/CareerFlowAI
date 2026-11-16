@@ -698,3 +698,12 @@ During a call the arena shows one exchange at a time: the panel's latest line, c
 220 characters at a word, and the candidate's latest reply, highlighted while they speak. The
 full transcript sits under the call controls in a collapsed "Transcript · N lines" box with a
 fixed height that follows the newest line, and opens after the call for review.
+
+## Re-plan an interview from before the stage plan (CFS-173)
+
+Questions are generated once per run, so a run whose questions predate CFS-166 has no stages.
+While nothing is answered (no rounds, saved answers or panel chat), the arena offers "Re-plan the
+interview". `POST /api/missions/:id/interview/replan` regenerates the questions with the same
+context as the workflow (job, the approved facts behind the approved resume, prior feedback),
+counts one model call against the run's budget, and replaces the questions. A staged or started
+interview is refused, so it happens at most once.

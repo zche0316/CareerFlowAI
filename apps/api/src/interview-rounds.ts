@@ -2,11 +2,13 @@ import { MISSION_MODEL_CALL_LIMIT } from '../../../packages/contracts/src/missio
 import type { Express } from 'express';
 import { db } from './db.js';
 import { AppError, requireValue } from './errors.js';
-import { json, ownedMission, type Event, type MissionData } from './domain.js';
+import { json, ownedMission, runFacts, type Event, type MissionData } from './domain.js';
+import { missionContext } from '../../../packages/agents/src/mission-context.js';
 import { mergeInterviewAnswer, type InterviewQuestion } from './interview.js';
 import {
   interviewRoundInputSchema,
   roundEvaluationSchema,
+  questionsSchema,
   type RoundEvaluation,
   interviewPlan,
   type PlanStep,
@@ -59,6 +61,121 @@ const save = (tx: any, id: string, data: MissionData, events?: Event[]) =>
     where: { id },
     data: { data: json(data), ...(events ? { events: json(events) } : {}) },
   });
+
+/**
+ * Questions made before the stage plan (CFS-166) carry no stage. While nothing has been answered,
+ * such an interview can be planned again once with the current prompt and the same context the
+ * workflow uses (CFS-173). A started or already staged interview keeps its questions.
+ */
+export const canReplan = (data: MissionData) =>
+  Boolean(data.questions?.length) &&
+  !data.questions.some((q: any) => q.stage) &&
+  !data.rounds?.length &&
+  !data.answers?.some((a: any) => a.answer?.trim()) &&
+  !data.panelChat?.length &&
+  data.interviewRun?.status !== 'RUNNING';
+
+export async function replanInterview(userId: string, id: string) {
+  const m = requireValue(
+    await db.mission.findFirst({ where: { id, userId }, include: { profile: true } }),
+  );
+  const d = m.data as MissionData;
+  const p = m.profile.data as any;
+  if (d.agentAccess !== 'all-approved-profile' && !p.sharing?.interview)
+    throw new AppError(
+      403,
+      'SHARING_DENIED',
+      'Enable interview sharing in a newly reviewed profile to use this workflow.',
+    );
+  await locked(userId, id, async (data, _e, tx) => {
+    if (!canReplan(data))
+      throw new AppError(
+        409,
+        'REPLAN_UNAVAILABLE',
+        'Only an unstarted interview from before the stage plan can be planned again.',
+      );
+    await save(tx, id, {
+      ...data,
+      interviewRun: { status: 'RUNNING', startedAt: new Date().toISOString() },
+    });
+  });
+  try {
+    const facts = runFacts(m);
+    const claims: any[] = d.resumeDraft?.claims || [];
+    const result = await generate(
+      'questions',
+      missionContext('questions', {
+        goal: m.goal,
+        // As in the workflow: the facts behind the approved resume when there is one.
+        facts: claims.length ? facts.filter((f) => claims.some((c) => c.factId === f.id)) : facts,
+        job: d.selectedJob?.job,
+        priorFeedback: d.priorFeedback,
+      }),
+      questionsSchema,
+      m.mode as Mode,
+      {
+        onCall: () =>
+          locked(userId, id, async (data, _e, tx) => {
+            if ((data.apiCalls || 0) >= MISSION_MODEL_CALL_LIMIT)
+              throw new AppError(
+                409,
+                'BUDGET_REACHED',
+                'This quest reached its model-call budget.',
+              );
+            await save(tx, id, { ...data, apiCalls: (data.apiCalls || 0) + 1 });
+          }),
+        onTool: async () => {},
+        onUsage: (input, output) =>
+          locked(userId, id, (data, _e, tx) =>
+            save(tx, id, {
+              ...data,
+              inputTokens: (data.inputTokens || 0) + input,
+              outputTokens: (data.outputTokens || 0) + output,
+            }),
+          ),
+        onSpan: spanHook({ userId, missionId: id }),
+      },
+    );
+    if (new Set(result.questions.map((q) => q.id)).size !== result.questions.length)
+      throw Error('Interview question IDs must be unique.');
+    await locked(userId, id, async (data, events, tx) => {
+      // Something was answered meanwhile: keep what the candidate already saw.
+      if (data.rounds?.length || data.answers?.some((a: any) => a.answer?.trim()))
+        throw new AppError(409, 'REPLAN_UNAVAILABLE', 'This interview has started meanwhile.');
+      await save(
+        tx,
+        id,
+        {
+          ...data,
+          questions: result.questions,
+          answers: [],
+          skippedQuestions: [],
+          interviewRun: null,
+        },
+        [
+          ...events,
+          {
+            at: new Date().toISOString(),
+            agent: 'Interview Coach',
+            action: 'prepared',
+            detail: `Planned the interview again in stages: ${result.questions.length} questions.`,
+          },
+        ],
+      );
+    });
+    return ownedMission(userId, id);
+  } catch (error) {
+    await locked(userId, id, (data, _e, tx) => save(tx, id, { ...data, interviewRun: null })).catch(
+      () => {},
+    );
+    if (error instanceof AppError) throw error;
+    throw new AppError(
+      503,
+      'REPLAN_FAILED',
+      'The interview could not be planned again. The current questions are unchanged. Try again.',
+    );
+  }
+}
 
 /**
  * One boss-battle round: the Evaluator scores the answer against STAR and may ask one follow-up.
@@ -315,5 +432,8 @@ export async function playInterviewRound(userId: string, id: string, input: unkn
 export function registerInterviewRounds(app: Express) {
   app.post('/api/missions/:id/interview/rounds', async (req, res) =>
     res.json(await playInterviewRound(req.actor!.id, String(req.params.id), req.body)),
+  );
+  app.post('/api/missions/:id/interview/replan', async (req, res) =>
+    res.json(await replanInterview(req.actor!.id, String(req.params.id))),
   );
 }

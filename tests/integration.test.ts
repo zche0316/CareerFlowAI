@@ -1570,3 +1570,43 @@ describe('Zero-resume product journey', () => {
     expect((await db.user.findUniqueOrThrow({ where: { id: c.id } })).profileVersion).toBe(1);
   });
 });
+
+it('plans an unstarted interview from before the stage plan again, once (CFS-173)', async () => {
+  const c = await client();
+  const { id } = await prepareInterview(c);
+  // An interview whose questions predate the stage plan: no stages, nothing answered.
+  const m = await db.mission.findUniqueOrThrow({ where: { id } });
+  const data = m.data as any;
+  const old = data.questions.map(({ stage: _s, ...q }: any) => ({ ...q, id: 'old-' + q.id }));
+  await db.mission.update({ where: { id }, data: { data: json({ ...data, questions: old }) } });
+
+  const replanned = await c.request(`/missions/${id}/interview/replan`, 'POST', {});
+  expect(replanned.status).toBe(200);
+  const questions = replanned.body.data.questions;
+  expect(questions.length).toBeGreaterThan(0);
+  expect(questions.every((q: any) => q.stage)).toBe(true);
+  expect(questions.some((q: any) => q.id.startsWith('old-'))).toBe(false);
+  expect(replanned.body.events.at(-1)).toMatchObject({
+    agent: 'Interview Coach',
+    action: 'prepared',
+  });
+  // Staged now: a second re-plan is refused.
+  expect((await c.request(`/missions/${id}/interview/replan`, 'POST', {})).status).toBe(409);
+
+  // A started interview keeps its questions.
+  const now = (await db.mission.findUniqueOrThrow({ where: { id } })).data as any;
+  await db.mission.update({
+    where: { id },
+    data: {
+      data: json({
+        ...now,
+        questions: old,
+        answers: [{ questionId: old[0].id, answer: 'I did it.' }],
+      }),
+    },
+  });
+  expect((await c.request(`/missions/${id}/interview/replan`, 'POST', {})).status).toBe(409);
+  // Other users cannot touch it.
+  const stranger = await client();
+  expect((await stranger.request(`/missions/${id}/interview/replan`, 'POST', {})).status).toBe(404);
+});

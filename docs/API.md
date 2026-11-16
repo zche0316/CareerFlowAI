@@ -119,6 +119,7 @@ off it.
 | POST   | `/api/missions/:id/feedback-memory`          | Keep review feedback as a career memory                                                                     |
 | PUT    | `/api/missions/:id/answers`                  | Save an interview answer                                                                                    |
 | POST   | `/api/missions/:id/interview/rounds`         | One evaluated interview round; follow-ups up to the stage plan's budget                                     |
+| POST   | `/api/missions/:id/interview/replan`         | Plan an unstarted interview from before the stage plan again, in stages                                     |
 | GET    | `/api/missions/:id/application`              | Application package for the chosen role                                                                     |
 | POST   | `/api/missions/:id/applications`             | Record an official-site handoff or that you applied                                                         |
 | GET    | `/api/missions/:id/application-readiness`    | Employer questions and readiness for the role                                                               |
