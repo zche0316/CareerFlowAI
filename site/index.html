@@ -4,107 +4,173 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>CareerFlow · Job hunting with a party</title>
-<meta name="description" content="CareerFlow finds technical roles, shows what each one asks for, rates your skills from your own evidence and tailors a resume per role. You still press apply." />
+<link rel="icon" type="image/svg+xml" href="assets/logo.svg" />
+<meta name="description" content="A party of AI agents that finds tech roles, shows what each one asks for, tailors your resume from what you actually did and runs mock interviews with you." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet" />
 <style>
 :root {
   --ink: #111318; --paper: #eceef3; --card: #ffffff; --muted: #5d6270;
   --lime: #d8f35a; --lilac: #e7e1ff; --violet: #7c5cff; --coral: #ff8a6b;
-  --sky: #9fd8ff; --sun: #ffc44d; --mint: #6fe0b3; --line: #111318;
+  --sky: #9fd8ff; --sun: #ffc44d; --mint: #6fe0b3; --line: #111318; --text: #111318;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { --paper: #15171d; --card: #1f222b; --muted: #a9adba; --line: #000; }
+  :root:not([data-theme="light"]) { --paper: #15171d; --card: #1f222b; --muted: #a9adba; --line: #000; --text: #f2f3f7; }
 }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
-body { margin: 0; background: var(--paper); color: var(--ink); font: 400 17px/1.55 "DM Sans", system-ui, sans-serif; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) body { color: #f2f3f7; } }
+body { margin: 0; background: var(--paper); color: var(--text); font: 400 17px/1.55 "DM Sans", system-ui, sans-serif; overflow-x: hidden; }
 h1, h2, h3 { font-family: "Bricolage Grotesque", system-ui, sans-serif; letter-spacing: -0.02em; margin: 0; }
 a { color: inherit; }
+button { font: inherit; }
 .wrap { max-width: 1160px; margin: 0 auto; padding: 0 16px; }
 .btn { display: inline-flex; align-items: center; gap: 8px; padding: 14px 22px; border-radius: 999px; border: 2px solid var(--line); background: var(--lime); color: #111318; font-weight: 700; text-decoration: none; box-shadow: 0 5px 0 var(--line); transition: transform .12s, box-shadow .12s; cursor: pointer; font-size: 16px; }
 .btn:hover { transform: translateY(2px); box-shadow: 0 3px 0 var(--line); }
-.btn.ghost { background: var(--card); color: inherit; }
+.btn.ghost { background: var(--card); color: var(--text); }
+.sr { position: absolute; left: -9999px; }
 
 /* Top bar */
-.top { position: sticky; top: 0; z-index: 20; backdrop-filter: blur(10px); background: color-mix(in srgb, var(--paper) 80%, transparent); }
-.top .wrap { display: flex; align-items: center; justify-content: space-between; height: 68px; }
+.top { position: sticky; top: 0; z-index: 30; backdrop-filter: blur(10px); background: color-mix(in srgb, var(--paper) 82%, transparent); }
+.top .wrap { display: flex; align-items: center; justify-content: space-between; height: 68px; gap: 16px; }
 .logo { display: flex; align-items: center; gap: 10px; font: 800 22px "Bricolage Grotesque", sans-serif; text-decoration: none; }
-.logo i { width: 34px; height: 34px; border-radius: 10px; background: #111318; display: grid; place-items: center; color: var(--lime); font-style: normal; }
+.logo img { width: 40px; height: 40px; display: block; }
 .top nav { display: flex; gap: 22px; font-weight: 500; }
 .top nav a { text-decoration: none; color: var(--muted); }
-@media (max-width: 720px) { .top nav { display: none; } }
+.top nav a:hover { color: var(--text); }
+@media (max-width: 760px) { .top nav { display: none; } .top .btn { padding: 10px 16px; } }
 
-/* Hero: a map the party lands on */
+/* Hero: the party lands on the map */
 .hero { position: relative; overflow: hidden; padding: 36px 0 0; }
 .hero-copy { text-align: center; position: relative; z-index: 3; }
 .hero h1 { font-size: clamp(42px, 7vw, 86px); line-height: .95; }
-.hero h1 em { font-style: normal; background: var(--lime); padding: 0 .15em; border-radius: .2em; box-shadow: 0 4px 0 var(--line); }
-.hero p.lede { max-width: 620px; margin: 18px auto 26px; font-size: 19px; color: var(--muted); }
+.hero h1 em { font-style: normal; background: var(--lime); color: #111318; padding: 0 .15em; border-radius: .2em; box-shadow: 0 4px 0 var(--line); }
+.hero p.lede { max-width: 640px; margin: 18px auto 26px; font-size: 19px; color: var(--muted); }
 .hero .ctas { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
-.map { position: relative; height: 380px; margin-top: 30px; }
+.map { position: relative; height: 400px; margin-top: 26px; }
 .map svg.land { position: absolute; inset: 0; width: 100%; height: 100%; }
 .drop { position: absolute; top: var(--y); left: var(--x); translate: -50% 0; rotate: var(--rr, 0deg); animation: fall 1.1s cubic-bezier(.3,1.4,.5,1) both; animation-delay: var(--d); }
-/* Only the fall is animated; where each piece lands is its top and left. */
-@keyframes fall { from { transform: translateY(-760px) rotate(-14deg); opacity: 1; } to { transform: none; opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .drop { animation: none; } }
-.hero-char { width: 92px; height: 92px; border-radius: 26px; background: var(--sun); border: 3px solid var(--line); box-shadow: 0 6px 0 var(--line); display: grid; place-items: center; font: 800 30px "Bricolage Grotesque"; position: relative; }
-.hero-char::after { content: "you"; position: absolute; bottom: -30px; font: 700 13px "DM Sans"; background: #fff; color: #111318; padding: 2px 10px; border-radius: 99px; border: 2px solid var(--line); }
-.mate { width: 66px; height: 66px; border-radius: 20px; border: 3px solid var(--line); box-shadow: 0 5px 0 var(--line); position: relative; display: grid; place-items: center; }
-.mate .eyes { display: flex; gap: 10px; margin-top: -6px; }
-.mate .eyes b { width: 9px; height: 9px; background: var(--line); border-radius: 50%; }
-.mate .mouth { position: absolute; bottom: 14px; width: 18px; height: 6px; border-bottom: 3px solid var(--line); border-radius: 0 0 10px 10px; }
-.mate small { position: absolute; bottom: -26px; white-space: nowrap; font: 700 12px "DM Sans"; color: #111318; background: #fff; padding: 1px 8px; border-radius: 99px; border: 2px solid var(--line); }
+@keyframes fall { from { transform: translateY(-780px) rotate(-14deg); } to { transform: none; } }
+@keyframes bob { 50% { transform: translateY(-6px); } }
+.drop > * { animation: bob 3.2s ease-in-out infinite; animation-delay: calc(var(--d) + 1.2s); }
+@media (prefers-reduced-motion: reduce) { .drop, .drop > * { animation: none; } }
+.you { width: 112px; position: relative; display: grid; justify-items: center; }
+.you svg { width: 112px; height: 112px; filter: drop-shadow(0 6px 0 var(--line)); }
+.tag { position: absolute; bottom: -24px; white-space: nowrap; font: 700 13px "DM Sans"; background: #fff; color: #111318; padding: 2px 10px; border-radius: 99px; border: 2px solid #111318; }
+.mate { position: relative; display: grid; justify-items: center; cursor: pointer; background: none; border: 0; padding: 0; }
+.mate svg { width: 76px; height: 76px; filter: drop-shadow(0 5px 0 var(--line)); transition: transform .15s; }
+.mate:hover svg { transform: translateY(-4px) rotate(-4deg); }
+.mate .tag { bottom: -22px; font-size: 12px; }
 .badge { padding: 8px 14px; border-radius: 12px; background: #fff; border: 2px solid #111318; font: 700 14px "DM Sans"; color: #111318; box-shadow: 0 3px 0 var(--line); white-space: nowrap; }
-@media (max-width: 720px) { .map { height: 330px; } .hide-sm { display: none; } .hero-char { scale: .72; } .mate { scale: .7; } .drop[style*='--x:34%'] { left: 22% !important; } .drop[style*='--x:66%'] { left: 78% !important; } }
+@media (max-width: 760px) { .map { height: 340px; } .hide-sm { display: none; } .you { scale: .78; } .mate { scale: .72; } }
+
+/* Stat strip */
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 8px; }
+.stat { background: var(--card); border: 3px solid var(--line); border-radius: 20px; padding: 18px 20px; box-shadow: 0 5px 0 var(--line); }
+.stat b { display: block; font: 800 36px/1 "Bricolage Grotesque", sans-serif; }
+.stat span { color: var(--muted); font-size: 15px; }
+.stat:nth-child(1) { background: var(--lime); color: #111318; } .stat:nth-child(1) span { color: #3a3f2c; }
+@media (max-width: 760px) { .stats { grid-template-columns: 1fr 1fr; } }
 
 /* Sections */
-section.block { padding-top: 90px; padding-bottom: 30px; }
+section.block { padding-top: 96px; }
 .kicker { display: inline-block; font-weight: 700; font-size: 14px; background: var(--lilac); color: #3b2a8f; padding: 4px 12px; border-radius: 99px; margin-bottom: 14px; }
-.block h2 { font-size: clamp(32px, 4.6vw, 54px); line-height: 1; margin-bottom: 16px; }
+.block h2 { font-size: clamp(32px, 4.6vw, 56px); line-height: 1; margin-bottom: 14px; }
 .block p.sub { color: var(--muted); max-width: 640px; font-size: 18px; margin: 0 0 28px; }
 
-/* Demo video in a browser frame */
+/* Browser frame */
 .frame { border: 3px solid var(--line); border-radius: 22px; background: var(--card); box-shadow: 0 10px 0 var(--line); overflow: hidden; }
 .frame .bar { display: flex; gap: 7px; padding: 12px 14px; border-bottom: 3px solid var(--line); background: var(--lilac); }
-.frame .bar i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); }
+.frame .bar i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--line); background: #fff; }
 .frame video, .frame img { display: block; width: 100%; height: auto; }
 
-/* Swipe through the workbench */
-.tour { display: grid; grid-auto-flow: column; grid-auto-columns: min(78%, 760px); gap: 22px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 6px 4px 34px; scrollbar-width: thin; }
-.slide { scroll-snap-align: start; }
-.slide .frame { box-shadow: 0 7px 0 var(--line); }
+/* Chapters under the video */
+.chapters { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+.chapters button { border: 2px solid var(--line); background: var(--card); color: var(--text); border-radius: 999px; padding: 7px 14px; font-weight: 600; font-size: 14px; cursor: pointer; }
+.chapters button b { margin-right: 6px; color: var(--violet); }
+.chapters button.on { background: var(--lime); color: #111318; box-shadow: 0 3px 0 var(--line); }
+.chapters button.on b { color: #111318; }
+
+/* Carousel: one centred screen at a time */
+.tour-wrap { position: relative; margin-top: 8px; --slide: min(78vw, 820px); }
+.tour { display: grid; grid-auto-flow: column; grid-auto-columns: var(--slide); gap: 26px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 8px calc((100vw - var(--slide)) / 2) 30px; scrollbar-width: none; outline: none; }
+.tour::-webkit-scrollbar { display: none; }
+.slide { scroll-snap-align: center; scroll-snap-stop: always; opacity: .45; transform: scale(.94); transition: opacity .3s, transform .3s; cursor: pointer; }
+.slide.on { opacity: 1; transform: none; cursor: zoom-in; }
+.slide .frame { box-shadow: 0 8px 0 var(--line); }
 .slide h3 { font-size: 26px; margin: 22px 0 6px; }
-.slide p { margin: 0; color: var(--muted); }
-.tour-nav { display: flex; gap: 10px; justify-content: flex-end; margin-top: -8px; }
-.tour-nav button { width: 46px; height: 46px; border-radius: 50%; border: 2px solid #111318; background: var(--lime); color: #111318; font-size: 20px; cursor: pointer; box-shadow: 0 3px 0 var(--line); }
-@media (max-width: 720px) { .tour { grid-auto-columns: 88%; } }
+.slide p { margin: 0; color: var(--muted); max-width: 640px; }
+.arrow { position: absolute; top: calc(var(--slide) * 0.31); z-index: 5; width: 56px; height: 56px; border-radius: 50%; border: 3px solid #111318; background: var(--lime); color: #111318; font-size: 24px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 0 #111318; display: grid; place-items: center; }
+.arrow:hover { transform: translateY(2px); box-shadow: 0 2px 0 #111318; }
+.arrow.prev { left: max(10px, calc(50vw - var(--slide) / 2 - 28px)); }
+.arrow.next { right: max(10px, calc(50vw - var(--slide) / 2 - 28px)); }
+.dots { display: flex; gap: 8px; justify-content: center; }
+.dots button { width: 10px; height: 10px; border-radius: 99px; border: 2px solid var(--line); background: var(--card); padding: 0; cursor: pointer; transition: width .2s; }
+.dots button.on { width: 28px; background: var(--lime); }
+@media (max-width: 760px) { .tour-wrap { --slide: 86vw; } .arrow { width: 44px; height: 44px; font-size: 20px; } }
 
-/* Promises */
-.promises { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
-.promise { background: var(--card); border: 3px solid var(--line); border-radius: 22px; padding: 24px; box-shadow: 0 6px 0 var(--line); }
-.promise h3 { font-size: 22px; margin-bottom: 6px; }
-.promise p { margin: 0; color: var(--muted); }
-.promise:nth-child(1) { background: var(--lime); color: #111318; } .promise:nth-child(1) p { color: #2f3326; }
-@media (max-width: 820px) { .promises { grid-template-columns: 1fr; } }
+/* Meet your party */
+.party { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 22px; align-items: start; }
+.roster { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+.member { background: var(--card); border: 3px solid var(--line); border-radius: 18px; padding: 10px 6px 8px; cursor: pointer; display: grid; justify-items: center; gap: 4px; color: var(--text); box-shadow: 0 4px 0 var(--line); transition: transform .12s; }
+.member svg { width: 54px; height: 54px; }
+.member span { font-size: 12.5px; font-weight: 700; text-align: center; line-height: 1.2; }
+.member:hover { transform: translateY(-3px); }
+.member[aria-pressed="true"] { background: var(--lime); color: #111318; }
+.card-detail { background: var(--card); border: 3px solid var(--line); border-radius: 24px; padding: 26px; box-shadow: 0 8px 0 var(--line); min-height: 320px; }
+.card-detail .who { display: flex; gap: 18px; align-items: center; }
+.card-detail .who svg { width: 96px; height: 96px; flex: none; }
+.card-detail h3 { font-size: 30px; }
+.card-detail .job { color: var(--muted); margin: 2px 0 0; }
+.card-detail blockquote { margin: 18px 0; padding: 12px 16px; border-radius: 14px; font: 700 18px/1.35 "Bricolage Grotesque", sans-serif; background: var(--paper); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 14px; }
+.chips span { font-size: 13.5px; font-weight: 600; padding: 4px 10px; border-radius: 99px; border: 2px solid var(--line); }
+.chips.can span { background: #e6f9cf; color: #1f3b0b; }
+.chips.never span { background: #ffe1d8; color: #6b2210; }
+.card-detail small { font-weight: 800; letter-spacing: .06em; text-transform: uppercase; font-size: 12px; color: var(--muted); }
+@media (max-width: 860px) { .party { grid-template-columns: 1fr; } }
+@media (max-width: 520px) { .roster { grid-template-columns: repeat(4, 1fr); } }
 
-/* Waitlist */
-.waitlist { background: #111318; color: #f4f5f8; border-radius: 32px; padding: 54px 28px; text-align: center; margin: 90px 0 40px; position: relative; overflow: hidden; }
+/* Highlight cards */
+.highlights { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.hl { text-align: left; border: 3px solid var(--line); border-radius: 22px; padding: 20px; box-shadow: 0 6px 0 var(--line); cursor: pointer; color: #111318; display: grid; gap: 8px; align-content: start; min-height: 190px; transition: transform .12s, box-shadow .12s; }
+.hl:hover { transform: translateY(-4px) rotate(-.6deg); box-shadow: 0 10px 0 var(--line); }
+.hl b { font: 800 22px/1.1 "Bricolage Grotesque", sans-serif; }
+.hl span { font-size: 15px; color: #2b2e36; }
+.hl i { font-style: normal; font-weight: 700; font-size: 14px; margin-top: auto; }
+@media (max-width: 960px) { .highlights { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 520px) { .highlights { grid-template-columns: 1fr; } }
+
+/* Lightbox */
+dialog.lightbox { border: 3px solid var(--line); border-radius: 24px; padding: 0; max-width: min(1080px, 94vw); background: var(--card); color: var(--text); box-shadow: 0 12px 0 var(--line); }
+dialog.lightbox::backdrop { background: rgb(10 11 15 / .72); }
+dialog.lightbox img { display: block; width: 100%; height: auto; border-bottom: 3px solid var(--line); }
+dialog.lightbox .lb-text { padding: 18px 22px 22px; display: flex; gap: 16px; justify-content: space-between; align-items: start; }
+dialog.lightbox h3 { font-size: 26px; margin-bottom: 4px; }
+dialog.lightbox p { margin: 0; color: var(--muted); }
+dialog.lightbox .close { flex: none; width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--line); background: var(--lime); color: #111318; font-size: 20px; cursor: pointer; }
+
+/* Built with */
+.stack { display: flex; flex-wrap: wrap; gap: 10px; }
+.stack span { padding: 8px 14px; border-radius: 12px; border: 2px solid var(--line); background: var(--card); font-weight: 600; font-size: 15px; }
+
+/* Waitlist and contact */
+.waitlist { background: #111318; color: #f4f5f8; border-radius: 32px; padding: 54px 28px; text-align: center; margin: 96px 0 40px; position: relative; overflow: hidden; }
 .waitlist h2 { font-size: clamp(32px, 4.6vw, 54px); }
 .waitlist p { color: #b9bdc8; max-width: 560px; margin: 12px auto 26px; }
 .waitlist form { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 .waitlist input { min-width: min(320px, 100%); padding: 14px 18px; border-radius: 999px; border: 2px solid var(--lime); background: #1d2028; color: #fff; font: inherit; }
 .waitlist .note { font-size: 14px; margin-top: 14px; min-height: 22px; color: var(--lime); }
+.contact { margin-top: 26px; padding-top: 22px; border-top: 1px solid #2c303b; display: flex; gap: 12px; justify-content: center; align-items: center; flex-wrap: wrap; color: #d9dce4; }
+.contact a { color: var(--lime); font-weight: 700; }
 footer { color: var(--muted); font-size: 14px; padding: 10px 0 40px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
 </style>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="logo" href="#"><i>✦</i>careerflow</a>
-    <nav><a href="#demo">Watch it work</a><a href="#tour">Inside</a><a href="#promises">The rules</a></nav>
-    <a class="btn" href="#waitlist">Join the waitlist</a>
+    <a class="logo" href="#"><img src="assets/logo.svg" alt="" width="40" height="40" />careerflow</a>
+    <nav><a href="#demo">Demo</a><a href="#tour">Tour</a><a href="#party">The party</a><a href="#highlights">Highlights</a><a href="https://github.com/zche0316/CareerFlowAI">Code</a></nav>
+    <a class="btn" href="#waitlist">Get in touch</a>
   </div>
 </header>
 
@@ -112,104 +178,271 @@ footer { color: var(--muted); font-size: 14px; padding: 10px 0 40px; display: fl
   <section class="hero">
     <div class="wrap hero-copy">
       <h1>Job hunting is a solo grind.<br />Bring a <em>party</em>.</h1>
-      <p class="lede">CareerFlow sends a team of agents to find tech roles across regions, show what each one really asks for, and tailor a resume from things you actually did. You still press apply.</p>
-      <div class="ctas"><a class="btn" href="#waitlist">Save me a spot</a><a class="btn ghost" href="#demo">Watch a 30-second run ▸</a></div>
+      <p class="lede">Nine AI agents find tech roles across regions, show what each one asks for, tailor your resume from things you actually did and interview you until you're ready. You press apply.</p>
+      <div class="ctas"><a class="btn" href="#demo">Watch the 2-minute run ▸</a><a class="btn ghost" href="#party">Meet the party</a></div>
     </div>
 
-    <div class="map" aria-hidden="true">
-      <svg class="land" viewBox="0 0 1200 380" preserveAspectRatio="none">
-        <path d="M0 250 C 200 200, 360 290, 600 240 S 1000 190, 1200 250 L1200 380 L0 380 Z" fill="#cfe9b8" stroke="#111318" stroke-width="3"/>
-        <path d="M0 300 C 260 260, 420 340, 700 300 S 1050 270, 1200 310 L1200 380 L0 380 Z" fill="#b4dc96" stroke="#111318" stroke-width="3"/>
-        <path d="M120 300 C 300 250, 480 330, 640 280 S 950 240, 1090 290" fill="none" stroke="#111318" stroke-width="3" stroke-dasharray="10 12"/>
-        <circle cx="640" cy="280" r="9" fill="#ff8a6b" stroke="#111318" stroke-width="3"/>
-        <circle cx="1090" cy="290" r="9" fill="#d8f35a" stroke="#111318" stroke-width="3"/>
-        <circle cx="120" cy="300" r="9" fill="#9fd8ff" stroke="#111318" stroke-width="3"/>
+    <div class="map">
+      <svg class="land" viewBox="0 0 1200 400" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M0 270 C 200 220, 360 310, 600 260 S 1000 210, 1200 270 L1200 400 L0 400 Z" fill="#cfe9b8" stroke="#111318" stroke-width="3"/>
+        <path d="M0 320 C 260 280, 420 360, 700 320 S 1050 290, 1200 330 L1200 400 L0 400 Z" fill="#b4dc96" stroke="#111318" stroke-width="3"/>
+        <path d="M120 320 C 300 270, 480 350, 640 300 S 950 260, 1090 310" fill="none" stroke="#111318" stroke-width="3" stroke-dasharray="10 12"/>
+        <circle cx="640" cy="300" r="9" fill="#ff8a6b" stroke="#111318" stroke-width="3"/>
+        <circle cx="1090" cy="310" r="9" fill="#d8f35a" stroke="#111318" stroke-width="3"/>
+        <circle cx="120" cy="320" r="9" fill="#9fd8ff" stroke="#111318" stroke-width="3"/>
       </svg>
-      <!-- You land first, then the party, then the places jobs live. -->
-      <div class="drop" style="--x:50%;--y:150px;--d:.2s"><div class="hero-char">SR</div></div>
-      <div class="drop" style="--x:34%;--y:180px;--d:.9s;--r:20deg"><div class="mate" style="background:var(--lime)"><span class="eyes"><b></b><b></b></span><span class="mouth"></span><small>Scout</small></div></div>
-      <div class="drop" style="--x:66%;--y:175px;--d:1.1s;--r:-20deg"><div class="mate" style="background:var(--lilac)"><span class="eyes"><b></b><b></b></span><span class="mouth"></span><small>Coach</small></div></div>
-      <div class="drop hide-sm" style="--x:20%;--y:205px;--d:1.3s"><div class="mate" style="background:var(--coral)"><span class="eyes"><b></b><b></b></span><span class="mouth"></span><small>The Panel</small></div></div>
-      <div class="drop hide-sm" style="--x:80%;--y:200px;--d:1.5s"><div class="mate" style="background:var(--sky)"><span class="eyes"><b></b><b></b></span><span class="mouth"></span><small>Rewriter</small></div></div>
-      <div class="drop" style="--x:12%;--y:70px;--d:1.9s;--rr:-8deg"><span class="badge">GitHub</span></div>
-      <div class="drop" style="--x:88%;--y:60px;--d:2.05s;--rr:6deg"><span class="badge">LinkedIn</span></div>
-      <div class="drop hide-sm" style="--x:26%;--y:40px;--d:2.2s;--rr:5deg"><span class="badge">Python</span></div>
-      <div class="drop hide-sm" style="--x:74%;--y:30px;--d:2.35s;--rr:-6deg"><span class="badge">Glassdoor</span></div>
-      <div class="drop hide-sm" style="--x:42%;--y:20px;--d:2.5s;--rr:-4deg"><span class="badge">Greenhouse</span></div>
-      <div class="drop hide-sm" style="--x:58%;--y:44px;--d:2.65s;--rr:7deg"><span class="badge">SQL</span></div>
-    </div>
-  </section>
-
-  <section class="block wrap" id="demo">
-    <span class="kicker">Recorded straight from the app</span>
-    <h2>One run, start to finish.</h2>
-    <p class="sub">Sign up, tell the Profile Builder what you've done, pick a role, approve a resume, get grilled by the Panel. Fictional candidate, real screens, sped up a little.</p>
-    <div class="frame">
-      <div class="bar"><i></i><i></i><i></i></div>
-      <video autoplay muted loop playsinline preload="metadata" poster="assets/home.png">
-        <source src="assets/demo.mp4" type="video/mp4" />
-      </video>
-    </div>
-  </section>
-
-  <section class="block wrap" id="tour">
-    <span class="kicker">Swipe through the workbench</span>
-    <h2>Every screen has a job.</h2>
-    <div class="tour" id="tourTrack">
-      <article class="slide"><div class="frame"><img src="assets/profile-builder.png" alt="Profile Builder chat with the draft profile beside it" loading="lazy" /></div><h3>Talk it out</h3><p>The Profile Builder asks one question at a time and writes down your words, not a polished version of them. Nothing counts until you approve it.</p></article>
-      <article class="slide"><div class="frame"><img src="assets/shortlist.png" alt="Shortlist of roles with match scores" loading="lazy" /></div><h3>See the gaps first</h3><p>Every role gets a match score and the requirements you can't show yet, before you spend an evening on it.</p></article>
-      <article class="slide"><div class="frame"><img src="assets/resume-team.png" alt="Resume team review" loading="lazy" /></div><h3>A resume with receipts</h3><p>The Rewriter and the Critic tailor a resume per role. Every line points back to something you approved. Send it back if it sounds off.</p></article>
-      <article class="slide"><div class="frame"><img src="assets/interview.png" alt="Interview practice with the Panel" loading="lazy" /></div><h3>Get grilled, safely</h3><p>The Panel asks role-specific questions, follows up once, and scores your answer against STAR. Type it, record it, or talk to it live.</p></article>
-      <article class="slide"><div class="frame"><img src="assets/character.png" alt="Character page with experience rank and skill levels" loading="lazy" /></div><h3>Know your level</h3><p>Your experience rank and per-skill levels come from evidence you approved, so you know which roles are a stretch and which are a fit.</p></article>
-      <article class="slide"><div class="frame"><img src="assets/scout.png" alt="Scout settings" loading="lazy" /></div><h3>Scout keeps watch</h3><p>Scout re-checks the boards on a schedule and only bothers you about new roles above your bar.</p></article>
-    </div>
-    <div class="tour-nav"><button type="button" aria-label="Previous screen" data-step="-1">←</button><button type="button" aria-label="Next screen" data-step="1">→</button></div>
-  </section>
-
-  <section class="block wrap" id="promises">
-    <span class="kicker">House rules</span>
-    <h2>What the party will never do.</h2>
-    <div class="promises">
-      <div class="promise"><h3>Make things up</h3><p>No invented metrics, titles or skills. If you didn't say it and approve it, it isn't on the page.</p></div>
-      <div class="promise"><h3>Apply for you</h3><p>CareerFlow gets you ready. Hitting submit on a real application is always your call.</p></div>
-      <div class="promise"><h3>Sneak past you</h3><p>Every profile change and every resume version waits for your OK, tied to the exact version you saw.</p></div>
+      <!-- You land first, then the party, then the places the evidence and the jobs live. -->
+      <div class="drop" style="--x:50%;--y:120px;--d:.2s"><div class="you" aria-label="You, the party leader" role="img">
+        <svg viewBox="0 0 100 100" aria-hidden="true">
+          <rect x="8" y="16" width="84" height="78" rx="26" fill="#FFC44D" stroke="#111318" stroke-width="5"/>
+          <path d="M8 50C8 26 26 14 48 14c20 0 36 10 42 26-10-6-20-6-30-2-6-8-18-10-28-4-8 4-14 8-24 16z" fill="#111318"/>
+          <circle cx="36" cy="60" r="5.2" fill="#111318"/><circle cx="64" cy="60" r="5.2" fill="#111318"/>
+          <circle cx="27" cy="72" r="5" fill="#FF8A6B" opacity=".75"/><circle cx="73" cy="72" r="5" fill="#FF8A6B" opacity=".75"/>
+          <path d="M40 74q10 9 20 0" fill="none" stroke="#111318" stroke-width="5" stroke-linecap="round"/>
+          <path d="M80 6l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" fill="#D8F35A" stroke="#111318" stroke-width="2.5" stroke-linejoin="round"/>
+        </svg>
+        <span class="tag">you</span>
+      </div></div>
+      <div class="drop" style="--x:33%;--y:178px;--d:.9s"><button class="mate" data-agent="scout" type="button"><span class="tag">Scout</span></button></div>
+      <div class="drop" style="--x:67%;--y:172px;--d:1.1s"><button class="mate" data-agent="interviewer" type="button"><span class="tag">The Panel</span></button></div>
+      <div class="drop hide-sm" style="--x:18%;--y:212px;--d:1.3s"><button class="mate" data-agent="builder" type="button"><span class="tag">Profile Builder</span></button></div>
+      <div class="drop hide-sm" style="--x:82%;--y:206px;--d:1.5s"><button class="mate" data-agent="rewriter" type="button"><span class="tag">Rewriter</span></button></div>
+      <div class="drop" style="--x:11%;--y:70px;--d:1.9s;--rr:-8deg"><span class="badge">GitHub</span></div>
+      <div class="drop" style="--x:89%;--y:60px;--d:2.05s;--rr:6deg"><span class="badge">Codeforces</span></div>
+      <div class="drop hide-sm" style="--x:25%;--y:34px;--d:2.2s;--rr:5deg"><span class="badge">Python</span></div>
+      <div class="drop hide-sm" style="--x:75%;--y:28px;--d:2.35s;--rr:-6deg"><span class="badge">Greenhouse</span></div>
+      <div class="drop hide-sm" style="--x:39%;--y:6px;--d:2.5s;--rr:-4deg"><span class="badge">SQL</span></div>
+      <div class="drop hide-sm" style="--x:61%;--y:10px;--d:2.65s;--rr:7deg"><span class="badge">LeetCode</span></div>
     </div>
   </section>
 
   <section class="wrap">
+    <div class="stats">
+      <div class="stat"><b>9</b><span>agents, each with one job</span></div>
+      <div class="stat"><b>6</b><span>interview stages, scored on what fits each</span></div>
+      <div class="stat"><b>0</b><span>facts used before you approve them</span></div>
+      <div class="stat"><b>Live</b><span>voice mock interviews with follow-ups</span></div>
+    </div>
+  </section>
+
+  <section class="block wrap" id="demo">
+    <span class="kicker">The real app, demo data</span>
+    <h2>Two minutes, start to finish.</h2>
+    <p class="sub">Sign up, build a profile, pick a role, approve a resume, sit the interview, get graded. Jump to any step below.</p>
+    <div class="frame">
+      <div class="bar"><i></i><i></i><i></i></div>
+      <video id="demoVideo" autoplay muted loop playsinline preload="metadata" poster="assets/home.png">
+        <source src="assets/demo.mp4" type="video/mp4" />
+      </video>
+    </div>
+    <div class="chapters" id="chapters" aria-label="Jump to a step"></div>
+  </section>
+
+  <section class="block" id="tour">
+    <div class="wrap">
+      <span class="kicker">Inside the workbench</span>
+      <h2>Every screen has a job.</h2>
+      <p class="sub">Use the arrows, swipe, or click the next screen. Click the one in the middle to see it big.</p>
+    </div>
+    <div class="tour-wrap">
+      <button class="arrow prev" type="button" aria-label="Previous screen">←</button>
+      <div class="tour" id="tour-track" tabindex="0" aria-label="Screens of the app">
+        <article class="slide"><div class="frame"><img src="assets/profile-builder.png" alt="Profile Builder chat beside the draft profile" loading="lazy" /></div><h3>Talk it out</h3><p>The Profile Builder asks one question at a time and keeps your own words.</p></article>
+        <article class="slide"><div class="frame"><img src="assets/shortlist.png" alt="Shortlist of roles with match scores and gaps" loading="lazy" /></div><h3>Fit and gaps, up front</h3><p>Every role gets a match score and the requirements you can't show yet.</p></article>
+        <article class="slide"><div class="frame"><img src="assets/resume-team.png" alt="The resume team handing a draft to you" loading="lazy" /></div><h3>A resume with receipts</h3><p>Five agents tailor it for the role. Every line points back to something you approved.</p></article>
+        <article class="slide"><div class="frame"><img src="assets/interview.png" alt="Interview practice with a staged plan" loading="lazy" /></div><h3>An interview with a plan</h3><p>Motivation, behavioural, technical, scenario. Questions stay hidden until the panel asks them.</p></article>
+        <article class="slide"><div class="frame"><img src="assets/live-call.png" alt="Live voice call with subtitles (demo transcript)" loading="lazy" /></div><h3>Or just talk to it</h3><p>A live voice call with the panel: subtitles on, follow-ups included, pause any time.</p></article>
+        <article class="slide"><div class="frame"><img src="assets/battle-report.png" alt="Battle report with a grade per stage" loading="lazy" /></div><h3>A grade for every stage</h3><p>STAR for stories, specifics and checks for technical answers. Plus what the panel still wanted to hear.</p></article>
+        <article class="slide"><div class="frame"><img src="assets/character.png" alt="Character sheet with experience rank and skill levels" loading="lazy" /></div><h3>Know your level</h3><p>Experience rank and skill levels come from your evidence, not a self-rating.</p></article>
+        <article class="slide"><div class="frame"><img src="assets/links.png" alt="Linking GitHub, Codeforces, LeetCode and more" loading="lazy" /></div><h3>Bring receipts</h3><p>Link GitHub, Codeforces, LeetCode and more. Preview first, keep what you want.</p></article>
+        <article class="slide"><div class="frame"><img src="assets/world.png" alt="World map of job markets by country" loading="lazy" /></div><h3>Every country plays by different rules</h3><p>Work rights, salary norms and what employers ask for, region by region.</p></article>
+        <article class="slide"><div class="frame"><img src="assets/party.png" alt="The party page listing every agent" loading="lazy" /></div><h3>Meet the party</h3><p>Nine agents, each with a job and a list of things it isn't allowed to do.</p></article>
+        <article class="slide"><div class="frame"><img src="assets/season.png" alt="Graduate season calendar and prep quests" loading="lazy" /></div><h3>Graduate season</h3><p>A hiring calendar from your own tracked roles, and prep quests before the rush.</p></article>
+        <article class="slide"><div class="frame"><img src="assets/scout.png" alt="Scout settings and sweep log" loading="lazy" /></div><h3>Scout keeps watch</h3><p>Daily sweeps. Only new roles above your bar reach you.</p></article>
+      </div>
+      <button class="arrow next" type="button" aria-label="Next screen">→</button>
+    </div>
+    <div class="dots" id="tour-dots" aria-label="Choose a screen"></div>
+  </section>
+
+  <section class="block wrap" id="party">
+    <span class="kicker">Meet your party</span>
+    <h2>Nine specialists. One leader: you.</h2>
+    <p class="sub">Pick someone to see what they do, what they're allowed to touch, and what they'll never do.</p>
+    <div class="party">
+      <div class="roster" id="roster" role="group" aria-label="Party members"></div>
+      <div class="card-detail" id="member-card" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section class="block wrap" id="highlights">
+    <span class="kicker">Highlights</span>
+    <h2>What makes it different.</h2>
+    <p class="sub">Click a card to see it in the app.</p>
+    <div class="highlights" id="hl-grid">
+      <button class="hl" type="button" style="background:var(--lime)" data-img="assets/profile-builder.png" data-title="Human in the loop" data-text="Every profile change and every resume version waits for your OK, tied to the exact version you saw. Agents prepare; you decide."><b>Human in the loop</b><span>Agents prepare. You approve the exact version.</span><i>See it →</i></button>
+      <button class="hl" type="button" style="background:var(--sky)" data-img="assets/live-call.png" data-title="Live mock interview" data-text="A realtime voice panel that follows a stage plan, asks follow-ups when an answer is thin, and shows subtitles as it talks. Pause when you need a breath."><b>Live mock interview</b><span>Talk to the panel. It talks back and follows up.</span><i>See it →</i></button>
+      <button class="hl" type="button" style="background:var(--sun)" data-img="assets/resume-team.png" data-title="Resume with receipts" data-text="A gap analyst, a selector, a rewriter and a critic hand a draft around. Each line cites an approved fact, and a guard stops new claims sneaking in."><b>Resume with receipts</b><span>Every line traces back to something you did.</span><i>See it →</i></button>
+      <button class="hl" type="button" style="background:var(--coral)" data-img="assets/battle-report.png" data-title="Graded, stage by stage" data-text="Motivation, behavioural, technical, scenario, gap and closing each have their own criteria. The report shows the grade, every answer and what the panel still wanted."><b>Graded, stage by stage</b><span>Feedback you can act on, not a vibe.</span><i>See it →</i></button>
+      <button class="hl" type="button" style="background:var(--mint)" data-img="assets/world.png" data-title="A map of the market" data-text="Search across regions and see what each one asks for: work rights, salary norms and the skills employers mention."><b>A map of the market</b><span>Different country, different rules.</span><i>See it →</i></button>
+      <button class="hl" type="button" style="background:var(--lilac)" data-img="assets/links.png" data-title="Linked evidence" data-text="Pull public evidence from GitHub, Codeforces, LeetCode, Stack Overflow and more. Preview it first; only what you keep becomes evidence."><b>Linked evidence</b><span>GitHub, Codeforces, LeetCode and more.</span><i>See it →</i></button>
+      <button class="hl" type="button" style="background:#ffd6e8" data-img="assets/scout.png" data-title="Runs that survive" data-text="Long agent runs are durable: they pause at your decisions, survive restarts and keep save points you can inspect. Scout sweeps on a schedule."><b>Runs that survive</b><span>Durable workflows, save points, scheduled sweeps.</span><i>See it →</i></button>
+      <button class="hl" type="button" style="background:#d9f7ff" data-img="assets/season.png" data-title="Graduate season" data-text="A hiring calendar built from the roles you track, with prep quests that turn into XP. It keeps the search moving between applications."><b>Graduate season</b><span>A calendar and quests that keep you moving.</span><i>See it →</i></button>
+    </div>
+  </section>
+
+  <section class="block wrap" id="stack">
+    <span class="kicker">Under the hood</span>
+    <h2>Built properly.</h2>
+    <p class="sub">A typed full-stack app with durable multi-agent workflows, tested end to end. <a href="https://github.com/zche0316/CareerFlowAI">Read the code on GitHub →</a></p>
+    <div class="stack"><span>TypeScript</span><span>React</span><span>Express</span><span>LangGraph</span><span>PostgreSQL · Prisma</span><span>pg-boss</span><span>OpenAI Realtime (WebRTC)</span><span>Zod structured output</span><span>LangSmith tracing</span><span>Playwright</span><span>Vitest</span></div>
+  </section>
+
+  <section class="wrap">
     <div class="waitlist" id="waitlist">
-      <h2>Want in when doors open?</h2>
-      <p>The full workbench isn't public yet. Leave an email and you'll hear from us once, when it is.</p>
+      <h2>Want in when it opens?</h2>
+      <p>Leave an email and you'll hear from us once, at launch.</p>
       <form id="waitlistForm">
-        <label class="sr" for="email" style="position:absolute;left:-9999px">Email</label>
+        <label class="sr" for="email">Email</label>
         <input id="email" type="email" name="email" required placeholder="you@example.com" autocomplete="email" />
         <button class="btn" type="submit">Join the waitlist</button>
       </form>
       <div class="note" role="status" id="waitlistNote"></div>
+      <div class="contact">Hiring, curious, or want a walkthrough? <a href="mailto:zun_chen@icloud.com">zun_chen@icloud.com</a></div>
     </div>
   </section>
 
-  <footer class="wrap"><span>CareerFlow · built by a small team who also hate job hunting.</span><span>Demo data only. Company names in the demo are fictional.</span></footer>
+  <footer class="wrap"><span>CareerFlow · made by people who also hate job hunting.</span><span>Demo data and fictional companies throughout.</span></footer>
 </main>
 
+<dialog class="lightbox" id="lightbox">
+  <img alt="" />
+  <div class="lb-text"><div><h3></h3><p></p></div><button class="close" type="button" aria-label="Close">✕</button></div>
+</dialog>
+
+<script id="party-data" type="application/json">[{"id":"builder","name":"Profile Builder","color":"#C4B8FF","quote":"One good question at a time. Your words, not mine.","can":["your own messages","search_profile_history"],"cannot":["approve your profile","invent dates, numbers or results","pretend to be anyone else"],"svg":"<svg width=\"72\" height=\"72\" viewBox=\"0 0 44 44\" aria-hidden=\"true\" class=\"quest-avatar\"><path d=\"M8 6h28a5 5 0 0 1 5 5v19a5 5 0 0 1-5 5H18l-8 7v-7H8a5 5 0 0 1-5-5V11a5 5 0 0 1 5-5z\" fill=\"#C4B8FF\" stroke=\"#111218\" stroke-width=\"2.5\" stroke-linejoin=\"round\"></path><path d=\"M33 2l5 5-4 4-5-5z\" fill=\"#111218\"></path><circle cx=\"16\" cy=\"19\" r=\"2.8\" fill=\"#111218\"></circle><circle cx=\"28\" cy=\"19\" r=\"2.8\" fill=\"#111218\"></circle><path d=\"M16 26q6 4 12 0\" fill=\"none\" stroke=\"#111218\" stroke-width=\"2.2\" stroke-linecap=\"round\"></path></svg>"},{"id":"scout","name":"Scout","color":"#D4F55B","quote":"Reads forty pages before breakfast.","can":["official job boards and search APIs","your saved search"],"cannot":["apply or send anything","approve a draft","read your profile text"],"svg":"<svg width=\"72\" height=\"72\" viewBox=\"0 0 44 44\" aria-hidden=\"true\" class=\"quest-avatar\"><circle cx=\"22\" cy=\"24\" r=\"17\" fill=\"#D4F55B\" stroke=\"#111218\" stroke-width=\"2.5\"></circle><path d=\"M22 7V2\" stroke=\"#111218\" stroke-width=\"2.5\" stroke-linecap=\"round\"></path><circle cx=\"22\" cy=\"2.5\" r=\"2.5\" fill=\"#111218\"></circle><circle cx=\"16\" cy=\"22\" r=\"2.8\" fill=\"#111218\"></circle><circle cx=\"28\" cy=\"22\" r=\"2.8\" fill=\"#111218\"></circle><path d=\"M16 29q6 5 12 0\" fill=\"none\" stroke=\"#111218\" stroke-width=\"2.2\" stroke-linecap=\"round\"></path></svg>"},{"id":"matcher","name":"Job Matcher","color":"#8FD3FF","quote":"Quotes the ad before it scores it.","can":["read_approved_context","job ad text"],"cannot":["requirements without a quote","predict hiring"],"svg":"<svg width=\"72\" height=\"72\" viewBox=\"0 0 44 44\" aria-hidden=\"true\" class=\"quest-avatar\"><path d=\"M22 3l16 9v20l-16 9-16-9V12z\" fill=\"#8FD3FF\" stroke=\"#111218\" stroke-width=\"2.5\" stroke-linejoin=\"round\"></path><path d=\"M12 16l7 1M25 15l7-2\" stroke=\"#111218\" stroke-width=\"2.3\" stroke-linecap=\"round\"></path><circle cx=\"16\" cy=\"21\" r=\"2.8\" fill=\"#111218\"></circle><circle cx=\"28\" cy=\"21\" r=\"2.8\" fill=\"#111218\"></circle><path d=\"M17 29h10\" stroke=\"#111218\" stroke-width=\"2.2\" stroke-linecap=\"round\"></path></svg>"},{"id":"gap_analyzer","name":"Gap Analyzer","color":"#FFC24B","quote":"Blunt, but fair. Here’s what’s missing.","can":["job mapping citations","approved facts"],"cannot":["write resume lines","call a model"],"svg":"<svg width=\"72\" height=\"72\" viewBox=\"0 0 44 44\" aria-hidden=\"true\" class=\"quest-avatar\"><path d=\"M22 3l16 9v20l-16 9-16-9V12z\" fill=\"#FFC24B\" stroke=\"#111218\" stroke-width=\"2.5\" stroke-linejoin=\"round\"></path><path d=\"M12 16l7 1M25 15l7-2\" stroke=\"#111218\" stroke-width=\"2.3\" stroke-linecap=\"round\"></path><circle cx=\"16\" cy=\"21\" r=\"2.8\" fill=\"#111218\"></circle><circle cx=\"28\" cy=\"21\" r=\"2.8\" fill=\"#111218\"></circle><path d=\"M17 29h10\" stroke=\"#111218\" stroke-width=\"2.2\" stroke-linecap=\"round\"></path></svg>"},{"id":"selector","name":"Evidence Selector","color":"#8FD3FF","quote":"A picky librarian. Only shelves what you approved.","can":["read_approved_context","choose fact IDs"],"cannot":["write new text","use unapproved facts"],"svg":"<svg width=\"72\" height=\"72\" viewBox=\"0 0 44 44\" aria-hidden=\"true\" class=\"quest-avatar\"><rect x=\"3\" y=\"9\" width=\"38\" height=\"28\" rx=\"14\" fill=\"#8FD3FF\" stroke=\"#111218\" stroke-width=\"2.5\"></rect><rect x=\"11\" y=\"18\" width=\"10\" height=\"7\" rx=\"3\" fill=\"none\" stroke=\"#111218\" stroke-width=\"2\"></rect><rect x=\"23\" y=\"18\" width=\"10\" height=\"7\" rx=\"3\" fill=\"none\" stroke=\"#111218\" stroke-width=\"2\"></rect><path d=\"M21 21h2\" stroke=\"#111218\" stroke-width=\"2\"></path><circle cx=\"16\" cy=\"21.5\" r=\"1.8\" fill=\"#111218\"></circle><circle cx=\"28\" cy=\"21.5\" r=\"1.8\" fill=\"#111218\"></circle><path d=\"M18 31h8\" stroke=\"#111218\" stroke-width=\"2.2\" stroke-linecap=\"round\"></path></svg>"},{"id":"rewriter","name":"Rewriter","color":"#FF8A6B","quote":"A wordsmith on a short leash.","can":["read_approved_context","reorder words"],"cannot":["pass the wording guard with new facts","drop “team” or numbers"],"svg":"<svg width=\"72\" height=\"72\" viewBox=\"0 0 44 44\" aria-hidden=\"true\" class=\"quest-avatar\"><path d=\"M22 5c9 0 18 14 18 22 0 7-6 11-18 11S4 34 4 27C4 19 13 5 22 5z\" fill=\"#FF8A6B\" stroke=\"#111218\" stroke-width=\"2.5\"></path><circle cx=\"16\" cy=\"24\" r=\"2.8\" fill=\"#111218\"></circle><circle cx=\"28\" cy=\"24\" r=\"2.8\" fill=\"#111218\"></circle><ellipse cx=\"22\" cy=\"31\" rx=\"2.4\" ry=\"2.8\" fill=\"#111218\"></ellipse></svg>"},{"id":"critic","name":"Critic","color":"#7C5CFF","quote":"Hard to please. Sends drafts back without blinking.","can":["rule checks","read_approved_context ×1 / cycle"],"cannot":["edit the draft","approve for you"],"svg":"<svg width=\"72\" height=\"72\" viewBox=\"0 0 44 44\" aria-hidden=\"true\" class=\"quest-avatar\"><rect x=\"5\" y=\"6\" width=\"34\" height=\"34\" rx=\"10\" fill=\"#7C5CFF\" stroke=\"#111218\" stroke-width=\"2.5\"></rect><path d=\"M10 15l9 4M34 15l-9 4\" stroke=\"#111218\" stroke-width=\"3\" stroke-linecap=\"round\"></path><circle cx=\"16\" cy=\"24\" r=\"2.8\" fill=\"#111218\"></circle><circle cx=\"28\" cy=\"24\" r=\"2.8\" fill=\"#111218\"></circle><path d=\"M16 32h12\" stroke=\"#111218\" stroke-width=\"2.4\" stroke-linecap=\"round\"></path></svg>"},{"id":"coach","name":"Coach","color":"#5ED6C4","quote":"Every no comes with a next step.","can":["read_approved_context","past practice feedback"],"cannot":["cite unknown evidence","approve facts"],"svg":"<svg width=\"72\" height=\"72\" viewBox=\"0 0 44 44\" aria-hidden=\"true\" class=\"quest-avatar\"><circle cx=\"22\" cy=\"25\" r=\"16\" fill=\"#5ED6C4\" stroke=\"#111218\" stroke-width=\"2.5\"></circle><path d=\"M8 17c4-9 24-9 28 0z\" fill=\"#111218\"></path><path d=\"M33 17h7\" stroke=\"#111218\" stroke-width=\"2.5\" stroke-linecap=\"round\"></path><path d=\"M14 24q2-2 4 0M26 24q2-2 4 0\" fill=\"none\" stroke=\"#111218\" stroke-width=\"2.3\" stroke-linecap=\"round\"></path><path d=\"M15 30q7 6 14 0\" fill=\"none\" stroke=\"#111218\" stroke-width=\"2.3\" stroke-linecap=\"round\"></path></svg>"},{"id":"interviewer","name":"The Panel","color":"#3B3D47","quote":"One follow-up per answer. Make it count.","can":["read_approved_context","selected job"],"cannot":["store answers as facts","see other users"],"svg":"<svg width=\"72\" height=\"72\" viewBox=\"0 0 44 44\" aria-hidden=\"true\" class=\"quest-avatar\"><rect x=\"4\" y=\"6\" width=\"36\" height=\"34\" rx=\"11\" fill=\"#3B3D47\" stroke=\"#111218\" stroke-width=\"2.5\"></rect><path d=\"M10 16l9 4M34 16l-9 4\" stroke=\"#fff\" stroke-width=\"2.6\" stroke-linecap=\"round\"></path><circle cx=\"16\" cy=\"25\" r=\"2.8\" fill=\"#fff\"></circle><circle cx=\"28\" cy=\"25\" r=\"2.8\" fill=\"#fff\"></circle><path d=\"M16 33h12\" stroke=\"#fff\" stroke-width=\"2.4\" stroke-linecap=\"round\"></path></svg>"}]</script>
+<script id="chapter-data" type="application/json">[{"at":0.6,"label":"Sign up"},{"at":11,"label":"Profile"},{"at":28.1,"label":"Find roles"},{"at":45.5,"label":"Tailored resume"},{"at":55.5,"label":"Interview"},{"at":91.7,"label":"Battle report"},{"at":99.1,"label":"Character and evidence"},{"at":108.7,"label":"World, party, season"},{"at":124,"label":"Scout"}]</script>
 <script>
-// Swipe arrows for the workbench tour.
-const track = document.getElementById('tourTrack');
-document.querySelectorAll('.tour-nav button').forEach((b) =>
-  b.addEventListener('click', () => track.scrollBy({ left: Number(b.dataset.step) * track.clientWidth * 0.8, behavior: 'smooth' })),
-);
-// Waitlist: posts to a form service once WAITLIST_ENDPOINT is set (Formspree, Tally, a Lambda).
-// Until then it says so plainly instead of pretending to save the address.
+const party = JSON.parse(document.getElementById('party-data').textContent);
+const chapters = JSON.parse(document.getElementById('chapter-data').textContent);
+const byId = Object.fromEntries(party.map((p) => [p.id, p]));
+
+// What each agent does, in a line.
+const jobs = {
+  builder: 'Interviews you about your experience and drafts your profile.',
+  scout: 'Searches job boards and APIs for roles that fit.',
+  matcher: 'Ranks roles against your evidence, quoting the ad.',
+  gap_analyzer: 'Lists what a role asks for that you can’t show yet.',
+  selector: 'Picks which approved facts go on the resume.',
+  rewriter: 'Tightens the wording without adding claims.',
+  critic: 'Checks the draft and sends it back when it slips.',
+  coach: 'Turns your gaps and practice into next steps.',
+  interviewer: 'Runs the mock interview and follows up until the answer holds.',
+};
+const quotes = { interviewer: 'Thin answer? Expect a follow-up.' };
+
+// Hero mates and the roster share the app's own faces.
+document.querySelectorAll('.mate').forEach((m) => {
+  m.insertAdjacentHTML('afterbegin', byId[m.dataset.agent].svg);
+  m.setAttribute('aria-label', `Meet ${byId[m.dataset.agent].name}`);
+  m.addEventListener('click', () => { pick(m.dataset.agent); document.getElementById('party').scrollIntoView({ behavior: 'smooth' }); });
+});
+const youSvg = document.querySelector('.you svg').outerHTML;
+const roster = document.getElementById('roster');
+const card = document.getElementById('member-card');
+const members = [{ id: 'you', name: 'You' }, ...party];
+roster.innerHTML = members.map((m) =>
+  `<button class="member" type="button" data-id="${m.id}" aria-pressed="false">${m.id === 'you' ? youSvg : m.svg}<span>${m.name}</span></button>`).join('');
+function pick(id) {
+  roster.querySelectorAll('.member').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.id === id)));
+  if (id === 'you') {
+    card.innerHTML = `<div class="who">${youSvg}<div><h3>You</h3><p class="job">Party leader.</p></div></div>
+      <blockquote>The only one who can approve a fact or send anything out.</blockquote>
+      <small>You decide</small><div class="chips can"><span>approve your profile</span><span>approve each resume version</span><span>apply for jobs</span><span>send a draft back</span></div>
+      <small>Agents never</small><div class="chips never"><span>apply for you</span><span>use facts you haven't approved</span></div>`;
+    return;
+  }
+  const p = byId[id];
+  card.innerHTML = `<div class="who">${p.svg}<div><h3>${p.name}</h3><p class="job">${jobs[id] || ''}</p></div></div>
+    <blockquote>“${quotes[id] || p.quote}”</blockquote>
+    <small>Can use</small><div class="chips can">${p.can.map((c) => `<span>${c}</span>`).join('')}</div>
+    <small>Never</small><div class="chips never">${p.cannot.map((c) => `<span>${c}</span>`).join('')}</div>`;
+}
+roster.addEventListener('click', (e) => { const b = e.target.closest('.member'); if (b) pick(b.dataset.id); });
+pick('builder');
+
+// Video chapters: jump to a step; the current one lights up.
+const video = document.getElementById('demoVideo');
+const chapterBox = document.getElementById('chapters');
+chapterBox.innerHTML = chapters.map((c, i) => `<button type="button" data-at="${c.at}"><b>${i + 1}</b>${c.label}</button>`).join('');
+chapterBox.addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  video.currentTime = Number(b.dataset.at); video.play();
+});
+video.addEventListener('timeupdate', () => {
+  let on = 0; chapters.forEach((c, i) => { if (video.currentTime >= c.at - 0.3) on = i; });
+  chapterBox.querySelectorAll('button').forEach((b, i) => b.classList.toggle('on', i === on));
+});
+
+// Carousel: always settles on one centred screen.
+const track = document.getElementById('tour-track');
+const slides = [...track.querySelectorAll('.slide')];
+const dots = document.getElementById('tour-dots');
+dots.innerHTML = slides.map((_, i) => `<button type="button" aria-label="Screen ${i + 1}"></button>`).join('');
+const current = () => {
+  const mid = track.scrollLeft + track.clientWidth / 2;
+  let best = 0, gap = Infinity;
+  slides.forEach((s, i) => { const d = Math.abs(s.offsetLeft + s.offsetWidth / 2 - mid); if (d < gap) { gap = d; best = i; } });
+  return best;
+};
+const goTo = (i) => {
+  const s = slides[(i + slides.length) % slides.length];
+  track.scrollTo({ left: s.offsetLeft - (track.clientWidth - s.offsetWidth) / 2, behavior: 'smooth' });
+};
+const mark = () => {
+  const i = current();
+  slides.forEach((s, j) => s.classList.toggle('on', j === i));
+  dots.querySelectorAll('button').forEach((d, j) => d.classList.toggle('on', j === i));
+};
+let t; track.addEventListener('scroll', () => { clearTimeout(t); t = setTimeout(mark, 60); });
+document.querySelector('.arrow.prev').addEventListener('click', () => goTo(current() - 1));
+document.querySelector('.arrow.next').addEventListener('click', () => goTo(current() + 1));
+dots.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) goTo([...dots.children].indexOf(b)); });
+track.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight') { e.preventDefault(); goTo(current() + 1); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); goTo(current() - 1); }
+});
+slides.forEach((s, i) => s.addEventListener('click', () => {
+  if (i !== current()) return goTo(i);
+  open(s.querySelector('img').src, s.querySelector('h3').textContent, s.querySelector('p').textContent);
+}));
+addEventListener('resize', () => goTo(current()));
+mark();
+
+// Lightbox for slides and highlight cards.
+const lb = document.getElementById('lightbox');
+function open(src, title, text) {
+  lb.querySelector('img').src = src; lb.querySelector('img').alt = title;
+  lb.querySelector('h3').textContent = title; lb.querySelector('p').textContent = text;
+  lb.showModal();
+}
+lb.querySelector('.close').addEventListener('click', () => lb.close());
+lb.addEventListener('click', (e) => { if (e.target === lb) lb.close(); });
+document.getElementById('hl-grid').addEventListener('click', (e) => {
+  const c = e.target.closest('.hl'); if (c) open(c.dataset.img, c.dataset.title, c.dataset.text);
+});
+
+// Waitlist: posts to a form service once WAITLIST_ENDPOINT is set; until then it says so.
 const WAITLIST_ENDPOINT = '';
 document.getElementById('waitlistForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const note = document.getElementById('waitlistNote');
-  if (!WAITLIST_ENDPOINT) { note.textContent = 'The waitlist opens with the public launch. Nothing was sent.'; return; }
+  if (!WAITLIST_ENDPOINT) { note.innerHTML = 'Sign-ups open at launch. For now, email <a href="mailto:zun_chen@icloud.com" style="color:inherit">zun_chen@icloud.com</a>.'; return; }
   try {
     const r = await fetch(WAITLIST_ENDPOINT, { method: 'POST', headers: { Accept: 'application/json' }, body: new FormData(e.target) });
-    note.textContent = r.ok ? "You're on the list. See you at launch." : 'That did not go through. Try again in a minute.';
+    note.textContent = r.ok ? "You're on the list." : 'That didn’t go through. Try again in a minute.';
     if (r.ok) e.target.reset();
-  } catch { note.textContent = 'That did not go through. Try again in a minute.'; }
+  } catch { note.textContent = 'That didn’t go through. Try again in a minute.'; }
 });
 </script>
 </body>
