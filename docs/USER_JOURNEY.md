@@ -157,19 +157,111 @@ role at any time.
 
 ## 7. Practise the interview
 
-On **Interview practice** you get questions for the role. Asking "what do you mean?" or "can you
-repeat that?" gets a reply from the panel without a score; "skip" moves on. For each question
-you can:
+On **Interview practice** the panel follows the usual graduate interview loop, one stage per
+question: motivation, behavioural (a real example in STAR form), technical, then a scenario or a
+skill gap, and sometimes a closing question for you to ask. Each stage has a few follow-ups; the
+tabs above the question show which stages are covered. A run from before the stages existed shows
+plain "Question" tabs; while nothing is answered, **Re-plan the interview** makes a staged set.
 
-- type the answer;
-- **Record your answer** (live mode): the recording is transcribed, the text appears for you to
-  edit, and the audio is discarded;
-- **Speak your answer** with the browser's own speech service, where supported;
-- **Read aloud** a question.
+**Your turn** offers two ways to answer, one at a time:
 
-Submit answers, then finish (or end early). The panel scores them and writes feedback.
+- **Live call** (live mode, when voice is set up): the panel asks out loud and follows up, and you
+  talk. The arena shows the panel's latest line and yours as subtitles; the full transcript is
+  folded under the call controls. **End and score my answers** scores each answer like a typed
+  one. Follow-ups may ask about items on the resume you approved for this role.
+- **One question at a time**: type the answer, **Record your answer** (transcribed, then the
+  audio is discarded) or **Speak your answer** with the browser's speech service, and get a
+  verdict after each. Asking "what do you mean?" or "can you repeat that?" gets a reply without a
+  score; "skip" moves on.
+
+Then finish (or end early). The panel scores the answers and writes feedback.
 
 Check: the notice changes to "Practice finished. Your feedback and next steps are below."
+
+### Sample live call (read aloud)
+
+To rehearse a live call without making up answers, let the computer speak Sam Rivera's replies
+into the call. The questions vary between runs, but each belongs to a stage, so pick the reply for
+the stage on the active tab.
+
+How to play a reply:
+
+- **macOS, any app:** System Settings → Accessibility → Spoken Content → turn on **Speak
+  selection**. Select a reply below and press Option+Esc. Press it again to stop.
+- **macOS, Terminal:** `say -v Samantha -r 170 "paste the reply here"`.
+- Use the computer's speakers, not headphones, so the microphone hears the voice. Wait for **Your
+  turn to speak** before playing, and play one reply per turn. If the panel does not react, turn
+  the volume up or read the reply from another device.
+
+Some first answers leave a part out on purpose, so the panel has something to follow up on.
+
+1. **Motivation** (why this role and company)
+   > I want to start my career as an analyst, where careful data work answers a real question for
+   > someone. In my internship at Harbourline Logistics I automated a weekly report with SQL and
+   > Python, and the part I enjoyed most was checking the numbers and explaining what they meant
+   > to the operations team. This role would let me do that on harder questions, with experienced
+   > people reviewing my work, which is how I want to learn.
+
+   If asked why this company in particular:
+
+   > From the job description, analysts here own a question from the raw data to the final
+   > explanation for the client. I want that end-to-end responsibility, not only building
+   > dashboards, and a graduate program gives me structure while I learn it.
+
+2. **Behavioural** (a real situation, STAR)
+   > In my data visualisation unit, our team of four built a Sydney bike share demand dashboard.
+   > I owned the data pipeline. When we first charted the data, weekend demand looked far too
+   > high, so I traced it back to the raw trip files and fixed the problem before the team built
+   > the final charts.
+
+   If asked what exactly you did:
+
+   > I found that about eight percent of rows were duplicates. I wrote a de-duplication step keyed
+   > on trip ID and timestamp, and I added row-count checks after every load, so a bad file would
+   > show up straight away.
+
+   If asked about the result:
+
+   > Weekend demand dropped to realistic levels, the eight percent was measured from the raw
+   > files, our tutor accepted the dashboard, and the team received a distinction.
+
+3. **Technical** (hands-on depth, for example cleaning data with SQL and Python)
+   > First I would profile the data: row counts, missing values, duplicates on the key columns,
+   > and values outside a sensible range. In SQL I would build a view that joins the tables and
+   > keeps the raw data untouched. In Python with pandas I would apply the cleaning rules and log
+   > how many rows each rule changed. Then I would reconcile totals against the source system
+   > before anyone uses the results.
+
+   If asked how you know your checks worked:
+
+   > In my internship I compared my automated late-delivery report with four past weeks of manual
+   > reports. Where they differed, I found out why before switching the team over.
+
+4. **Scenario** (a realistic task, for example whether a regulatory change affected prices)
+   > I would first pin down the change, the date it took effect and the prices it could affect.
+   > Then I would collect prices before and after the change, for the affected market and for a
+   > comparable market that was not affected, and check that both moved together before the
+   > change. A difference-in-differences regression would estimate the effect. I would report it
+   > as a range, with the main limitations: other events at the same time, data quality, and
+   > whether the comparison market really is comparable.
+
+   If asked how you would explain the limits to a client:
+
+   > I would lead with the answer and how confident we are, then show one chart of the two
+   > markets over time, and list what could change the conclusion in plain language.
+
+5. **Gap** (a required skill the profile does not show yet)
+   > I have not used that at work yet. The closest I have done is regression modelling in my
+   > statistics major and the analysis in my internship. My plan is to work through a short
+   > course in the first weeks, apply it to a small public dataset, and ask a senior analyst to
+   > review my first piece of work.
+
+6. **Closing** (questions for the panel)
+   > Thank you. What does a typical first project look like for a graduate analyst, and how is
+   > that work reviewed? And how do graduates get feedback during the first six months?
+
+Also try a non-answer once: "Sorry, could you repeat the question?" The panel should repeat the
+question rather than move on.
 
 ## 8. Apply
 
